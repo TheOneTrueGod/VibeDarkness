@@ -202,6 +202,12 @@ export class Projectile extends GameObject {
     onHitEffects?: VisualEffectDef[];
 
     /**
+     * Plain data the launching ability reads in `onProjectileExpired`.
+     * Serialized, so a checkpoint mid-flight still delivers it. Scalars only.
+     */
+    expireData?: Record<string, unknown>;
+
+    /**
      * When true, does not collide with units; travels until max distance then expires
      * (e.g. seed pods that only spawn on landing).
      */
@@ -299,6 +305,8 @@ export class Projectile extends GameObject {
         heldBy?: ProjectileHolder;
         /** Erase ground/air effects from tiles along the flight path. */
         clearsTerrainEffects?: ProjectileTerrainClear;
+        /** Plain data for `onProjectileExpired`. See `expireData`. */
+        expireData?: Record<string, unknown>;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -327,6 +335,7 @@ export class Projectile extends GameObject {
             : undefined;
         this.frameStartX = config.x;
         this.frameStartY = config.y;
+        if (config.expireData) this.expireData = { ...config.expireData };
     }
 
     /** True while the launching cast still holds this projectile (before release). */
@@ -872,6 +881,7 @@ export class Projectile extends GameObject {
             ...(this.summonSeedWeak !== undefined ? { summonSeedWeak: this.summonSeedWeak } : {}),
             ...(this.arcHeight !== undefined ? { arcHeight: this.arcHeight } : {}),
             ...(this.rotationSpeed !== undefined ? { rotationSpeed: this.rotationSpeed, rotation: this.rotation } : {}),
+            ...(this.expireData ? { expireData: { ...this.expireData } } : {}),
         };
     }
 
@@ -922,6 +932,9 @@ export class Projectile extends GameObject {
         if (data.arcHeight !== undefined) proj.arcHeight = data.arcHeight as number;
         if (data.rotationSpeed !== undefined) proj.rotationSpeed = data.rotationSpeed as number;
         if (data.rotation !== undefined) proj.rotation = data.rotation as number;
+        if (data.expireData && typeof data.expireData === 'object') {
+            proj.expireData = { ...(data.expireData as Record<string, unknown>) };
+        }
         return proj;
     }
 

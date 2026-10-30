@@ -459,12 +459,24 @@ export const nullHitbox = new NullHitboxSpec();
 // GroundPointHitboxSpec — a range ring, no unit lock
 // ---------------------------------------------------------------------------
 
+/** Filled circle drawn at a legal ground aim. Invalid aims keep the range ring and skip this. */
+export interface GroundPointMarker {
+    radius: number;
+    color: number;
+    alpha?: number;
+}
+
+const GROUND_POINT_RING = { color: 0xc4a574, width: 1.5, alpha: 0.75 };
+
 /**
  * Ground click inside a ring around the caster. Returns no unit candidates.
- * Pair with `validatePick` to reject blocked or occupied cells.
+ * Pair with `validatePick` to reject blocked or occupied cells. A rejected aim still draws the ring.
  */
 export class GroundPointHitboxSpec extends HitboxSpec {
-    constructor(private readonly range: number) {
+    constructor(
+        private readonly range: number,
+        private readonly marker?: GroundPointMarker,
+    ) {
         super();
     }
 
@@ -473,21 +485,41 @@ export class GroundPointHitboxSpec extends HitboxSpec {
     renderTargetingPreview(
         gr: IAbilityPreviewGraphics,
         caster: HitboxPreviewCaster,
-        _mouseWorld: { x: number; y: number },
+        mouseWorld: { x: number; y: number },
         _units: Unit[],
     ): Unit[] {
-        gr.circle(caster.x, caster.y, this.range);
-        gr.stroke({ color: 0xc4a574, width: 1.5, alpha: 0.75 });
+        this.drawRangeRing(gr, caster);
+        this.drawMarker(gr, mouseWorld.x, mouseWorld.y);
         return [];
+    }
+
+    override renderInvalidPreview(
+        gr: IAbilityPreviewGraphics,
+        caster: HitboxPreviewCaster,
+        aim: { x: number; y: number },
+    ): void {
+        this.drawRangeRing(gr, caster);
+        drawInvalidPickCross(gr, aim.x, aim.y);
     }
 
     resolveTargets(): Unit[] { return []; }
 
     resolveHits(): Unit[] { return []; }
+
+    private drawRangeRing(gr: IAbilityPreviewGraphics, caster: HitboxPreviewCaster): void {
+        gr.circle(caster.x, caster.y, this.range);
+        gr.stroke(GROUND_POINT_RING);
+    }
+
+    private drawMarker(gr: IAbilityPreviewGraphics, x: number, y: number): void {
+        if (!this.marker) return;
+        gr.circle(x, y, this.marker.radius);
+        gr.fill({ color: this.marker.color, alpha: this.marker.alpha });
+    }
 }
 
-export function groundPointHitbox(range: number): GroundPointHitboxSpec {
-    return new GroundPointHitboxSpec(range);
+export function groundPointHitbox(range: number, marker?: GroundPointMarker): GroundPointHitboxSpec {
+    return new GroundPointHitboxSpec(range, marker);
 }
 
 // ---------------------------------------------------------------------------

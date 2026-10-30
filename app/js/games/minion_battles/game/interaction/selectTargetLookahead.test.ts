@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { SwingBatCard } from '../../card_defs/0115_SwingBat/0115Ability';
-import { buildMoreRockTimings, ONE_PIXEL_TARGET } from '../../card_defs/throwSharedTimings';
+import { buildMoreRockTimings } from '../../card_defs/throwSharedTimings';
 import type { CastBehaviour } from '../../abilities/castBehaviourTypes';
 import {
     buildTinyBattleEngine,
@@ -13,6 +13,7 @@ import { resetGameObjectIdCounter } from '../GameObject';
 import {
     findFirstSelectTargetLabelAtElapsedZero,
     findPreviewDeferredSelectLabel,
+    nextChainImmediateLabel,
 } from './selectTargetLookahead';
 
 /** Matches `0116Ability` id. */
@@ -82,5 +83,21 @@ describe('findPreviewDeferredSelectLabel', () => {
         };
         expect(findPreviewDeferredSelectLabel(moreRock, player, engine)).toBeNull();
         engine.destroy();
+    });
+});
+
+describe('nextChainImmediateLabel', () => {
+    it('returns the next select only when that select is marked to chain before the cast', () => {
+        const chained = [
+            { label: 'Place' },
+            { label: 'Facing', chainImmediately: true },
+        ];
+        expect(nextChainImmediateLabel(chained, { Place: { type: 'pixel' } })).toBe('Facing');
+        expect(nextChainImmediateLabel(chained, { Place: { type: 'pixel' }, Facing: { type: 'pixel' } })).toBeNull();
+        const spaced = [
+            { label: 'Place' },
+            { label: 'Facing' },
+        ];
+        expect(nextChainImmediateLabel(spaced, { Place: { type: 'pixel' } })).toBeNull();
     });
 });

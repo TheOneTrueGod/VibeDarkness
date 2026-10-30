@@ -24,6 +24,11 @@ export interface SelectTargetDef {
      */
     pickAtEntry?: boolean;
     /**
+     * Ask for this pick in the same pause as the previous one, before the cast order is queued
+     * and before any simulation time passes. The previous select is the one collected up front.
+     */
+    chainImmediately?: boolean;
+    /**
      * Let the caster be a valid candidate for this select step (e.g. a self-castable
      * `filter: 'ally'` heal). Requires the paired hitbox to also opt in (e.g.
      * `unitRangeHitbox(range, minRange, true)`) — this flag alone does not surface the
@@ -80,12 +85,19 @@ export interface SelectTargetDef {
     maxRangeFromAnchor?: number;
     /** Min distance (px) from the anchor for pixel picks (avoids zero-vector launches). */
     minRangeFromAnchor?: number;
+    /**
+     * When false, a pixel pick beyond the ability's max range stays where it was clicked so
+     * `validatePick` can reject it. Omitted means the pick is pulled onto the range ring.
+     * Anchor clamps (`maxRangeFromAnchor`) still apply.
+     */
+    clampPixelToRange?: boolean;
     /** Optional AI auto-resolution for this select step. */
     aiHint?: SelectTargetAiHint;
     /**
      * Rejects a player pick that is illegal for reasons the hitbox cannot see (e.g. terrain).
-     * Called with the pick after range clamping; returning false ignores the click and keeps
-     * the targeting cursor active. Must be a pure function of `engine` state and the arguments.
+     * Called with the pick after range clamping, unless `clampPixelToRange` is false. Returning
+     * false ignores the click and keeps the targeting cursor active. Must be a pure function of
+     * `engine` state and the arguments.
      */
     validatePick?(ctx: {
         caster: Unit;

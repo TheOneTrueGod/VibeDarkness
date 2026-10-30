@@ -8,8 +8,9 @@ import {
     DROPPED_WEAPON_ARC_DURATION,
     DROPPED_WEAPON_KIND_SWORD,
     SWORD_CARD_TIP_OFFSET,
-    TURRET_SHOT_COUNT,
 } from '../../../card_defs/10_armory_core/armoryConstants';
+import { paintTurret } from '../../effect_defs/turretDeployDraw';
+import { turretOpenAmount } from '../../effect_defs/turretDeployPose';
 import {
     DROPPED_SWORD_SCALE,
     createSwordCardSprite,
@@ -19,9 +20,6 @@ import {
 import { ConcealedArrivalClock } from '../../fieldObjects/concealedArrival';
 
 const Z_FIELD_OBJECTS = 6;
-const TURRET_COLOR = 0xa8a29e;
-const PIP_FILLED = 0xf5f5f4;
-const PIP_EMPTY = 0x44403c;
 
 export class FieldObjectRenderer {
     private visuals = new Map<string, Container>();
@@ -49,19 +47,10 @@ export class FieldObjectRenderer {
         for (const sentry of manager.sentries) {
             live.add(sentry.id);
             const g = this.sentryGraphic(sentry.id);
+            g.visible = true;
             g.position.set(sentry.x, sentry.y);
-            g.clear();
-            g.circle(0, 0, 10);
-            g.fill({ color: TURRET_COLOR, alpha: 0.9 });
-            g.moveTo(0, 0);
-            g.lineTo(Math.cos(sentry.facing) * 16, Math.sin(sentry.facing) * 16);
-            g.stroke({ color: 0xe7e5e4, width: 2, alpha: 0.9 });
-            for (let i = 0; i < TURRET_SHOT_COUNT; i++) {
-                const angle = -Math.PI / 2 + (i / TURRET_SHOT_COUNT) * Math.PI * 2;
-                const filled = i < sentry.shotsRemaining;
-                g.circle(Math.cos(angle) * 16, Math.sin(angle) * 16, 2.5);
-                g.fill({ color: filled ? PIP_FILLED : PIP_EMPTY, alpha: 0.95 });
-            }
+            g.rotation = sentry.facing;
+            paintTurret(g, turretOpenAmount(sentry.spawnedAtGameTime, engine.gameTime), sentry.shotsRemaining);
         }
         for (const [id, visual] of this.visuals) {
             const sentryStillThere = manager.sentries.some((sentry) => sentry.id === id);

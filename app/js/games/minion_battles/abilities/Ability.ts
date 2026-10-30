@@ -688,6 +688,17 @@ export interface AbilityStatic {
     ): void;
 
     /**
+     * Optional. Called when a select click is stored, including picks collected before the cast
+     * starts. Use it for visuals that should begin on that click rather than on a later tick.
+     */
+    onPreviewSelectCollected?(
+        engine: unknown,
+        caster: Unit,
+        label: string,
+        target: ResolvedTarget,
+    ): void;
+
+    /**
      * Optional. If this ability is currently providing a block (e.g. Raise Shield), return the arc in radians.
      * The arc is the range of angles (from the defender's perspective) from which an attack will be blocked.
      * Called when checking if an attack can be blocked; only blocking abilities implement this.

@@ -64,6 +64,10 @@ describe('Projectile', () => {
         expect(restored.maxDistance).toBe(proj.maxDistance);
         expect(restored.distanceTraveled).toBe(proj.distanceTraveled);
         expect(restored.radius).toBe(proj.radius);
+        expect(restored.expireData).toBeUndefined();
+
+        proj.expireData = { kind: 'marker', facing: 1 };
+        expect(Projectile.fromJSON(proj.toJSON()).expireData).toEqual({ kind: 'marker', facing: 1 });
     });
 
     it('normal projectile consumes distance while traveling through rock', () => {

@@ -86,7 +86,8 @@ export class EffectManager {
                 if (behaviour === 'stop') { effect.active = false; continue; }
             }
             const rate = this.rateFor(effect);
-            effect.renderUpdate(rate === 1 ? realDt : realDt * rate);
+            const step = rate === 1 ? realDt : realDt * rate;
+            effect.renderUpdate(step);
         }
     }
 

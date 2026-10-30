@@ -61,6 +61,67 @@ export const TURRET_SHOT_INTERVAL = ROUND_DURATION / TURRET_SHOT_COUNT;
 export const TURRET_LIFETIME = ROUND_DURATION;
 /** Shot reach. Same distance Throw Rock flies. */
 export const TURRET_SHOT_RANGE = THROW_RANGE;
+/** Body radius of the deployed turret, and of the placement footprint, in pixels. */
+export const TURRET_BODY_RADIUS = 10;
+/** Hull radius of the folded turret while it is still in the air. */
+export const TURRET_FOLDED_BODY_RADIUS = 7;
+/** Gray used for the placement footprint. The deployed hull is black. */
+export const TURRET_BODY_COLOR = 0xa8a29e;
+/** Deployed and folded hull. */
+export const TURRET_HULL_COLOR = 0x000000;
+/** Barrel and the shot pips. */
+export const TURRET_BARREL_COLOR = 0xa8a29e;
+export const TURRET_PIP_COLOR = 0xc4c4c4;
+export const TURRET_PIP_EMPTY_COLOR = 0x44403c;
+/** How far the barrel sticks out once the turret is open, in pixels. */
+export const TURRET_BARREL_LENGTH = 16;
+/** How far the barrel sticks out while the turret is folded. */
+export const TURRET_FOLDED_BARREL_LENGTH = 8;
+export const TURRET_BARREL_WIDTH = 5;
+/** Share of the hull radius where the barrel graphic starts, so it overlaps the body. */
+export const TURRET_BARREL_INSET_FRACTION = 0.25;
+/** Distance of the shot pips from the hull center once they have moved out. */
+export const TURRET_DOT_ORBIT = 16;
+/** Distance of the shot pips while they are still bunched on the folded turret. */
+export const TURRET_FOLDED_DOT_ORBIT = 6;
+/** Arc, in radians, the pips cover opposite the barrel when open. */
+export const TURRET_DOT_SPREAD = Math.PI * 0.9;
+/** Arc, in radians, the pips cover while folded. */
+export const TURRET_FOLDED_DOT_SPREAD = 0.7;
+export const TURRET_DOT_RADIUS = 2.5;
+/** Corner radius of the barrel rectangle. */
+export const TURRET_BARREL_CORNER = 1;
+/**
+ * Time for the delivery projectile to cross {@link TURRET_PLACE_RANGE}.
+ * Closer tiles arrive sooner; the speed is constant.
+ */
+export const TURRET_FLIGHT_DURATION = 0.22;
+/** How long the barrel and pips take to move into the deployed pose, in game seconds. */
+export const TURRET_OPEN_DURATION = 0.16;
+/** Full turns the folded turret spins while crossing {@link TURRET_PLACE_RANGE}. */
+export const TURRET_DEPLOY_SPIN_TURNS = 2;
+/** Degrees in one full spin. `Projectile.rotationSpeed` is degrees per second. */
+const DEGREES_PER_TURN = 360;
+/** Constant speed of the folded turret, in pixels per second. */
+export const TURRET_DEPLOY_SPEED = TURRET_PLACE_RANGE / TURRET_FLIGHT_DURATION;
+/** Spin rate of the folded turret, in degrees per second. */
+export const TURRET_DEPLOY_SPIN_DEGREES_PER_SEC =
+    (TURRET_DEPLOY_SPIN_TURNS * DEGREES_PER_TURN) / TURRET_FLIGHT_DURATION;
+/** Projectile def key for the folded turret. */
+export const TURRET_DEPLOY_PROJECTILE_TYPE = 'folded_turret';
+/** `expireData.kind` for the projectile that becomes a sentry on arrival. */
+export const TURRET_DELIVERY_KIND = 'sentry';
+/** Placed turret fill. The preview footprint is lighter so the tile stays visible. */
+export const TURRET_BODY_ALPHA = 0.9;
+/** Footprint fill while choosing a tile or a facing. */
+export const TURRET_BODY_PREVIEW_ALPHA = 0.55;
+/**
+ * Pixi scale for a turret round, relative to the 64px rock frames.
+ * Smaller than Throw Rock; the bullet trail is what reads at this size.
+ */
+export const TURRET_SHOT_SPRITE_SCALE = 0.08;
+/** Hit radius of a turret round, in pixels. Matches the tiny sprite. */
+export const TURRET_SHOT_HIT_RADIUS = 2;
 
 export const TURRET_PLACE_LABEL = 'Place';
 export const TURRET_AIM_LABEL = 'Facing';

@@ -163,6 +163,21 @@ export function findPreviewDeferredSelectLabel(
     return null;
 }
 
+/**
+ * The next select that should be asked before the cast order is queued.
+ * Returns null when the next uncollected select waits for its own interval.
+ */
+export function nextChainImmediateLabel(
+    defs: readonly { label: string; chainImmediately?: boolean }[],
+    collected: Record<string, unknown>,
+): string | null {
+    for (const def of defs) {
+        if (collected[def.label] !== undefined) continue;
+        return def.chainImmediately ? def.label : null;
+    }
+    return null;
+}
+
 /** @deprecated Use {@link findPreviewDeferredSelectLabel}. */
 export function findFirstSelectTargetLabelAtElapsedZero(
     ability: AbilityStatic,

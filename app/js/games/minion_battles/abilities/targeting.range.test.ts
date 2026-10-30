@@ -160,6 +160,34 @@ describe('resolveCastBehaviourTarget range clamp', () => {
     });
 });
 
+describe('clampSelectTarget range clamp', () => {
+    it('leaves a pixel past max range when the select opts out of clamping', () => {
+        const caster = { id: 'c', x: 0, y: 0, teamId: 'p1' } as unknown as Unit;
+        const selectDef = {
+            kind: 'select',
+            label: 'Place',
+            hitbox: { numTargets: 1 },
+            filter: 'any',
+            clampPixelToRange: false,
+        } as SelectTargetDef;
+        const beyond = TEST_MAX_RANGE * 2;
+        const farClick: ResolvedTarget = { type: 'pixel', position: { x: beyond, y: 0 } };
+        const engine = { getUnit: () => null } as unknown as {
+            getUnit(id: string): Unit | null | undefined;
+        };
+        const clamped = clampSelectTarget(
+            rangedPixelAbility,
+            caster,
+            selectDef,
+            {},
+            [],
+            farClick,
+            engine,
+        );
+        expect(clamped.position).toEqual({ x: beyond, y: 0 });
+    });
+});
+
 describe('clampSelectTarget anchor clamp', () => {
     it('clamps landing pixel to max distance from anchor unit', () => {
         const caster = { id: 'c', x: 0, y: 0, teamId: 'p1' } as unknown as Unit;

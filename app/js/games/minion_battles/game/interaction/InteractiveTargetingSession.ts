@@ -13,7 +13,10 @@
  *                     in-place (solo host): keep preview state, persist order without re-apply.
  */
 
+import { getAbility } from '../../abilities/AbilityRegistry';
+import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import type { BattleOrder, OrderAtTick, ResolvedTarget, SerializedGameState } from '../types';
+import { nextChainImmediateLabel } from './selectTargetLookahead';
 import type { BattleSession } from '../BattleSession';
 import type { GameEngine } from '../GameEngine';
 import type { KnockbackSource } from '../units/unitTypes';
@@ -336,11 +339,23 @@ export class InteractiveTargetingSession {
             this._orderPositionalTargets = orderPositionalTargets;
         }
 
+        const ability = getAbility(this._abilityId);
+        const caster = engine.getUnit(this._unitId);
+        if (ability && caster) {
+            ability.onPreviewSelectCollected?.(engine, caster, label, target);
+        }
+
         if (!this._previewOrderQueued) {
+            const defs = ability && caster ? getSelectTargetDefsFromTimings(ability, caster, engine) : [];
+            const nextLabel = nextChainImmediateLabel(defs, this.collectedTargets);
+            if (nextLabel) {
+                engine.signalWaitingForTarget(nextLabel, this._unitId, this._abilityId);
+                this._currentLabel = nextLabel;
+                logItsTargetAdded(session, this, label, target, this.allTargetsCollected());
+                return;
+            }
             this._queuePreviewOrder(session);
-        } else {
-            const caster = engine.getUnit(this._unitId);
-            if (caster) {
+        } else if (caster) {
                 const active = caster.activeAbilities.find((a) => a.abilityId === this._abilityId);
                 if (active) {
                     // Keep active.targets in sync with lock-ons + aim pixel so MeleeAttack.onSetup
@@ -360,7 +375,6 @@ export class InteractiveTargetingSession {
                         ? active.targets[primaryIdx]!
                         : target;
                 }
-            }
         }
 
         engine.waitingForTargetInput = null;

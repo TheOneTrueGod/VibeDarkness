@@ -5,12 +5,14 @@
  * cone over one round, including a shot along its facing when the cone is empty.
  * Costs Charge. One use, recovered at each round start.
  *
- *   0.00–0.05  place on a walkable empty tile
- *   0.05–0.10  pick facing; the cone is previewed from the tile
- *   0.10–0.20  the turret appears
+ *   place, then facing, with no time between the two clicks
+ *   the cast launches a folded-turret projectile on the simulation clock
+ *   the sentry appears when that projectile reaches the tile, then opens
+ *
+ * A cursor outside the ring, or on a blocked tile, is rejected. The ring stays visible.
  */
 
-import type { AbilityRecoveryRule } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
@@ -22,13 +24,19 @@ import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import { ResourceId } from '../../../resources/resourceIds';
 import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { isOpenLanding } from '../../../game/fieldObjects/landing';
+import { readTurretDelivery } from '../../../game/fieldObjects/FieldObjectManager';
+import type { Projectile } from '../../../game/projectiles/Projectile';
 import {
     ARMORY_ABILITY_CHARGE_COST,
     DEPLOY_TURRET_ABILITY_ID,
     TURRET_AIM_LABEL,
     TURRET_AIM_MIN_DISTANCE,
     TURRET_AIM_WINDOW_END,
+    TURRET_BODY_COLOR,
+    TURRET_BODY_PREVIEW_ALPHA,
+    TURRET_BODY_RADIUS,
     TURRET_CONE_HALF_ANGLE_RAD,
     TURRET_COOLDOWN_END,
     TURRET_DEPLOY_WINDOW_END,
@@ -46,7 +54,11 @@ const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 
-const PLACE_HITBOX = groundPointHitbox(TURRET_PLACE_RANGE);
+const PLACE_HITBOX = groundPointHitbox(TURRET_PLACE_RANGE, {
+    radius: TURRET_BODY_RADIUS,
+    color: TURRET_BODY_COLOR,
+    alpha: TURRET_BODY_PREVIEW_ALPHA,
+});
 const AIM_HITBOX = facingConeHitbox(TURRET_SHOT_RANGE, TURRET_CONE_HALF_ANGLE_RAD);
 
 const TOOLTIP_LINES = [
@@ -100,6 +112,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
             hitbox: PLACE_HITBOX,
             filter: 'any',
             allowMiss: true,
+            clampPixelToRange: false,
             validatePick: validateTurretPlacement,
         },
         behaviour: CastBehaviours.Instant((ctx) => rememberTurretPick(ctx, 'place', TURRET_PLACE_LABEL)),
@@ -115,6 +128,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
             hitbox: AIM_HITBOX,
             filter: 'any',
             allowMiss: true,
+            chainImmediately: true,
             anchorLabel: TURRET_PLACE_LABEL,
             maxRangeFromAnchor: TURRET_SHOT_RANGE,
             minRangeFromAnchor: TURRET_AIM_MIN_DISTANCE,
@@ -143,12 +157,28 @@ export function deployTurret(ctx: CastBehaviourTickContext): void {
     const aim = payload.aim;
     if (!place || !aim) return;
     const facing = Math.atan2(aim.y - place.y, aim.x - place.x);
-    ctx.engine.state?.fieldObjects?.spawnSentry(ctx.engine, {
-        x: place.x,
-        y: place.y,
+    ctx.engine.state?.fieldObjects?.launchTurretDelivery(ctx.engine, {
+        fromX: ctx.caster.x,
+        fromY: ctx.caster.y,
+        toX: place.x,
+        toY: place.y,
         facing,
         teamId: ctx.caster.teamId,
         ownerUnitId: ctx.caster.id,
+        abilityId: DEPLOY_TURRET_ABILITY_ID,
+    });
+}
+
+export function spawnDeliveredTurret(engine: unknown, caster: Unit, projectile: Projectile): void {
+    const delivery = readTurretDelivery(projectile.expireData);
+    if (!delivery) return;
+    const host = engine as AbilityEngineContext;
+    host.state?.fieldObjects?.spawnSentry(host, {
+        x: delivery.x,
+        y: delivery.y,
+        facing: delivery.facing,
+        teamId: caster.teamId,
+        ownerUnitId: caster.id,
         abilityId: DEPLOY_TURRET_ABILITY_ID,
     });
 }
@@ -163,6 +193,11 @@ function rememberTurretPick(ctx: CastBehaviourTickContext, key: 'place' | 'aim',
     const payload = readPayload(ctx);
     payload[key] = { x: point.x, y: point.y };
     active.castPayload = payload;
+}
+
+function drawTurretFootprint(gr: IAbilityPreviewGraphics, x: number, y: number): void {
+    gr.circle(x, y, TURRET_BODY_RADIUS);
+    gr.fill({ color: TURRET_BODY_COLOR, alpha: TURRET_BODY_PREVIEW_ALPHA });
 }
 
 function readPayload(ctx: CastBehaviourTickContext): TurretCastPayload {
@@ -186,6 +221,15 @@ export const DeployTurretAbility = defineAbility({
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
     movementLock: { until: TURRET_DEPLOY_WINDOW_END },
+    onProjectileExpired(engine, caster, projectile): void {
+        spawnDeliveredTurret(engine, caster, projectile as Projectile);
+    },
+    renderTargetingPreviewSelectedTargets(gr, _caster, currentTargets, mouseWorld): void {
+        const place = currentTargets[0]?.position;
+        if (!place) return;
+        AIM_HITBOX.renderTargetingPreview(gr, { x: place.x, y: place.y }, mouseWorld, []);
+        drawTurretFootprint(gr, place.x, place.y);
+    },
     getTooltipText(gameState?: unknown): string[] {
         return formatTooltipLegacyLines(
             TOOLTIP_LINES,

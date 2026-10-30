@@ -34,7 +34,8 @@ export interface StepPiecePlan {
     debt: number;
 }
 
-const BOUNDARY_EPSILON = 1e-9;
+/** Seconds of float dust ignored when a step lands on an event boundary. */
+export const BOUNDARY_EPSILON = 1e-9;
 /** A step this close to FIXED_DT counts as one normal tick (float noise from `pace x tempo` products). */
 const SINGLE_PIECE_TOLERANCE = 1 + 1e-9;
 

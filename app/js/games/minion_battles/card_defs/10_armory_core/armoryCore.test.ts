@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { isAbilityTimingInterval } from '../../abilities/abilityTimings';
+import { pointInCone } from '../../abilities/coneGeometry';
+import type { IAbilityPreviewGraphics } from '../../abilities/Ability';
+import { isSelectTargetDef } from '../../abilities/timingTargetDef';
 import { FIXED_DT, ROUND_DURATION } from '../../game/gameConstants';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import { TerrainType } from '../../terrain/TerrainType';
 import { GameEngine } from '../../game/GameEngine';
 import type { ResolvedTarget } from '../../game/types';
 import { executeUnitAbility } from '../../game/units/unitAbilityLifecycle';
@@ -28,14 +34,29 @@ import {
     THROW_SWORD_ABILITY_ID,
     THROW_SWORD_COOLDOWN_END,
     IMPROVISED_SWORD_DAMAGE,
+    TURRET_AIM_LABEL,
+    TURRET_AIM_WINDOW_END,
+    TURRET_BODY_RADIUS,
+    TURRET_CONE_HALF_ANGLE_RAD,
+    TURRET_DEPLOY_PROJECTILE_TYPE,
+    TURRET_DEPLOY_SPEED,
+    TURRET_DEPLOY_SPIN_DEGREES_PER_SEC,
+    TURRET_FLIGHT_DURATION,
+    TURRET_OPEN_DURATION,
     TURRET_FIRST_SHOT_DELAY,
     TURRET_LIFETIME,
+    TURRET_PLACE_LABEL,
+    TURRET_PLACE_RANGE,
     TURRET_SHOT_COUNT,
+    TURRET_SHOT_HIT_RADIUS,
+    TURRET_SHOT_RANGE,
+    TURRET_SHOT_SPRITE_SCALE,
     WEAPON_DISCARD_ARC_EFFECT_TYPE,
 } from './armoryConstants';
 import { CreateSwordAbility } from './1001_CreateSword/1001Ability';
 import { IMPROVISED_SWORD_IMPACT_TIME, ImprovisedSwordAbility } from './1002_ImprovisedSword/1002Ability';
 import { ThrowSwordAbility } from './1003_ThrowSword/1003Ability';
+import { DeployTurretAbility, validateTurretPlacement } from './1004_DeployTurret/1004Ability';
 import { SWING_SWORD_DAMAGE } from '../0112_SwingSword/0112Ability';
 import { THROW_RANGE } from '../throwNumbers';
 import swordProjectileUrl from '../../character_defs/items/assets/013_sword.svg';
@@ -93,6 +114,27 @@ function armoryBattle(): { engine: GameEngine; playerId: string } {
     engine.waitingForOrders = null;
     engine.isPaused = false;
     return { engine, playerId: TINY_BATTLE_PLAYER_ID };
+}
+
+function placeSelect() {
+    const entry = DeployTurretAbility.abilityTimings[0];
+    if (!entry || !isAbilityTimingInterval(entry)) throw new Error('Deploy Turret place interval is missing');
+    const def = entry.targetDef;
+    if (!def || !isSelectTargetDef(def)) throw new Error('Deploy Turret place select is missing');
+    return def;
+}
+
+function previewRecorder(): { gr: IAbilityPreviewGraphics; circles: Array<{ x: number; y: number; r: number }> } {
+    const circles: Array<{ x: number; y: number; r: number }> = [];
+    const gr: IAbilityPreviewGraphics = {
+        clear(): void {},
+        moveTo(): void {},
+        lineTo(): void {},
+        circle(x: number, y: number, r: number): void { circles.push({ x, y, r }); },
+        fill(): void {},
+        stroke(): void {},
+    };
+    return { gr, circles };
 }
 
 describe('Armory Core', () => {
@@ -218,11 +260,160 @@ describe('Armory Core', () => {
         expect(player.heldConjuredWeapon).toBeNull();
     });
 
-    it('fires turret shots down the cone, spends an empty cone, and then removes the sentry', () => {
+    it('keeps the place ring up and rejects ground outside it or on a blocked tile', () => {
         const { engine } = armoryBattle();
         const player = engine.units[0]!;
-        placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y });
-        placeTargetDummy(engine, { x: PLAYER.x, y: PLAYER.y + 160 }, 'wide');
+        const select = placeSelect();
+        expect(select.clampPixelToRange).toBe(false);
+
+        const outside = { x: player.x + TURRET_PLACE_RANGE + CELL_SIZE, y: player.y };
+        expect(validateTurretPlacement({
+            caster: player,
+            engine,
+            pick: { type: 'pixel', position: outside },
+        })).toBe(false);
+
+        const insideTiles = 2;
+        const inside = { x: player.x + insideTiles * CELL_SIZE, y: player.y };
+        expect(validateTurretPlacement({
+            caster: player,
+            engine,
+            pick: { type: 'pixel', position: inside },
+        })).toBe(true);
+        const terrain = engine.terrainManager;
+        if (!terrain) throw new Error('armory battle has no terrain');
+        const blocked = terrain.grid.worldToGrid(inside.x, inside.y);
+        terrain.grid.set(blocked.col, blocked.row, TerrainType.Impassable);
+        expect(validateTurretPlacement({
+            caster: player,
+            engine,
+            pick: { type: 'pixel', position: inside },
+        })).toBe(false);
+
+        const { gr, circles } = previewRecorder();
+        const caster = { x: player.x, y: player.y };
+        select.hitbox.renderInvalidPreview(gr, caster, outside);
+        expect(circles).toEqual([{ x: player.x, y: player.y, r: TURRET_PLACE_RANGE }]);
+        circles.length = 0;
+        select.hitbox.renderTargetingPreview(gr, caster, inside, []);
+        expect(circles).toEqual([
+            { x: player.x, y: player.y, r: TURRET_PLACE_RANGE },
+            { x: inside.x, y: inside.y, r: TURRET_BODY_RADIUS },
+        ]);
+    });
+
+    it('flies a folded turret on the simulation clock and leaves the sentry when it arrives', () => {
+        const { engine } = armoryBattle();
+        const player = engine.units[0]!;
+        const place = { x: player.x + TURRET_PLACE_RANGE, y: player.y };
+        const aim = { x: place.x, y: place.y + CELL_SIZE };
+        const facing = Math.atan2(aim.y - place.y, aim.x - place.x);
+        executeUnitAbility(player, DeployTurretAbility, [
+            { type: 'pixel', position: place },
+            { type: 'pixel', position: aim },
+        ], engine);
+        const aimTiming = DeployTurretAbility.abilityTimings[1];
+        if (!aimTiming || !isAbilityTimingInterval(aimTiming) || !aimTiming.targetDef || !isSelectTargetDef(aimTiming.targetDef)) {
+            throw new Error('Deploy Turret facing select is missing');
+        }
+        expect(aimTiming.targetDef.chainImmediately).toBe(true);
+
+        step(engine, TURRET_AIM_WINDOW_END);
+        const delivery = engine.projectiles.find((projectile) => projectile.projectileType === TURRET_DEPLOY_PROJECTILE_TYPE);
+        expect(delivery).toBeDefined();
+        expect(delivery!.passThroughEnemies).toBe(true);
+        expect(delivery!.rotationSpeed).toBe(TURRET_DEPLOY_SPIN_DEGREES_PER_SEC);
+        expect(delivery!.maxDistance).toBeCloseTo(TURRET_PLACE_RANGE);
+        expect(delivery!.velocityX).toBeCloseTo(TURRET_DEPLOY_SPEED);
+        expect(engine.state.fieldObjects.sentries).toHaveLength(0);
+
+        step(engine, TURRET_FLIGHT_DURATION);
+        expect(engine.projectiles.some((projectile) => projectile.projectileType === TURRET_DEPLOY_PROJECTILE_TYPE)).toBe(false);
+        expect(engine.state.fieldObjects.sentries).toHaveLength(1);
+        const sentry = engine.state.fieldObjects.sentries[0]!;
+        expect(sentry.x).toBeCloseTo(place.x);
+        expect(sentry.y).toBeCloseTo(place.y);
+        expect(sentry.facing).toBeCloseTo(facing);
+        expect(sentry.shotsRemaining).toBe(TURRET_SHOT_COUNT);
+
+        step(engine, TURRET_OPEN_DURATION);
+        expect(engine.state.fieldObjects.sentries).toHaveLength(1);
+        expect(engine.state.fieldObjects.sentries[0]!.shotsRemaining).toBe(TURRET_SHOT_COUNT);
+    });
+
+    it('spawns the sentry from a live order after the caster clock is already running', () => {
+        const { engine } = armoryBattle();
+        const player = engine.units[0]!;
+        // Cast starts once local time has been stepped twice. The next addition rounds high
+        // ((t + dt) - t > dt), so the place window's previous sample is a hair inside the window.
+        const clockStepsBeforeOrder = 1;
+        stepTicks(engine, clockStepsBeforeOrder);
+        expect(player.localClockActive).toBe(true);
+        expect(player.localTime).toBeGreaterThan(0);
+
+        const place = { x: player.x + TURRET_PLACE_RANGE * 0.7, y: player.y - CELL_SIZE * 0.4 };
+        const aim = { x: place.x + CELL_SIZE * 2, y: place.y - CELL_SIZE };
+        const placeTarget: ResolvedTarget = { type: 'pixel', position: place };
+        const aimTarget: ResolvedTarget = { type: 'pixel', position: aim };
+        engine.state.orderMgr.queueOrder(engine.gameTick + 1, {
+            unitId: player.id,
+            abilityId: DEPLOY_TURRET_ABILITY_ID,
+            targets: [placeTarget, aimTarget],
+            targetsByLabel: {
+                [TURRET_PLACE_LABEL]: { type: 'pixel', position: { x: place.x, y: place.y } },
+                [TURRET_AIM_LABEL]: { type: 'pixel', position: { x: aim.x, y: aim.y } },
+            },
+            endTurn: true,
+        });
+
+        step(engine, TURRET_AIM_WINDOW_END + FIXED_DT);
+        const active = player.activeAbilities.find((entry) => entry.abilityId === DEPLOY_TURRET_ABILITY_ID);
+        const payload = active?.castPayload as { place?: { x: number; y: number }; aim?: { x: number; y: number } } | undefined;
+        expect(payload?.place).toEqual(place);
+        expect(payload?.aim).toEqual(aim);
+        expect(engine.projectiles.some((projectile) => projectile.projectileType === TURRET_DEPLOY_PROJECTILE_TYPE)).toBe(true);
+
+        step(engine, TURRET_FLIGHT_DURATION);
+        expect(engine.state.fieldObjects.sentries).toHaveLength(1);
+        expect(engine.state.fieldObjects.sentries[0]!.x).toBeCloseTo(place.x);
+        expect(engine.state.fieldObjects.sentries[0]!.y).toBeCloseTo(place.y);
+    });
+
+    it('draws the turret footprint on the chosen tile while aiming', () => {
+        const { gr, circles } = previewRecorder();
+        const place = { x: PLAYER.x + CELL_SIZE, y: PLAYER.y };
+        DeployTurretAbility.renderTargetingPreviewSelectedTargets!(
+            gr,
+            { x: PLAYER.x, y: PLAYER.y } as Unit,
+            [{ type: 'pixel', position: place }],
+            { x: place.x + CELL_SIZE, y: place.y },
+            [],
+        );
+        expect(circles).toContainEqual({ x: place.x, y: place.y, r: TURRET_BODY_RADIUS });
+    });
+
+    it('fires at an enemy whose body is in the cone, spends an empty cone, and then removes the sentry', () => {
+        const { engine } = armoryBattle();
+        const player = engine.units[0]!;
+        const aimDistance = TURRET_SHOT_RANGE / 2;
+        const dummy = placeTargetDummy(engine, { x: PLAYER.x, y: PLAYER.y });
+        const bodyPad = Math.atan2(dummy.radius, aimDistance);
+        const outsideCenterFraction = 0.5;
+        const aimAngle = TURRET_CONE_HALF_ANGLE_RAD + bodyPad * outsideCenterFraction;
+        dummy.x = PLAYER.x + Math.cos(aimAngle) * aimDistance;
+        dummy.y = PLAYER.y + Math.sin(aimAngle) * aimDistance;
+        expect(pointInCone(
+            PLAYER.x,
+            PLAYER.y,
+            dummy.x,
+            dummy.y,
+            1,
+            0,
+            0,
+            TURRET_SHOT_RANGE,
+            TURRET_CONE_HALF_ANGLE_RAD,
+        )).toBe(false);
+        placeTargetDummy(engine, { x: PLAYER.x, y: PLAYER.y + TURRET_SHOT_RANGE }, 'wide');
         engine.state.fieldObjects.spawnSentry(engine, {
             x: PLAYER.x,
             y: PLAYER.y,
@@ -232,7 +423,7 @@ describe('Armory Core', () => {
             abilityId: DEPLOY_TURRET_ABILITY_ID,
         });
         const seen = new Set(engine.projectiles.map((projectile) => projectile.id));
-        let firstShot: { velocityX: number; velocityY: number } | null = null;
+        let firstShot: (typeof engine.projectiles)[number] | null = null;
         step(engine, TURRET_FIRST_SHOT_DELAY + FIXED_DT, () => {
             for (const projectile of engine.projectiles) {
                 if (seen.has(projectile.id) || firstShot) continue;
@@ -241,7 +432,13 @@ describe('Armory Core', () => {
             }
         });
         expect(firstShot).not.toBeNull();
-        expect(Math.abs(firstShot!.velocityX)).toBeGreaterThan(Math.abs(firstShot!.velocityY));
+        const shotAngle = Math.atan2(firstShot!.velocityY, firstShot!.velocityX);
+        expect(shotAngle).toBeCloseTo(aimAngle, 5);
+        expect(firstShot!.projectileType).toBe('sprite_projectile');
+        expect(firstShot!.radius).toBe(TURRET_SHOT_HIT_RADIUS);
+        expect(firstShot!.spriteConfig?.trail?.effectType).toBe('BulletTrail');
+        const sprite = firstShot!.spriteConfig?.sprite;
+        expect(sprite && 'scale' in sprite ? sprite.scale : undefined).toBe(TURRET_SHOT_SPRITE_SCALE);
         expect(engine.state.fieldObjects.sentries[0]?.shotsRemaining).toBe(TURRET_SHOT_COUNT - 1);
 
         const empty = buildTinyBattleEngine({

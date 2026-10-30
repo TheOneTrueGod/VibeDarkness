@@ -7,6 +7,7 @@
 
 import type { Unit } from './Unit';
 import { getCastElapsed, localNow } from '../time/actorClock';
+import { BOUNDARY_EPSILON } from '../time/stepPieces';
 import type { EngineContext } from '../EngineContext';
 import { onConjuredWeaponCastEnded } from '../conjuredWeapons/runtime';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -688,7 +689,9 @@ export function tickUnitActiveAbilities(
                 engine,
                 windowProgress: Math.max(0, Math.min(1, rawProgress)),
                 prevWindowProgress: Math.max(0, Math.min(1, rawPrevProgress)),
-                isFirstTick: rawPrevProgress <= 0 && rawProgress > 0,
+                // (t + dt) - t is a hair above dt once t is nonzero. The previous sample then
+                // sits just inside a window that has not really been ticked yet.
+                isFirstTick: safePrevTime <= rec.intervalStart + BOUNDARY_EPSILON && rawProgress > 0,
                 isLastTick: windowEnded,
                 localDt: windowDt,
             };

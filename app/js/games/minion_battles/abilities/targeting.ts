@@ -530,6 +530,7 @@ export function clampSelectTarget(
         return { type: 'pixel', position: clamped };
     }
 
+    if (selectDef.clampPixelToRange === false) return target;
     return clampResolvedTargetToAbilityRange(ability, caster, target, engine);
 }
 

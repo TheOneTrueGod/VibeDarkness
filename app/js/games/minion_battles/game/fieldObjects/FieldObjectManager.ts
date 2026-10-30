@@ -12,7 +12,7 @@ import { areEnemies } from '../teams';
 import { Projectile } from '../projectiles/Projectile';
 import type { SpriteProjectileConfig } from '../projectiles/projectile_defs/types';
 import { FingerprintEvent } from '../Fingerprint';
-import { pointInCone } from '../../abilities/coneGeometry';
+import { circleOverlapsCone } from '../../abilities/coneGeometry';
 import { THROW_PROJECTILE_SPEED } from '../../card_defs/throwNumbers';
 import {
     ARMORY_TURRET_DEF_ID,
@@ -21,10 +21,16 @@ import {
     DROPPED_WEAPON_ROTATION_STEPS,
     SWORD_CARD_TIP_OFFSET,
     TURRET_CONE_HALF_ANGLE_RAD,
+    TURRET_DELIVERY_KIND,
+    TURRET_DEPLOY_PROJECTILE_TYPE,
+    TURRET_DEPLOY_SPEED,
+    TURRET_DEPLOY_SPIN_DEGREES_PER_SEC,
     TURRET_FIRST_SHOT_DELAY,
+    TURRET_FOLDED_BODY_RADIUS,
     TURRET_LIFETIME,
     TURRET_SHOT_DAMAGE,
     TURRET_SHOT_COUNT,
+    TURRET_SHOT_HIT_RADIUS,
     TURRET_SHOT_INTERVAL,
     TURRET_SHOT_RANGE,
     WEAPON_DISCARD_ARC_EFFECT_TYPE,
@@ -173,6 +179,62 @@ export class FieldObjectManager implements DeployableProvider {
         return sentry;
     }
 
+    /**
+     * Fly a folded turret from the caster to the tile. The sentry does not exist until
+     * `onProjectileExpired` reads {@link readTurretDelivery} and calls {@link spawnSentry}.
+     * A zero-length toss spawns the sentry immediately.
+     */
+    launchTurretDelivery(
+        engine: FieldObjectHost,
+        opts: {
+            fromX: number;
+            fromY: number;
+            toX: number;
+            toY: number;
+            facing: number;
+            teamId: TeamId;
+            ownerUnitId: string;
+            abilityId: string;
+        },
+    ): void {
+        const dx = opts.toX - opts.fromX;
+        const dy = opts.toY - opts.fromY;
+        const dist = Math.hypot(dx, dy);
+        if (dist === 0) {
+            this.spawnSentry(engine, {
+                x: opts.toX,
+                y: opts.toY,
+                facing: opts.facing,
+                teamId: opts.teamId,
+                ownerUnitId: opts.ownerUnitId,
+                abilityId: opts.abilityId,
+            });
+            return;
+        }
+        const projectile = new Projectile({
+            x: opts.fromX,
+            y: opts.fromY,
+            velocityX: (dx / dist) * TURRET_DEPLOY_SPEED,
+            velocityY: (dy / dist) * TURRET_DEPLOY_SPEED,
+            damage: 0,
+            sourceTeamId: opts.teamId,
+            sourceUnitId: opts.ownerUnitId,
+            sourceAbilityId: opts.abilityId,
+            maxDistance: dist,
+            projectileType: TURRET_DEPLOY_PROJECTILE_TYPE,
+            rotationSpeed: TURRET_DEPLOY_SPIN_DEGREES_PER_SEC,
+            passThroughEnemies: true,
+            expireData: {
+                kind: TURRET_DELIVERY_KIND,
+                x: opts.toX,
+                y: opts.toY,
+                facing: opts.facing,
+            },
+        });
+        projectile.radius = TURRET_FOLDED_BODY_RADIUS;
+        engine.addProjectile(projectile);
+    }
+
     tick(engine: FieldObjectHost): void {
         const remove: string[] = [];
         for (const sentry of this.sentries) {
@@ -199,7 +261,7 @@ export class FieldObjectManager implements DeployableProvider {
         const dy = aim.y - sentry.y;
         const len = Math.hypot(dx, dy) || 1;
         const sprite = SENTRY_SPRITES.get(sentry.defId);
-        engine.addProjectile(new Projectile({
+        const projectile = new Projectile({
             x: sentry.x,
             y: sentry.y,
             velocityX: (dx / len) * THROW_PROJECTILE_SPEED,
@@ -209,8 +271,10 @@ export class FieldObjectManager implements DeployableProvider {
             sourceUnitId: sentry.ownerUnitId,
             sourceAbilityId: sentry.abilityId,
             maxDistance: TURRET_SHOT_RANGE,
-            ...(sprite ? { spriteConfig: sprite } : {}),
-        }));
+            ...(sprite ? { projectileType: 'sprite_projectile', spriteConfig: sprite } : {}),
+        });
+        projectile.radius = TURRET_SHOT_HIT_RADIUS;
+        engine.addProjectile(projectile);
     }
 
     listDeployables(): Deployable[] {
@@ -262,6 +326,20 @@ export class FieldObjectManager implements DeployableProvider {
     }
 }
 
+export interface TurretDelivery {
+    x: number;
+    y: number;
+    facing: number;
+}
+
+/** Landing written onto a turret-delivery projectile. Null for shots and every other projectile. */
+export function readTurretDelivery(data: Record<string, unknown> | undefined): TurretDelivery | null {
+    if (!data || data.kind !== TURRET_DELIVERY_KIND) return null;
+    const { x, y, facing } = data;
+    if (typeof x !== 'number' || typeof y !== 'number' || typeof facing !== 'number') return null;
+    return { x, y, facing };
+}
+
 function mixSpawn(engine: FieldObjectHost, kind: number, x: number, y: number, facing?: number): void {
     const payload = [kind, Math.floor(x), Math.floor(y)];
     if (facing != null) payload.push(Math.floor(facing * DROPPED_WEAPON_ROTATION_STEPS));
@@ -273,6 +351,9 @@ function randomRestFacing(engine: FieldObjectHost): number {
     return (step / DROPPED_WEAPON_ROTATION_STEPS) * Math.PI * 2;
 }
 
+/** A target this close shares the turret's point, so the shot keeps its facing instead. */
+const SENTRY_AIM_MIN_DISTANCE = 1;
+
 function aimPointForSentry(engine: FieldObjectHost, sentry: Sentry): { x: number; y: number } {
     const dirX = Math.cos(sentry.facing);
     const dirY = Math.sin(sentry.facing);
@@ -280,11 +361,12 @@ function aimPointForSentry(engine: FieldObjectHost, sentry: Sentry): { x: number
     for (const unit of engine.units) {
         if (!unit.isAlive()) continue;
         if (!areEnemies(sentry.teamId, unit.teamId)) continue;
-        if (!pointInCone(
+        if (!circleOverlapsCone(
             sentry.x,
             sentry.y,
             unit.x,
             unit.y,
+            unit.radius,
             dirX,
             dirY,
             0,
@@ -296,7 +378,7 @@ function aimPointForSentry(engine: FieldObjectHost, sentry: Sentry): { x: number
             best = { id: unit.id, x: unit.x, y: unit.y, dist };
         }
     }
-    if (best) return { x: best.x, y: best.y };
+    if (best && best.dist > SENTRY_AIM_MIN_DISTANCE) return { x: best.x, y: best.y };
     return {
         x: sentry.x + dirX * TURRET_SHOT_RANGE,
         y: sentry.y + dirY * TURRET_SHOT_RANGE,

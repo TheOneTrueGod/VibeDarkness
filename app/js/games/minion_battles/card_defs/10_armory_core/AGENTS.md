@@ -9,6 +9,6 @@ A discarded or thrown sword is a real field object on the frame it is created: t
 | `1001_CreateSword/` | Spend Charge and equip the conjured sword. Four blades orbit the caster, who can keep walking at a reduced speed |
 | `1002_ImprovisedSword/` | The slash. The last hit discards the sword |
 | `1003_ThrowSword/` | The throw. The sword becomes a token when the projectile stops |
-| `1004_DeployTurret/` | Place the sentry |
+| `1004_DeployTurret/` | The projectile that becomes the sentry when it lands |
 | `armoryWeapons.ts` | Which abilities the conjured sword swaps in |
 | `../../game/fieldObjects/` | Dropped weapons, sentries, landing, and the concealed-arrival clock |

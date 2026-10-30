@@ -106,6 +106,9 @@ export class AbilityTargetingTool implements InteractionTool {
             this.currentTargets = newTargets;
             this.targetsByLabel = newTargetsByLabel;
             manager.setCurrentTargets(newTargets);
+            if (caster) {
+                this.ability.onPreviewSelectCollected?.(engine, caster, selectDef.label, labelTarget);
+            }
 
             if (newTargets.length >= selectTargetDefs.length) {
                 manager.submitOrder(this.ability.id, stepOrderTargets, newTargetsByLabel);
