@@ -2,6 +2,10 @@
 
 Conjured weapons and the objects they leave on the field. The tree's identity and ability list are in `ArmoryCore.md`.
 
+## Flavour
+
+The Armory Core player draws energy and materials out of the terrain around them and forges weaponry from it. Research node flavour text, and card flavour text, should tell that story: the ground giving up what the player needs, shaped into a blade, a mace, a buckler or a post. Copy rules are in `.claude/skills/narrative/writing-style-abilities/STYLE.md`.
+
 How swords and maces should differ — speed, hit band, lunge, bleed, knockback, stun — is in `../../../../researchTrees/trees/Weapons.md`. Read that before adding or retuning a conjured weapon. The shield has no held strike of its own: Release Charge is its held ability, with one use, and a weapon whose held ability should leave nothing sets `leaveTokenWhenHeldUsesEnd: false`. Charge Sword follows Swing Sword, and Charge Mace follows Swing Mace.
 
 A discarded or thrown sword is a real field object on the frame it is created: the slash impact, or the moment a thrown sword hits or reaches max range. Its resting picture stays hidden until the flight effect finishes. Game time and wall time both count, so an order pause does not freeze the picture. That hide-until-arrival check is `ConcealedArrivalClock` in `game/fieldObjects/concealedArrival.ts`. `FieldObjectManager` creates the object and its flight together.

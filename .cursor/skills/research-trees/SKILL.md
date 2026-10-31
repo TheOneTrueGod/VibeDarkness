@@ -121,6 +121,8 @@ Comfortable **ResearchNodeCard**s share one height: title, a reserved 3-line des
 `eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. Inactive weapon nodes (weapon not equipped) are dropped from the active research the Upgrades tab reads, so players never see or buy them; the Weapons tree itself is hidden while only roots are active (admins see it dimmed). Players then only see trees they have abilities in (or already researched). Admins always see every tree, with ability-matching trees sorted first; trees the player would not see are dimmed. Tree **cores** (tier-10 nodes with no prereqs) use `{ type: 'missionReward' }` so players cannot buy them — they only come from mission/quest rewards.
 
 ### Text formatting
+Node `description` and `flavorText` copy follows **Research nodes [Canon]** in `.claude/skills/narrative/writing-style-abilities/STYLE.md`: the description is mechanical, the flavour text tells the tree's fantasy.
+
 Use `{highlighted}` token syntax in node description strings to render magnitude words in yellow. Use `DescriptiveValue` enum values (`DescriptiveValue.Tiny`, etc.) from `researchTrees/descriptiveValue.ts` for consistent magnitude labels.
 
 ### Hover preview
