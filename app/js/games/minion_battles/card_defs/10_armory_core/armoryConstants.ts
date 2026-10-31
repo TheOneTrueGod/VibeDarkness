@@ -1,5 +1,5 @@
 /**
- * Armory Core shared constants: ability ids, weapon / token / sentry ids, the shared Charge cost,
+ * Armory Core shared constants: ability ids, weapon / token / deployable ids, the shared Charge cost,
  * the conjure every Create ability shares, each weapon's held-use count, and the palette.
  *
  * One ability's own tuning lives in its folder (`NNNN_Name/NNNNConstants.ts`). Charge pool numbers
@@ -22,6 +22,7 @@ export const WHIRL_ABILITY_ID = `${ARMORY_GROUP}07`;
 export const CREATE_SHIELD_ABILITY_ID = `${ARMORY_GROUP}08`;
 export const RELEASE_CHARGE_ABILITY_ID = `${ARMORY_GROUP}09`;
 export const THROW_SHIELD_ABILITY_ID = `${ARMORY_GROUP}10`;
+export const REPAIR_POST_ABILITY_ID = `${ARMORY_GROUP}11`;
 
 /** Conjured weapon ids. Serialized as `heldConjuredWeapon.defId`. */
 export const ARMORY_SWORD_WEAPON_ID = 'armory_sword';
@@ -33,8 +34,10 @@ export const DROPPED_WEAPON_KIND_SWORD = 'sword';
 export const DROPPED_WEAPON_KIND_MACE = 'mace';
 export const DROPPED_WEAPON_KIND_SHIELD = 'shield';
 
-/** Sentry def id. `register.ts` registers it with the turret numbers in `1004_DeployTurret/1004Constants.ts`. */
+/** Turret deployable def id. `register.ts` registers it with the turret numbers in `1004_DeployTurret/1004Constants.ts`. */
 export const ARMORY_TURRET_DEF_ID = 'armory_turret';
+/** Repair Post deployable def id. Registered in `register.ts` from `1011_RepairPost/1011Constants.ts`. */
+export const ARMORY_REPAIR_POST_DEF_ID = 'armory_repair_post';
 
 export const ARMORY_ABILITY_CHARGE_COST = 2;
 

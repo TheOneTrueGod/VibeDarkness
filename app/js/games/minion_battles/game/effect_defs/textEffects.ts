@@ -12,13 +12,13 @@ export const damageNumberEffectDef: IEffectDef = {
     },
     updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
         const t = visual as Text;
-        const data = effect.effectData as { amount?: number; color?: number };
+        const data = effect.effectData as { amount?: number; color?: number; prefix?: string };
         const amount = data.amount ?? 0;
         const color = data.color ?? 0xffffff;
         const fontSize = damageAmountToDisplayFontSize(amount);
         const strokeW = Math.max(2, Math.round(fontSize / 10));
         const p = effect.progress;
-        t.text = String(amount);
+        t.text = `${data.prefix ?? ''}${amount}`;
         t.style = new TextStyle({
             fontFamily: 'Arial, Helvetica, sans-serif',
             fontSize,

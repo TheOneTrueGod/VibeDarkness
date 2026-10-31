@@ -54,6 +54,7 @@ export class ShieldBuff extends Buff {
         if (this.drainPerSecond <= 0 || this.remainingHp <= 0) return;
         const drained = Math.min(this.remainingHp, this.drainPerSecond * dt);
         this.remainingHp = Math.max(0, this.remainingHp - drained);
+        // A per-tick drip: no feedback, or every tick would spawn a heal number.
         if (this.decayHealFraction > 0) applyHeal(unit, drained * this.decayHealFraction);
     }
 

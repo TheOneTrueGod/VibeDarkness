@@ -29,10 +29,10 @@ import {
 } from './types';
 import type { GameEngine } from './GameEngine';
 
-function fieldObjectsJSON(engine: GameEngine): Pick<SerializedGameState, 'droppedWeapons' | 'sentries'> {
+function fieldObjectsJSON(engine: GameEngine): Pick<SerializedGameState, 'droppedWeapons' | 'placedDeployables'> {
     const saved = engine.state.fieldObjects.toJSON();
-    if (saved.droppedWeapons.length === 0 && saved.sentries.length === 0) return {};
-    return { droppedWeapons: saved.droppedWeapons, sentries: saved.sentries };
+    if (saved.droppedWeapons.length === 0 && saved.placedDeployables.length === 0) return {};
+    return { droppedWeapons: saved.droppedWeapons, placedDeployables: saved.placedDeployables };
 }
 
 export function serializeEngine(engine: GameEngine): SerializedGameState {
@@ -283,7 +283,7 @@ export function deserializeEngine(
     engine.state.specialTileManager.restoreFromJSON(data.specialTiles ?? []);
     engine.state.fieldObjects.restoreFromJSON({
         droppedWeapons: data.droppedWeapons ?? [],
-        sentries: data.sentries ?? [],
+        placedDeployables: data.placedDeployables ?? [],
     });
 
     // Restore navEpoch and mark NavGrid dirty (after special tiles are restored)

@@ -19,7 +19,7 @@ export interface ReplayTickTrace {
     tick: number;
     gameTime: number;
     projectiles: { type: string; x: number; y: number; active: boolean }[];
-    sentries: { x: number; y: number; shotsRemaining: number }[];
+    placedDeployables: { x: number; y: number; chargesRemaining: number }[];
     units: {
         id: string;
         x: number;
@@ -67,10 +67,10 @@ export function captureReplayTick(engine: GameEngine): ReplayTickTrace {
             y: projectile.y,
             active: projectile.active,
         })),
-        sentries: engine.state.fieldObjects.sentries.map((sentry) => ({
-            x: sentry.x,
-            y: sentry.y,
-            shotsRemaining: sentry.shotsRemaining,
+        placedDeployables: engine.state.fieldObjects.placedDeployables.map((deployable) => ({
+            x: deployable.x,
+            y: deployable.y,
+            chargesRemaining: deployable.chargesRemaining,
         })),
         units: engine.units.filter((unit) => unit.active).map((unit) => ({
             id: unit.id,

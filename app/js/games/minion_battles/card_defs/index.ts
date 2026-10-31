@@ -88,6 +88,7 @@ import { WhirlCard } from './10_armory_core/1007_Whirl/1007Ability';
 import { CreateShieldCard } from './10_armory_core/1008_CreateShield/1008Ability';
 import { ReleaseChargeCard } from './10_armory_core/1009_ReleaseCharge/1009Ability';
 import { ThrowShieldCard } from './10_armory_core/1010_ThrowShield/1010Ability';
+import { RepairPostCard } from './10_armory_core/1011_RepairPost/1011Ability';
 import { registerArmoryContent } from './10_armory_core/register';
 
 const cardDefs: CardDef[] = [
@@ -179,6 +180,7 @@ const cardDefs: CardDef[] = [
     CreateShieldCard,
     ReleaseChargeCard,
     ThrowShieldCard,
+    RepairPostCard,
 ];
 
 // Group content the cards' abilities look up at cast time (idempotent; AbilityRegistry also calls it).

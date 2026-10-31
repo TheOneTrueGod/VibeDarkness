@@ -12,6 +12,8 @@
 export const ACTOR_ANIMATION_TYPE_ATTACK = 'attack';
 /** Barrel or weapon pulls back, then eases forward. */
 export const ACTOR_ANIMATION_VARIANT_RANGED = 'ranged';
+/** Parts burst outward, then ease back in. The ranged clip's curve, read as a push instead of a pull. */
+export const ACTOR_ANIMATION_VARIANT_BURST = 'burst';
 
 /**
  * Share of an attack/ranged clip spent snapping backward.
@@ -68,16 +70,30 @@ export function actorAnimationProgress(
 }
 
 /**
- * How far an attack/ranged clip has pulled back: 0 at rest, 1 fully back, then 0 again.
- * Any other clip, or no clip, is 0 so the rest pose stays put.
+ * Snap-and-return amount of an attack clip of `variant`: 0 at rest, 1 at the end of the snap,
+ * then easing back to 0. Any other clip, or no clip, is 0 so the rest pose stays put.
  */
-export function rangedAttackPull(state: ActorAnimationState | null | undefined, gameTime: number): number {
+export function attackClipAmount(
+    state: ActorAnimationState | null | undefined,
+    gameTime: number,
+    variant: string,
+): number {
     if (state?.request.type !== ACTOR_ANIMATION_TYPE_ATTACK) return 0;
-    if (state.request.variant !== ACTOR_ANIMATION_VARIANT_RANGED) return 0;
+    if (state.request.variant !== variant) return 0;
     const progress = actorAnimationProgress(state, gameTime);
     if (progress == null) return 0;
     if (progress <= RANGED_ATTACK_SNAP_SHARE) return progress / RANGED_ATTACK_SNAP_SHARE;
     return (1 - progress) / (1 - RANGED_ATTACK_SNAP_SHARE);
+}
+
+/** How far an attack/ranged clip has pulled back: 0 at rest, 1 fully back, then 0 again. */
+export function rangedAttackPull(state: ActorAnimationState | null | undefined, gameTime: number): number {
+    return attackClipAmount(state, gameTime, ACTOR_ANIMATION_VARIANT_RANGED);
+}
+
+/** How far an attack/burst clip has pushed out: 0 at rest, 1 fully out, then 0 again. */
+export function burstAttackPush(state: ActorAnimationState | null | undefined, gameTime: number): number {
+    return attackClipAmount(state, gameTime, ACTOR_ANIMATION_VARIANT_BURST);
 }
 
 export function readActorAnimation(raw: unknown): ActorAnimationState | null {

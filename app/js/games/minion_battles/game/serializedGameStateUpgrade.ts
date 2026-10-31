@@ -30,6 +30,17 @@ export const UPGRADE_STEPS: readonly SerializedGameStateUpgradeStep[] = [
         const { cards: _legacyCards, ...rest } = raw;
         return rest;
     },
+    // 1 -> 2: sentries became generic deployables. `sentries` -> `placedDeployables`, and each
+    // entry's `shotsRemaining` / `nextShotAt` -> `chargesRemaining` / `nextTriggerAt`.
+    (raw) => {
+        const { sentries, ...rest } = raw;
+        if (!Array.isArray(sentries)) return rest;
+        const placedDeployables = sentries.map((entry) => {
+            const { shotsRemaining, nextShotAt, ...kept } = entry as Record<string, unknown>;
+            return { ...kept, chargesRemaining: shotsRemaining, nextTriggerAt: nextShotAt };
+        });
+        return { ...rest, placedDeployables };
+    },
 ];
 
 /** Version written by `toJSON`. */

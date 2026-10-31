@@ -29,6 +29,7 @@
  */
 
 import type { Unit } from '../game/units/Unit';
+import type { EventBus } from '../game/EventBus';
 import type { RecoveryChargeType, AbilityTag } from './Ability';
 import { abilityHasTag } from './Ability';
 import type { ResolvedTarget } from '../game/types';
@@ -60,6 +61,8 @@ export interface HeelOptions {
 interface HeelEngineCtx {
     gameTime: number;
     addEffect(e: unknown): void;
+    /** When present, the heal shows a green number. */
+    eventBus?: EventBus;
 }
 
 /**
@@ -86,7 +89,12 @@ export function commandHeel(
                 pet.y = owner.y;
             }
         } else {
-            applyHeal(pet, healAmount, opts.healPenaltyPct ?? DEFAULT_HEAL_PENALTY_PCT);
+            applyHeal(
+                pet,
+                healAmount,
+                opts.healPenaltyPct ?? DEFAULT_HEAL_PENALTY_PCT,
+                engine.eventBus ? { eventBus: engine.eventBus, sourceUnitId: owner.id } : undefined,
+            );
         }
 
         // Heel state — clears sticky attack / ordered move.

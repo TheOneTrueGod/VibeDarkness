@@ -6,9 +6,9 @@
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import type { TeamId } from '../teams';
 
-export type DeployableKind = 'lightSource' | 'terrainEffect' | 'specialTile' | 'droppedWeapon' | 'sentry';
+export type DeployableKind = 'lightSource' | 'terrainEffect' | 'specialTile' | 'droppedWeapon' | 'placedDeployable';
 
-export type DeployableTag = 'lightEmitter' | 'bramble' | 'droppedWeapon' | 'sentry';
+export type DeployableTag = 'lightEmitter' | 'bramble' | 'droppedWeapon' | 'placedDeployable';
 
 export interface Deployable {
     id: string;

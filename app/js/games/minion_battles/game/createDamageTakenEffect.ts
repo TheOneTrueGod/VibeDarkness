@@ -1,8 +1,9 @@
 /**
- * Global damage feedback: floating damage numbers for any HP loss from Unit.takeDamage.
+ * Global HP feedback: floating damage numbers for any HP loss from Unit.takeDamage, and green
+ * "+N" numbers for heals that report through `applyHeal`'s feedback.
  */
 
-import { DAMAGE_VISUAL_KIND_DAYLIGHT, type DamageTakenEvent } from './EventBus';
+import { DAMAGE_VISUAL_KIND_DAYLIGHT, type DamageTakenEvent, type UnitHealedEvent } from './EventBus';
 import type { Unit } from './units/Unit';
 import { Effect } from './effects/Effect';
 import { buildDamageNumberMotionFields, type DamageNumberMotionData } from './effects/damageNumberMotion';
@@ -20,6 +21,9 @@ export interface DamageTakenEffectContext {
 const DAMAGE_NUMBER_COLOR_DARK = 0xc084fc;
 const DAMAGE_NUMBER_COLOR_NATURE = 0x4ade80; // green-400
 const DAMAGE_NUMBER_COLOR_STANDARD = 0xff3344;
+/** Heals read as green with a "+" so they never look like nature-creature damage. */
+export const HEAL_NUMBER_COLOR = 0x4ade80;
+export const HEAL_NUMBER_PREFIX = '+';
 
 function pickDamageNumberColor(unit: Unit, visualKind?: DamageTakenEvent['visualKind']): number {
     if (visualKind === DAMAGE_VISUAL_KIND_DAYLIGHT) return DAYLIGHT_DAMAGE_NUMBER_COLOR;
@@ -35,12 +39,14 @@ function spawnDamageNumberEffect(
     amount: number,
     color: number,
     from: { x: number; y: number } | null,
+    prefix?: string,
 ): void {
     const motion = buildDamageNumberMotionFields(unit.x, unit.y, (a, b) => ctx.generateRandomInteger(a, b), from);
-    const effectData: DamageNumberMotionData = {
+    const effectData: DamageNumberMotionData & { prefix?: string } = {
         amount,
         color,
         ...motion,
+        ...(prefix ? { prefix } : {}),
     };
     ctx.addEffect(
         new Effect({
@@ -82,4 +88,21 @@ export function createDamageTakenEffect(ctx: DamageTakenEffectContext, ev: Damag
             }),
         );
     }
+}
+
+/**
+ * Spawn a green "+N" number at the healed unit. Fractional heals are rounded; a heal that rounds
+ * to 0 shows nothing. Flight direction comes from the source, like damage numbers.
+ */
+export function createHealEffect(ctx: DamageTakenEffectContext, ev: UnitHealedEvent): void {
+    const shown = Math.round(ev.amount);
+    if (shown <= 0) return;
+    const unit = ctx.getUnit(ev.unitId);
+    if (!unit) return;
+    let from: { x: number; y: number } | null = null;
+    if (ev.sourceUnitId && ev.sourceUnitId !== unit.id) {
+        const src = ctx.getUnit(ev.sourceUnitId);
+        if (src?.isAlive()) from = { x: src.x, y: src.y };
+    }
+    spawnDamageNumberEffect(ctx, unit, shown, HEAL_NUMBER_COLOR, from, HEAL_NUMBER_PREFIX);
 }

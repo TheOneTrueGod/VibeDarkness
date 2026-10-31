@@ -7,7 +7,7 @@
 import { WAIT_ABILITY_MODE_FAR } from '../abilities/WaitAbility';
 import { isWithinEarthCoreNearbyStoneDamagedRange } from '../abilities/earthCoreHelpers';
 import type { DamageTakenEvent } from './EventBus';
-import { createDamageTakenEffect } from './createDamageTakenEffect';
+import { createDamageTakenEffect, createHealEffect } from './createDamageTakenEffect';
 import { applyDeathSequence } from './deathSequences/applyDeathSequence';
 import { Effect } from './effects/Effect';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
@@ -81,6 +81,17 @@ export function wireCoreEventListeners(engine: GameEngine): void {
 
     engine.eventBus.on('damage_taken', (data: DamageTakenEvent) => {
         createDamageTakenEffect(
+            {
+                addEffect: (e) => engine.addEffect(e),
+                generateRandomInteger: (min, max) => engine.generateRandomInteger(min, max),
+                getUnit: (id) => engine.getUnit(id),
+            },
+            data,
+        );
+    });
+
+    engine.eventBus.on('unit_healed', (data) => {
+        createHealEffect(
             {
                 addEffect: (e) => engine.addEffect(e),
                 generateRandomInteger: (min, max) => engine.generateRandomInteger(min, max),

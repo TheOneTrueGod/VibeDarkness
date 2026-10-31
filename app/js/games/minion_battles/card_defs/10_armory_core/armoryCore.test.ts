@@ -87,7 +87,7 @@ import {
 } from './1007_Whirl/1007Constants';
 import { WEAPON_DISCARD_ARC_EFFECT_TYPE } from '../../game/effect_defs/weaponEffects';
 import { TURRET_BODY_RADIUS, TURRET_OPEN_DURATION } from '../../game/effect_defs/turretDeployPose';
-import { TURRET_DEPLOY_PROJECTILE_TYPE } from '../../game/projectiles/projectile_defs/foldedTurretDef';
+import { DEPLOYABLE_DELIVERY_PROJECTILE_TYPE } from '../../game/fieldObjects/deployableDefs';
 import { CreateSwordAbility } from './1001_CreateSword/1001Ability';
 import { IMPROVISED_SWORD_IMPACT_TIME, ImprovisedSwordAbility } from './1002_ImprovisedSword/1002Ability';
 import { ThrowSwordAbility } from './1003_ThrowSword/1003Ability';
@@ -387,26 +387,26 @@ describe('Armory Core', () => {
         expect(aimTiming.targetDef.chainImmediately).toBe(true);
 
         step(engine, TURRET_AIM_WINDOW_END);
-        const delivery = engine.projectiles.find((projectile) => projectile.projectileType === TURRET_DEPLOY_PROJECTILE_TYPE);
+        const delivery = engine.projectiles.find((projectile) => projectile.projectileType === DEPLOYABLE_DELIVERY_PROJECTILE_TYPE);
         expect(delivery).toBeDefined();
         expect(delivery!.passThroughEnemies).toBe(true);
         expect(delivery!.rotationSpeed).toBe(TURRET_DEPLOY_SPIN_DEGREES_PER_SEC);
         expect(delivery!.maxDistance).toBeCloseTo(TURRET_PLACE_RANGE);
         expect(delivery!.velocityX).toBeCloseTo(TURRET_DEPLOY_SPEED);
-        expect(engine.state.fieldObjects.sentries).toHaveLength(0);
+        expect(engine.state.fieldObjects.placedDeployables).toHaveLength(0);
 
         step(engine, TURRET_FLIGHT_DURATION);
-        expect(engine.projectiles.some((projectile) => projectile.projectileType === TURRET_DEPLOY_PROJECTILE_TYPE)).toBe(false);
-        expect(engine.state.fieldObjects.sentries).toHaveLength(1);
-        const sentry = engine.state.fieldObjects.sentries[0]!;
+        expect(engine.projectiles.some((projectile) => projectile.projectileType === DEPLOYABLE_DELIVERY_PROJECTILE_TYPE)).toBe(false);
+        expect(engine.state.fieldObjects.placedDeployables).toHaveLength(1);
+        const sentry = engine.state.fieldObjects.placedDeployables[0]!;
         expect(sentry.x).toBeCloseTo(place.x);
         expect(sentry.y).toBeCloseTo(place.y);
         expect(sentry.facing).toBeCloseTo(facing);
-        expect(sentry.shotsRemaining).toBe(TURRET_SHOT_COUNT);
+        expect(sentry.chargesRemaining).toBe(TURRET_SHOT_COUNT);
 
         step(engine, TURRET_OPEN_DURATION);
-        expect(engine.state.fieldObjects.sentries).toHaveLength(1);
-        expect(engine.state.fieldObjects.sentries[0]!.shotsRemaining).toBe(TURRET_SHOT_COUNT);
+        expect(engine.state.fieldObjects.placedDeployables).toHaveLength(1);
+        expect(engine.state.fieldObjects.placedDeployables[0]!.chargesRemaining).toBe(TURRET_SHOT_COUNT);
     });
 
     it('spawns the sentry from a live order after the caster clock is already running', () => {
@@ -439,12 +439,12 @@ describe('Armory Core', () => {
         const payload = active?.castPayload as { place?: { x: number; y: number }; aim?: { x: number; y: number } } | undefined;
         expect(payload?.place).toEqual(place);
         expect(payload?.aim).toEqual(aim);
-        expect(engine.projectiles.some((projectile) => projectile.projectileType === TURRET_DEPLOY_PROJECTILE_TYPE)).toBe(true);
+        expect(engine.projectiles.some((projectile) => projectile.projectileType === DEPLOYABLE_DELIVERY_PROJECTILE_TYPE)).toBe(true);
 
         step(engine, TURRET_FLIGHT_DURATION);
-        expect(engine.state.fieldObjects.sentries).toHaveLength(1);
-        expect(engine.state.fieldObjects.sentries[0]!.x).toBeCloseTo(place.x);
-        expect(engine.state.fieldObjects.sentries[0]!.y).toBeCloseTo(place.y);
+        expect(engine.state.fieldObjects.placedDeployables).toHaveLength(1);
+        expect(engine.state.fieldObjects.placedDeployables[0]!.x).toBeCloseTo(place.x);
+        expect(engine.state.fieldObjects.placedDeployables[0]!.y).toBeCloseTo(place.y);
     });
 
     it('draws the turret footprint on the chosen tile while aiming', () => {
@@ -482,7 +482,7 @@ describe('Armory Core', () => {
             TURRET_CONE_HALF_ANGLE_RAD,
         )).toBe(false);
         placeTargetDummy(engine, { x: PLAYER.x, y: PLAYER.y + TURRET_SHOT_RANGE }, 'wide');
-        engine.state.fieldObjects.spawnSentry(engine, {
+        engine.state.fieldObjects.spawnDeployable(engine, {
             defId: ARMORY_TURRET_DEF_ID,
             x: PLAYER.x,
             y: PLAYER.y,
@@ -508,9 +508,9 @@ describe('Armory Core', () => {
         expect(firstShot!.spriteConfig?.trail?.effectType).toBe('BulletTrail');
         const sprite = firstShot!.spriteConfig?.sprite;
         expect(sprite && 'scale' in sprite ? sprite.scale : undefined).toBe(TURRET_SHOT_SPRITE_SCALE);
-        expect(engine.state.fieldObjects.sentries[0]?.shotsRemaining).toBe(TURRET_SHOT_COUNT - 1);
-        expect(engine.state.fieldObjects.sentries[0]?.animation?.request).toEqual(DeployTurretAbility.animation);
-        expect(engine.state.fieldObjects.sentries[0]?.animation?.startedAtGameTime).toBeGreaterThanOrEqual(TURRET_FIRST_SHOT_DELAY);
+        expect(engine.state.fieldObjects.placedDeployables[0]?.chargesRemaining).toBe(TURRET_SHOT_COUNT - 1);
+        expect(engine.state.fieldObjects.placedDeployables[0]?.animation?.request).toEqual(DeployTurretAbility.animation);
+        expect(engine.state.fieldObjects.placedDeployables[0]?.animation?.startedAtGameTime).toBeGreaterThanOrEqual(TURRET_FIRST_SHOT_DELAY);
 
         const empty = buildTinyBattleEngine({
             gridW: 12,
@@ -523,7 +523,7 @@ describe('Armory Core', () => {
             equipment: [CORE_ITEM_IDS.BasicCore, swordItem.id],
             researchTrees: { [ARMORY_TREE_ID]: [ARMORY_NODE_CORE] },
         });
-        empty.state.fieldObjects.spawnSentry(empty, {
+        empty.state.fieldObjects.spawnDeployable(empty, {
             defId: ARMORY_TURRET_DEF_ID,
             x: PLAYER.x,
             y: PLAYER.y,
@@ -546,7 +546,7 @@ describe('Armory Core', () => {
         expect(spawned).toBe(TURRET_SHOT_COUNT);
         expect(facingShot).not.toBeNull();
         expect(facingShot!.velocityX).toBeGreaterThan(Math.abs(facingShot!.velocityY));
-        expect(empty.state.fieldObjects.sentries).toHaveLength(0);
+        expect(empty.state.fieldObjects.placedDeployables).toHaveLength(0);
     });
 
     it('draws a throw line clamped to throw range', () => {

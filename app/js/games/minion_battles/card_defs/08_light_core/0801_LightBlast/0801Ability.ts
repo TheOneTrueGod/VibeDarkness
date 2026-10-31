@@ -185,7 +185,7 @@ export const LightBlastAbility = defineAbility({
                     if (!unit.isAlive()) continue;
                     if (areEnemies(unit.teamId, ctx.caster.teamId)) continue;
                     if (!unitOverlapsCircle(unit, pos.x, pos.y, blastRadius)) continue;
-                    applyHeal(unit, LIGHT_BLAST_HEAL, healPenaltyPct);
+                    applyHeal(unit, LIGHT_BLAST_HEAL, healPenaltyPct, { eventBus: eng.eventBus, sourceUnitId: ctx.caster.id });
                 }
 
                 spawnBrightLight(eng, pos.x, pos.y, LIGHT_BLAST_BRIGHT_MAGNITUDE, undefined, {

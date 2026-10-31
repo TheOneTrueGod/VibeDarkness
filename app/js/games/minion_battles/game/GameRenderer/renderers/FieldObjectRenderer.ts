@@ -1,14 +1,14 @@
 /**
- * Resting dropped weapons and sentries. Flight is an effect; this draws what is left on the ground.
+ * Resting dropped weapons and placed deployables. Flight is an effect or projectile; this draws
+ * what is left on the ground. Each deployable is drawn by the painter its def's `visual` names.
  */
 import { Graphics } from 'pixi.js';
 import type { Container, Sprite } from 'pixi.js';
 import type { GameEngine } from '../../GameEngine';
 import { DROPPED_WEAPON_ARC_DURATION } from '../../fieldObjects/landing';
 import { weaponTipOffset } from '../../conjuredWeapons/registry';
-import { paintTurret, turretHullColor } from '../../effect_defs/turretDeployDraw';
-import { rangedAttackPull } from '../../animation/actorAnimation';
-import { turretOpenAmount } from '../../effect_defs/turretDeployPose';
+import { turretHullColor } from '../../effect_defs/turretDeployDraw';
+import { deployableWallSeconds, getDeployablePainter } from '../../effect_defs/deployablePainters';
 import {
     DROPPED_SWORD_SCALE,
     createWeaponCardSprite,
@@ -17,7 +17,7 @@ import {
     weaponCardArtUrl,
 } from '../../fieldObjects/weaponArt';
 import { ConcealedArrivalClock } from '../../fieldObjects/concealedArrival';
-import { getSentryDef } from '../../fieldObjects/sentryDefs';
+import { getDeployableDef } from '../../fieldObjects/deployableDefs';
 
 const Z_FIELD_OBJECTS = 6;
 
@@ -44,24 +44,28 @@ export class FieldObjectRenderer {
             sizeWeaponCardSprite(sprite, DROPPED_SWORD_SCALE);
             sprite.alpha = 1;
         }
-        for (const sentry of manager.sentries) {
-            live.add(sentry.id);
-            const g = this.sentryGraphic(sentry.id);
+        const wallSeconds = deployableWallSeconds();
+        for (const deployable of manager.placedDeployables) {
+            const def = getDeployableDef(deployable.defId);
+            const painter = getDeployablePainter(def);
+            if (!def || !painter) continue;
+            live.add(deployable.id);
+            const g = this.deployableGraphic(deployable.id);
             g.visible = true;
-            g.position.set(sentry.x, sentry.y);
-            g.rotation = sentry.facing;
-            paintTurret(
-                g,
-                turretOpenAmount(sentry.spawnedAtGameTime, engine.gameTime),
-                sentry.shotsRemaining,
-                getSentryDef(sentry.defId)?.shotCount ?? sentry.shotsRemaining,
-                turretHullColor(engine.getUnit(sentry.ownerUnitId)),
-                rangedAttackPull(sentry.animation, engine.gameTime),
-            );
+            g.position.set(deployable.x, deployable.y);
+            g.rotation = deployable.facing;
+            painter.paint(g, {
+                open: painter.openAmount(deployable.spawnedAtGameTime, engine.gameTime),
+                chargesFilled: deployable.chargesRemaining,
+                charges: def.charges,
+                ownerColor: turretHullColor(engine.getUnit(deployable.ownerUnitId)),
+                actionAmount: painter.actionAmount(deployable, engine.gameTime),
+                wallSeconds,
+            });
         }
         for (const [id, visual] of this.visuals) {
-            const sentryStillThere = manager.sentries.some((sentry) => sentry.id === id);
-            if (resting.has(id) || sentryStillThere) continue;
+            const deployableStillThere = manager.placedDeployables.some((deployable) => deployable.id === id);
+            if (resting.has(id) || deployableStillThere) continue;
             visual.destroy();
             this.visuals.delete(id);
         }
@@ -80,7 +84,7 @@ export class FieldObjectRenderer {
         return visual as Sprite;
     }
 
-    private sentryGraphic(id: string): Graphics {
+    private deployableGraphic(id: string): Graphics {
         let visual = this.visuals.get(id);
         if (!visual) {
             const g = new Graphics();

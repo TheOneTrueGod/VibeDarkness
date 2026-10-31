@@ -7,16 +7,22 @@ import {
     CREATE_SHIELD_ABILITY_ID,
     CREATE_SWORD_ABILITY_ID,
     DEPLOY_TURRET_ABILITY_ID,
+    REPAIR_POST_ABILITY_ID,
 } from '../../games/minion_battles/card_defs/10_armory_core/armoryConstants';
 import { CHARGE_MISSION_START } from '../../games/minion_battles/resources/Charge';
 import { MACE_WHIRL_MAX_TARGETS } from '../../games/minion_battles/card_defs/10_armory_core/1007_Whirl/1007Constants';
 import { SHIELD_BLOCK_CHARGE_GRANT } from '../../games/minion_battles/card_defs/10_armory_core/1008_CreateShield/1008Constants';
+import {
+    REPAIR_POST_HEAL,
+    REPAIR_POST_PULSES,
+} from '../../games/minion_battles/card_defs/10_armory_core/1011_RepairPost/1011Constants';
 import { THROW_SHIELD_DAMAGE } from '../../games/minion_battles/card_defs/10_armory_core/1010_ThrowShield/1010Constants';
 
 export const ARMORY_TREE_ID = 'armory_core';
 export const ARMORY_NODE_CORE = 'armory_core';
 export const ARMORY_NODE_CREATE_MACE = 'create_mace';
 export const ARMORY_NODE_CREATE_SHIELD = 'create_shield';
+export const ARMORY_NODE_REPAIR_POST = 'repair_post';
 
 export const ARMORY_CORE_ATTUNEMENT_COST = 10;
 export const ARMORY_CORE_VIGOR_COST = 5;
@@ -29,6 +35,10 @@ export const ARMORY_MACE_METAL_COST = 10;
 export const ARMORY_SHIELD_ATTUNEMENT_COST = 15;
 export const ARMORY_SHIELD_VIGOR_COST = 10;
 export const ARMORY_SHIELD_METAL_COST = 5;
+
+export const ARMORY_REPAIR_POST_ATTUNEMENT_COST = 15;
+export const ARMORY_REPAIR_POST_VIGOR_COST = 7;
+export const ARMORY_REPAIR_POST_METAL_COST = 8;
 
 const CORE_SWAP_SOURCES = [
     CORE_ITEM_IDS.BasicCore,
@@ -127,6 +137,30 @@ export const armoryTree: ResearchTreeDef = {
                 { type: 'addCard', cardId: CREATE_SHIELD_ABILITY_ID },
             ],
             modifiesAbility: { from: CREATE_SHIELD_ABILITY_ID, to: CREATE_SHIELD_ABILITY_ID },
+        },
+        {
+            id: ARMORY_NODE_REPAIR_POST,
+            title: 'Repair Post',
+            description:
+                `Place a repair post for ${ARMORY_ABILITY_CHARGE_COST} Charge. Once each quarter round it heals nearby allies for ${REPAIR_POST_HEAL}, ${REPAIR_POST_PULSES} times, then falls silent.`,
+            flavorText: 'Not every weapon is pointed outward.',
+            order: 17,
+            tier: 15,
+            position: { x: 420, y: 170 },
+            prereqNodeIds: [ARMORY_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: ARMORY_TREE_ID, nodeIds: [ARMORY_NODE_CORE] },
+            ],
+            cost: {
+                attunement: ARMORY_REPAIR_POST_ATTUNEMENT_COST,
+                vigor: ARMORY_REPAIR_POST_VIGOR_COST,
+                metal: ARMORY_REPAIR_POST_METAL_COST,
+            },
+            effects: [
+                { type: 'addCard', cardId: REPAIR_POST_ABILITY_ID },
+            ],
+            modifiesAbility: { from: REPAIR_POST_ABILITY_ID, to: REPAIR_POST_ABILITY_ID },
         },
     ],
 };

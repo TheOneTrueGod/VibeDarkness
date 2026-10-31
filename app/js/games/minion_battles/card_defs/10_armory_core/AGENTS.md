@@ -10,9 +10,9 @@ A discarded or thrown sword is a real field object on the frame it is created: t
 
 The Armory is content on top of generic engine pieces; the engine never imports this folder (`game/contentLayering.test.ts`).
 
-- **Registration.** `registerArmoryContent()` in `register.ts` registers the three `ConjuredWeaponDef`s (with their `art`) and the turret `SentryDef`. Ability files do not import it for side effects. Tests that skip `abilities/AbilityRegistry.ts` call it in a `beforeAll`.
+- **Registration.** `registerArmoryContent()` in `register.ts` registers the three `ConjuredWeaponDef`s (with their `art`) and the turret and Repair Post `DeployableDef`s. Ability files do not import it for side effects. Tests that skip `abilities/AbilityRegistry.ts` call it in a `beforeAll`.
 - **Archetypes.** Create Sword and Create Mace are `defineConjure` configs; Throw Sword and Throw Shield are `defineThrownWeapon` configs. Create Shield is a `defineDirectionalShield` with the conjure hooks, and Release Charge is a `defineConeStrike`. All live in `abilities/archetypes/`.
-- **Engine definitions.** Weapons: `game/conjuredWeapons/AGENTS.md`. Sentries, tokens and landing: `game/fieldObjects/AGENTS.md`. Orbit, discard arc and whirl effects take their shape and colour from effect data (`game/effect_defs/weaponEffects.ts`), so the Armory passes its numbers in.
+- **Engine definitions.** Weapons: `game/conjuredWeapons/AGENTS.md`. Deployables, tokens and landing: `game/fieldObjects/AGENTS.md`. Orbit, discard arc and whirl effects take their shape and colour from effect data (`game/effect_defs/weaponEffects.ts`), so the Armory passes its numbers in.
 - **Colours** come from the `armory` theme, by role (below). Archetype colours default from the theme when a config leaves them out.
 
 ## Colour
@@ -36,7 +36,8 @@ Quench, the `armory` theme. The values and the role rules (primary, secondary, s
 | `chargeSword.svg` | Ghostly blade for Create Sword, Charge Sword, the throw's flight, and the dropped token |
 | `chargeSwordThrow.svg` | Same blade, tipped and trailed, for the Throw Sword card only |
 | `1003_ThrowSword/` | The throw. The sword becomes a token when the projectile stops |
-| `1004_DeployTurret/` | The projectile that becomes the sentry when it lands |
+| `1004_DeployTurret/` | The folded turret that becomes a placed deployable when it lands |
+| `1011_RepairPost/` | Repair Post: a `healPulse` deployable that heals allies each quarter round; `repairPost.svg` is its card |
 | `1005_CreateMace/` | Spend Charge and equip the conjured mace. The orbit uses the mace picture |
 | `1006_ChargeMace/` | Charge Mace, the swing. Same strike as Swing Mace. The last hit discards the mace |
 | `1007_Whirl/` | The full-circle release, and the swung-mace card picture |
@@ -46,6 +47,6 @@ Quench, the `armory` theme. The values and the role rules (primary, secondary, s
 | `1010_ThrowShield/` | The throw. Strikes, bounces to the nearest enemy in `THROW_SHIELD_BOUNCE_RANGE` (`Projectile.bounceRange`), and becomes a token where it stops. Thick tapered trail |
 | `shield.svg` | Buckler for Create Shield, the orbit, the throw's flight, and the dropped token |
 | `shieldThrow.svg` | Same buckler, tipped and trailed, for the Throw Shield card only |
-| `register.ts` | `registerArmoryContent()`: the three conjured weapons (which abilities each swaps in, and their art) and the turret `SentryDef`. Called from `abilities/AbilityRegistry.ts` and `card_defs/index.ts`; idempotent |
+| `register.ts` | `registerArmoryContent()`: the three conjured weapons (which abilities each swaps in, and their art) and the turret and Repair Post `DeployableDef`s. Called from `abilities/AbilityRegistry.ts` and `card_defs/index.ts`; idempotent |
 | `armoryConstants.ts` | Ids, token kinds, the shared Charge cost, held-use counts, the shared conjure orbit, and the palette. One ability's tuning lives in its folder (`NNNNConstants.ts`); Charge pool numbers live in `resources/Charge.ts` |
 | `armoryCore.test.ts` | Behaviour tests for every Armory ability |

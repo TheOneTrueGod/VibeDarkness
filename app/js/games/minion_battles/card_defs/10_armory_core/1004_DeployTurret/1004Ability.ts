@@ -1,5 +1,5 @@
 /**
- * Deploy Turret — place a stationary sentry, then choose the direction it watches.
+ * Deploy Turret — place a stationary turret (a deployable), then choose the direction it watches.
  *
  * The turret is not a unit. It cannot be attacked. It fires four rocks down a 45 degree
  * cone over one round, including a shot along its facing when the cone is empty.
@@ -7,7 +7,7 @@
  *
  *   place, then facing, with no time between the two clicks
  *   the cast launches a folded-turret projectile on the simulation clock
- *   the sentry appears when that projectile reaches the tile, then opens
+ *   the turret appears when that projectile reaches the tile, then opens
  *
  * A cursor outside the ring, or on a blocked tile, is rejected. The ring stays visible.
  */
@@ -18,16 +18,13 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { facingConeHitbox, groundPointHitbox } from '../../../hitboxes';
-import type { ResolvedTarget } from '../../../game/types';
-import type { Unit } from '../../../game/units/Unit';
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import { ResourceId } from '../../../resources/resourceIds';
 import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
-import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
-import { isOpenLanding } from '../../../game/fieldObjects/landing';
-import { readSentryDelivery } from '../../../game/fieldObjects/FieldObjectManager';
+import { deployablePlacementValidator } from '../../../abilities/archetypes/deployablePlacement';
+import { spawnDeliveredDeployable } from '../../../game/fieldObjects/FieldObjectManager';
 import type { Projectile } from '../../../game/projectiles/Projectile';
 import {
     ARMORY_ABILITY_CHARGE_COST,
@@ -86,23 +83,7 @@ export interface TurretCastPayload {
     aim?: { x: number; y: number };
 }
 
-export function validateTurretPlacement(ctx: {
-    caster: Unit;
-    engine: unknown;
-    pick: ResolvedTarget;
-}): boolean {
-    const point = ctx.pick.position;
-    if (!point) return false;
-    const dx = point.x - ctx.caster.x;
-    const dy = point.y - ctx.caster.y;
-    if (dx * dx + dy * dy > TURRET_PLACE_RANGE * TURRET_PLACE_RANGE) return false;
-    const engine = ctx.engine as { terrainManager?: Parameters<typeof isOpenLanding>[0]['terrainManager']; units?: Unit[] };
-    return isOpenLanding(
-        { terrainManager: engine.terrainManager ?? null, units: engine.units ?? [] },
-        point.x,
-        point.y,
-    );
-}
+export const validateTurretPlacement = deployablePlacementValidator(TURRET_PLACE_RANGE);
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     {
@@ -161,7 +142,7 @@ export function deployTurret(ctx: CastBehaviourTickContext): void {
     const aim = payload.aim;
     if (!place || !aim) return;
     const facing = Math.atan2(aim.y - place.y, aim.x - place.x);
-    ctx.engine.state?.fieldObjects?.launchSentryDelivery(ctx.engine, {
+    ctx.engine.state?.fieldObjects?.launchDeployableDelivery(ctx.engine, {
         defId: ARMORY_TURRET_DEF_ID,
         fromX: ctx.caster.x,
         fromY: ctx.caster.y,
@@ -174,20 +155,6 @@ export function deployTurret(ctx: CastBehaviourTickContext): void {
     });
 }
 
-export function spawnDeliveredTurret(engine: unknown, caster: Unit, projectile: Projectile): void {
-    const delivery = readSentryDelivery(projectile.expireData);
-    if (!delivery) return;
-    const host = engine as AbilityEngineContext;
-    host.state?.fieldObjects?.spawnSentry(host, {
-        defId: ARMORY_TURRET_DEF_ID,
-        x: delivery.x,
-        y: delivery.y,
-        facing: delivery.facing,
-        teamId: caster.teamId,
-        ownerUnitId: caster.id,
-        abilityId: DEPLOY_TURRET_ABILITY_ID,
-    });
-}
 
 function rememberTurretPick(ctx: CastBehaviourTickContext, key: 'place' | 'aim', label: string): void {
     const active = ctx.caster.activeAbilities.find((entry) => entry.abilityId === ctx.abilityId);
@@ -233,7 +200,7 @@ export const DeployTurretAbility = defineAbility({
         duration: TURRET_RANGED_ATTACK_DURATION,
     },
     onProjectileExpired(engine, caster, projectile): void {
-        spawnDeliveredTurret(engine, caster, projectile as Projectile);
+        spawnDeliveredDeployable(engine, caster, projectile as Projectile, DEPLOY_TURRET_ABILITY_ID, ARMORY_TURRET_DEF_ID);
     },
     renderTargetingPreviewSelectedTargets(gr, _caster, currentTargets, mouseWorld): void {
         const place = currentTargets[0]?.position;

@@ -4,8 +4,9 @@
  * Three scenarios, one per Armory kit, because each kit is a different engine piece:
  * - `armory_sword_cycle` — `defineConjure` + held-weapon swap + `defineThrownWeapon` + dropped-weapon token
  *   (and its checkpoint round-trip).
- * - `armory_turret_fires_and_expires` — the folded-turret delivery and a `SentryDef` firing its own shot count.
+ * - `armory_turret_fires_and_expires` — the folded-turret delivery and a `DeployableDef` firing its own charges.
  * - `armory_shield_block_and_bounce` — the directional block granting Charge, then a bouncing thrown buckler.
+ * - `armory_repair_post_heals_allies` — a `healPulse` deployable healing the caster each quarter round, not an enemy.
  *
  * Later casts are pre-queued in `buildEngine()` with `orderMgr.queueOrder(futureTick, …)`, after the previous
  * cast's cooldown has ended (see the ability-tests skill).
@@ -15,7 +16,7 @@ import type { ScenarioDefinition } from '../../types';
 import type { BattleOrder, ResolvedTarget } from '../../../game/types';
 import { GameEngine } from '../../../game/GameEngine';
 import { Projectile } from '../../../game/projectiles/Projectile';
-import { TURRET_DEPLOY_PROJECTILE_TYPE } from '../../../game/projectiles/projectile_defs/foldedTurretDef';
+import { DEPLOYABLE_DELIVERY_PROJECTILE_TYPE } from '../../../game/fieldObjects/deployableDefs';
 import {
     buildTinyBattleEngine,
     placePlayerFromLoadout,
@@ -28,6 +29,7 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
     ARMORY_NODE_CORE,
     ARMORY_NODE_CREATE_SHIELD,
+    ARMORY_NODE_REPAIR_POST,
     ARMORY_TREE_ID,
 } from '../../../../../researchTrees/trees/armory';
 import { registerArmoryContent } from '../../../card_defs/10_armory_core/register';
@@ -40,6 +42,7 @@ import {
     DROPPED_WEAPON_KIND_SHIELD,
     DROPPED_WEAPON_KIND_SWORD,
     IMPROVISED_SWORD_ABILITY_ID,
+    REPAIR_POST_ABILITY_ID,
     THROW_SHIELD_ABILITY_ID,
     THROW_SWORD_ABILITY_ID,
 } from '../../../card_defs/10_armory_core/armoryConstants';
@@ -67,6 +70,12 @@ import {
     THROW_SHIELD_COOLDOWN_END,
     THROW_SHIELD_DAMAGE,
 } from '../../../card_defs/10_armory_core/1010_ThrowShield/1010Constants';
+import {
+    REPAIR_POST_HEAL,
+    REPAIR_POST_LIFETIME,
+    REPAIR_POST_PLACE_LABEL,
+    REPAIR_POST_PULSES,
+} from '../../../card_defs/10_armory_core/1011_RepairPost/1011Constants';
 
 const P = TINY_BATTLE_PLAYER_ID;
 /** Swing Sword is the stowed weapon ability the conjured sword replaces. */
@@ -233,12 +242,12 @@ const TURRET_AIM = { x: TURRET_PLACE.x + CELL_SIZE, y: TURRET_PLACE.y };
 const TURRET_DUMMY_ID = 'armory_turret_dummy';
 /** Straight down the turret's facing, inside its shot range. */
 const TURRET_DUMMY = { x: TURRET_PLACE.x + 4 * CELL_SIZE, y: TURRET_PLACE.y };
-/** Cast + flight is well under a second; the sentry then lives its whole lifetime. */
+/** Cast + flight is well under a second; the turret then lives its whole lifetime. */
 const TURRET_GONE_BY = 1 + TURRET_LIFETIME;
 const TURRET_KEEP_ALIVE_AT = TURRET_GONE_BY + 0.5;
 
 interface TurretTrack {
-    seenSentry: boolean;
+    seenTurret: boolean;
     shots: number;
     seenProjectiles: Set<string>;
 }
@@ -247,14 +256,14 @@ const turretTracks = new WeakMap<GameEngine, TurretTrack>();
 function trackTurret(engine: GameEngine): TurretTrack {
     let track = turretTracks.get(engine);
     if (!track) {
-        track = { seenSentry: false, shots: 0, seenProjectiles: new Set() };
+        track = { seenTurret: false, shots: 0, seenProjectiles: new Set() };
         turretTracks.set(engine, track);
     }
-    if (engine.state.fieldObjects.sentries.length > 0) track.seenSentry = true;
+    if (engine.state.fieldObjects.placedDeployables.length > 0) track.seenTurret = true;
     for (const projectile of engine.projectiles) {
         if (track.seenProjectiles.has(projectile.id)) continue;
         track.seenProjectiles.add(projectile.id);
-        if (projectile.projectileType === TURRET_DEPLOY_PROJECTILE_TYPE) continue;
+        if (projectile.projectileType === DEPLOYABLE_DELIVERY_PROJECTILE_TYPE) continue;
         if (projectile.sourceAbilityId === DEPLOY_TURRET_ABILITY_ID) track.shots += 1;
     }
     return track;
@@ -290,8 +299,8 @@ export const armoryTurretFiresAndExpiresScenario: ScenarioDefinition = {
     assertPass(engine) {
         const track = trackTurret(engine);
         if (engine.gameTime < TURRET_FIRST_SHOT_DELAY) return false;
-        return track.seenSentry
-            && engine.state.fieldObjects.sentries.length === 0
+        return track.seenTurret
+            && engine.state.fieldObjects.placedDeployables.length === 0
             && track.shots === TURRET_SHOT_COUNT
             && damageTaken(engine, TURRET_DUMMY_ID) === TURRET_SHOT_COUNT * TURRET_SHOT_DAMAGE;
     },
@@ -300,8 +309,8 @@ export const armoryTurretFiresAndExpiresScenario: ScenarioDefinition = {
         const track = trackTurret(engine);
         return [
             `t=${engine.gameTime.toFixed(2)}s`,
-            `seenSentry=${track.seenSentry}`,
-            `sentries=${engine.state.fieldObjects.sentries.length}`,
+            `seenTurret=${track.seenTurret}`,
+            `deployables=${engine.state.fieldObjects.placedDeployables.length}`,
             `shots=${track.shots} (want ${TURRET_SHOT_COUNT})`,
             `dummyDamage=${damageTaken(engine, TURRET_DUMMY_ID)} (want ${TURRET_SHOT_COUNT * TURRET_SHOT_DAMAGE})`,
         ].join('; ');
@@ -418,8 +427,60 @@ export const armoryShieldBlockAndBounceScenario: ScenarioDefinition = {
     },
 };
 
+// ---------------------------------------------------------------------------
+// armory_repair_post_heals_allies
+// ---------------------------------------------------------------------------
+
+const REPAIR_PLAYER = cellCentre(2, 3);
+const REPAIR_PLACE = { x: REPAIR_PLAYER.x + 2 * CELL_SIZE, y: REPAIR_PLAYER.y };
+const REPAIR_DUMMY_ID = 'armory_repair_dummy';
+/** An enemy inside the pulse: it must not be healed. */
+const REPAIR_DUMMY = { x: REPAIR_PLACE.x + CELL_SIZE, y: REPAIR_PLACE.y + CELL_SIZE };
+/** Missing HP at the start, more than four pulses restore. */
+const REPAIR_WOUND = 20;
+const REPAIR_GONE_BY = 1 + REPAIR_POST_LIFETIME;
+const REPAIR_KEEP_ALIVE_AT = REPAIR_GONE_BY + 0.5;
+
+export const armoryRepairPostHealsAlliesScenario: ScenarioDefinition = {
+    id: 'armory_repair_post_heals_allies',
+    title: 'Armory: Repair Post pulses each quarter round, healing the caster and not an enemy, then leaves',
+    category: 'ability',
+    maxDurationMs: Math.ceil((REPAIR_KEEP_ALIVE_AT + 1) * 1000),
+
+    buildEngine() {
+        const engine = buildArmoryEngine(10, 7, REPAIR_PLAYER, [ARMORY_NODE_CORE, ARMORY_NODE_REPAIR_POST]);
+        const me = engine.getLocalPlayerUnit()!;
+        me.hp = me.maxHp - REPAIR_WOUND;
+        const dummy = placeTargetDummy(engine, REPAIR_DUMMY, REPAIR_DUMMY_ID);
+        dummy.hp = dummy.maxHp - REPAIR_WOUND;
+        engine.state.orderMgr.queueOrder(toTick(REPAIR_KEEP_ALIVE_AT), { unitId: me.id, abilityId: 'wait', targets: [] });
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        return [aimedOrder(playerUnitId(engine), REPAIR_POST_ABILITY_ID, REPAIR_POST_PLACE_LABEL, REPAIR_PLACE)];
+    },
+
+    assertPass(engine) {
+        if (engine.gameTime < REPAIR_GONE_BY) return false;
+        return engine.state.fieldObjects.placedDeployables.length === 0
+            && damageTaken(engine, playerUnitId(engine)) === REPAIR_WOUND - REPAIR_POST_PULSES * REPAIR_POST_HEAL
+            && damageTaken(engine, REPAIR_DUMMY_ID) === REPAIR_WOUND;
+    },
+
+    failureMessage(engine) {
+        return [
+            `t=${engine.gameTime.toFixed(2)}s`,
+            `deployables=${engine.state.fieldObjects.placedDeployables.length}`,
+            `playerMissing=${damageTaken(engine, playerUnitId(engine))} (want ${REPAIR_WOUND - REPAIR_POST_PULSES * REPAIR_POST_HEAL})`,
+            `dummyMissing=${damageTaken(engine, REPAIR_DUMMY_ID)} (want ${REPAIR_WOUND})`,
+        ].join('; ');
+    },
+};
+
 export const ARMORY_SCENARIOS: ScenarioDefinition[] = [
     armorySwordCycleScenario,
     armoryTurretFiresAndExpiresScenario,
     armoryShieldBlockAndBounceScenario,
+    armoryRepairPostHealsAlliesScenario,
 ];

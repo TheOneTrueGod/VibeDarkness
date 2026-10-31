@@ -228,7 +228,7 @@ function buildLeapToLight(): LeapBehaviour {
             const tile = eng.specialTiles.find((t) => t.id === payload?.tileId);
             if (tile) devourLight(eng, tile);
             // Boss self-heal: no heal-penalty injury (penalty 0). Heals again when the blast fires.
-            applyHeal(ctx.caster, LIGHT_EATER_HEAL, 0);
+            applyHeal(ctx.caster, LIGHT_EATER_HEAL, 0, { eventBus: eng.eventBus, sourceUnitId: ctx.caster.id });
             ctx.caster.getResource('super')?.add(LIGHT_EATER_SUPER_GAIN);
             eng.addEffect(new Effect({ x: dest.x, y: dest.y, duration: 0.5, effectType: 'Pulse', effectData: PULSE }));
         },
@@ -254,7 +254,7 @@ function explode(ctx: CastBehaviourTickContext): void {
     devourLightsInRadius(eng, center, LIGHT_EATER_EXPLOSION_RADIUS, payload?.tileId ?? null);
     // Heal and ring of Displacer Bolts, only when this cast actually devoured a light.
     if (payload?.tileId) {
-        applyHeal(caster, LIGHT_EATER_HEAL, 0);
+        applyHeal(caster, LIGHT_EATER_HEAL, 0, { eventBus: eng.eventBus, sourceUnitId: caster.id });
         const ringCount = hasUnitTag(caster, UnitTag.Enraged)
             ? LIGHT_EATER_RING_PROJECTILES * LIGHT_EATER_ENRAGED_RING_MULTIPLIER
             : LIGHT_EATER_RING_PROJECTILES;

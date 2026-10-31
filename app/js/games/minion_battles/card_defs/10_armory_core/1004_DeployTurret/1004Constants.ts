@@ -1,5 +1,5 @@
 /**
- * Deploy Turret tuning. `register.ts` builds the turret's `SentryDef` from these numbers.
+ * Deploy Turret tuning. `register.ts` builds the turret's `DeployableDef` from these numbers.
  * Turret render geometry and colours live next to the painter:
  * `game/effect_defs/turretDeployPose.ts` and `turretDeployDraw.ts`.
  */

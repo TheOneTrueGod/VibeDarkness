@@ -88,7 +88,7 @@ export class GameState {
     /** Query/consume view over everything abilities leave on the map (lights, bramble, story tiles). */
     readonly deployables = new DeployableRegistry();
 
-    /** Dropped weapons and sentries. Not units. */
+    /** Dropped weapons and placed deployables. Not units. */
     readonly fieldObjects: FieldObjectManager;
 
     /** POIs from the loaded map segment(s), used for enemySpawn point lookups. */

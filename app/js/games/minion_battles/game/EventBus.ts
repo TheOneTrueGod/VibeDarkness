@@ -11,6 +11,7 @@ import type { ClearedTerrainEffect } from './TerrainLayerManager';
 
 export type GameEventType =
     | 'damage_taken'
+    | 'unit_healed'
     | 'damage_redirected'
     | 'round_start'
     | 'turn_start'
@@ -95,6 +96,13 @@ export interface DamageTakenEvent {
     shieldAbsorbed?: number;
     /** Renderer-only hint (e.g. DayLight gold numbers). */
     visualKind?: DamageVisualKind;
+}
+
+/** HP restored by `applyHeal` when the caller passes feedback. `amount` is the actual heal. Not serialized. */
+export interface UnitHealedEvent {
+    unitId: string;
+    amount: number;
+    sourceUnitId: string | null;
 }
 
 /** Fired once per DayLight DoT pulse that damaged at least one unit. Not serialized. */
@@ -286,6 +294,7 @@ export interface WorldPaceChangedEvent {
 
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
+    unit_healed: UnitHealedEvent;
     damage_redirected: DamageRedirectedEvent;
     round_start: RoundStartEvent;
     turn_start: TurnStartEvent;

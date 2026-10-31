@@ -100,6 +100,7 @@ import { WhirlAbility_1007 } from '../card_defs/10_armory_core/1007_Whirl/1007Ab
 import { CreateShieldAbility_1008 } from '../card_defs/10_armory_core/1008_CreateShield/1008Ability';
 import { ReleaseChargeAbility_1009 } from '../card_defs/10_armory_core/1009_ReleaseCharge/1009Ability';
 import { ThrowShieldAbility_1010 } from '../card_defs/10_armory_core/1010_ThrowShield/1010Ability';
+import { RepairPostAbility_1011 } from '../card_defs/10_armory_core/1011_RepairPost/1011Ability';
 import { registerArmoryContent } from '../card_defs/10_armory_core/register';
 import { WaitAbility } from './WaitAbility';
 
@@ -214,6 +215,7 @@ register(WhirlAbility_1007);
 register(CreateShieldAbility_1008);
 register(ReleaseChargeAbility_1009);
 register(ThrowShieldAbility_1010);
+register(RepairPostAbility_1011);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
 

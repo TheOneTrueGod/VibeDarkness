@@ -1,5 +1,5 @@
 /**
- * Charge — a short pool the Armory spends to conjure weapons and place sentries.
+ * Charge — a short pool the Armory spends to conjure weapons and place deployables.
  * Mission start grants {@link CHARGE_MISSION_START}. Later rounds add {@link CHARGE_PER_ROUND},
  * capped at {@link CHARGE_MAX}. Round 1 does not recover, so the grant is not doubled.
  */

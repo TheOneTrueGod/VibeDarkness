@@ -8,7 +8,11 @@ import { torchDef } from './torchDef';
 import { spriteProjectileDef } from './spriteProjectileDef';
 import { bloodWaveDef } from './bloodWaveDef';
 import { rockSlideDef } from './rockSlideDef';
-import { foldedTurretDef, TURRET_DEPLOY_PROJECTILE_TYPE } from './foldedTurretDef';
+import { foldedDeployableDef } from './foldedDeployableDef';
+import {
+    DEPLOYABLE_DELIVERY_PROJECTILE_TYPE,
+    LEGACY_TURRET_DELIVERY_PROJECTILE_TYPE,
+} from '../../fieldObjects/deployableDefs';
 
 const registry: Record<string, IProjectileDef> = {
     default: defaultProjectileDef,
@@ -20,7 +24,8 @@ const registry: Record<string, IProjectileDef> = {
     sprite_projectile: spriteProjectileDef,
     blood_wave: bloodWaveDef,
     rock_slide: rockSlideDef,
-    [TURRET_DEPLOY_PROJECTILE_TYPE]: foldedTurretDef,
+    [DEPLOYABLE_DELIVERY_PROJECTILE_TYPE]: foldedDeployableDef,
+    [LEGACY_TURRET_DELIVERY_PROJECTILE_TYPE]: foldedDeployableDef,
 };
 
 export function getProjectileDef(type: string): IProjectileDef {

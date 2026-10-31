@@ -1,17 +1,18 @@
 /**
  * Armory content registration: the sword, mace and shield conjured weapons and the turret's
- * sentry def. `registerArmoryContent()` is called from `abilities/AbilityRegistry.ts` and
+ * deployable def. `registerArmoryContent()` is called from `abilities/AbilityRegistry.ts` and
  * `card_defs/index.ts`; tests that build Armory abilities without either call it in `beforeAll`.
  */
 import { registerConjuredWeapon } from '../../game/conjuredWeapons/registry';
-import { registerSentryDef } from '../../game/fieldObjects/sentryDefs';
-import { TURRET_DEPLOY_PROJECTILE_TYPE } from '../../game/projectiles/projectile_defs/foldedTurretDef';
+import { registerDeployableDef } from '../../game/fieldObjects/deployableDefs';
+import { DEPLOYABLE_VISUAL_REPAIR_POST, DEPLOYABLE_VISUAL_TURRET } from '../../game/effect_defs/deployablePainters';
 import { TURRET_FOLDED_BODY_RADIUS } from '../../game/effect_defs/turretDeployPose';
 import type { SpriteProjectileConfig } from '../../game/projectiles/projectile_defs/types';
 import { THROW_ROCK_SPRITE_CONFIG } from '../throwSharedTimings';
 import { THROW_PROJECTILE_SPEED } from '../throwNumbers';
 import {
     ARMORY_MACE_WEAPON_ID,
+    ARMORY_REPAIR_POST_DEF_ID,
     ARMORY_SHIELD_WEAPON_ID,
     ARMORY_SWORD_WEAPON_ID,
     ARMORY_TURRET_DEF_ID,
@@ -44,6 +45,19 @@ import {
     TURRET_SHOT_RANGE,
     TURRET_SHOT_SPRITE_SCALE,
 } from './1004_DeployTurret/1004Constants';
+import {
+    REPAIR_POST_DELIVERY_BODY_RADIUS,
+    REPAIR_POST_DEPLOY_SPEED,
+    REPAIR_POST_DEPLOY_SPIN_DEGREES_PER_SEC,
+    REPAIR_POST_FIRST_PULSE_DELAY,
+    REPAIR_POST_HEAL,
+    REPAIR_POST_HEAL_RADIUS,
+    REPAIR_POST_LIFETIME,
+    REPAIR_POST_PULSE_COLORS,
+    REPAIR_POST_PULSE_DURATION,
+    REPAIR_POST_PULSE_INTERVAL,
+    REPAIR_POST_PULSES,
+} from './1011_RepairPost/1011Constants';
 import swordCardUrl from './chargeSword.svg';
 import maceCardUrl from './chargeMace.svg';
 import shieldCardUrl from './shield.svg';
@@ -60,7 +74,7 @@ function turretShotSprite(): SpriteProjectileConfig {
 
 let registered = false;
 
-/** Registers the Armory's conjured weapons and sentry def. Safe to call more than once. */
+/** Registers the Armory's conjured weapons and deployable defs. Safe to call more than once. */
 export function registerArmoryContent(): void {
     if (registered) return;
     registered = true;
@@ -96,21 +110,47 @@ export function registerArmoryContent(): void {
         leaveTokenWhenHeldUsesEnd: false,
     });
 
-    registerSentryDef({
+    registerDeployableDef({
         id: ARMORY_TURRET_DEF_ID,
-        shotDamage: TURRET_SHOT_DAMAGE,
-        shotInterval: TURRET_SHOT_INTERVAL,
-        shotCount: TURRET_SHOT_COUNT,
-        firstShotDelay: TURRET_FIRST_SHOT_DELAY,
-        range: TURRET_SHOT_RANGE,
-        coneHalfAngleRad: TURRET_CONE_HALF_ANGLE_RAD,
-        shotHitRadius: TURRET_SHOT_HIT_RADIUS,
-        shotSpeed: THROW_PROJECTILE_SPEED,
+        visual: DEPLOYABLE_VISUAL_TURRET,
+        charges: TURRET_SHOT_COUNT,
+        firstTriggerDelay: TURRET_FIRST_SHOT_DELAY,
+        triggerInterval: TURRET_SHOT_INTERVAL,
         lifetime: TURRET_LIFETIME,
-        sprite: turretShotSprite(),
-        deliveryProjectileType: TURRET_DEPLOY_PROJECTILE_TYPE,
-        deliverySpeed: TURRET_DEPLOY_SPEED,
-        deliverySpinDegreesPerSecond: TURRET_DEPLOY_SPIN_DEGREES_PER_SEC,
-        deliveryBodyRadius: TURRET_FOLDED_BODY_RADIUS,
+        action: {
+            type: 'shoot',
+            damage: TURRET_SHOT_DAMAGE,
+            range: TURRET_SHOT_RANGE,
+            coneHalfAngleRad: TURRET_CONE_HALF_ANGLE_RAD,
+            hitRadius: TURRET_SHOT_HIT_RADIUS,
+            speed: THROW_PROJECTILE_SPEED,
+            sprite: turretShotSprite(),
+        },
+        delivery: {
+            speed: TURRET_DEPLOY_SPEED,
+            spinDegreesPerSecond: TURRET_DEPLOY_SPIN_DEGREES_PER_SEC,
+            bodyRadius: TURRET_FOLDED_BODY_RADIUS,
+        },
+    });
+
+    registerDeployableDef({
+        id: ARMORY_REPAIR_POST_DEF_ID,
+        visual: DEPLOYABLE_VISUAL_REPAIR_POST,
+        charges: REPAIR_POST_PULSES,
+        firstTriggerDelay: REPAIR_POST_FIRST_PULSE_DELAY,
+        triggerInterval: REPAIR_POST_PULSE_INTERVAL,
+        lifetime: REPAIR_POST_LIFETIME,
+        action: {
+            type: 'healPulse',
+            radius: REPAIR_POST_HEAL_RADIUS,
+            heal: REPAIR_POST_HEAL,
+            pulseColors: REPAIR_POST_PULSE_COLORS,
+            pulseDuration: REPAIR_POST_PULSE_DURATION,
+        },
+        delivery: {
+            speed: REPAIR_POST_DEPLOY_SPEED,
+            spinDegreesPerSecond: REPAIR_POST_DEPLOY_SPIN_DEGREES_PER_SEC,
+            bodyRadius: REPAIR_POST_DELIVERY_BODY_RADIUS,
+        },
     });
 }
