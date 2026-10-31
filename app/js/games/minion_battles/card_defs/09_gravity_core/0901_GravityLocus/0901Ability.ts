@@ -149,12 +149,11 @@ export const GravityLocusAbility = defineAbility({
         const mod = getAbilityModifier(gameState, undefined, CARD_ID);
         const duration = GRAVITY_LOCUS_FIELD_DURATION * (mod.durationMult ?? 1);
         const lines = [
-            `Create a field for ${duration}s that nudges enemies within {${GRAVITY_LOCUS_FIELD_RADIUS}} and deals {${GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE}} damage over its duration.`,
-            'Pull draws enemies in; Push drives them out.',
+            `Create a field for {${duration}}s that pulls or pushes enemies and deals {${GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE}} damage`,
         ];
         if (mod.addTags?.includes('GravityRepulse')) {
             lines.push(
-                `Repulse: the field grows into a ring, then bursts for {${mod.explosionDamageFlat ?? 0}} damage and knocks back enemies inside.`,
+                `Repulse: it bursts at the end for {${mod.explosionDamageFlat ?? 0}} damage and knocks enemies back`,
             );
         }
         return lines;

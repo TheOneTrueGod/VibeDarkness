@@ -116,8 +116,7 @@ export const EaseBurdensAbility = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `An ally moves and acts twice as fast for {${EASE_BURDENS_PRESET.durationSeconds}} seconds.`,
-            'Everything else slows to match.',
+            `An ally moves and acts twice as fast for {${EASE_BURDENS_PRESET.durationSeconds}} seconds`,
         ];
     },
 });

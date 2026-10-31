@@ -19,7 +19,6 @@ import { unitRangeHitbox } from '../../../hitboxes';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
 import { GRAVITY_VIOLET } from '../../../game/effect_defs/aoeEffects';
-import { DescriptiveValue } from '../../../../../researchTrees/descriptiveValue';
 import {
     GRAVITY_INVERSION_SHOCKWAVE_COLORS,
     GRAVITY_SHIELD_ACTIVE_DURATION,
@@ -141,7 +140,7 @@ export const GravityShieldAbility = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Give an ally a {${DescriptiveValue.Large}} shield that absorbs {${GRAVITY_SHIELD_HP}} damage and drains over {${GRAVITY_SHIELD_DURATION_ROUNDS}} round.`,
+            `Shield an ally from {${GRAVITY_SHIELD_HP}} damage, draining over {${GRAVITY_SHIELD_DURATION_ROUNDS}} round`,
         ];
     },
 });

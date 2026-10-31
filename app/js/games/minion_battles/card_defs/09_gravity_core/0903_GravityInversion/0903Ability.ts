@@ -61,9 +61,7 @@ const MAX_USES = 2;
 const HOWL_SHOCKWAVE_EFFECT_TYPE = 'HowlShockwave';
 
 const TOOLTIP_LINES = [
-    'Lift up to {{MAX_TARGETS}} enemies in a small area for {{LIFT_DURATION}}s, then slam them for {{DAMAGE}} damage.',
-    'Push drops them where they are; Pull slams them in front of you.',
-    'The slam knocks back nearby units.',
+    'Lift up to {{MAX_TARGETS}} enemies, then slam them for {{DAMAGE}} damage',
     '{knockback 1}',
 ] as const;
 

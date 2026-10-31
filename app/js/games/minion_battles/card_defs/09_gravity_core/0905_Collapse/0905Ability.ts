@@ -79,9 +79,8 @@ const COMBO_POINT = RELEASE_END + COLLAPSE_COOLDOWN_DURATION;
 const CAST_END = COMBO_POINT + COLLAPSE_COMBO_COOLDOWN;
 
 const TOOLTIP_LINES = [
-    'Pull up to {{MAX_TARGETS}} enemies nearest your cursor into an arc in front of you.',
-    'Deal {{DAMAGE}} damage and briefly stagger them.',
-    'Combos to melee: if it pulls an enemy, cancel into a melee attack as they land. Otherwise, recover slowly.',
+    'Pull up to {{MAX_TARGETS}} enemies in front of you, dealing {{DAMAGE}} damage and staggering them',
+    'On hit: combos to melee',
     '{knockback 3}',
 ] as const;
 

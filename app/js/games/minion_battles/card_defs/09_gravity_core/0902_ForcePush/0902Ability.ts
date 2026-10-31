@@ -94,9 +94,8 @@ const COOLDOWN_END = RELEASE_END + FORCE_PUSH_COOLDOWN_DURATION;
 const PUNCH_IMPACT_AT = 0.35;
 
 const TOOLTIP_LINES = [
-    'Lift an enemy and fling it until it lands or hits something.',
-    'Deal {{ENEMY_DAMAGE}} damage to each enemy it hits. It takes {{FLUNG_DAMAGE}} each time.',
-    'A wall deals {{WALL_DAMAGE}} damage, stuns it, and bounces it. Allies bounce it too.',
+    'Fling an enemy. It deals {{ENEMY_DAMAGE}} damage to enemies it hits and takes {{FLUNG_DAMAGE}}',
+    'Walls deal {{WALL_DAMAGE}} damage and stun it',
     `{knockback ${FORCE_PUSH_KNOCKBACK_TIER}}`,
 ] as const;
 
