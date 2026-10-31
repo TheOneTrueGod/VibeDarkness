@@ -9,7 +9,6 @@ import {
     REPAIR_POST_ABILITY_ID,
 } from '../../games/minion_battles/card_defs/10_armory_core/armoryConstants';
 import { CHARGE_MISSION_START } from '../../games/minion_battles/resources/Charge';
-import { SHIELD_BLOCK_CHARGE_GRANT } from '../../games/minion_battles/card_defs/10_armory_core/1008_CreateShield/1008Constants';
 
 export const ARMORY_TREE_ID = 'armory_core';
 export const ARMORY_NODE_CORE = 'armory_core';
@@ -55,7 +54,7 @@ export const armoryTree: ResearchTreeDef = {
             id: ARMORY_NODE_CORE,
             title: 'Armory Core',
             description:
-                `Gain Create Sword and Deploy Turret. Start each mission with {${CHARGE_MISSION_START}} Charge.`,
+                `You learn to use energy to shape weapons out of the ground. Start each mission with {${CHARGE_MISSION_START}} Charge.`,
             flavorText: 'Every stone holds a blade. You pour yourself into it, and draw it out.',
             order: 5,
             tier: 10,
@@ -87,7 +86,7 @@ export const armoryTree: ResearchTreeDef = {
             id: ARMORY_NODE_CREATE_MACE,
             title: 'Create Mace',
             description:
-                'Gain Create Mace: a heavy swing, then a Whirl that stuns.',
+                'You learn to shape a heavy mace that knocks enemies back, then spin it to stun them.',
             flavorText: 'You dig deeper, and forge what the ground gives up into something heavier.',
             order: 15,
             tier: 15,
@@ -111,7 +110,7 @@ export const armoryTree: ResearchTreeDef = {
             id: ARMORY_NODE_CREATE_SHIELD,
             title: 'Create Shield',
             description:
-                `Gain Create Shield: block to gain {${SHIELD_BLOCK_CHARGE_GRANT}} Charge, then release it as a stunning cone.`,
+                'You learn to shape a buckler that stores the energy of a blocked blow, then releases it.',
             flavorText: 'You learn to pull the earth up and shape it into a wall in your hand.',
             order: 16,
             tier: 15,
@@ -135,7 +134,7 @@ export const armoryTree: ResearchTreeDef = {
             id: ARMORY_NODE_REPAIR_POST,
             title: 'Repair Post',
             description:
-                'Gain Repair Post: a post that heals nearby allies each quarter round.',
+                'You learn to shape a post that heals the allies around it.',
             flavorText: 'The hands that forge blades can forge something that mends.',
             order: 17,
             tier: 15,

@@ -70,7 +70,9 @@ Mechanical keywords in `getTooltipText()` use a **standalone-line** format — s
 
 ## Research nodes [Canon]
 
-A node has the same split as a card. `description` says mechanically what the node gives, by the card rules above. `flavorText` leans into what the research tree is doing: the fantasy of that tree, told through this node.
+`description` roughly says what the player learns to do, in the tree's voice, without numbers or card-by-card detail: "You learn to use energy to shape weapons out of the ground." The cards' own tooltips, shown on the node's hover, give the details. Keep a number only for an effect no tooltip shows (for example, starting Charge).
+
+`flavorText` leans into what the research tree is doing: the fantasy of that tree, told through this node.
 
 Each tree's fantasy is written in its content folder's `AGENTS.md` (for example, `card_defs/10_armory_core/AGENTS.md`). Read it before writing a node's flavour, and keep every node in the tree telling the same story.
 
