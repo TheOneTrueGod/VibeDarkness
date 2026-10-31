@@ -80,7 +80,6 @@ const CAST_END = COMBO_POINT + COLLAPSE_COMBO_COOLDOWN;
 
 const TOOLTIP_LINES = [
     'Pull up to {{MAX_TARGETS}} enemies in front of you, dealing {{DAMAGE}} damage and staggering them',
-    'On hit: combos to melee',
     '{knockback 3}',
 ] as const;
 
