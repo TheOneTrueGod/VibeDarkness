@@ -56,7 +56,7 @@ export const armoryTree: ResearchTreeDef = {
             title: 'Armory Core',
             description:
                 `Gain Create Sword and Deploy Turret. Start each mission with {${CHARGE_MISSION_START}} Charge.`,
-            flavorText: 'Every stone holds a blade. You draw it out and give it shape.',
+            flavorText: 'Every stone holds a blade. You pour yourself into it, and draw it out.',
             order: 5,
             tier: 10,
             position: { x: 180, y: 290 },

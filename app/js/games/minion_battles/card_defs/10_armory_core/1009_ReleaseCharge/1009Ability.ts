@@ -44,7 +44,7 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 export const ReleaseChargeAbility_1009 = defineConeStrike({
     id: RELEASE_CHARGE_ABILITY_ID,
     name: 'Release Charge',
-    flavorText: 'You give back everything your buckler caught, all at once.',
+    flavorText: 'You let loose the energy your buckler caught, all at once.',
     image: releaseChargeSvg,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
     maxUses: SHIELD_FOLLOWUP_USES,
