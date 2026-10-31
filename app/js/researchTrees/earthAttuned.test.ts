@@ -18,6 +18,7 @@ import {
     getAbilityUseConfig,
     grantRoundChargesToEligibleAbilities,
     initializeAbilityRuntimeForUnit,
+    refillUsesAtRoundStart,
 } from '../games/minion_battles/abilities/abilityUses';
 
 const CLAW_IDS = ['0111', '0534'] as const;
@@ -80,25 +81,24 @@ describe('Earth Attuned research', () => {
 });
 
 describe('Bone Claws / Digging Claws recovery', () => {
-    it('Bone Claws has no recovery of its own; Digging Claws recovers 2 uses per round', () => {
-        expect(getAbilityUseConfig('0111').recoveries).toEqual([]);
-        expect(getAbilityUseConfig('0534').recoveries).toEqual([
-            { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 2 },
-        ]);
-    });
-
-    it('without Earth Attuned, Bone Claws recovers nothing and Digging Claws recovers 2 at round start', () => {
-        const expected: Record<string, number> = { '0111': 0, '0534': 2 };
+    it('both claws use the default recovery: every use refills at round start', () => {
         for (const id of CLAW_IDS) {
-            const unit = makeClawUnit(id, {});
-            unit.abilityRuntime[id]!.currentUses = 0;
-            grantRoundChargesToEligibleAbilities(unit);
-            expect(unit.abilityRuntime[id]!.currentUses).toBe(expected[id]);
+            const config = getAbilityUseConfig(id);
+            expect(config.refillsEachRound).toBe(true);
+            expect(config.recoveries).toEqual([]);
         }
     });
 
-    it('with Earth Attuned, gain a max use and +1 use recovered each round, capped at max', () => {
-        const expected: Record<string, number> = { '0111': 1, '0534': 3 };
+    it('without Earth Attuned, each claw refills to its base max at round start', () => {
+        for (const id of CLAW_IDS) {
+            const unit = makeClawUnit(id, {});
+            unit.abilityRuntime[id]!.currentUses = 0;
+            refillUsesAtRoundStart(unit);
+            expect(unit.abilityRuntime[id]!.currentUses).toBe(getAbilityUseConfig(id).maxUses);
+        }
+    });
+
+    it('with Earth Attuned, each claw gains a max use and refills to the raised max', () => {
         for (const id of CLAW_IDS) {
             const baseMax = getAbilityUseConfig(id).maxUses;
             const unit = makeClawUnit(id, { [id]: { maxUsesFlat: 1, roundRecoveryFlat: 1 } });
@@ -106,12 +106,9 @@ describe('Bone Claws / Digging Claws recovery', () => {
             expect(runtime.maxUses).toBe(baseMax + 1);
 
             runtime.currentUses = 0;
+            refillUsesAtRoundStart(unit);
             grantRoundChargesToEligibleAbilities(unit);
-            expect(runtime.currentUses).toBe(expected[id]);
-
-            runtime.currentUses = runtime.maxUses;
-            grantRoundChargesToEligibleAbilities(unit);
-            expect(runtime.currentUses).toBe(runtime.maxUses);
+            expect(runtime.currentUses).toBe(baseMax + 1);
         }
     });
 });

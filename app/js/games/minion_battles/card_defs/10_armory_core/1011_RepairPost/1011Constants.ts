@@ -22,7 +22,7 @@ export const REPAIR_POST_PULSE_INTERVAL = ROUND_DURATION / REPAIR_POST_PULSES;
 export const REPAIR_POST_FIRST_PULSE_DELAY = 0.4;
 export const REPAIR_POST_LIFETIME = ROUND_DURATION;
 /** Reach of each pulse, in pixels, to the ally's centre. */
-export const REPAIR_POST_HEAL_RADIUS = 150;
+export const REPAIR_POST_HEAL_RADIUS = 105;
 export const REPAIR_POST_HEAL_RADIUS_TILES = REPAIR_POST_HEAL_RADIUS / CELL_SIZE;
 /** HP each ally regains per pulse. */
 export const REPAIR_POST_HEAL = 3;

@@ -113,7 +113,7 @@ describe('Repair Post (1011)', () => {
         expect(engine.state.fieldObjects.placedDeployables).toHaveLength(0);
     });
 
-    it('heals allies within 150px of the post, but not further allies or enemies, with green numbers', () => {
+    it('heals allies within the heal radius of the post, but not further allies or enemies, with green numbers', () => {
         const engine = repairBattle();
         const player = engine.units[0]!;
         const ally = spawnTinyPlayerUnit(engine, { playerId: 'tiny_p2', x: PLACE.x + REPAIR_POST_HEAL_RADIUS - 10, y: PLACE.y, abilities: [] });
