@@ -46,7 +46,7 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 export const ThrowSwordAbility = defineThrownWeapon({
     id: THROW_SWORD_ABILITY_ID,
     name: 'Throw Sword',
-    flavorText: 'Let it go. The ground will make another.',
+    flavorText: 'Let it go. You can always make another.',
     image: chargeSwordThrowSvg,
     weaponId: ARMORY_SWORD_WEAPON_ID,
     damage: THROW_SWORD_DAMAGE,

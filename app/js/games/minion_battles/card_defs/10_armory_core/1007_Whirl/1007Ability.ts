@@ -135,7 +135,7 @@ export const WhirlAbility_1007 = defineAbility({
     id: WHIRL_ABILITY_ID,
     tags: ['melee'],
     name: 'Whirl',
-    flavorText: 'One full turn, and the weight goes back to the earth.',
+    flavorText: 'You spin once, then hand the weight back to the earth.',
     image: whirlSvg,
     resourceCost: null,
     resourceCosts: [],

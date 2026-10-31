@@ -36,7 +36,7 @@ const TOOLTIP_LINES = [
 export const CreateMaceAbility_1005 = defineConjure({
     id: CREATE_MACE_ABILITY_ID,
     name: 'Create Mace',
-    flavorText: 'Rock packed on rock, until it is too heavy to hold back.',
+    flavorText: 'You pack rock onto rock until it is too heavy to hold back.',
     image: chargeMaceSvg,
     weaponId: ARMORY_MACE_WEAPON_ID,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },

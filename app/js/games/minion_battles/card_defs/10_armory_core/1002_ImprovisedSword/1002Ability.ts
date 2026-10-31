@@ -104,7 +104,7 @@ export const ImprovisedSwordAbility = defineAbility({
     id: IMPROVISED_SWORD_ABILITY_ID,
     tags: ['melee', 'sword'],
     name: 'Charge Sword',
-    flavorText: 'The edge is only as old as the moment you made it.',
+    flavorText: 'You made this edge a moment ago. It already knows where to cut.',
     image: chargeSwordSvg,
     resourceCost: null,
     resourceCosts: [],

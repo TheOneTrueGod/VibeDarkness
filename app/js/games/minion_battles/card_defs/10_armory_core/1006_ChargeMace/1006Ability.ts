@@ -115,7 +115,7 @@ export const ChargeMaceAbility_1006 = defineAbility({
     id: CHARGE_MACE_ABILITY_ID,
     tags: ['melee'],
     name: 'Charge Mace',
-    flavorText: 'Every swing lands like a falling cliff.',
+    flavorText: 'You built it heavy. Every swing lands like a falling cliff.',
     image: chargeMaceSvg,
     resourceCost: null,
     resourceCosts: [],

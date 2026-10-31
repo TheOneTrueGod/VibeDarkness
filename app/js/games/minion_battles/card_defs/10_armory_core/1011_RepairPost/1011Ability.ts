@@ -124,7 +124,7 @@ export const RepairPostAbility_1011 = defineAbility({
     id: REPAIR_POST_ABILITY_ID,
     tags: [],
     name: 'Repair Post',
-    flavorText: 'Not every weapon is pointed outward.',
+    flavorText: 'Not every weapon you make points outward.',
     image: repairPostSvg,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
     resourceCosts: [],

@@ -184,7 +184,7 @@ export const DeployTurretAbility = defineAbility({
     id: DEPLOY_TURRET_ABILITY_ID,
     tags: [],
     name: 'Deploy Turret',
-    flavorText: 'Stone and scrap, folded tight, opening hungry.',
+    flavorText: 'You hammer stone and scrap into something that keeps watch for you.',
     image: TURRET_IMAGE,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
     resourceCosts: [],

@@ -56,7 +56,7 @@ export const armoryTree: ResearchTreeDef = {
             title: 'Armory Core',
             description:
                 `Gain Create Sword and Deploy Turret. Start each mission with {${CHARGE_MISSION_START}} Charge.`,
-            flavorText: 'Every stone holds a blade. You only have to draw it out.',
+            flavorText: 'Every stone holds a blade. You draw it out and give it shape.',
             order: 5,
             tier: 10,
             position: { x: 180, y: 290 },
@@ -88,7 +88,7 @@ export const armoryTree: ResearchTreeDef = {
             title: 'Create Mace',
             description:
                 'Gain Create Mace: a heavy swing, then a Whirl that stuns.',
-            flavorText: 'Dig deeper, and the ground gives up something heavier.',
+            flavorText: 'You dig deeper, and forge what the ground gives up into something heavier.',
             order: 15,
             tier: 15,
             position: { x: 420, y: 290 },
@@ -112,7 +112,7 @@ export const armoryTree: ResearchTreeDef = {
             title: 'Create Shield',
             description:
                 `Gain Create Shield: block to gain {${SHIELD_BLOCK_CHARGE_GRANT}} Charge, then release it as a stunning cone.`,
-            flavorText: 'Pull the earth up between you and harm.',
+            flavorText: 'You learn to pull the earth up and shape it into a wall in your hand.',
             order: 16,
             tier: 15,
             position: { x: 420, y: 410 },
@@ -136,7 +136,7 @@ export const armoryTree: ResearchTreeDef = {
             title: 'Repair Post',
             description:
                 'Gain Repair Post: a post that heals nearby allies each quarter round.',
-            flavorText: 'The ground that gives you blades can mend you too.',
+            flavorText: 'The hands that forge blades can forge something that mends.',
             order: 17,
             tier: 15,
             position: { x: 420, y: 170 },

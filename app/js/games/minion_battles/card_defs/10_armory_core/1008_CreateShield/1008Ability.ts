@@ -45,7 +45,7 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 export const CreateShieldAbility_1008 = defineDirectionalShield({
     id: CREATE_SHIELD_ABILITY_ID,
     name: 'Create Shield',
-    flavorText: 'The ground rises between you and the blow.',
+    flavorText: 'You raise the ground between yourself and the blow.',
     image: shieldSvg,
     tags: [],
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },

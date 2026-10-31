@@ -36,7 +36,7 @@ const TOOLTIP_LINES = [
 export const CreateSwordAbility = defineConjure({
     id: CREATE_SWORD_ABILITY_ID,
     name: 'Create Sword',
-    flavorText: 'Iron pulled up out of the ground, still warm from the dark.',
+    flavorText: 'You draw iron up out of the ground and fold it into an edge.',
     image: chargeSwordSvg,
     weaponId: ARMORY_SWORD_WEAPON_ID,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },

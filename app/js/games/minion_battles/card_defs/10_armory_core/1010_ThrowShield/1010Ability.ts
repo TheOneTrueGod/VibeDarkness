@@ -56,7 +56,7 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 export const ThrowShieldAbility_1010 = defineThrownWeapon({
     id: THROW_SHIELD_ABILITY_ID,
     name: 'Throw Shield',
-    flavorText: 'It rings off one enemy and finds the next.',
+    flavorText: 'You shaped its rim to ring off one enemy and find the next.',
     image: shieldThrowSvg,
     weaponId: ARMORY_SHIELD_WEAPON_ID,
     damage: THROW_SHIELD_DAMAGE,
