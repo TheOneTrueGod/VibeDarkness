@@ -9,9 +9,17 @@ import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
 import { ResourceId } from './resourceIds';
-import { ARMORY_SECONDARY_COLOR, CHARGE_MAX, CHARGE_PER_ROUND } from '../card_defs/10_armory_core/armoryConstants';
+import { getThemeById } from '../themes/abilityTheme';
 
-export const CHARGE_RESOURCE_COLOR = ARMORY_SECONDARY_COLOR;
+/** Charge stored on the unit. */
+export const CHARGE_MAX = 6;
+/** Granted once at mission start. Round 1 does not also recover, so the opener is this amount. */
+export const CHARGE_MISSION_START = 3;
+/** Added at the start of round 2 and each round after. */
+export const CHARGE_PER_ROUND = 3;
+
+/** Charge is the Armory's "event" colour: the theme secondary (bone). */
+export const CHARGE_RESOURCE_COLOR = getThemeById('armory').secondary;
 
 export class Charge extends Resource {
     readonly id = ResourceId.Charge;

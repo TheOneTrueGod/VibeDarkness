@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { isAbilityTimingInterval } from '../../abilities/abilityTimings';
 import { pointInCone } from '../../abilities/coneGeometry';
 import type { IAbilityPreviewGraphics } from '../../abilities/Ability';
@@ -32,46 +32,46 @@ import { listTier10RootCoreCandidates } from '../../storylines/WorldOfDarkness/m
 import {
     ARMORY_ABILITY_CHARGE_COST,
     ARMORY_MACE_WEAPON_ID,
-    ARMORY_SHIELD_WEAPON_ID,
-    CREATE_SHIELD_ABILITY_ID,
-    CREATE_SHIELD_CAST_DURATION,
-    DROPPED_WEAPON_KIND_SHIELD,
-    RELEASE_CHARGE_ABILITY_ID,
-    SHIELD_BLOCK_CHARGE_GRANT,
-    THROW_SHIELD_ABILITY_ID,
-    THROW_SHIELD_BOUNCE_RANGE,
-    THROW_SHIELD_COOLDOWN_END,
-    THROW_SHIELD_DAMAGE,
-    THROW_SHIELD_TRAIL_RADIUS,
     ARMORY_PRIMARY_COLOR,
     ARMORY_PRIMARY_SHADE_COLOR,
     ARMORY_SECONDARY_COLOR,
-    CHARGE_MISSION_START,
+    ARMORY_SHIELD_WEAPON_ID,
+    ARMORY_TURRET_DEF_ID,
     CHARGE_MACE_ABILITY_ID,
     CHARGE_MACE_MAX_USES,
     CREATE_MACE_ABILITY_ID,
+    CREATE_SHIELD_ABILITY_ID,
     CREATE_SWORD_ABILITY_ID,
     CREATE_SWORD_CAST_DURATION,
     CREATE_SWORD_MOVE_MULT,
     DEPLOY_TURRET_ABILITY_ID,
-    DROPPED_WEAPON_ARC_DISTANCE,
     DROPPED_WEAPON_KIND_MACE,
+    DROPPED_WEAPON_KIND_SHIELD,
     IMPROVISED_SWORD_ABILITY_ID,
-    IMPROVISED_SWORD_COOLDOWN_END,
     IMPROVISED_SWORD_MAX_USES,
+    RELEASE_CHARGE_ABILITY_ID,
+    THROW_SHIELD_ABILITY_ID,
     THROW_SWORD_ABILITY_ID,
-    THROW_SWORD_COOLDOWN_END,
-    IMPROVISED_SWORD_DAMAGE,
+    WHIRL_ABILITY_ID,
+} from './armoryConstants';
+import { CREATE_SHIELD_CAST_DURATION, SHIELD_BLOCK_CHARGE_GRANT } from './1008_CreateShield/1008Constants';
+import {
+    THROW_SHIELD_BOUNCE_RANGE,
+    THROW_SHIELD_COOLDOWN_END,
+    THROW_SHIELD_DAMAGE,
+    THROW_SHIELD_TRAIL_RADIUS,
+} from './1010_ThrowShield/1010Constants';
+import { CHARGE_MISSION_START } from '../../resources/Charge';
+import { IMPROVISED_SWORD_COOLDOWN_END, IMPROVISED_SWORD_DAMAGE } from './1002_ImprovisedSword/1002Constants';
+import { THROW_SWORD_COOLDOWN_END } from './1003_ThrowSword/1003Constants';
+import {
     TURRET_AIM_LABEL,
     TURRET_AIM_WINDOW_END,
-    TURRET_BODY_RADIUS,
     TURRET_CONE_HALF_ANGLE_RAD,
-    TURRET_DEPLOY_PROJECTILE_TYPE,
     TURRET_DEPLOY_SPEED,
     TURRET_DEPLOY_SPIN_DEGREES_PER_SEC,
-    TURRET_FLIGHT_DURATION,
-    TURRET_OPEN_DURATION,
     TURRET_FIRST_SHOT_DELAY,
+    TURRET_FLIGHT_DURATION,
     TURRET_LIFETIME,
     TURRET_PLACE_LABEL,
     TURRET_PLACE_RANGE,
@@ -79,12 +79,15 @@ import {
     TURRET_SHOT_HIT_RADIUS,
     TURRET_SHOT_RANGE,
     TURRET_SHOT_SPRITE_SCALE,
+} from './1004_DeployTurret/1004Constants';
+import {
     MACE_WHIRL_INNER_CLEARANCE,
     MACE_WHIRL_MAX_TARGETS,
     MACE_WHIRL_OUTER_RADIUS,
-    WEAPON_DISCARD_ARC_EFFECT_TYPE,
-    WHIRL_ABILITY_ID,
-} from './armoryConstants';
+} from './1007_Whirl/1007Constants';
+import { WEAPON_DISCARD_ARC_EFFECT_TYPE } from '../../game/effect_defs/weaponEffects';
+import { TURRET_BODY_RADIUS, TURRET_OPEN_DURATION } from '../../game/effect_defs/turretDeployPose';
+import { TURRET_DEPLOY_PROJECTILE_TYPE } from '../../game/projectiles/projectile_defs/foldedTurretDef';
 import { CreateSwordAbility } from './1001_CreateSword/1001Ability';
 import { IMPROVISED_SWORD_IMPACT_TIME, ImprovisedSwordAbility } from './1002_ImprovisedSword/1002Ability';
 import { ThrowSwordAbility } from './1003_ThrowSword/1003Ability';
@@ -97,6 +100,7 @@ import { ReleaseChargeAbility_1009 } from './1009_ReleaseCharge/1009Ability';
 import { ThrowShieldAbility_1010 } from './1010_ThrowShield/1010Ability';
 import { CONE_OF_LIGHT_ACTIVE_END, CONE_OF_LIGHT_COOLDOWN_END } from '../0121_ConeOfLight/0121Ability';
 import { Projectile } from '../../game/projectiles/Projectile';
+import { DROPPED_WEAPON_ARC_DISTANCE } from '../../game/fieldObjects/landing';
 import { DEFAULT_BULLET_TRAIL_RADIUS } from '../../game/effect_defs/bulletTrail';
 import shieldSvg from './shield.svg?raw';
 import shieldThrowSvg from './shieldThrow.svg?raw';
@@ -108,6 +112,7 @@ import chargeSwordThrowSvg from './chargeSwordThrow.svg?raw';
 import whirlSvg from './1007_Whirl/whirl.svg?raw';
 import swordProjectileUrl from './chargeSword.svg';
 import type { Unit } from '../../game/units/Unit';
+import { registerArmoryContent } from './register';
 
 const PLAYER = { x: 200, y: 200 };
 const AIM_POINT = { x: PLAYER.x + 80, y: PLAYER.y };
@@ -183,6 +188,9 @@ function previewRecorder(): { gr: IAbilityPreviewGraphics; circles: Array<{ x: n
     };
     return { gr, circles };
 }
+
+// Armory weapons and the turret sentry def are looked up at cast time.
+beforeAll(() => registerArmoryContent());
 
 describe('Armory Core', () => {
     it('is offered in Core Awakening', () => {
@@ -475,6 +483,7 @@ describe('Armory Core', () => {
         )).toBe(false);
         placeTargetDummy(engine, { x: PLAYER.x, y: PLAYER.y + TURRET_SHOT_RANGE }, 'wide');
         engine.state.fieldObjects.spawnSentry(engine, {
+            defId: ARMORY_TURRET_DEF_ID,
             x: PLAYER.x,
             y: PLAYER.y,
             facing: 0,
@@ -515,6 +524,7 @@ describe('Armory Core', () => {
             researchTrees: { [ARMORY_TREE_ID]: [ARMORY_NODE_CORE] },
         });
         empty.state.fieldObjects.spawnSentry(empty, {
+            defId: ARMORY_TURRET_DEF_ID,
             x: PLAYER.x,
             y: PLAYER.y,
             facing: 0,

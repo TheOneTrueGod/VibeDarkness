@@ -4,21 +4,20 @@
 import { Graphics } from 'pixi.js';
 import type { Container, Sprite } from 'pixi.js';
 import type { GameEngine } from '../../GameEngine';
-import {
-    DROPPED_WEAPON_ARC_DURATION,
-    SWORD_CARD_TIP_OFFSET,
-} from '../../../card_defs/10_armory_core/armoryConstants';
+import { DROPPED_WEAPON_ARC_DURATION } from '../../fieldObjects/landing';
+import { weaponTipOffset } from '../../conjuredWeapons/registry';
 import { paintTurret, turretHullColor } from '../../effect_defs/turretDeployDraw';
 import { rangedAttackPull } from '../../animation/actorAnimation';
 import { turretOpenAmount } from '../../effect_defs/turretDeployPose';
 import {
     DROPPED_SWORD_SCALE,
     createWeaponCardSprite,
-    sizeSwordCardSprite,
+    sizeWeaponCardSprite,
     syncWeaponCardTexture,
     weaponCardArtUrl,
-} from '../../fieldObjects/swordCardSprite';
+} from '../../fieldObjects/weaponArt';
 import { ConcealedArrivalClock } from '../../fieldObjects/concealedArrival';
+import { getSentryDef } from '../../fieldObjects/sentryDefs';
 
 const Z_FIELD_OBJECTS = 6;
 
@@ -41,8 +40,8 @@ export class FieldObjectRenderer {
             const sprite = this.weaponSprite(weapon.id, weapon.kind);
             syncWeaponCardTexture(sprite, weapon.kind);
             sprite.position.set(weapon.x, weapon.y);
-            sprite.rotation = weapon.facing + SWORD_CARD_TIP_OFFSET;
-            sizeSwordCardSprite(sprite, DROPPED_SWORD_SCALE);
+            sprite.rotation = weapon.facing + weaponTipOffset(weapon.kind);
+            sizeWeaponCardSprite(sprite, DROPPED_SWORD_SCALE);
             sprite.alpha = 1;
         }
         for (const sentry of manager.sentries) {
@@ -55,6 +54,7 @@ export class FieldObjectRenderer {
                 g,
                 turretOpenAmount(sentry.spawnedAtGameTime, engine.gameTime),
                 sentry.shotsRemaining,
+                getSentryDef(sentry.defId)?.shotCount ?? sentry.shotsRemaining,
                 turretHullColor(engine.getUnit(sentry.ownerUnitId)),
                 rangedAttackPull(sentry.animation, engine.gameTime),
             );

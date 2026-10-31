@@ -253,12 +253,12 @@ export function hasVirtualRootNodes(tree: Pick<ResearchTreeDef, 'nodes'>): boole
 export interface ResearchTreeDef {
     id: string;
     title: string;
-    /** Border colour. */
-    colour: string;
-    /** Card and pill fill. */
-    secondaryColour?: string;
-    /** Card and pill text. When omitted, a secondary fill uses `colour` for the text. */
-    fontColour?: string;
+    /**
+     * Theme id (`games/minion_battles/themes/abilityThemes.ts`, e.g. `'earth'`, `'armory'`). Primary is
+     * the border; an explicit secondary / font give the card and pill fill / text. See
+     * `resolveResearchTreeChrome`.
+     */
+    theme: string;
     /** Small icon shown on this tree's cards and sidebar row. */
     icon: string;
     /** Tree-level requirements to show/allow (unless it has any node researched). */

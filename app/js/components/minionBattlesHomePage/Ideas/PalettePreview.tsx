@@ -5,10 +5,7 @@
 import type { ReactNode } from 'react';
 import { Swords } from 'lucide-react';
 import type { PlanPaletteColor } from './plansData';
-import {
-    CHARGE_MAX,
-    CHARGE_MISSION_START,
-} from '../../../games/minion_battles/card_defs/10_armory_core/armoryConstants';
+import { CHARGE_MAX, CHARGE_MISSION_START } from '../../../games/minion_battles/resources/Charge';
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 

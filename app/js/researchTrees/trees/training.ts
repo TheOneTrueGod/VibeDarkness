@@ -1,6 +1,6 @@
 import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
 import { PassiveStatKey, type ResearchTreeDef } from '../types';
-import { RESEARCH_TREE_COLOUR_GENERIC, RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
+import { RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
 import { WEAPON_ITEM_CHARGED_ROCKS } from './weaponTreeIds';
 
@@ -31,7 +31,7 @@ export const TRAINING_MIGHTY_VIGOR_COST = 5;
 export const trainingTree: ResearchTreeDef = {
     id: TRAINING_TREE_ID,
     title: 'Training',
-    colour: RESEARCH_TREE_COLOUR_GENERIC,
+    theme: 'generic',
     icon: RESEARCH_TREE_ICON_GENERIC,
     tags: ['stat'],
     // Punch comes from most cores; Training upgrades it whichever core is equipped.

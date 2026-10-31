@@ -1,7 +1,7 @@
 import type { CampaignResourceKey, ResearchTreeDef } from '../types';
 import { MISSION_BONUS_RESOURCE_KEYS } from '../../campaignResources';
 import { PassiveStatKey } from '../types';
-import { RESEARCH_TREE_COLOUR_DARKNESS, RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
+import { RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 
 export const DARKNESS_UPGRADES_TREE_ID = 'darkness_upgrades';
 export const DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS = 'empowered_spirits';
@@ -29,7 +29,7 @@ function bonusPerResource(amount: number): Partial<Record<CampaignResourceKey, n
 export const darknessUpgradesTree: ResearchTreeDef = {
     id: DARKNESS_UPGRADES_TREE_ID,
     title: 'Darkness Upgrades',
-    colour: RESEARCH_TREE_COLOUR_DARKNESS,
+    theme: 'darkness',
     icon: RESEARCH_TREE_ICON_GENERIC,
     accessRequirements: [
         {

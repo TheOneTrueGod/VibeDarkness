@@ -1,6 +1,6 @@
 import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
-import { RESEARCH_TREE_COLOUR_LIGHT, RESEARCH_TREE_ICON_LIGHT } from '../researchTreeChrome';
+import { RESEARCH_TREE_ICON_LIGHT } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
 import { LIGHT_BLAST_ABILITY_ID } from '../../games/minion_battles/card_defs/08_light_core/0801_LightBlast/0801Constants';
 import { GATHER_LIGHT_ABILITY_ID } from '../../games/minion_battles/card_defs/08_light_core/0804_GatherLight/0804Constants';
@@ -90,7 +90,7 @@ export const LIGHT_LAY_HANDS_METAL_COST = 9;
 export const lightTree: ResearchTreeDef = {
     id: LIGHT_TREE_ID,
     title: 'Light',
-    colour: RESEARCH_TREE_COLOUR_LIGHT,
+    theme: 'light',
     icon: RESEARCH_TREE_ICON_LIGHT,
     tags: ['core'],
     accessRequirements: [],

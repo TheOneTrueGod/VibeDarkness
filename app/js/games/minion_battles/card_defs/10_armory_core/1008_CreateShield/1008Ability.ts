@@ -17,17 +17,17 @@ import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../ab
 import { ResourceId } from '../../../resources/resourceIds';
 import {
     ARMORY_ABILITY_CHARGE_COST,
-    ARMORY_PRIMARY_COLOR_NUM,
-    ARMORY_SECONDARY_COLOR_NUM,
+    ARMORY_CONJURE_ORBIT,
     ARMORY_SHIELD_WEAPON_ID,
     CREATE_SHIELD_ABILITY_ID,
+    DROPPED_WEAPON_KIND_SHIELD,
+} from '../armoryConstants';
+import {
     CREATE_SHIELD_AIM_LABEL,
     CREATE_SHIELD_CAST_DURATION,
-    DROPPED_WEAPON_KIND_SHIELD,
     SHIELD_BLOCK_CHARGE_GRANT,
-} from '../armoryConstants';
-import { equipConjuredWeaponAtEnd, startConjureCast } from '../conjureCast';
-import '../armoryWeapons';
+} from './1008Constants';
+import { equipConjuredWeaponAtEnd, startConjureCast } from '../../../abilities/archetypes/conjureCast';
 
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
@@ -54,12 +54,13 @@ export const CreateShieldAbility_1008 = defineDirectionalShield({
     recoveries: RECOVERIES,
     duration: CREATE_SHIELD_CAST_DURATION,
     aimLabel: CREATE_SHIELD_AIM_LABEL,
-    fillColor: ARMORY_PRIMARY_COLOR_NUM,
-    strokeColor: ARMORY_SECONDARY_COLOR_NUM,
     blockBehaviour: equipConjuredWeaponAtEnd(ARMORY_SHIELD_WEAPON_ID),
 
     beginActiveCast(engine, caster): void {
-        startConjureCast(engine, caster, DROPPED_WEAPON_KIND_SHIELD);
+        startConjureCast(engine, caster, DROPPED_WEAPON_KIND_SHIELD, {
+            duration: CREATE_SHIELD_CAST_DURATION,
+            ...ARMORY_CONJURE_ORBIT,
+        });
     },
 
     abilityEvents: {

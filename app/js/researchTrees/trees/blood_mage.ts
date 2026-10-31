@@ -1,7 +1,7 @@
 // Design intent (visual identity, mechanical feel): see `../../games/minion_battles/card_defs/03_blood_mage/AGENTS.md`.
 import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
-import { RESEARCH_TREE_COLOUR_BLOOD_MAGE, RESEARCH_TREE_ICON_BLOOD_MAGE } from '../researchTreeChrome';
+import { RESEARCH_TREE_ICON_BLOOD_MAGE } from '../researchTreeChrome';
 
 export const BLOOD_MAGE_TREE_ID = 'blood_mage';
 export const BLOOD_MAGE_NODE_CORE = 'blood_mage_core';
@@ -33,7 +33,7 @@ export const BLOOD_SPLINTERS_METAL_COST = 3;
 export const bloodMageTree: ResearchTreeDef = {
     id: BLOOD_MAGE_TREE_ID,
     title: 'Blood Mage',
-    colour: RESEARCH_TREE_COLOUR_BLOOD_MAGE,
+    theme: 'blood_mage',
     icon: RESEARCH_TREE_ICON_BLOOD_MAGE,
     tags: ['core'],
     accessRequirements: [],

@@ -4,6 +4,9 @@
  * Every enemy in the cone (closest first, up to `maxTargets`) takes damage and is stunned and
  * interrupted. A `ConeFlash` fades out over the cone. Cone of Light (0121) and Release Charge
  * (1009) are both this shape with different numbers and colours.
+ *
+ * Colours: omitted ones take the ability's two-tone theme (flash = secondary, preview fill = primary,
+ * preview stroke = secondary). Without one, the flash keeps the effect's teal and the preview is grey.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, IAbilityPreviewGraphics } from '../Ability';
@@ -17,6 +20,7 @@ import { Effect } from '../../game/effects/Effect';
 import { getDirectionFromTo, pointInCone } from '../targetHelpers';
 import { areEnemies } from '../../game/teams';
 import { drawConeSlice } from '../previewHelpers';
+import { getTwoToneAbilityTheme } from '../../themes/abilityTheme';
 
 export interface ConeStrikeConfig {
     id: string;
@@ -42,10 +46,12 @@ export interface ConeStrikeConfig {
     aimLabel?: string;
 
     flashDuration: number;
-    /** `ConeFlash` fill. Omitted keeps the effect's default teal. */
+    /** `ConeFlash` fill. Omitted: the theme secondary for a two-tone theme, else the effect's default teal. */
     flashColor?: number;
-    previewFillColor: number;
-    previewStrokeColor: number;
+    /** Omitted: the theme primary for a two-tone theme, else {@link DEFAULT_CONE_PREVIEW_FILL_COLOR}. */
+    previewFillColor?: number;
+    /** Omitted: the theme secondary for a two-tone theme, else {@link DEFAULT_CONE_PREVIEW_STROKE_COLOR}. */
+    previewStrokeColor?: number;
 
     getTooltipText: (gameState?: unknown) => string[];
 }
@@ -128,13 +134,33 @@ export class ConeStrikeHitboxSpec extends HitboxSpec {
 
 const DEFAULT_AIM_LABEL = 'Direction';
 
+/** Neutral aim-preview grey used when neither the caller nor a two-tone theme gives a colour. */
+export const DEFAULT_CONE_PREVIEW_FILL_COLOR = 0xa0a0a0;
+export const DEFAULT_CONE_PREVIEW_STROKE_COLOR = 0x505050;
+
+/**
+ * Colours the cone strike will use. Explicit config colours win; omitted ones come from the ability's
+ * two-tone theme, then the archetype defaults. `flashColor` undefined means the `ConeFlash` default.
+ */
+export function resolveConeStrikeColors(
+    config: Pick<ConeStrikeConfig, 'id' | 'flashColor' | 'previewFillColor' | 'previewStrokeColor'>,
+): { flashColor: number | undefined; previewFillColor: number; previewStrokeColor: number } {
+    const theme = getTwoToneAbilityTheme(config.id);
+    return {
+        flashColor: config.flashColor ?? theme?.secondaryNum,
+        previewFillColor: config.previewFillColor ?? theme?.primaryNum ?? DEFAULT_CONE_PREVIEW_FILL_COLOR,
+        previewStrokeColor: config.previewStrokeColor ?? theme?.secondaryNum ?? DEFAULT_CONE_PREVIEW_STROKE_COLOR,
+    };
+}
+
 export function defineConeStrike(config: ConeStrikeConfig): AbilityStatic {
+    const colors = resolveConeStrikeColors(config);
     const hitbox = new ConeStrikeHitboxSpec(
         config.range,
         config.halfAngleRad,
         config.maxTargets,
-        config.previewFillColor,
-        config.previewStrokeColor,
+        colors.previewFillColor,
+        colors.previewStrokeColor,
     );
 
     return {
@@ -179,7 +205,7 @@ export function defineConeStrike(config: ConeStrikeConfig): AbilityStatic {
                                 halfArcRad: config.halfAngleRad,
                                 innerR: 0,
                                 outerR: config.range,
-                                ...(config.flashColor !== undefined ? { color: config.flashColor } : {}),
+                                ...(colors.flashColor !== undefined ? { color: colors.flashColor } : {}),
                             },
                         }));
                     }),

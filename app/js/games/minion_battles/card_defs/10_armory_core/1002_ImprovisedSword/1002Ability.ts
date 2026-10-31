@@ -37,13 +37,14 @@ import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../ab
 import {
     ARMORY_SECONDARY_COLOR_NUM,
     IMPROVISED_SWORD_ABILITY_ID,
+    IMPROVISED_SWORD_MAX_USES,
+} from '../armoryConstants';
+import {
     IMPROVISED_SWORD_COOLDOWN_END,
     IMPROVISED_SWORD_DAMAGE,
-    IMPROVISED_SWORD_MAX_USES,
     IMPROVISED_SWORD_SLASH_END,
     IMPROVISED_SWORD_SLASH_START,
-} from '../armoryConstants';
-import '../armoryWeapons';
+} from './1002Constants';
 
 const MAX_TARGETS = SWING_SWORD_HITBOX.numTargets;
 /** Game time of the slash hit, measured from the start of the cast. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DROPPED_WEAPON_ARC_DURATION } from '../../card_defs/10_armory_core/armoryConstants';
+import { DROPPED_WEAPON_ARC_DURATION } from './landing';
 import { ConcealedArrivalClock } from './concealedArrival';
 
 const FLIGHT = DROPPED_WEAPON_ARC_DURATION;

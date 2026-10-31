@@ -8,8 +8,7 @@ import { torchDef } from './torchDef';
 import { spriteProjectileDef } from './spriteProjectileDef';
 import { bloodWaveDef } from './bloodWaveDef';
 import { rockSlideDef } from './rockSlideDef';
-import { foldedTurretDef } from './foldedTurretDef';
-import { TURRET_DEPLOY_PROJECTILE_TYPE } from '../../../card_defs/10_armory_core/armoryConstants';
+import { foldedTurretDef, TURRET_DEPLOY_PROJECTILE_TYPE } from './foldedTurretDef';
 
 const registry: Record<string, IProjectileDef> = {
     default: defaultProjectileDef,

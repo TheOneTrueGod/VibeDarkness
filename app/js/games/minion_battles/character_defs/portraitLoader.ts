@@ -1,3 +1,4 @@
+import { cssHexToNumber } from '../themes/colorUtils';
 import type { LoadedBattleModel, LoadedPortrait, PortraitManifest } from './portraitTypes';
 
 const rawManifests = import.meta.glob('./portraits/*/manifest.json', {
@@ -16,10 +17,6 @@ const allPngUrls = import.meta.glob('./portraits/**/*.png', {
     eager: true,
     import: 'default',
 }) as Record<string, string>;
-
-function hexToPixi(hex: string): number {
-    return parseInt(hex.replace('#', ''), 16);
-}
 
 function resolveAssetUrl(folder: string, filename: string): string | undefined {
     return allSvgUrls[`${folder}/${filename}`] ?? allPngUrls[`${folder}/${filename}`];
@@ -49,12 +46,12 @@ function buildPortraitRegistry(): Record<string, LoadedPortrait> {
             type: manifest.battleModel.type,
             spriteUrl,
             modelImageUrl,
-            bodyColor: hexToPixi(manifest.battleModel.bodyColor),
+            bodyColor: cssHexToNumber(manifest.battleModel.bodyColor),
             size: manifest.battleModel.size,
             showNameLetter: manifest.battleModel.showNameLetter,
             innerCircle: manifest.battleModel.innerCircle
                 ? {
-                      color: hexToPixi(manifest.battleModel.innerCircle.color),
+                      color: cssHexToNumber(manifest.battleModel.innerCircle.color),
                       radiusRatio: manifest.battleModel.innerCircle.radiusRatio,
                   }
                 : null,

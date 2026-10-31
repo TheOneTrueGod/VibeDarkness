@@ -49,8 +49,14 @@ import {
 import { CLAW_SLASH_EFFECT_TYPE, clawSlashEffectDef } from './clawSlashEffects';
 import { tempoOrbEffectDef, tempoSpeedLineEffectDef } from './tempoAuraEffects';
 import { TEMPO_ORB_EFFECT_TYPE, TEMPO_SPEED_LINE_EFFECT_TYPE } from '../effects/buffParticleAura';
-import { conjureSwordEffectDef, maceWhirlEffectDef, weaponDiscardArcEffectDef } from './armoryEffects';
-import { CONJURE_SWORD_EFFECT_TYPE, MACE_WHIRL_EFFECT_TYPE, WEAPON_DISCARD_ARC_EFFECT_TYPE } from '../../card_defs/10_armory_core/armoryConstants';
+import {
+    weaponDiscardArcEffectDef,
+    weaponOrbitEffectDef,
+    weaponWhirlEffectDef,
+    WEAPON_DISCARD_ARC_EFFECT_TYPE,
+    WEAPON_ORBIT_EFFECT_TYPE,
+    WEAPON_WHIRL_EFFECT_TYPE,
+} from './weaponEffects';
 
 /** Default effect: expanding ring that fades out. */
 const defaultEffectDef: IEffectDef = {
@@ -113,9 +119,9 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     [CLAW_SLASH_EFFECT_TYPE]: clawSlashEffectDef,
     [TEMPO_ORB_EFFECT_TYPE]: tempoOrbEffectDef,
     [TEMPO_SPEED_LINE_EFFECT_TYPE]: tempoSpeedLineEffectDef,
-    [CONJURE_SWORD_EFFECT_TYPE]: conjureSwordEffectDef,
+    [WEAPON_ORBIT_EFFECT_TYPE]: weaponOrbitEffectDef,
     [WEAPON_DISCARD_ARC_EFFECT_TYPE]: weaponDiscardArcEffectDef,
-    [MACE_WHIRL_EFFECT_TYPE]: maceWhirlEffectDef,
+    [WEAPON_WHIRL_EFFECT_TYPE]: weaponWhirlEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

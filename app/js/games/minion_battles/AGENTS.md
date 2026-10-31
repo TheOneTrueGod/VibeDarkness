@@ -43,6 +43,8 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `game/effects/` | In-battle effect runtime objects: `Effect.ts`, `EffectManager.ts`, `EffectEmitter.ts`, `EffectEmitterManager.ts`. See `game/effects/AGENTS.md` for the Effect/EffectEmitter system. |
 | `game/effect_defs/` | Visual effect definitions (replaced the old `game/effectDef.ts`). |
 | `game/time/` | Time dilation: tempo, local clocks, world pace, step pieces, Time Stop. Read `game/time/AGENTS.md` (and the **time-dilation** skill) before touching any clock, `gameTime`, or cast elapsed. |
+| `game/conjuredWeapons/` | Conjured weapon definitions (with their art) and the equip / release runtime. Content registers weapons. See `game/conjuredWeapons/AGENTS.md`. |
+| `game/fieldObjects/` | Dropped weapon tokens and sentries (`SentryDef`), landing, concealed arrival. See `game/fieldObjects/AGENTS.md`. Engine code must not import content folders (`game/contentLayering.test.ts`). |
 | `game/lightSources/` | Light source runtime objects. |
 | `game/projectiles/` | Projectile runtime objects. |
 | `game/specialTiles/` | Special tile runtime objects. |
@@ -61,6 +63,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `buffs/` | Buff defs and runtime buff logic. |
 | `storylines/` | Campaign storyline modules and per-line `missions/`. |
 | `resources/` | In-battle resource types (mana, rage, etc.). |
+| `themes/` | Ability themes: each group's colours by role (primary, secondary, shade, font), colour utilities, and the SVG palette guard. Pick colours by role, not hex. See `themes/AGENTS.md`. |
 | `hitboxes/` | Hitbox shapes for ability collision. |
 | `utils/` | Shared helpers. |
 | `worldModifiers/` | Battle-wide declarative rule system: defs, runtime manager, built-in handlers, serialization. See `worldModifiers/AGENTS.md`. |

@@ -1,7 +1,7 @@
 import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
 import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
-import { RESEARCH_TREE_COLOUR_COMMAND, RESEARCH_TREE_ICON_COMMAND } from '../researchTreeChrome';
+import { RESEARCH_TREE_ICON_COMMAND } from '../researchTreeChrome';
 
 export const COMMAND_CORE_TREE_ID = 'command_core';
 export const COMMAND_CORE_NODE_LOYAL_COMPANION = 'loyal_companion';
@@ -43,7 +43,7 @@ export const COMMAND_EMPOWER_METAL_COST = 3;
 export const commandCoreTree: ResearchTreeDef = {
     id: COMMAND_CORE_TREE_ID,
     title: 'Command Core',
-    colour: RESEARCH_TREE_COLOUR_COMMAND,
+    theme: 'command',
     icon: RESEARCH_TREE_ICON_COMMAND,
     tags: ['core'],
     accessRequirements: [{ type: 'accountKnowledge', key: KNOWLEDGE_RESEARCH }],

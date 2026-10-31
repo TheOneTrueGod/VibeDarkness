@@ -1,5 +1,5 @@
 /**
- * Release Charge — the held buckler's strike. Cone of Light's burst in Armory colours, paid for in Charge.
+ * Release Charge — the held buckler's strike. Cone of Light's burst in Armory colours (from the theme), paid for in Charge.
  * Single use. The buckler is put away after, and leaves nothing on the ground.
  */
 
@@ -24,13 +24,11 @@ import {
 } from '../../0121_ConeOfLight/0121Ability';
 import {
     ARMORY_ABILITY_CHARGE_COST,
-    ARMORY_PRIMARY_COLOR_NUM,
-    ARMORY_SECONDARY_COLOR_NUM,
     RELEASE_CHARGE_ABILITY_ID,
-    RELEASE_CHARGE_AIM_LABEL,
     SHIELD_FOLLOWUP_USES,
 } from '../armoryConstants';
-import '../armoryWeapons';
+
+const RELEASE_CHARGE_AIM_LABEL = 'Direction';
 
 const TOOLTIP_LINES = [
     'Release the buckler\'s charge in a cone.',
@@ -63,9 +61,6 @@ export const ReleaseChargeAbility_1009 = defineConeStrike({
     cooldownEnd: CONE_OF_LIGHT_COOLDOWN_END,
     aimLabel: RELEASE_CHARGE_AIM_LABEL,
     flashDuration: CONE_OF_LIGHT_FLASH_DURATION,
-    flashColor: ARMORY_SECONDARY_COLOR_NUM,
-    previewFillColor: ARMORY_PRIMARY_COLOR_NUM,
-    previewStrokeColor: ARMORY_SECONDARY_COLOR_NUM,
 
     getTooltipText(gameState?: unknown): string[] {
         return formatTooltipLegacyLines(

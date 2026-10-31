@@ -10,35 +10,20 @@ import type { DeployableProvider } from '../deployables/DeployableRegistry';
 import type { TeamId } from '../teams';
 import { areEnemies } from '../teams';
 import { Projectile } from '../projectiles/Projectile';
-import type { SpriteProjectileConfig } from '../projectiles/projectile_defs/types';
 import { FingerprintEvent } from '../Fingerprint';
 import { circleOverlapsCone } from '../../abilities/coneGeometry';
-import { THROW_PROJECTILE_SPEED } from '../../card_defs/throwNumbers';
-import {
-    ARMORY_TURRET_DEF_ID,
-    DROPPED_WEAPON_ARC_DURATION,
-    DROPPED_WEAPON_ARC_LIFT,
-    DROPPED_WEAPON_ROTATION_STEPS,
-    SWORD_CARD_TIP_OFFSET,
-    TURRET_CONE_HALF_ANGLE_RAD,
-    TURRET_DELIVERY_KIND,
-    TURRET_DEPLOY_PROJECTILE_TYPE,
-    TURRET_DEPLOY_SPEED,
-    TURRET_DEPLOY_SPIN_DEGREES_PER_SEC,
-    TURRET_FIRST_SHOT_DELAY,
-    TURRET_FOLDED_BODY_RADIUS,
-    TURRET_LIFETIME,
-    TURRET_SHOT_DAMAGE,
-    TURRET_SHOT_COUNT,
-    TURRET_SHOT_HIT_RADIUS,
-    TURRET_SHOT_INTERVAL,
-    TURRET_SHOT_RANGE,
-    WEAPON_DISCARD_ARC_EFFECT_TYPE,
-} from '../../card_defs/10_armory_core/armoryConstants';
+import { WEAPON_DISCARD_ARC_EFFECT_TYPE } from '../effect_defs/weaponEffects';
+import { weaponTipOffset } from '../conjuredWeapons/registry';
 import { Effect } from '../effects/Effect';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { playAbilityAnimation, readActorAnimation, type ActorAnimationState } from '../animation/actorAnimation';
-import { resolveDroppedWeaponLanding } from './landing';
+import {
+    DROPPED_WEAPON_ARC_DURATION,
+    DROPPED_WEAPON_ARC_LIFT,
+    DROPPED_WEAPON_ROTATION_STEPS,
+    resolveDroppedWeaponLanding,
+} from './landing';
+import { getSentryDef, type SentryDef } from './sentryDefs';
 
 export interface DroppedWeapon {
     id: string;
@@ -91,11 +76,26 @@ export interface FieldObjectHost {
 const DROPPED_WEAPON_FINGERPRINT = 1;
 const SENTRY_FINGERPRINT = 2;
 
-const SENTRY_SPRITES = new Map<string, SpriteProjectileConfig>();
+/** `expireData.kind` for the projectile that becomes a sentry on arrival. */
+export const SENTRY_DELIVERY_KIND = 'sentry';
 
-/** Visual for a sentry def. Reattached after a checkpoint because sprites are not serialized. */
-export function registerSentrySprite(defId: string, spriteConfig: SpriteProjectileConfig): void {
-    SENTRY_SPRITES.set(defId, spriteConfig);
+const warnedMissingSentryDefs = new Set<string>();
+
+/** Def for a live or restored sentry. Logs once per unknown id; callers drop the sentry. */
+function sentryDefOrWarn(defId: string): SentryDef | undefined {
+    const def = getSentryDef(defId);
+    if (!def && !warnedMissingSentryDefs.has(defId)) {
+        warnedMissingSentryDefs.add(defId);
+        console.warn(`[FieldObjectManager] Unknown sentry def "${defId}"; removing its sentries.`);
+    }
+    return def;
+}
+
+/** Def for a new sentry. Spawning an unregistered def is a content bug, so it throws. */
+function requireSentryDef(defId: string): SentryDef {
+    const def = getSentryDef(defId);
+    if (!def) throw new Error(`Unknown sentry def "${defId}". Register it with registerSentryDef first.`);
+    return def;
 }
 
 export class FieldObjectManager implements DeployableProvider {
@@ -147,7 +147,7 @@ export class FieldObjectManager implements DeployableProvider {
                 landX: landing.x,
                 landY: landing.y,
                 lift: DROPPED_WEAPON_ARC_LIFT,
-                restRotation: facing + SWORD_CARD_TIP_OFFSET,
+                restRotation: facing + weaponTipOffset(opts.kind),
                 weaponKind: opts.kind,
             },
         }));
@@ -157,6 +157,7 @@ export class FieldObjectManager implements DeployableProvider {
     spawnSentry(
         engine: FieldObjectHost,
         opts: {
+            defId: string;
             x: number;
             y: number;
             facing: number;
@@ -165,18 +166,19 @@ export class FieldObjectManager implements DeployableProvider {
             abilityId: string;
         },
     ): Sentry {
+        const def = requireSentryDef(opts.defId);
         const sentry: Sentry = {
             id: generateGameObjectId('sentry'),
-            defId: ARMORY_TURRET_DEF_ID,
+            defId: def.id,
             x: opts.x,
             y: opts.y,
             facing: opts.facing,
             teamId: opts.teamId,
             ownerUnitId: opts.ownerUnitId,
             abilityId: opts.abilityId,
-            shotsRemaining: TURRET_SHOT_COUNT,
-            nextShotAt: engine.gameTime + TURRET_FIRST_SHOT_DELAY,
-            expiresAt: engine.gameTime + TURRET_LIFETIME,
+            shotsRemaining: def.shotCount,
+            nextShotAt: engine.gameTime + def.firstShotDelay,
+            expiresAt: engine.gameTime + def.lifetime,
             spawnedAtGameTime: engine.gameTime,
             animation: null,
         };
@@ -186,13 +188,15 @@ export class FieldObjectManager implements DeployableProvider {
     }
 
     /**
-     * Fly a folded turret from the caster to the tile. The sentry does not exist until
-     * `onProjectileExpired` reads {@link readTurretDelivery} and calls {@link spawnSentry}.
-     * A zero-length toss spawns the sentry immediately.
+     * Fly a folded sentry from the caster to the tile on the def's delivery projectile.
+     * The sentry does not exist until `onProjectileExpired` reads {@link readSentryDelivery}
+     * and calls {@link spawnSentry}. A zero-length toss, or a def with no delivery projectile,
+     * spawns the sentry immediately.
      */
-    launchTurretDelivery(
+    launchSentryDelivery(
         engine: FieldObjectHost,
         opts: {
+            defId: string;
             fromX: number;
             fromY: number;
             toX: number;
@@ -206,8 +210,11 @@ export class FieldObjectManager implements DeployableProvider {
         const dx = opts.toX - opts.fromX;
         const dy = opts.toY - opts.fromY;
         const dist = Math.hypot(dx, dy);
-        if (dist === 0) {
+        const def = requireSentryDef(opts.defId);
+        const speed = def.deliverySpeed;
+        if (dist === 0 || !def.deliveryProjectileType || !speed) {
             this.spawnSentry(engine, {
+                defId: def.id,
                 x: opts.toX,
                 y: opts.toY,
                 facing: opts.facing,
@@ -220,38 +227,39 @@ export class FieldObjectManager implements DeployableProvider {
         const projectile = new Projectile({
             x: opts.fromX,
             y: opts.fromY,
-            velocityX: (dx / dist) * TURRET_DEPLOY_SPEED,
-            velocityY: (dy / dist) * TURRET_DEPLOY_SPEED,
+            velocityX: (dx / dist) * speed,
+            velocityY: (dy / dist) * speed,
             damage: 0,
             sourceTeamId: opts.teamId,
             sourceUnitId: opts.ownerUnitId,
             sourceAbilityId: opts.abilityId,
             maxDistance: dist,
-            projectileType: TURRET_DEPLOY_PROJECTILE_TYPE,
-            rotationSpeed: TURRET_DEPLOY_SPIN_DEGREES_PER_SEC,
+            projectileType: def.deliveryProjectileType,
+            rotationSpeed: def.deliverySpinDegreesPerSecond ?? 0,
             passThroughEnemies: true,
             expireData: {
-                kind: TURRET_DELIVERY_KIND,
+                kind: SENTRY_DELIVERY_KIND,
                 x: opts.toX,
                 y: opts.toY,
                 facing: opts.facing,
             },
         });
-        projectile.radius = TURRET_FOLDED_BODY_RADIUS;
+        if (def.deliveryBodyRadius != null) projectile.radius = def.deliveryBodyRadius;
         engine.addProjectile(projectile);
     }
 
     tick(engine: FieldObjectHost): void {
         const remove: string[] = [];
         for (const sentry of this.sentries) {
-            if (engine.gameTime >= sentry.expiresAt) {
+            const def = sentryDefOrWarn(sentry.defId);
+            if (!def || engine.gameTime >= sentry.expiresAt) {
                 remove.push(sentry.id);
                 continue;
             }
             while (sentry.shotsRemaining > 0 && engine.gameTime >= sentry.nextShotAt) {
-                this.fire(engine, sentry);
+                this.fire(engine, sentry, def);
                 sentry.shotsRemaining -= 1;
-                sentry.nextShotAt += TURRET_SHOT_INTERVAL;
+                sentry.nextShotAt += def.shotInterval;
             }
             if (sentry.shotsRemaining <= 0) remove.push(sentry.id);
         }
@@ -261,25 +269,25 @@ export class FieldObjectManager implements DeployableProvider {
         }
     }
 
-    private fire(engine: FieldObjectHost, sentry: Sentry): void {
-        const aim = aimPointForSentry(engine, sentry);
+    private fire(engine: FieldObjectHost, sentry: Sentry, def: SentryDef): void {
+        const aim = aimPointForSentry(engine, sentry, def);
         const dx = aim.x - sentry.x;
         const dy = aim.y - sentry.y;
         const len = Math.hypot(dx, dy) || 1;
-        const sprite = SENTRY_SPRITES.get(sentry.defId);
+        const sprite = def.sprite;
         const projectile = new Projectile({
             x: sentry.x,
             y: sentry.y,
-            velocityX: (dx / len) * THROW_PROJECTILE_SPEED,
-            velocityY: (dy / len) * THROW_PROJECTILE_SPEED,
-            damage: TURRET_SHOT_DAMAGE,
+            velocityX: (dx / len) * def.shotSpeed,
+            velocityY: (dy / len) * def.shotSpeed,
+            damage: def.shotDamage,
             sourceTeamId: sentry.teamId,
             sourceUnitId: sentry.ownerUnitId,
             sourceAbilityId: sentry.abilityId,
-            maxDistance: TURRET_SHOT_RANGE,
+            maxDistance: def.range,
             ...(sprite ? { projectileType: 'sprite_projectile', spriteConfig: sprite } : {}),
         });
-        projectile.radius = TURRET_SHOT_HIT_RADIUS;
+        projectile.radius = def.shotHitRadius;
         engine.addProjectile(projectile);
         playAbilityAnimation(sentry, getAbility(sentry.abilityId), engine.gameTime);
     }
@@ -329,22 +337,24 @@ export class FieldObjectManager implements DeployableProvider {
 
     restoreFromJSON(data: Partial<SerializedFieldObjects> | undefined): void {
         this.droppedWeapons = (data?.droppedWeapons ?? []).map((weapon) => ({ ...weapon }));
-        this.sentries = (data?.sentries ?? []).map((sentry) => ({
-            ...sentry,
-            animation: readActorAnimation(sentry.animation),
-        }));
+        this.sentries = (data?.sentries ?? [])
+            .filter((sentry) => sentryDefOrWarn(sentry.defId) != null)
+            .map((sentry) => ({
+                ...sentry,
+                animation: readActorAnimation(sentry.animation),
+            }));
     }
 }
 
-export interface TurretDelivery {
+export interface SentryDelivery {
     x: number;
     y: number;
     facing: number;
 }
 
-/** Landing written onto a turret-delivery projectile. Null for shots and every other projectile. */
-export function readTurretDelivery(data: Record<string, unknown> | undefined): TurretDelivery | null {
-    if (!data || data.kind !== TURRET_DELIVERY_KIND) return null;
+/** Landing written onto a sentry-delivery projectile. Null for shots and every other projectile. */
+export function readSentryDelivery(data: Record<string, unknown> | undefined): SentryDelivery | null {
+    if (!data || data.kind !== SENTRY_DELIVERY_KIND) return null;
     const { x, y, facing } = data;
     if (typeof x !== 'number' || typeof y !== 'number' || typeof facing !== 'number') return null;
     return { x, y, facing };
@@ -364,7 +374,7 @@ function randomRestFacing(engine: FieldObjectHost): number {
 /** A target this close shares the turret's point, so the shot keeps its facing instead. */
 const SENTRY_AIM_MIN_DISTANCE = 1;
 
-function aimPointForSentry(engine: FieldObjectHost, sentry: Sentry): { x: number; y: number } {
+function aimPointForSentry(engine: FieldObjectHost, sentry: Sentry, def: SentryDef): { x: number; y: number } {
     const dirX = Math.cos(sentry.facing);
     const dirY = Math.sin(sentry.facing);
     let best: { id: string; x: number; y: number; dist: number } | null = null;
@@ -380,8 +390,8 @@ function aimPointForSentry(engine: FieldObjectHost, sentry: Sentry): { x: number
             dirX,
             dirY,
             0,
-            TURRET_SHOT_RANGE,
-            TURRET_CONE_HALF_ANGLE_RAD,
+            def.range,
+            def.coneHalfAngleRad,
         )) continue;
         const dist = Math.hypot(unit.x - sentry.x, unit.y - sentry.y);
         if (!best || dist < best.dist || (dist === best.dist && unit.id < best.id)) {
@@ -390,7 +400,7 @@ function aimPointForSentry(engine: FieldObjectHost, sentry: Sentry): { x: number
     }
     if (best && best.dist > SENTRY_AIM_MIN_DISTANCE) return { x: best.x, y: best.y };
     return {
-        x: sentry.x + dirX * TURRET_SHOT_RANGE,
-        y: sentry.y + dirY * TURRET_SHOT_RANGE,
+        x: sentry.x + dirX * def.range,
+        y: sentry.y + dirY * def.range,
     };
 }

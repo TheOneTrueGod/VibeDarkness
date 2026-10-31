@@ -1,5 +1,5 @@
 import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
-import { RESEARCH_TREE_COLOUR_GENERIC, RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
+import { RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 
 export const MISC_TREE_ID = 'lightbearer';
 export const MISC_NODE_BEAST_CORE = 'beast_core';
@@ -10,7 +10,7 @@ export const MISC_NODE_BLINK_CORE = 'blink_core';
 export const miscTree: ResearchTreeDef = {
     id: MISC_TREE_ID,
     title: 'Lightbearer',
-    colour: RESEARCH_TREE_COLOUR_GENERIC,
+    theme: 'generic',
     icon: RESEARCH_TREE_ICON_GENERIC,
     accessRequirements: [{ type: 'anyResearched', treeId: MISC_TREE_ID, nodeIds: [MISC_NODE_BEAST_CORE, MISC_NODE_AIR_CORE, MISC_NODE_CHARGED_CORE, MISC_NODE_BLINK_CORE] }],
     nodes: [

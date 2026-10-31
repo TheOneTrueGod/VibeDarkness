@@ -1,6 +1,6 @@
 import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
-import { RESEARCH_TREE_COLOUR_GRAVITY, RESEARCH_TREE_ICON_GRAVITY } from '../researchTreeChrome';
+import { RESEARCH_TREE_ICON_GRAVITY } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
 
 import {
@@ -54,7 +54,7 @@ export const GRAVITY_COLLAPSE_METAL_COST = 1;
 export const gravityTree: ResearchTreeDef = {
     id: GRAVITY_TREE_ID,
     title: 'Gravity',
-    colour: RESEARCH_TREE_COLOUR_GRAVITY,
+    theme: 'gravity',
     icon: RESEARCH_TREE_ICON_GRAVITY,
     tags: ['core'],
     accessRequirements: [],

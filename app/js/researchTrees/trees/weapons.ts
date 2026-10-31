@@ -1,7 +1,7 @@
 // Sword and mace feel: see `./Weapons.md`.
 import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
 import type { ResearchNodeDef, ResearchTreeDef } from '../types';
-import { RESEARCH_TREE_COLOUR_WEAPON, RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
+import { RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
 import { WEAPON_TREE_PREMIUM_METAL_COST, WEAPON_TREE_STANDARD_METAL_COST } from '../weaponResearchCosts';
 import {
     CHARGED_ROCKS_ROOT_NODE_ID,
@@ -69,7 +69,7 @@ function weaponRoot({ id, itemId, title, description, abilityId, flavorText }: W
 export const weaponsTree: ResearchTreeDef = {
     id: WEAPONS_TREE_ID,
     title: 'Weapons',
-    colour: RESEARCH_TREE_COLOUR_WEAPON,
+    theme: 'weapon',
     icon: RESEARCH_TREE_ICON_WEAPON,
     tags: ['weapon', 'equipment'],
     layout: 'rows',

@@ -1,5 +1,5 @@
 import type { ResearchTreeDef } from './types';
-import { ARMORY_FONT_COLOR, ARMORY_PRIMARY_COLOR, ARMORY_SECONDARY_COLOR } from '../games/minion_battles/card_defs/10_armory_core/armoryConstants';
+import { getThemeById } from '../games/minion_battles/themes/abilityTheme';
 import weaponIcon from './assets/tree-weapon.png';
 import genericIcon from './assets/tree-generic.png';
 import earthIcon from './assets/tree-earth.png';
@@ -18,28 +18,28 @@ export const RESEARCH_TREE_ICON_GRAVITY = gravityIcon;
 export const RESEARCH_TREE_ICON_COMMAND = commandIcon;
 export const RESEARCH_TREE_ICON_ARMORY = armoryIcon;
 
+/**
+ * Border colours, read from each tree's theme (`games/minion_battles/themes/abilityThemes.ts`).
+ * Trees set `theme:`; these stay for callers that want a tree's border hex.
+ */
 /** Gray — starting-weapon trees (Rocks, Stick & Sword, Tech Shield). */
-export const RESEARCH_TREE_COLOUR_WEAPON = '#9ca3af';
+export const RESEARCH_TREE_COLOUR_WEAPON = getThemeById('weapon').primary;
 /** Stone brown — Earth. */
-export const RESEARCH_TREE_COLOUR_EARTH = '#b45309';
+export const RESEARCH_TREE_COLOUR_EARTH = getThemeById('earth').primary;
 /** Gold — Light. */
-export const RESEARCH_TREE_COLOUR_LIGHT = '#eab308';
+export const RESEARCH_TREE_COLOUR_LIGHT = getThemeById('light').primary;
 /** Violet — Gravity. */
-export const RESEARCH_TREE_COLOUR_GRAVITY = '#a855f7';
+export const RESEARCH_TREE_COLOUR_GRAVITY = getThemeById('gravity').primary;
 /** Amber — Command Core. */
-export const RESEARCH_TREE_COLOUR_COMMAND = '#f59e0b';
+export const RESEARCH_TREE_COLOUR_COMMAND = getThemeById('command').primary;
 /** Blood red — Blood Mage. */
-export const RESEARCH_TREE_COLOUR_BLOOD_MAGE = '#f87171';
+export const RESEARCH_TREE_COLOUR_BLOOD_MAGE = getThemeById('blood_mage').primary;
 /** Deep indigo — Darkness Upgrades (reuses the generic icon). */
-export const RESEARCH_TREE_COLOUR_DARKNESS = '#6366f1';
+export const RESEARCH_TREE_COLOUR_DARKNESS = getThemeById('darkness').primary;
 /** Cool sky — Training, Lightbearer, and other generic trees. */
-export const RESEARCH_TREE_COLOUR_GENERIC = '#7dd3fc';
+export const RESEARCH_TREE_COLOUR_GENERIC = getThemeById('generic').primary;
 /** Blue-steel — Armory Core border. */
-export const RESEARCH_TREE_COLOUR_ARMORY = ARMORY_PRIMARY_COLOR;
-/** Bone edge — Armory Core card and pill fill. */
-export const RESEARCH_TREE_SECONDARY_ARMORY = ARMORY_SECONDARY_COLOR;
-/** Black — Armory Core card and pill text. */
-export const RESEARCH_TREE_FONT_ARMORY = ARMORY_FONT_COLOR;
+export const RESEARCH_TREE_COLOUR_ARMORY = getThemeById('armory').primary;
 
 export interface ResearchTreeChrome {
     colour: string;
@@ -48,15 +48,21 @@ export interface ResearchTreeChrome {
     fontColour?: string;
 }
 
+/**
+ * Chrome for a tree, from its theme. Primary is the border; secondary (card and pill fill) and font
+ * (card and pill text) are set only when the theme declares them, so primary-only themes keep the
+ * border-only look.
+ */
 export function resolveResearchTreeChrome(
-    tree: Pick<ResearchTreeDef, 'colour' | 'icon' | 'secondaryColour' | 'fontColour'> | undefined,
+    tree: Pick<ResearchTreeDef, 'theme' | 'icon'> | undefined,
 ): ResearchTreeChrome {
+    const theme = getThemeById(tree?.theme ?? 'generic');
     const chrome: ResearchTreeChrome = {
-        colour: tree?.colour ?? RESEARCH_TREE_COLOUR_GENERIC,
+        colour: theme.primary,
         icon: tree?.icon ?? RESEARCH_TREE_ICON_GENERIC,
     };
-    if (tree?.secondaryColour) chrome.secondaryColour = tree.secondaryColour;
-    if (tree?.fontColour) chrome.fontColour = tree.fontColour;
+    if (theme.source.secondary !== undefined) chrome.secondaryColour = theme.secondary;
+    if (theme.font !== undefined) chrome.fontColour = theme.font;
     return chrome;
 }
 

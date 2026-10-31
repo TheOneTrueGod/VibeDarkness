@@ -13,6 +13,8 @@
  *  - Forwards abilityEvents, customEffectHandlers, and all standard AbilityStatic meta.
  *  - Defaults: movementPenalty=0.1, arcDeg=120, innerOffset=5, thicknessPx=10,
  *    fillAlpha=0.9, strokeAlpha=0.9, minRange=10, maxRange=300.
+ *  - Colours: omitted `fillColor` / `strokeColor` take the ability's two-tone theme
+ *    (fill = primary, stroke = secondary); otherwise the shield helpers' own defaults.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic } from '../Ability';
@@ -31,6 +33,7 @@ import {
     STANDARD_SHIELD_INNER_OFFSET,
     STANDARD_SHIELD_THICKNESS_PX,
 } from '../shieldHelpers';
+import { getTwoToneAbilityTheme } from '../../themes/abilityTheme';
 
 // ---------------------------------------------------------------------------
 // Config interface
@@ -70,8 +73,10 @@ export interface DirectionalShieldConfig {
     innerOffset?: number;
     /** Arc wedge thickness in pixels (default: 10). */
     thicknessPx?: number;
+    /** Default: the theme primary when the ability's group has a two-tone theme, else the helper default. */
     fillColor?: number;
     fillAlpha?: number;
+    /** Default: the theme secondary when the ability's group has a two-tone theme, else the helper default. */
     strokeColor?: number;
     strokeAlpha?: number;
 
@@ -96,6 +101,22 @@ export interface DirectionalShieldConfig {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_AIM_LABEL = 'Direction to block';
+
+/**
+ * Fill and stroke the shield will draw with. Explicit config colours win; omitted ones come from the
+ * ability's two-tone theme. A key left out means the shield helpers' own default.
+ */
+export function resolveDirectionalShieldColors(
+    config: Pick<DirectionalShieldConfig, 'id' | 'fillColor' | 'strokeColor'>,
+): { fillColor?: number; strokeColor?: number } {
+    const theme = getTwoToneAbilityTheme(config.id);
+    const fillColor = config.fillColor ?? theme?.primaryNum;
+    const strokeColor = config.strokeColor ?? theme?.secondaryNum;
+    return {
+        ...(fillColor !== undefined ? { fillColor } : {}),
+        ...(strokeColor !== undefined ? { strokeColor } : {}),
+    };
+}
 
 export function defineDirectionalShield(config: DirectionalShieldConfig): AbilityStatic {
     const duration = config.duration;
@@ -134,10 +155,7 @@ export function defineDirectionalShield(config: DirectionalShieldConfig): Abilit
         });
     }
 
-    const colorOverrides = {
-        ...(config.fillColor !== undefined ? { fillColor: config.fillColor } : {}),
-        ...(config.strokeColor !== undefined ? { strokeColor: config.strokeColor } : {}),
-    };
+    const colorOverrides = resolveDirectionalShieldColors(config);
 
     const ability: AbilityStatic = {
         id: config.id,

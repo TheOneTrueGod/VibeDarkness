@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { TURRET_SHOT_COUNT } from '../../card_defs/10_armory_core/1004_DeployTurret/1004Constants';
 import {
     TURRET_BARREL_LENGTH,
     TURRET_BODY_RADIUS,
     TURRET_FOLDED_BARREL_LENGTH,
     TURRET_OPEN_DURATION,
-    TURRET_SHOT_COUNT,
-} from '../../card_defs/10_armory_core/armoryConstants';
-import { turretDotOffset, turretOpenAmount, turretOpenShape } from './turretDeployPose';
+    turretDotOffset,
+    turretOpenAmount,
+    turretOpenShape,
+} from './turretDeployPose';
 
 const SPAWNED_AT = 2;
 

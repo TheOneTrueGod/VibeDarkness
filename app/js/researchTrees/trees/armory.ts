@@ -1,17 +1,17 @@
 import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
-import { RESEARCH_TREE_COLOUR_ARMORY, RESEARCH_TREE_FONT_ARMORY, RESEARCH_TREE_ICON_ARMORY, RESEARCH_TREE_SECONDARY_ARMORY } from '../researchTreeChrome';
+import { RESEARCH_TREE_ICON_ARMORY } from '../researchTreeChrome';
 import {
     ARMORY_ABILITY_CHARGE_COST,
-    CHARGE_MISSION_START,
     CREATE_MACE_ABILITY_ID,
     CREATE_SHIELD_ABILITY_ID,
     CREATE_SWORD_ABILITY_ID,
     DEPLOY_TURRET_ABILITY_ID,
-    MACE_WHIRL_MAX_TARGETS,
-    SHIELD_BLOCK_CHARGE_GRANT,
-    THROW_SHIELD_DAMAGE,
 } from '../../games/minion_battles/card_defs/10_armory_core/armoryConstants';
+import { CHARGE_MISSION_START } from '../../games/minion_battles/resources/Charge';
+import { MACE_WHIRL_MAX_TARGETS } from '../../games/minion_battles/card_defs/10_armory_core/1007_Whirl/1007Constants';
+import { SHIELD_BLOCK_CHARGE_GRANT } from '../../games/minion_battles/card_defs/10_armory_core/1008_CreateShield/1008Constants';
+import { THROW_SHIELD_DAMAGE } from '../../games/minion_battles/card_defs/10_armory_core/1010_ThrowShield/1010Constants';
 
 export const ARMORY_TREE_ID = 'armory_core';
 export const ARMORY_NODE_CORE = 'armory_core';
@@ -43,9 +43,7 @@ const CORE_SWAP_SOURCES = [
 export const armoryTree: ResearchTreeDef = {
     id: ARMORY_TREE_ID,
     title: 'Armory Core',
-    colour: RESEARCH_TREE_COLOUR_ARMORY,
-    secondaryColour: RESEARCH_TREE_SECONDARY_ARMORY,
-    fontColour: RESEARCH_TREE_FONT_ARMORY,
+    theme: 'armory',
     icon: RESEARCH_TREE_ICON_ARMORY,
     tags: ['core'],
     accessRequirements: [],

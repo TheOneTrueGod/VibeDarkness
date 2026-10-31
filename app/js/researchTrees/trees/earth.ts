@@ -1,6 +1,6 @@
 import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
-import { RESEARCH_TREE_COLOUR_EARTH, RESEARCH_TREE_ICON_EARTH } from '../researchTreeChrome';
+import { RESEARCH_TREE_ICON_EARTH } from '../researchTreeChrome';
 import {
     EARTH_CORE_MISSION_START_ROCK_AMOUNT,
     STONE_TOMB_STAGE1_DAMAGE,
@@ -65,7 +65,7 @@ export const EARTH_STONE_TOMB_METAL_COST = 9;
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
     title: 'Earth',
-    colour: RESEARCH_TREE_COLOUR_EARTH,
+    theme: 'earth',
     icon: RESEARCH_TREE_ICON_EARTH,
     tags: ['core'],
     accessRequirements: [],

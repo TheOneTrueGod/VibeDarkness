@@ -1,7 +1,6 @@
 import type { ResourceDisplay } from './Resource';
 import { LIGHT_RESOURCE_COLOR, LIGHT_STARTING_MAX } from './Light';
-import { CHARGE_RESOURCE_COLOR } from './Charge';
-import { CHARGE_MAX, CHARGE_PER_ROUND } from '../card_defs/10_armory_core/armoryConstants';
+import { CHARGE_MAX, CHARGE_PER_ROUND, CHARGE_RESOURCE_COLOR } from './Charge';
 import { MOVEMENT_BASE_MAX } from './Movement';
 
 /** All known resource types with their display metadata, ordered for the debug panel. */

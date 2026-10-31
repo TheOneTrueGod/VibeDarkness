@@ -47,7 +47,6 @@ import {
     CHARGE_MACE_ABILITY_ID,
     CHARGE_MACE_MAX_USES,
 } from '../armoryConstants';
-import '../armoryWeapons';
 
 const MAX_TARGETS = SWING_BAT_HITBOX.numTargets;
 /** Game time of the swing hit, measured from the start of the cast. */

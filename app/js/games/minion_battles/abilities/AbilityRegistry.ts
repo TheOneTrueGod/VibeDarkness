@@ -100,6 +100,7 @@ import { WhirlAbility_1007 } from '../card_defs/10_armory_core/1007_Whirl/1007Ab
 import { CreateShieldAbility_1008 } from '../card_defs/10_armory_core/1008_CreateShield/1008Ability';
 import { ReleaseChargeAbility_1009 } from '../card_defs/10_armory_core/1009_ReleaseCharge/1009Ability';
 import { ThrowShieldAbility_1010 } from '../card_defs/10_armory_core/1010_ThrowShield/1010Ability';
+import { registerArmoryContent } from '../card_defs/10_armory_core/register';
 import { WaitAbility } from './WaitAbility';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
@@ -113,6 +114,9 @@ function register(ability: AbilityStatic): void {
     }
     ABILITY_MAP.set(ability.id, ability);
 }
+
+// -- Register ability-group content (conjured weapons, sentry defs) --
+registerArmoryContent();
 
 // -- Register all abilities --
 register(WaitAbility);

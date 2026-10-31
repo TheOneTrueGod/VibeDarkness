@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { Charge } from './Charge';
 import type { EngineContext } from '../game/EngineContext';
 import type { Unit } from '../game/units/Unit';
-import { CHARGE_MAX, CHARGE_MISSION_START, CHARGE_PER_ROUND } from '../card_defs/10_armory_core/armoryConstants';
+import { Charge, CHARGE_MAX, CHARGE_MISSION_START, CHARGE_PER_ROUND } from './Charge';
 
 function engineAtRound(roundNumber: number): EngineContext {
     return { roundNumber } as EngineContext;

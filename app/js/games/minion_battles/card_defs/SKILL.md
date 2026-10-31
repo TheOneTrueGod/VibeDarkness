@@ -106,4 +106,5 @@ An `AbilityStatic` with `passive?: PassiveDef` (`abilities/passiveDef.ts`, which
 - [ ] Character card list or research node grants the card where applicable (research costs: see **research-trees** and `app/js/researchTrees/researchCostPolicy.ts`).
 - [ ] New enemy character: add to `BESTIARY_ENTRIES` in `app/js/components/minionBattlesHomePage/BestiaryPanel.tsx`; the entry list is built from the bestiary unit ids there.
 - [ ] Shape damage or CC uses a hitbox; knockback uses `tryApplyKnockbackByTier`; select `targetDef` checked under sequential targeting.
+- [ ] Colours: pick by theme role (`themes/AGENTS.md`), not hex.
 - [ ] Juice: timings match the sim, preview matches what is hit (dashes: terrain-aware and correct origin), tooltips do not contradict timings.

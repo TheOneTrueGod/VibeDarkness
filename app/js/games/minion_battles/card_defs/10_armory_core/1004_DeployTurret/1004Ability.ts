@@ -27,17 +27,18 @@ import { ResourceId } from '../../../resources/resourceIds';
 import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { isOpenLanding } from '../../../game/fieldObjects/landing';
-import { readTurretDelivery } from '../../../game/fieldObjects/FieldObjectManager';
+import { readSentryDelivery } from '../../../game/fieldObjects/FieldObjectManager';
 import type { Projectile } from '../../../game/projectiles/Projectile';
 import {
     ARMORY_ABILITY_CHARGE_COST,
+    ARMORY_TURRET_DEF_ID,
     DEPLOY_TURRET_ABILITY_ID,
+} from '../armoryConstants';
+import {
     TURRET_AIM_LABEL,
     TURRET_AIM_MIN_DISTANCE,
     TURRET_AIM_WINDOW_END,
-    TURRET_BODY_COLOR,
     TURRET_BODY_PREVIEW_ALPHA,
-    TURRET_BODY_RADIUS,
     TURRET_CONE_HALF_ANGLE_RAD,
     TURRET_COOLDOWN_END,
     TURRET_DEPLOY_WINDOW_END,
@@ -49,8 +50,9 @@ import {
     TURRET_SHOT_COUNT,
     TURRET_SHOT_DAMAGE,
     TURRET_SHOT_RANGE,
-} from '../armoryConstants';
-import '../armoryWeapons';
+} from './1004Constants';
+import { TURRET_BODY_COLOR } from '../../../game/effect_defs/turretDeployDraw';
+import { TURRET_BODY_RADIUS } from '../../../game/effect_defs/turretDeployPose';
 
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
@@ -159,7 +161,8 @@ export function deployTurret(ctx: CastBehaviourTickContext): void {
     const aim = payload.aim;
     if (!place || !aim) return;
     const facing = Math.atan2(aim.y - place.y, aim.x - place.x);
-    ctx.engine.state?.fieldObjects?.launchTurretDelivery(ctx.engine, {
+    ctx.engine.state?.fieldObjects?.launchSentryDelivery(ctx.engine, {
+        defId: ARMORY_TURRET_DEF_ID,
         fromX: ctx.caster.x,
         fromY: ctx.caster.y,
         toX: place.x,
@@ -172,10 +175,11 @@ export function deployTurret(ctx: CastBehaviourTickContext): void {
 }
 
 export function spawnDeliveredTurret(engine: unknown, caster: Unit, projectile: Projectile): void {
-    const delivery = readTurretDelivery(projectile.expireData);
+    const delivery = readSentryDelivery(projectile.expireData);
     if (!delivery) return;
     const host = engine as AbilityEngineContext;
     host.state?.fieldObjects?.spawnSentry(host, {
+        defId: ARMORY_TURRET_DEF_ID,
         x: delivery.x,
         y: delivery.y,
         facing: delivery.facing,

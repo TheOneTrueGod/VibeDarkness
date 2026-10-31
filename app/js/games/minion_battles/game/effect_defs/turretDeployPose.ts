@@ -1,20 +1,28 @@
 /**
  * Folded and deployed turret shape. The open amount is game time since the sentry spawned.
  */
-import {
-    TURRET_BARREL_INSET_FRACTION,
-    TURRET_BARREL_LENGTH,
-    TURRET_BARREL_WIDTH,
-    TURRET_BODY_RADIUS,
-    TURRET_DOT_ORBIT,
-    TURRET_DOT_RADIUS,
-    TURRET_DOT_SPREAD,
-    TURRET_FOLDED_BARREL_LENGTH,
-    TURRET_FOLDED_BODY_RADIUS,
-    TURRET_FOLDED_DOT_ORBIT,
-    TURRET_FOLDED_DOT_SPREAD,
-    TURRET_OPEN_DURATION,
-} from '../../card_defs/10_armory_core/armoryConstants';
+/** Body radius of the deployed turret, and of the placement footprint, in pixels. */
+export const TURRET_BODY_RADIUS = 10;
+/** Hull radius of the folded turret while it is still in the air. */
+export const TURRET_FOLDED_BODY_RADIUS = 7;
+/** How far the barrel sticks out once the turret is open, in pixels. */
+export const TURRET_BARREL_LENGTH = 16;
+/** How far the barrel sticks out while the turret is folded. */
+export const TURRET_FOLDED_BARREL_LENGTH = 8;
+export const TURRET_BARREL_WIDTH = 5;
+/** Share of the hull radius where the barrel graphic starts, so it overlaps the body. */
+export const TURRET_BARREL_INSET_FRACTION = 0.25;
+/** Distance of the shot pips from the hull center once they have moved out. */
+export const TURRET_DOT_ORBIT = 16;
+/** Distance of the shot pips while they are still bunched on the folded turret. */
+export const TURRET_FOLDED_DOT_ORBIT = 6;
+/** Arc, in radians, the pips cover opposite the barrel when open. */
+export const TURRET_DOT_SPREAD = Math.PI * 0.9;
+/** Arc, in radians, the pips cover while folded. */
+export const TURRET_FOLDED_DOT_SPREAD = 0.7;
+export const TURRET_DOT_RADIUS = 2.5;
+/** How long the barrel and pips take to move into the deployed pose, in game seconds. */
+export const TURRET_OPEN_DURATION = 0.16;
 
 export interface TurretOpenShape {
     bodyRadius: number;

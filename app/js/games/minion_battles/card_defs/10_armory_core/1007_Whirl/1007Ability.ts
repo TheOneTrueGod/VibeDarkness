@@ -33,18 +33,16 @@ import {
     SWING_BAT_KNOCKBACK_TIER,
     SWING_BAT_WINDUP_END,
 } from '../../0115_SwingBat/0115Ability';
+import { ARMORY_SECONDARY_COLOR_NUM, WHIRL_ABILITY_ID } from '../armoryConstants';
 import {
-    ARMORY_SECONDARY_COLOR_NUM,
     MACE_WHIRL_EFFECT_DURATION,
-    MACE_WHIRL_EFFECT_TYPE,
     MACE_WHIRL_INNER_CLEARANCE,
     MACE_WHIRL_MAX_TARGETS,
     MACE_WHIRL_OUTER_RADIUS,
     MACE_WHIRL_STUN_SECONDS,
     MACE_WHIRL_VISUAL_RADIUS,
-    WHIRL_ABILITY_ID,
-} from '../armoryConstants';
-import '../armoryWeapons';
+} from './1007Constants';
+import { WEAPON_WHIRL_EFFECT_TYPE } from '../../../game/effect_defs/weaponEffects';
 
 /** Game time of the whirl hit, measured from the start of the cast. */
 export const MACE_WHIRL_IMPACT_TIME = SWING_BAT_WINDUP_END
@@ -86,10 +84,10 @@ const whirl = CastBehaviours.MeleeAttack()
             x: ctx.caster.x,
             y: ctx.caster.y,
             duration: MACE_WHIRL_EFFECT_DURATION,
-            effectType: MACE_WHIRL_EFFECT_TYPE,
+            effectType: WEAPON_WHIRL_EFFECT_TYPE,
             timeDomain: 'wall',
             pauseBehaviour: 'continue',
-            effectData: { radius: MACE_WHIRL_VISUAL_RADIUS },
+            effectData: { radius: MACE_WHIRL_VISUAL_RADIUS, color: ARMORY_SECONDARY_COLOR_NUM },
         }));
         releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: true });
     })

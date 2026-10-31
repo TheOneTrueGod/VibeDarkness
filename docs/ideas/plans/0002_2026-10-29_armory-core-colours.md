@@ -54,6 +54,8 @@ Shipped steel is the pair already in the game. The four after it are the candida
 
 **Decided:** Quench. Primary `#4f6d8c` blue-steel, secondary `#e7e5e4` bone edge. The core icon disc is the primary and its border is the secondary.
 
+**Now lives in:** the `armory` theme (`ARMORY_THEME` in `app/js/games/minion_battles/themes/abilityThemes.ts`); role rules in `themes/AGENTS.md`.
+
 ---
 
 ## P1: Good to do

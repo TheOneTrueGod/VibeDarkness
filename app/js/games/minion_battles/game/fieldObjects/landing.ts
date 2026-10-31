@@ -5,10 +5,17 @@
 import type { Unit } from '../units/Unit';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
-import {
-    DROPPED_WEAPON_ARC_ANGLE,
-    DROPPED_WEAPON_ARC_DISTANCE,
-} from '../../card_defs/10_armory_core/armoryConstants';
+
+/** Flight time of the discard arc. The token exists at the landing cell the whole time. */
+export const DROPPED_WEAPON_ARC_DURATION = 0.5;
+/** How far the weapon travels from the caster, in pixels (1.5 tiles). */
+export const DROPPED_WEAPON_ARC_DISTANCE = 1.5 * CELL_SIZE;
+/** Screen-space angle of the default toss: right and slightly down. */
+export const DROPPED_WEAPON_ARC_ANGLE = Math.PI / 6;
+/** How high the arc's control point sits above the straight line, in pixels. */
+export const DROPPED_WEAPON_ARC_LIFT = 28;
+/** Discrete steps in one full turn. The rest angle is one of these, chosen from the battle RNG. */
+export const DROPPED_WEAPON_ROTATION_STEPS = 360;
 
 export interface LandingContext {
     terrainManager?: TerrainManager | null;

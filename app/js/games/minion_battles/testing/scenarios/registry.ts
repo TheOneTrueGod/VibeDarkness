@@ -111,6 +111,7 @@ import { forcePushScenario } from './abilities/forcePushScenario';
 import { gravityInversionScenario } from './abilities/gravityInversionScenario';
 import { gravityCollapseScenario } from './abilities/gravityCollapseScenario';
 import { gravityShieldScenario } from './abilities/gravityShieldScenario';
+import { ARMORY_SCENARIOS } from './abilities/armoryScenarios';
 import {
     energyBlastStrictPriorityFillScenario,
     imbuedBatConeStrictFillScenario,
@@ -262,6 +263,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     gravityInversionScenario,
     gravityCollapseScenario,
     gravityShieldScenario,
+    ...ARMORY_SCENARIOS,
     liftStrictPriorityFillScenario,
     lightBlastStrictPriorityFillScenario,
     energyBlastStrictPriorityFillScenario,
@@ -320,6 +322,7 @@ const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'earth_core',    label: 'Earth Core',     selectorKey: 'tree:earth_core',    abilityIds: ['earth_core'] },
     { treeId: 'light',         label: 'Light Core',     selectorKey: 'tree:light',         abilityIds: ['0801', '0803', '0804', '0805', '0806'] },
     { treeId: 'gravity_core',  label: 'Gravity',        selectorKey: 'tree:gravity_core',  abilityIds: ['0901', '0902', '0903', '0904', '0905', 'gravity_core'] },
+    { treeId: 'armory_core',   label: 'Armory',         selectorKey: 'tree:armory_core',   abilityIds: ['1001', '1004', '1008'] },
     { treeId: 'blood_mage',    label: 'Blood Mage',     selectorKey: 'tree:blood_mage',    abilityIds: ['0301', '0302'] },
 ];
 
@@ -418,6 +421,9 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('gravity_inversion_')) return '0903';
     if (id.startsWith('gravity_shield_')) return '0904';
     if (id.startsWith('gravity_collapse_')) return '0905';
+    if (id.startsWith('armory_sword_')) return '1001';
+    if (id.startsWith('armory_turret_')) return '1004';
+    if (id.startsWith('armory_shield_')) return '1008';
     if (id.startsWith('blood_mend_')) return '0301';
     if (id.startsWith('burst_')) return '0302';
     if (id.startsWith('blood_shard_')) return '0304';

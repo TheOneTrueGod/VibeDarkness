@@ -8,27 +8,21 @@
  * Costs Charge. One use, recovered at each round start.
  */
 
-import type { AbilityRecoveryRule, AbilityStateEntry } from '../../../abilities/Ability';
-import { AbilityState } from '../../../abilities/Ability';
-import { defineAbility } from '../../../abilities/defineAbility';
+import type { AbilityRecoveryRule } from '../../../abilities/Ability';
+import { defineConjure } from '../../../abilities/archetypes/defineConjure';
 import chargeMaceSvg from '../chargeMace.svg?raw';
-import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
-import type { Unit } from '../../../game/units/Unit';
-import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines } from '../../../abilities/tooltipTokens';
 import { ResourceId } from '../../../resources/resourceIds';
 import {
     ARMORY_ABILITY_CHARGE_COST,
+    ARMORY_CONJURE_ORBIT,
     ARMORY_MACE_WEAPON_ID,
     CREATE_MACE_ABILITY_ID,
     CREATE_SWORD_CAST_DURATION,
     CREATE_SWORD_MOVE_MULT,
-    DROPPED_WEAPON_KIND_MACE,
 } from '../armoryConstants';
-import { equipConjuredWeaponAtEnd, startConjureCast } from '../conjureCast';
-import '../armoryWeapons';
 
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
@@ -39,45 +33,23 @@ const TOOLTIP_LINES = [
     'You can keep walking, more slowly, while the mace forms.',
 ] as const;
 
-const ABILITY_TIMINGS: AbilityTimingInterval[] = [
-    {
-        id: 'conjure',
-        start: 0,
-        end: CREATE_SWORD_CAST_DURATION,
-        abilityPhase: AbilityPhase.Active,
-        behaviour: equipConjuredWeaponAtEnd(ARMORY_MACE_WEAPON_ID),
-    },
-];
-
-export const CreateMaceAbility_1005 = defineAbility({
+export const CreateMaceAbility_1005 = defineConjure({
     id: CREATE_MACE_ABILITY_ID,
-    tags: [],
     name: 'Create Mace',
     image: chargeMaceSvg,
+    weaponId: ARMORY_MACE_WEAPON_ID,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
-    resourceCosts: [],
-    rechargeTurns: 1,
     maxUses: 1,
     recoveries: RECOVERIES,
-    prefireTime: CREATE_SWORD_CAST_DURATION,
-    targets: [],
-    getRange: () => ({ minRange: 0, maxRange: 0 }),
-    abilityTimings: ABILITY_TIMINGS,
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < CREATE_SWORD_CAST_DURATION) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: CREATE_SWORD_MOVE_MULT } }];
-        }
-        return [];
-    },
+    duration: CREATE_SWORD_CAST_DURATION,
+    moveMult: CREATE_SWORD_MOVE_MULT,
+    orbit: ARMORY_CONJURE_ORBIT,
     getTooltipText(gameState?: unknown): string[] {
         return formatTooltipLegacyLines(
             TOOLTIP_LINES,
             {},
             resolveTooltipContext(gameState, { ability: { id: CREATE_MACE_ABILITY_ID } }),
         );
-    },
-    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], _active: ActiveAbility): void {
-        startConjureCast(engine, caster, DROPPED_WEAPON_KIND_MACE);
     },
 });
 
