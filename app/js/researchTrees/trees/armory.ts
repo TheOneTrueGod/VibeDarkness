@@ -86,7 +86,7 @@ export const armoryTree: ResearchTreeDef = {
             id: ARMORY_NODE_CREATE_MACE,
             title: 'Create Mace',
             description:
-                'You learn to shape a heavy mace that knocks enemies back, then spin it to stun them.',
+                'You learn to shape a heavy mace that knocks enemies back.',
             flavorText: 'You dig deeper, and forge what the ground gives up into something heavier.',
             order: 15,
             tier: 15,
