@@ -55,7 +55,7 @@ const SLASH_TRAIL_THICKNESS = 14;
 const SLASH_TRAIL_COLOR = ARMORY_SECONDARY_COLOR_NUM;
 
 const TOOLTIP_LINES = [
-    'A conjured blade. Slash up to {{MAX_TARGETS}} enemies for {{DAMAGE}} damage.',
+    'Deal {{DAMAGE}} damage to {{MAX_TARGETS}} enemies',
     `{Bleed ${SWING_SWORD_BLEED_STACKS}}`,
     `{knockback ${SWING_SWORD_KNOCKBACK_TIER}}`,
 ] as const;
@@ -104,6 +104,7 @@ export const ImprovisedSwordAbility = defineAbility({
     id: IMPROVISED_SWORD_ABILITY_ID,
     tags: ['melee', 'sword'],
     name: 'Charge Sword',
+    flavorText: 'The edge is only as old as the moment you made it.',
     image: chargeSwordSvg,
     resourceCost: null,
     resourceCosts: [],

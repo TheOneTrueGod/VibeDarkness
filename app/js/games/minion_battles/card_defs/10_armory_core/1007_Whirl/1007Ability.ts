@@ -65,15 +65,14 @@ const WHIRL_HITBOX = ringHitbox({
 });
 
 const TOOLTIP_LINES = [
-    'Swing in a full circle, dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} adjacent enemies. The mace then falls.',
+    'Deal {{DAMAGE}} damage to {{MAX_TARGETS}} adjacent enemies. The mace drops.',
     `{knockback ${SWING_BAT_KNOCKBACK_TIER}}`,
-    'Stuns those enemies for {{STUN}} seconds.',
+    `{Stun ${MACE_WHIRL_STUN_SECONDS}}`,
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: SWING_BAT_BASE_DAMAGE },
     MAX_TARGETS: { kind: 'plain', value: MACE_WHIRL_MAX_TARGETS },
-    STUN: { kind: 'plain', value: MACE_WHIRL_STUN_SECONDS },
 };
 
 const whirl = CastBehaviours.MeleeAttack()
@@ -136,6 +135,7 @@ export const WhirlAbility_1007 = defineAbility({
     id: WHIRL_ABILITY_ID,
     tags: ['melee'],
     name: 'Whirl',
+    flavorText: 'One full turn, and the weight goes back to the earth.',
     image: whirlSvg,
     resourceCost: null,
     resourceCosts: [],

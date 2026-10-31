@@ -108,6 +108,8 @@ export interface AbilityTooltipProps {
     open?: boolean;
     /** Extra reminder cards appended after keyword cards (e.g. how the ability recovers uses). */
     extraKeywordEntries?: readonly KeywordGlossaryEntry[];
+    /** The card's flavour line (`AbilityStatic.flavorText`), shown in italics under the card text. */
+    flavorText?: string;
 }
 
 const TOOLTIP_WIDTH = 180;
@@ -125,6 +127,7 @@ export default function AbilityTooltip({
     anchorRef,
     open = true,
     extraKeywordEntries = [],
+    flavorText,
 }: AbilityTooltipProps) {
     const reasonDisplay = disabledReason ? getDisabledReasonDisplay(disabledReason) : null;
     const renderedLines = resolveLinesForRender(lines, segmentLines);
@@ -158,6 +161,7 @@ export default function AbilityTooltip({
                         </div>
                     ))}
                 </div>
+                {flavorText && <p className="mt-2 text-xs italic text-muted">{flavorText}</p>}
                 {keywordEntries.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                         {keywordEntries.map((entry) => (
@@ -185,6 +189,7 @@ export default function AbilityTooltip({
                     </div>
                 ))}
             </div>
+            {flavorText && <p className="mt-3 text-xs italic text-muted">{flavorText}</p>}
             {reasonDisplay && (
                 <div className="mt-auto">
                     <div className="mt-2 pt-2 border-t border-rose-900">

@@ -29,13 +29,14 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 const TOOLTIP_LINES = [
-    'Conjure a mace. Your weapon abilities become Charge Mace until Whirl is used or its uses are spent.',
-    'You can keep walking, more slowly, while the mace forms.',
+    'Conjure a mace. Your weapon abilities become Charge Mace and Whirl until Whirl is used or the mace is spent.',
+    'You can move slowly while it forms.',
 ] as const;
 
 export const CreateMaceAbility_1005 = defineConjure({
     id: CREATE_MACE_ABILITY_ID,
     name: 'Create Mace',
+    flavorText: 'Rock packed on rock, until it is too heavy to hold back.',
     image: chargeMaceSvg,
     weaponId: ARMORY_MACE_WEAPON_ID,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },

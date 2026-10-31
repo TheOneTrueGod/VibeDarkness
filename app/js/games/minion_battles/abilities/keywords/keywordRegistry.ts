@@ -43,8 +43,9 @@ export interface KeywordGlossaryEntry {
 }
 
 /**
- * Unnumbered glossary term (a status or mechanic, e.g. Bleed) shown as a reminder card when a
- * tooltip highlights one of its `matches` (case-insensitive, e.g. `{Bleed}` or `{bleeding}`).
+ * Glossary term (a status or mechanic, e.g. Bleed) shown as a reminder card when a tooltip
+ * highlights one of its `matches` (case-insensitive, e.g. `{Bleed}` or `{bleeding}`), alone or
+ * followed by a number (`{Bleed 3}`, `{Stun 2}`).
  */
 export interface GlossaryTermDef {
     title: string;
@@ -69,8 +70,9 @@ export function keywordGlossaryEntries(keywordTexts: readonly string[]): Keyword
     const seen = new Set<string>();
     for (const text of keywordTexts) {
         const lower = text.trim().toLowerCase();
+        const word = lower.replace(/\s+[\d./]+$/, '');
         for (const term of glossaryTerms) {
-            if (seen.has(term.title) || !term.matches.some((m) => m.toLowerCase() === lower)) continue;
+            if (seen.has(term.title) || !term.matches.some((m) => m.toLowerCase() === word)) continue;
             seen.add(term.title);
             entries.push({ title: term.title, description: term.description });
         }
@@ -115,6 +117,7 @@ registerKeyword({
     id: 'knockback',
     displayName: 'knockback',
     formatTooltip: (n) => `knockback ${formatTooltipNumber(n)}`,
+    describe: () => 'Pushes the target away and interrupts it. Higher numbers push farther.',
 });
 
 registerKeyword(devourLightKeyword);
@@ -124,4 +127,10 @@ registerGlossaryTerm({
     title: 'Bleed',
     matches: ['bleed', 'bleeding'],
     description: `Deals {1} damage per {${BLEED_STACKS_PER_DAMAGE}} stacks every {1/${BLEED_TICKS_PER_ROUND}} round.`,
+});
+
+registerGlossaryTerm({
+    title: 'Stun',
+    matches: ['stun', 'stuns', 'stunned'],
+    description: 'Cannot move or act for that many seconds.',
 });

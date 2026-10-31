@@ -31,21 +31,20 @@ import {
 const RELEASE_CHARGE_AIM_LABEL = 'Direction';
 
 const TOOLTIP_LINES = [
-    'Release the buckler\'s charge in a cone.',
-    'Deals {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies in a {{ARC_DEGREES}}° arc',
-    'Stuns hit enemies for {{STUN}} seconds',
+    'Deal {{DAMAGE}} damage to {{MAX_TARGETS}} enemies in a {{ARC_DEGREES}}° cone',
+    `{Stun ${CONE_OF_LIGHT_STUN_SECONDS}}`,
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: CONE_OF_LIGHT_DAMAGE },
     MAX_TARGETS: { kind: 'plain', value: CONE_OF_LIGHT_MAX_TARGETS },
     ARC_DEGREES: { kind: 'plain', value: CONE_OF_LIGHT_ARC_DEGREES },
-    STUN: { kind: 'plain', value: CONE_OF_LIGHT_STUN_SECONDS },
 };
 
 export const ReleaseChargeAbility_1009 = defineConeStrike({
     id: RELEASE_CHARGE_ABILITY_ID,
     name: 'Release Charge',
+    flavorText: 'Everything the buckler caught, given back at once.',
     image: releaseChargeSvg,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
     maxUses: SHIELD_FOLLOWUP_USES,

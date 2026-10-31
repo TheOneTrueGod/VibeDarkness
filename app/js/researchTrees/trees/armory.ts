@@ -2,7 +2,6 @@ import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_ICON_ARMORY } from '../researchTreeChrome';
 import {
-    ARMORY_ABILITY_CHARGE_COST,
     CREATE_MACE_ABILITY_ID,
     CREATE_SHIELD_ABILITY_ID,
     CREATE_SWORD_ABILITY_ID,
@@ -10,13 +9,7 @@ import {
     REPAIR_POST_ABILITY_ID,
 } from '../../games/minion_battles/card_defs/10_armory_core/armoryConstants';
 import { CHARGE_MISSION_START } from '../../games/minion_battles/resources/Charge';
-import { MACE_WHIRL_MAX_TARGETS } from '../../games/minion_battles/card_defs/10_armory_core/1007_Whirl/1007Constants';
 import { SHIELD_BLOCK_CHARGE_GRANT } from '../../games/minion_battles/card_defs/10_armory_core/1008_CreateShield/1008Constants';
-import {
-    REPAIR_POST_HEAL,
-    REPAIR_POST_PULSES,
-} from '../../games/minion_battles/card_defs/10_armory_core/1011_RepairPost/1011Constants';
-import { THROW_SHIELD_DAMAGE } from '../../games/minion_battles/card_defs/10_armory_core/1010_ThrowShield/1010Constants';
 
 export const ARMORY_TREE_ID = 'armory_core';
 export const ARMORY_NODE_CORE = 'armory_core';
@@ -62,8 +55,8 @@ export const armoryTree: ResearchTreeDef = {
             id: ARMORY_NODE_CORE,
             title: 'Armory Core',
             description:
-                `Conjure a sword for ${ARMORY_ABILITY_CHARGE_COST} Charge, or plant a turret that fires down a narrow cone. You begin with ${CHARGE_MISSION_START} Charge.`,
-            flavorText: 'The armory is not a room. It is the moment the weapon arrives.',
+                `Gain Create Sword and Deploy Turret. Start each mission with {${CHARGE_MISSION_START}} Charge.`,
+            flavorText: 'Every stone holds a blade. You only have to draw it out.',
             order: 5,
             tier: 10,
             position: { x: 180, y: 290 },
@@ -94,8 +87,8 @@ export const armoryTree: ResearchTreeDef = {
             id: ARMORY_NODE_CREATE_MACE,
             title: 'Create Mace',
             description:
-                `Conjure a mace for ${ARMORY_ABILITY_CHARGE_COST} Charge. Charge Mace swings like a mace. Whirl strikes up to ${MACE_WHIRL_MAX_TARGETS} adjacent enemies, knocks them back, and stuns them, then the mace falls.`,
-            flavorText: 'It arrives heavy, and it does not stay.',
+                'Gain Create Mace: a heavy swing, then a Whirl that stuns.',
+            flavorText: 'Dig deeper, and the ground gives up something heavier.',
             order: 15,
             tier: 15,
             position: { x: 420, y: 290 },
@@ -118,8 +111,8 @@ export const armoryTree: ResearchTreeDef = {
             id: ARMORY_NODE_CREATE_SHIELD,
             title: 'Create Shield',
             description:
-                `Conjure a buckler for ${ARMORY_ABILITY_CHARGE_COST} Charge and block. A block gains ${SHIELD_BLOCK_CHARGE_GRANT} Charge. Release Charge stuns a cone of enemies. Throw Shield deals ${THROW_SHIELD_DAMAGE} damage and bounces to a second enemy, then the buckler falls.`,
-            flavorText: 'It arrives in front of you, already turned toward the blow.',
+                `Gain Create Shield: block to gain {${SHIELD_BLOCK_CHARGE_GRANT}} Charge, then release it as a stunning cone.`,
+            flavorText: 'Pull the earth up between you and harm.',
             order: 16,
             tier: 15,
             position: { x: 420, y: 410 },
@@ -142,8 +135,8 @@ export const armoryTree: ResearchTreeDef = {
             id: ARMORY_NODE_REPAIR_POST,
             title: 'Repair Post',
             description:
-                `Place a repair post for ${ARMORY_ABILITY_CHARGE_COST} Charge. Once each quarter round it heals nearby allies for ${REPAIR_POST_HEAL}, ${REPAIR_POST_PULSES} times, then falls silent.`,
-            flavorText: 'Not every weapon is pointed outward.',
+                'Gain Repair Post: a post that heals nearby allies each quarter round.',
+            flavorText: 'The ground that gives you blades can mend you too.',
             order: 17,
             tier: 15,
             position: { x: 420, y: 170 },

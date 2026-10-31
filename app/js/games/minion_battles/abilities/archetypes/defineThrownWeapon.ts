@@ -66,6 +66,8 @@ export interface ThrownWeaponConfig {
     hitRadius?: number;
     trail?: ThrownWeaponTrail;
     getTooltipText: (gameState?: unknown) => string[];
+    /** Card flavour line; see `AbilityStatic.flavorText`. */
+    flavorText?: string;
 }
 
 export function defineThrownWeapon(config: ThrownWeaponConfig): AbilityStatic {
@@ -127,6 +129,7 @@ export function defineThrownWeapon(config: ThrownWeaponConfig): AbilityStatic {
             drawClampedLine(gr, caster, mouseWorld, range);
         },
         getTooltipText: config.getTooltipText,
+        flavorText: config.flavorText,
     });
 }
 

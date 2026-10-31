@@ -567,6 +567,12 @@ export interface AbilityStatic {
     getTooltipText(gameState?: unknown): string[];
 
     /**
+     * Optional. One short line about what using the card feels like, shown under the card text on
+     * hover. No mechanics: those belong in `getTooltipText` (see writing-style-abilities STYLE.md).
+     */
+    flavorText?: string;
+
+    /**
      * Optional. Resolves this ability's base damage for display / cast helpers when a caster
      * is available. Prefer `getAbilityDamageForDisplay` (full flat + mult + stackSize path).
      * When `caster` is omitted, returns the raw ability number with no modifiers applied.

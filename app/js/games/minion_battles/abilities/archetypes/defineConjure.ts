@@ -34,6 +34,8 @@ export interface ConjureConfig {
     moveMult: number;
     orbit?: ConjureOrbitShape;
     getTooltipText: (gameState?: unknown) => string[];
+    /** Card flavour line; see `AbilityStatic.flavorText`. */
+    flavorText?: string;
 }
 
 export function defineConjure(config: ConjureConfig): AbilityStatic {
@@ -69,6 +71,7 @@ export function defineConjure(config: ConjureConfig): AbilityStatic {
             return [];
         },
         getTooltipText: config.getTooltipText,
+        flavorText: config.flavorText,
         beginActiveCast(engine, caster): void {
             const weapon = getConjuredWeaponDef(config.weaponId);
             if (!weapon) throw new Error(`defineConjure: "${config.id}" names unregistered weapon "${config.weaponId}"`);

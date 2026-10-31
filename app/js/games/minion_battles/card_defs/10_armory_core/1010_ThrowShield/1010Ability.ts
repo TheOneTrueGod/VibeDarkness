@@ -45,8 +45,8 @@ const THROW_SHIELD_SPRITE: SpriteProjectileConfig = {
 };
 
 const TOOLTIP_LINES = [
-    'Hurl the conjured buckler for {{DAMAGE}} damage. It bounces to one more nearby enemy, then your weapon returns.',
-    'The buckler remains where it falls.',
+    'Throw the buckler. Deal {{DAMAGE}} damage, then it bounces to one more enemy.',
+    'The buckler drops where it stops, and your weapon returns.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -56,6 +56,7 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 export const ThrowShieldAbility_1010 = defineThrownWeapon({
     id: THROW_SHIELD_ABILITY_ID,
     name: 'Throw Shield',
+    flavorText: 'It rings off one enemy and finds the next.',
     image: shieldThrowSvg,
     weaponId: ARMORY_SHIELD_WEAPON_ID,
     damage: THROW_SHIELD_DAMAGE,

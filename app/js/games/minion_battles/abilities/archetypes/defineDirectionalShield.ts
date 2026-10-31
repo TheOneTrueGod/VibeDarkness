@@ -94,6 +94,8 @@ export interface DirectionalShieldConfig {
 
     // ---- Tooltip ----
     getTooltipText: (gameState?: unknown) => string[];
+    /** Card flavour line; see `AbilityStatic.flavorText`. */
+    flavorText?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +174,7 @@ export function defineDirectionalShield(config: DirectionalShieldConfig): Abilit
         abilityTimings,
 
         getTooltipText: config.getTooltipText,
+        flavorText: config.flavorText,
 
         getAbilityStates: createMovementPenaltyStates(movementPenalty, duration),
 

@@ -325,6 +325,7 @@ export default function AbilitySlot({
                     open={isHovered}
                     title={ability.name}
                     lines={tooltipLines}
+                    flavorText={ability.flavorText}
                     disabledReason={disabledReason ?? undefined}
                     extraKeywordEntries={recoveryGlossaryEntries(recoveryRules, useConfig.refillsEachRound)}
                 />

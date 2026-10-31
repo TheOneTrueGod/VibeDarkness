@@ -63,8 +63,8 @@ const PLACE_HITBOX = groundPointHitbox(TURRET_PLACE_RANGE, {
 const AIM_HITBOX = facingConeHitbox(TURRET_SHOT_RANGE, TURRET_CONE_HALF_ANGLE_RAD);
 
 const TOOLTIP_LINES = [
-    'Place a turret on an empty tile within {{RANGE}} tiles, then choose its facing.',
-    'It fires {{SHOTS}} rocks down a narrow cone for {{DAMAGE}} each, then falls silent.',
+    'Create a turret within {{RANGE}} tiles that shoots {{SHOTS}} times dealing {{DAMAGE}} damage',
+    'It shoots down a narrow cone, once each quarter round.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -184,6 +184,7 @@ export const DeployTurretAbility = defineAbility({
     id: DEPLOY_TURRET_ABILITY_ID,
     tags: [],
     name: 'Deploy Turret',
+    flavorText: 'Stone and scrap, folded tight, opening hungry.',
     image: TURRET_IMAGE,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
     resourceCosts: [],

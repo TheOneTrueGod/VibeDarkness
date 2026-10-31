@@ -54,6 +54,8 @@ export interface ConeStrikeConfig {
     previewStrokeColor?: number;
 
     getTooltipText: (gameState?: unknown) => string[];
+    /** Card flavour line; see `AbilityStatic.flavorText`. */
+    flavorText?: string;
 }
 
 /** Cone from the caster toward the aim point. Hits enemies only, closest first. */
@@ -228,6 +230,7 @@ export function defineConeStrike(config: ConeStrikeConfig): AbilityStatic {
         },
 
         getTooltipText: config.getTooltipText,
+        flavorText: config.flavorText,
 
         getAbilityStates(): [] {
             return [];

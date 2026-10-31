@@ -29,13 +29,14 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 const TOOLTIP_LINES = [
-    'Conjure a sword. Your weapon abilities become Charge Sword until it is thrown or its uses are spent.',
-    'You can keep walking, more slowly, while the blades form.',
+    'Conjure a sword. Your weapon abilities become Charge Sword and Throw Sword until it is thrown or spent.',
+    'You can move slowly while it forms.',
 ] as const;
 
 export const CreateSwordAbility = defineConjure({
     id: CREATE_SWORD_ABILITY_ID,
     name: 'Create Sword',
+    flavorText: 'Iron pulled up out of the ground, still warm from the dark.',
     image: chargeSwordSvg,
     weaponId: ARMORY_SWORD_WEAPON_ID,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },

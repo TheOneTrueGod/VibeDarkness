@@ -27,7 +27,7 @@ Avoid: `Hurl the conjured sword. It spins into the first enemy along its path...
 
 Every card should also have flavour text. That is where the feel of using the card goes: what it is like to swing it, cast it, or watch it work. Keep it to one short line, and never put mechanics in it.
 
-Cards do not have a flavour-text field yet (research nodes do, as `flavorText`). Until one exists, do not fold flavour back into the card text.
+Set it as `flavorText` on the ability (`AbilityStatic.flavorText`; the `define*` archetypes pass it through). The hover tooltip shows it in italics under the card text. Research nodes use the same field name. Reference: the Armory cards in `card_defs/10_armory_core/`.
 
 ### Card / research `description` fields [Canon]
 

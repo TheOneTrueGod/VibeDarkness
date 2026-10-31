@@ -488,6 +488,7 @@ export default function RowSlotAbilities({
                 <AbilityTooltip
                     title={mobileDescAbility.name}
                     lines={mobileDescAbility.getTooltipText(gameState)}
+                    flavorText={mobileDescAbility.flavorText}
                     extraKeywordEntries={recoveryGlossaryEntries(
                         mobileDescUseConfig?.recoveries ?? [],
                         mobileDescUseConfig?.refillsEachRound ?? false,

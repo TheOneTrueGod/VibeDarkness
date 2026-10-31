@@ -34,9 +34,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 const TOOLTIP_LINES = [
-    'Conjure a buckler and block attacks from the front.',
-    'On Block: Gain {{CHARGE}} Charge.',
-    'Your weapon abilities become Release Charge until it or Throw Shield is used.',
+    'Conjure a buckler and block attacks from the front. The first block gains {{CHARGE}} Charge.',
+    'Your weapon abilities become Release Charge and Throw Shield until you use one.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -46,6 +45,7 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 export const CreateShieldAbility_1008 = defineDirectionalShield({
     id: CREATE_SHIELD_ABILITY_ID,
     name: 'Create Shield',
+    flavorText: 'The ground rises between you and the blow.',
     image: shieldSvg,
     tags: [],
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },

@@ -60,8 +60,8 @@ const PLACE_HITBOX = groundPointHitbox(REPAIR_POST_PLACE_RANGE, {
 export const validateRepairPostPlacement = deployablePlacementValidator(REPAIR_POST_PLACE_RANGE);
 
 const TOOLTIP_LINES = [
-    'Place a repair post on an empty tile within {{RANGE}} tiles.',
-    'Once each quarter round it heals nearby allies for {{HEAL}}, {{PULSES}} times, then falls silent.',
+    'Create a repair post within {{RANGE}} tiles that heals nearby allies for {{HEAL}}, {{PULSES}} times',
+    'It heals once each quarter round.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -124,6 +124,7 @@ export const RepairPostAbility_1011 = defineAbility({
     id: REPAIR_POST_ABILITY_ID,
     tags: [],
     name: 'Repair Post',
+    flavorText: 'Not every weapon is pointed outward.',
     image: repairPostSvg,
     resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
     resourceCosts: [],

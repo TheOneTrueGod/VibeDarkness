@@ -23,6 +23,13 @@ describe('keywordRegistry', () => {
         }]);
     });
 
+    it('shows a glossary card for a numbered use, and knockback and Stun have cards', () => {
+        expect(keywordGlossaryEntries(['Bleed 3']).map((entry) => entry.title)).toEqual(['Bleed']);
+        expect(keywordGlossaryEntries(['Stun 2']).map((entry) => entry.title)).toEqual(['Stun']);
+        expect(keywordGlossaryEntries(['knockback 3']).map((entry) => entry.title)).toEqual(['knockback 3']);
+        expect(keywordGlossaryEntries(['Bleeder'])).toEqual([]);
+    });
+
     it('throws for unregistered keyword', () => {
         expect(() => formatKeywordText('nope' as never, 1)).toThrow();
     });

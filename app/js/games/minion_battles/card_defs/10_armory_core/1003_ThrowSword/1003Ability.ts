@@ -35,8 +35,8 @@ const THROW_SWORD_SPRITE: SpriteProjectileConfig = {
 };
 
 const TOOLTIP_LINES = [
-    'Hurl the conjured sword. It spins into the first enemy along its path for {{DAMAGE}} damage, then your weapon returns.',
-    'The blade remains where it stops.',
+    'Throw the sword. Deal {{DAMAGE}} damage to the first enemy it hits.',
+    'The sword drops where it stops, and your weapon returns.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -46,6 +46,7 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 export const ThrowSwordAbility = defineThrownWeapon({
     id: THROW_SWORD_ABILITY_ID,
     name: 'Throw Sword',
+    flavorText: 'Let it go. The ground will make another.',
     image: chargeSwordThrowSvg,
     weaponId: ARMORY_SWORD_WEAPON_ID,
     damage: THROW_SWORD_DAMAGE,

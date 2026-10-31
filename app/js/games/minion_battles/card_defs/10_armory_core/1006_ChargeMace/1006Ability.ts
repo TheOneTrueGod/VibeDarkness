@@ -63,7 +63,7 @@ const CHARGE_MACE_PROFILE: MeleeAnimationProfile = {
 };
 
 const TOOLTIP_LINES = [
-    'A conjured mace. Swing for {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
+    'Deal {{DAMAGE}} damage to {{MAX_TARGETS}} enemies',
     `{knockback ${SWING_BAT_KNOCKBACK_TIER}}`,
 ] as const;
 
@@ -115,6 +115,7 @@ export const ChargeMaceAbility_1006 = defineAbility({
     id: CHARGE_MACE_ABILITY_ID,
     tags: ['melee'],
     name: 'Charge Mace',
+    flavorText: 'Every swing lands like a falling cliff.',
     image: chargeMaceSvg,
     resourceCost: null,
     resourceCosts: [],
