@@ -13,6 +13,7 @@
  */
 
 import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import { ACTOR_ANIMATION_TYPE_ATTACK, ACTOR_ANIMATION_VARIANT_RANGED } from '../../../game/animation/actorAnimation';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
@@ -44,6 +45,7 @@ import {
     TURRET_PLACE_RANGE,
     TURRET_PLACE_RANGE_TILES,
     TURRET_PLACE_WINDOW_END,
+    TURRET_RANGED_ATTACK_DURATION,
     TURRET_SHOT_COUNT,
     TURRET_SHOT_DAMAGE,
     TURRET_SHOT_RANGE,
@@ -73,8 +75,8 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 };
 
 const TURRET_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <circle cx="32" cy="36" r="14" fill="#a8a29e" stroke="#57534e" stroke-width="3"/>
-  <rect x="28" y="14" width="8" height="22" rx="2" fill="#e7e5e4" stroke="#57534e" stroke-width="2"/>
+  <circle cx="32" cy="36" r="14" fill="#4f6d8c" stroke="#e7e5e4" stroke-width="3"/>
+  <rect x="28" y="14" width="8" height="22" rx="2" fill="#e7e5e4" stroke="#4f6d8c" stroke-width="2"/>
 </svg>`;
 
 export interface TurretCastPayload {
@@ -221,6 +223,11 @@ export const DeployTurretAbility = defineAbility({
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
     movementLock: { until: TURRET_DEPLOY_WINDOW_END },
+    animation: {
+        type: ACTOR_ANIMATION_TYPE_ATTACK,
+        variant: ACTOR_ANIMATION_VARIANT_RANGED,
+        duration: TURRET_RANGED_ATTACK_DURATION,
+    },
     onProjectileExpired(engine, caster, projectile): void {
         spawnDeliveredTurret(engine, caster, projectile as Projectile);
     },

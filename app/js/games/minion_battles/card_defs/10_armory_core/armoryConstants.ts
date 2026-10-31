@@ -4,8 +4,10 @@
  */
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { ROUND_DURATION } from '../../game/gameConstants';
-import { THROW_RANGE } from '../throwNumbers';
+import { THROW_PROJECTILE_SPEED, THROW_RANGE } from '../throwNumbers';
+import { DEFAULT_BULLET_TRAIL_RADIUS } from '../../game/effect_defs/bulletTrail';
 
 const ARMORY_GROUP = formatGroupId(AbilityGroupId.Armory);
 
@@ -13,8 +15,16 @@ export const CREATE_SWORD_ABILITY_ID = `${ARMORY_GROUP}01`;
 export const IMPROVISED_SWORD_ABILITY_ID = `${ARMORY_GROUP}02`;
 export const THROW_SWORD_ABILITY_ID = `${ARMORY_GROUP}03`;
 export const DEPLOY_TURRET_ABILITY_ID = `${ARMORY_GROUP}04`;
+export const CREATE_MACE_ABILITY_ID = `${ARMORY_GROUP}05`;
+export const CHARGE_MACE_ABILITY_ID = `${ARMORY_GROUP}06`;
+export const WHIRL_ABILITY_ID = `${ARMORY_GROUP}07`;
+export const CREATE_SHIELD_ABILITY_ID = `${ARMORY_GROUP}08`;
+export const RELEASE_CHARGE_ABILITY_ID = `${ARMORY_GROUP}09`;
+export const THROW_SHIELD_ABILITY_ID = `${ARMORY_GROUP}10`;
 
 export const ARMORY_SWORD_WEAPON_ID = 'armory_sword';
+export const ARMORY_MACE_WEAPON_ID = 'armory_mace';
+export const ARMORY_SHIELD_WEAPON_ID = 'armory_shield';
 
 /** Charge stored on the unit. */
 export const CHARGE_MAX = 6;
@@ -25,6 +35,10 @@ export const CHARGE_PER_ROUND = 3;
 export const ARMORY_ABILITY_CHARGE_COST = 2;
 
 export const CREATE_SWORD_CAST_DURATION = 1;
+/** Create Shield blocks for the same length as the other conjures. */
+export const CREATE_SHIELD_CAST_DURATION = CREATE_SWORD_CAST_DURATION;
+/** Charge granted the first time a Create Shield cast blocks an attack. Equal to the cost, so a block refunds it. */
+export const SHIELD_BLOCK_CHARGE_GRANT = ARMORY_ABILITY_CHARGE_COST;
 /** Speed multiplier while the swords are forming. 1 is full speed. */
 export const CREATE_SWORD_MOVE_MULT = 0.5;
 /** Blades in the conjure orbit. */
@@ -49,6 +63,29 @@ export const THROW_SWORD_DAMAGE = 12;
 export const THROW_SWORD_WINDUP_END = 0.15;
 export const THROW_SWORD_ACTIVE_END = 0.35;
 export const THROW_SWORD_COOLDOWN_END = 0.55;
+/** Degrees per second a thrown conjured weapon spins. */
+export const THROWN_WEAPON_SPIN_DEGREES_PER_SECOND = 720;
+/** Flight speed of a thrown sword or shield: half the shared throw speed, so the spin reads. */
+export const THROWN_WEAPON_SPEED = THROW_PROJECTILE_SPEED / 2;
+
+/** Throw Shield uses the same windup, aim, and recovery as Throw Sword. */
+export const THROW_SHIELD_WINDUP_END = THROW_SWORD_WINDUP_END;
+export const THROW_SHIELD_ACTIVE_END = THROW_SWORD_ACTIVE_END;
+export const THROW_SHIELD_COOLDOWN_END = THROW_SWORD_COOLDOWN_END;
+export const THROW_SHIELD_DAMAGE = 6;
+/** The buckler strikes once, then one more enemy, then falls. */
+export const THROW_SHIELD_HIT_COUNT = 2;
+/** How far the thrown buckler looks for its second enemy, in pixels. */
+export const THROW_SHIELD_BOUNCE_RANGE_TILES = 3;
+export const THROW_SHIELD_BOUNCE_RANGE = THROW_SHIELD_BOUNCE_RANGE_TILES * CELL_SIZE;
+/** One pixel thicker than a normal bullet trail. */
+export const THROW_SHIELD_TRAIL_RADIUS = DEFAULT_BULLET_TRAIL_RADIUS + 1;
+/** Drawn size of the thrown buckler, relative to the card art. */
+export const THROW_SHIELD_SPRITE_SCALE = 0.4;
+/** Hit radius of the thrown buckler, in pixels. */
+export const THROW_SHIELD_HIT_RADIUS = 10;
+/** Uses on Release Charge and on Throw Shield. Either one puts the buckler away. */
+export const SHIELD_FOLLOWUP_USES = 1;
 
 export const TURRET_PLACE_RANGE_TILES = 3;
 export const TURRET_PLACE_RANGE = TURRET_PLACE_RANGE_TILES * CELL_SIZE;
@@ -57,6 +94,8 @@ export const TURRET_CONE_HALF_ANGLE_RAD = Math.PI / 8;
 export const TURRET_SHOT_DAMAGE = 4;
 export const TURRET_SHOT_COUNT = 4;
 export const TURRET_FIRST_SHOT_DELAY = 0.4;
+/** World-time length of the turret's ranged-attack clip. It finishes well before the next shot. */
+export const TURRET_RANGED_ATTACK_DURATION = TURRET_FIRST_SHOT_DELAY;
 export const TURRET_SHOT_INTERVAL = ROUND_DURATION / TURRET_SHOT_COUNT;
 export const TURRET_LIFETIME = ROUND_DURATION;
 /** Shot reach. Same distance Throw Rock flies. */
@@ -65,14 +104,37 @@ export const TURRET_SHOT_RANGE = THROW_RANGE;
 export const TURRET_BODY_RADIUS = 10;
 /** Hull radius of the folded turret while it is still in the air. */
 export const TURRET_FOLDED_BODY_RADIUS = 7;
-/** Gray used for the placement footprint. The deployed hull is black. */
-export const TURRET_BODY_COLOR = 0xa8a29e;
-/** Deployed and folded hull. */
-export const TURRET_HULL_COLOR = 0x000000;
-/** Barrel and the shot pips. */
-export const TURRET_BARREL_COLOR = 0xa8a29e;
-export const TURRET_PIP_COLOR = 0xc4c4c4;
-export const TURRET_PIP_EMPTY_COLOR = 0x44403c;
+/** Quench. Primary fills masses. Secondary is the edge. Font is the research-card text. */
+export const ARMORY_PRIMARY_COLOR = '#4f6d8c';
+export const ARMORY_SECONDARY_COLOR = '#e7e5e4';
+export const ARMORY_FONT_COLOR = '#000000';
+/** Remaining share of each primary channel for grips and empty pips. */
+export const ARMORY_PRIMARY_SHADE_FACTOR = 0.55;
+
+function cssHexToNumber(hex: string): number {
+    return Number.parseInt(hex.slice(1), 16);
+}
+
+function darkenCssHex(hex: string, factor: number): string {
+    const n = cssHexToNumber(hex);
+    const channel = (shift: number) => Math.round(((n >> shift) & 255) * factor).toString(16).padStart(2, '0');
+    return `#${channel(16)}${channel(8)}${channel(0)}`;
+}
+
+export const ARMORY_PRIMARY_SHADE_COLOR = darkenCssHex(ARMORY_PRIMARY_COLOR, ARMORY_PRIMARY_SHADE_FACTOR);
+export const ARMORY_PRIMARY_COLOR_NUM = cssHexToNumber(ARMORY_PRIMARY_COLOR);
+export const ARMORY_SECONDARY_COLOR_NUM = cssHexToNumber(ARMORY_SECONDARY_COLOR);
+export const ARMORY_PRIMARY_SHADE_COLOR_NUM = cssHexToNumber(ARMORY_PRIMARY_SHADE_COLOR);
+
+/** Blue-steel footprint. The hull uses the owner's body color. */
+export const TURRET_BODY_COLOR = ARMORY_PRIMARY_COLOR_NUM;
+/** Thin ring around the hull of the deployed turret and the folded projectile. */
+export const TURRET_HULL_OUTLINE_COLOR = 0x000000;
+export const TURRET_HULL_OUTLINE_WIDTH = 1;
+/** Bone barrel and loaded shot pips. */
+export const TURRET_BARREL_COLOR = ARMORY_SECONDARY_COLOR_NUM;
+export const TURRET_PIP_COLOR = ARMORY_SECONDARY_COLOR_NUM;
+export const TURRET_PIP_EMPTY_COLOR = ARMORY_PRIMARY_SHADE_COLOR_NUM;
 /** How far the barrel sticks out once the turret is open, in pixels. */
 export const TURRET_BARREL_LENGTH = 16;
 /** How far the barrel sticks out while the turret is folded. */
@@ -126,11 +188,32 @@ export const TURRET_SHOT_HIT_RADIUS = 2;
 export const TURRET_PLACE_LABEL = 'Place';
 export const TURRET_AIM_LABEL = 'Facing';
 export const THROW_SWORD_AIM_LABEL = 'Direction';
+export const CREATE_SHIELD_AIM_LABEL = 'Direction to block';
+export const THROW_SHIELD_AIM_LABEL = THROW_SWORD_AIM_LABEL;
+export const RELEASE_CHARGE_AIM_LABEL = 'Direction';
 
 /** Sentry def id. Shot damage, cone, and timing are read from the constants above. */
 export const ARMORY_TURRET_DEF_ID = 'armory_turret';
 
 export const DROPPED_WEAPON_KIND_SWORD = 'sword';
+export const DROPPED_WEAPON_KIND_MACE = 'mace';
+export const DROPPED_WEAPON_KIND_SHIELD = 'shield';
+/** Uses on a conjured mace. The last swing drops it, the same way a conjured sword does. */
+export const CHARGE_MACE_MAX_USES = 2;
+/** Enemies a Whirl can strike. */
+export const MACE_WHIRL_MAX_TARGETS = 5;
+/**
+ * How far the inner edge sits past the caster's body. Units wholly inside that hole are missed.
+ */
+export const MACE_WHIRL_INNER_CLEARANCE = 9;
+/** Outer edge of the whirl ring: the farthest the swing reaches. */
+export const MACE_WHIRL_OUTER_RADIUS = DEFAULT_UNIT_RADIUS * 3;
+/** Impact ring is drawn at the outer edge. */
+export const MACE_WHIRL_VISUAL_RADIUS = MACE_WHIRL_OUTER_RADIUS;
+/** Hard stun applied to each enemy Whirl damages. */
+export const MACE_WHIRL_STUN_SECONDS = 2;
+export const MACE_WHIRL_EFFECT_TYPE = 'MaceWhirl';
+export const MACE_WHIRL_EFFECT_DURATION = 0.35;
 /** Flight time of the discard arc. The token exists at the landing cell the whole time. */
 export const DROPPED_WEAPON_ARC_DURATION = 0.5;
 /** How far the blade travels from the caster, in pixels (1.5 tiles). */

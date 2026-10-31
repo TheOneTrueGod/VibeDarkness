@@ -10,6 +10,10 @@ export interface RecentLobbyInfo {
     lobbyState: 'home' | 'in_game';
     gameType?: string | null;
     playerCount: number;
+    /** Resolved mission title, when the lobby has a selected mission. */
+    missionName?: string | null;
+    /** Display name of the player hosting the lobby. */
+    hostPlayerName?: string | null;
 }
 
 interface RecentLobbiesListProps {
@@ -48,19 +52,17 @@ function PlayerDots({ count }: { count: number }) {
     );
 }
 
-function formatState(info: RecentLobbyInfo): string {
-    if (info.lobbyState === 'in_game' && info.gameType) {
-        const label = info.gameType.replace(/_/g, ' ');
-        return label;
-    }
-    return 'Lobby';
+function lobbyTitle(info: RecentLobbyInfo): string {
+    const mission = info.missionName?.trim();
+    if (mission) return mission;
+    return info.name;
 }
 
 export default function RecentLobbiesList({ lobbies, onJoin }: RecentLobbiesListProps) {
     if (lobbies.length === 0) return null;
 
     return (
-        <div className="mt-6">
+        <div data-className="RecentLobbiesList" className="mt-6">
             <h2 className="text-lg text-muted mb-3">Active Lobbies</h2>
             <ul className="space-y-2">
                 {lobbies.map((lobby) => (
@@ -69,9 +71,14 @@ export default function RecentLobbiesList({ lobbies, onJoin }: RecentLobbiesList
                         className="flex items-center gap-3 px-4 py-3 bg-surface-light rounded-lg"
                     >
                         <LobbyIdBadge id={lobby.id} />
-                        <span className="text-sm text-muted flex-1 truncate">
-                            {formatState(lobby)}
-                        </span>
+                        <div className="flex flex-col flex-1 min-w-0">
+                            <span className="text-sm text-white truncate">{lobbyTitle(lobby)}</span>
+                            {lobby.hostPlayerName ? (
+                                <span className="text-xs text-muted truncate">
+                                    Hosted by {lobby.hostPlayerName}
+                                </span>
+                            ) : null}
+                        </div>
                         <PlayerDots count={lobby.playerCount} />
                         <button
                             type="button"

@@ -8,7 +8,6 @@
 
 import type { BattleOrder } from '../types';
 import type { GameEngine } from '../GameEngine';
-import { FIXED_DT } from '../gameConstants';
 import '../../abilities/AbilityRegistry';
 
 export interface ReplayOrder {
@@ -122,5 +121,3 @@ export function playForward(engine: GameEngine, opts: PlayForwardOpts): ReplayPl
     if (!last || last.tick !== engine.gameTick) traces.push(captureReplayTick(engine));
     return { traces, stalled, tick: engine.gameTick };
 }
-
-void FIXED_DT;

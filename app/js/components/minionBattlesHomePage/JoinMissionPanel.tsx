@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { LobbyClient } from '../../LobbyClient';
 import RecentLobbiesList, { type RecentLobbyInfo } from '../RecentLobbiesList';
+import { recentLobbyInfoFromActiveEntry } from '../recentLobbyInfo';
 import PanelLayout from './PanelLayout';
 
 interface JoinMissionPanelProps {
@@ -18,18 +19,7 @@ export default function JoinMissionPanel({ lobbyClient, onJoinLobby }: JoinMissi
         const fetchLobbies = async () => {
             const list = await lobbyClient.getActiveLobbies();
             if (cancelled) return;
-            const infos: RecentLobbyInfo[] = list.map((entry) => ({
-                id: entry.lobby_id,
-                name: entry.name ?? entry.lobby_id,
-                lobbyState: (entry.lobbyState as 'home' | 'in_game') ?? 'home',
-                gameType: entry.gameType ?? null,
-                playerCount: entry.player_ids?.length ?? 0,
-            }));
-            setRecentLobbyInfos((prev) => {
-                const existingIds = new Set(prev.map((l) => l.id));
-                const newLobbies = infos.filter((l) => !existingIds.has(l.id));
-                return newLobbies.length > 0 ? [...prev, ...newLobbies] : prev;
-            });
+            setRecentLobbyInfos(list.map(recentLobbyInfoFromActiveEntry));
         };
 
         void fetchLobbies();

@@ -16,6 +16,7 @@ import type {
 } from '../types';
 import { campaignPathForTab, playerCharacterPath } from '../components/ability-tests/campaignTabPaths';
 import { ENABLE_WEBRTC_LOBBY, LOBBY_PATH_PREFIX } from './constants';
+import { joinLobbyAllowingAdminBypass } from './joinLobbyWithAdminBypass';
 import type { LobbySessionSetters, ShowToast, UserDataUser } from './types';
 
 interface UseLobbyLifecycleArgs extends Pick<LobbySessionSetters, 'setScreen' | 'setCurrentLobby' | 'setCurrentPlayer' | 'setCurrentAccount' | 'setPlayers' | 'setChatMessages' | 'setChatEnabled' | 'setClicks' | 'setConnectionStatus' | 'setLobbyPageState' | 'setLobbyGameId' | 'setLobbyGameType' | 'setLobbyGameData' | 'setCurrentCampaignId' | 'setLastPollMessageId' | 'setPollMessagesReady'> {
@@ -284,7 +285,7 @@ export function useLobbyLifecycle({
     const handleJoinLobby = useCallback(
         async (lobbyId: string) => {
             try {
-                const result = await lobbyClient.joinLobby(lobbyId);
+                const result = await joinLobbyAllowingAdminBypass(lobbyClient, lobbyId, isAdmin);
                 const lobby = result.lobby as LobbyState;
                 const player = result.player as PlayerState;
                 const account = result.account as AccountState;
@@ -304,7 +305,7 @@ export function useLobbyLifecycle({
                 );
             }
         },
-        [lobbyClient, showToast, startInLobby, navigate, setChatEnabled, setConnectionStatus, setCurrentAccount, setCurrentLobby, setCurrentPlayer, setPlayers, setScreen]
+        [isAdmin, lobbyClient, showToast, startInLobby, navigate, setChatEnabled, setConnectionStatus, setCurrentAccount, setCurrentLobby, setCurrentPlayer, setPlayers, setScreen]
     );
 
     const handleLeaveLobby = useCallback(async (characterId?: string) => {

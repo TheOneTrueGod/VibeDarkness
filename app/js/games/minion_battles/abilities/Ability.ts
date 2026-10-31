@@ -18,6 +18,7 @@ import type { UnitTag } from '../game/units/unitTag';
 import type { PassiveDef } from './passiveDef';
 import type { WindupLungeConfig } from './WindupLunge';
 import type { AbilityKeywordUse } from './keywords/keywordTypes';
+import type { ActorAnimationRequest } from '../game/animation/actorAnimation';
 
 /** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
 export interface IAbilityPreviewGraphics {
@@ -751,6 +752,11 @@ export interface AbilityStatic {
      * Companions should usually carry the `secondary` tag. Example: Gather Light → Imbued Mace.
      */
     readonly attachedAbilityIds?: readonly string[];
+    /**
+     * Clip played on the actor that performs this ability. The actor stores the request.
+     * Only a renderer that knows the type and variant draws it.
+     */
+    readonly animation?: ActorAnimationRequest;
 }
 
 /** Information about an attack that was blocked. */

@@ -19,6 +19,18 @@ class LobbyManager
     /** Must match `PREP_ABILITY_SLOT_COUNT` in questPrepLoadout.ts. */
     private const PREP_ABILITY_SLOT_COUNT = 7;
 
+    /**
+     * Keys a lobby member may write for themselves without being the host.
+     * Each value is a map; only the caller's own entry is merged in.
+     *
+     * @var list<string>
+     */
+    private const PLAYER_OWNED_GAME_STATE_KEYS = [
+        'missionPrepLoadoutsByPlayer',
+        'questPrepLoadoutsByPlayer',
+        'questAbilityLoadoutsByCharacterId',
+    ];
+
     private function __construct() {}
 
     public static function getInstance(): LobbyManager
@@ -63,7 +75,8 @@ class LobbyManager
     }
 
     /**
-     * Idempotent quest-mission continue: claim or create the next private reserved lobby.
+     * Idempotent quest-mission continue: claim or create the next quest lobby.
+     * Reserved for the party unless ALLOW_JOIN_MID_QUEST is set.
      * Uses an exclusive lock on the source lobby so concurrent Continue clicks converge.
      *
      * @param array{
@@ -185,8 +198,12 @@ class LobbyManager
                 }
             }
 
-            $maxPlayers = max(count($requiredPlayers), 1);
-            $created = $this->createLobby($lobbyName, $playerId, $playerName, $maxPlayers, false);
+            // Later quest missions reserve the party unless ALLOW_JOIN_MID_QUEST opens the lobby.
+            $reserveParty = !\ALLOW_JOIN_MID_QUEST;
+            $maxPlayers = $reserveParty
+                ? max(count($requiredPlayers), 1)
+                : \OPEN_LOBBY_MAX_PLAYERS;
+            $created = $this->createLobby($lobbyName, $playerId, $playerName, $maxPlayers, !$reserveParty);
             $newLobbyId = (string) $created['lobby']['id'];
 
             if (!$this->setLobbyState($newLobbyId, $playerId, 'in_game', 'minion_battles')) {
@@ -296,16 +313,26 @@ class LobbyManager
     }
 
     /**
-     * When game JSON lists requiredPlayers, reject joiners whose display name is not rostered.
+     * Quest-party join gate. Applies only to the second and later missions of a quest
+     * (questSlotIndex >= QUEST_PARTY_RESERVATION_MIN_SLOT_INDEX), and only when
+     * ALLOW_JOIN_MID_QUEST is false. Opening missions and ordinary lobbies stay open
+     * even if they still carry a requiredPlayers list.
      */
     private function requiredPlayersJoinError(Lobby $lobby, string $playerName): ?string
     {
+        if (\ALLOW_JOIN_MID_QUEST) {
+            return null;
+        }
         $gameId = $lobby->getGameId();
         if ($gameId === null || $gameId === '') {
             return null;
         }
         $state = $this->readMissionGamePayload($lobby->getId(), $gameId);
         if ($state === null) {
+            return null;
+        }
+        $slot = $state['questSlotIndex'] ?? null;
+        if (!is_numeric($slot) || (int) $slot < \QUEST_PARTY_RESERVATION_MIN_SLOT_INDEX) {
             return null;
         }
         $required = $state['requiredPlayers'] ?? null;
@@ -321,7 +348,7 @@ class LobbyManager
                 return null;
             }
         }
-        return 'This lobby is reserved for the quest party';
+        return \QUEST_PARTY_LOBBY_RESERVED_ERROR;
     }
 
     /**
@@ -498,7 +525,8 @@ class LobbyManager
 
     /**
      * Get active lobbies (lobbies that had a get-state call in the last 10 minutes). Max 5.
-     * Returns list of { lobby_id, last_update, player_ids } with name, lobbyState, gameType when lobby exists.
+     * Returns list of { lobby_id, last_update, player_ids } with name, lobbyState, gameType,
+     * hostPlayerName, and selectedMissionId when the lobby has them.
      */
     public function getActiveLobbies(): array
     {
@@ -521,6 +549,20 @@ class LobbyManager
                 $row['name'] = $lobby->getName();
                 $row['lobbyState'] = $lobby->getLobbyState();
                 $row['gameType'] = $lobby->getGameType();
+                $host = $lobby->getHost();
+                if ($host !== null) {
+                    $row['hostPlayerName'] = $host->getName();
+                }
+                $gameId = $lobby->getGameId();
+                if ($gameId !== null && $gameId !== '') {
+                    $game = $this->readMissionGamePayload($lobby->getId(), $gameId);
+                    $missionId = is_array($game)
+                        ? ($game['selectedMissionId'] ?? $game['selected_mission_id'] ?? null)
+                        : null;
+                    if (is_string($missionId) && $missionId !== '') {
+                        $row['selectedMissionId'] = $missionId;
+                    }
+                }
             }
             $result[] = $row;
         }
@@ -533,7 +575,8 @@ class LobbyManager
     public function joinLobby(
         string $lobbyId,
         string $playerId,
-        string $playerName
+        string $playerName,
+        bool $adminBypassQuestParty = false
     ): ?array {
         $lobby = $this->getLobby($lobbyId);
         
@@ -555,10 +598,12 @@ class LobbyManager
             return ['error' => 'Lobby is full'];
         }
 
-        // Quest / reserved lobbies: only rostered party members may join.
-        $joinBlock = $this->requiredPlayersJoinError($lobby, $playerName);
-        if ($joinBlock !== null) {
-            return ['error' => $joinBlock];
+        // Later quest missions: only rostered party members may join, unless an admin bypasses.
+        if (!$adminBypassQuestParty) {
+            $joinBlock = $this->requiredPlayersJoinError($lobby, $playerName);
+            if ($joinBlock !== null) {
+                return ['error' => $joinBlock];
+            }
         }
 
         $player = new Player($playerId, $playerName);
@@ -1207,7 +1252,9 @@ class LobbyManager
     }
 
     /**
-     * Update game state (host only). Merges provided data with existing state.
+     * Update game state. The host may merge any fields. Any member may merge only
+     * their own prep-loadout entry (marking ready and picking abilities is not a
+     * host-only lobby edit).
      */
     public function updateGameState(string $lobbyId, string $gameId, string $playerId, array $updates): bool
     {
@@ -1216,7 +1263,7 @@ class LobbyManager
             return false;
         }
         $player = $lobby->getPlayer($playerId);
-        if ($player === null || !$player->isHost()) {
+        if ($player === null) {
             return false;
         }
         if ($lobby->getGameId() !== $gameId) {
@@ -1226,6 +1273,15 @@ class LobbyManager
         $currentState = $this->readMissionGamePayload($lobbyId, $gameId);
         if ($currentState === null) {
             return false;
+        }
+
+        if (!$player->isHost()) {
+            $patched = $this->mergePlayerOwnedGameState($playerId, $currentState, $updates);
+            if ($patched === null) {
+                return false;
+            }
+            $this->persistGameState($lobbyId, $gameId, $patched);
+            return true;
         }
 
         $newState = array_merge($currentState, $updates);
@@ -1241,6 +1297,76 @@ class LobbyManager
 
         $this->persistGameState($lobbyId, $gameId, $newState);
         return true;
+    }
+
+    /**
+     * Merge a non-host patch that only touches that player's prep loadout.
+     * Returns null when the patch includes anything else (host-only).
+     *
+     * @param array<string, mixed> $currentState
+     * @param array<string, mixed> $updates
+     * @return array<string, mixed>|null
+     */
+    private function mergePlayerOwnedGameState(string $playerId, array $currentState, array $updates): ?array
+    {
+        if ($updates === []) {
+            return null;
+        }
+        foreach (array_keys($updates) as $key) {
+            if (!in_array($key, self::PLAYER_OWNED_GAME_STATE_KEYS, true)) {
+                return null;
+            }
+        }
+
+        $merged = $currentState;
+        $wrote = false;
+        foreach (self::PLAYER_OWNED_GAME_STATE_KEYS as $key) {
+            if (!array_key_exists($key, $updates) || !is_array($updates[$key])) {
+                continue;
+            }
+            $existing = $merged[$key] ?? [];
+            if (!is_array($existing)) {
+                $existing = [];
+            }
+            if ($key === 'questAbilityLoadoutsByCharacterId') {
+                $selections = $merged['characterSelections'] ?? $merged['character_selections'] ?? [];
+                $characterId = is_array($selections) ? ($selections[$playerId] ?? null) : null;
+                if (!is_string($characterId) || $characterId === '' || !array_key_exists($characterId, $updates[$key])) {
+                    continue;
+                }
+                $existing[$characterId] = $this->sanitizeAbilityIdList($updates[$key][$characterId]);
+            } else {
+                if (!array_key_exists($playerId, $updates[$key])) {
+                    continue;
+                }
+                $existing[$playerId] = $this->sanitizeAbilityIdList($updates[$key][$playerId]);
+            }
+            $merged[$key] = $existing;
+            $wrote = true;
+        }
+
+        return $wrote ? $merged : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function sanitizeAbilityIdList(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+        $out = [];
+        foreach ($value as $id) {
+            if (!is_string($id) || $id === '') {
+                continue;
+            }
+            $out[] = $id;
+            if (count($out) >= self::PREP_ABILITY_SLOT_COUNT) {
+                break;
+            }
+        }
+        return $out;
     }
 
     /**

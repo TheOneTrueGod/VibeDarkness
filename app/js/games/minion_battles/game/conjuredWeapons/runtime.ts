@@ -93,7 +93,7 @@ export function onConjuredWeaponCastEnded(unit: Unit, abilityId: string, engine:
     if (!def || def.heldAbilityId !== abilityId) return;
     const uses = unit.abilityRuntime[abilityId]?.currentUses ?? 0;
     if (uses > 0) return;
-    releaseHeldConjuredWeapon(unit, engine, { leaveToken: true });
+    releaseHeldConjuredWeapon(unit, engine, { leaveToken: def.leaveTokenWhenHeldUsesEnd !== false });
 }
 
 function setAbilityActive(unit: Unit, abilityId: string, active: boolean): void {

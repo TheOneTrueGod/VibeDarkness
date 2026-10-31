@@ -49,8 +49,9 @@ The parser is deliberately small. Stick to:
 - Inline `**bold**` and `` `code` ``.
 - `---` horizontal rules between priority sections.
 - **Decision cards:** a line `> [!DECISION] <question>`, followed by `>` lines for the body (context, `-` options; use a bare `>` for a blank line). The body is parsed with the same rules. The card ends at the first line that doesn't start with `>`. It renders as a blue info card with a question-mark icon on the left and a "Decision needed" label.
+- **Palette cards:** a line `> [!PALETTE] <name>`, then `>` lines. `primary: #rrggbb Label` and `secondary: #rrggbb Label` set the two colours. Other `>` lines are the note, parsed like a decision body. The card renders a tree badge, a Charge resource, and a core icon in those colours. It ends at the first line that doesn't start with `>`.
 
-Not supported (they render as plain text or break layout): tables, links, images, numbered lists, plain block quotes (only `[!DECISION]` cards), code fences, and italics. If a plan needs one of these, extend `parsePlanMarkdown` / `PlanDetail` and add a case to `plansData.test.ts`. Don't work around it in the content.
+Not supported (they render as plain text or break layout): tables, links, images, numbered lists, plain block quotes (only `[!DECISION]` and `[!PALETTE]` cards), code fences, and italics. If a plan needs one of these, extend `parsePlanMarkdown` / `PlanDetail` and add a case to `plansData.test.ts`. Don't work around it in the content.
 
 ## Required structure
 

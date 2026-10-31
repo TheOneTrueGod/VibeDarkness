@@ -8,6 +8,7 @@ import type { BattleOrder, SerializedGameState } from './games/minion_battles/ga
 import type { QuestResult, QuestRunState } from './games/minion_battles/storylines/questTypes';
 import type { ResearchNodeSources, ResearchSource } from './researchTrees/types';
 import { isBattleHeartbeatTraceEnvOn, traceBattleHeartbeatLine } from './battleHeartbeatTrace';
+import { OPEN_LOBBY_MAX_PLAYERS } from '../../global_constants.js';
 
 /** Campaign character as returned from API (serializable). */
 export interface CampaignCharacterPayload {
@@ -56,6 +57,10 @@ export interface ActiveLobbyEntry {
     name?: string;
     lobbyState?: 'home' | 'in_game';
     gameType?: string | null;
+    /** Display name of the current host. */
+    hostPlayerName?: string;
+    /** Mission id from the lobby's game JSON, when a mission has been chosen. */
+    selectedMissionId?: string;
 }
 
 interface ApiResponse {
@@ -292,7 +297,7 @@ export class LobbyClient {
     async createLobby(
         lobbyName: string,
         accountId: number,
-        maxPlayers = 8,
+        maxPlayers = OPEN_LOBBY_MAX_PLAYERS,
         isPublic = true
     ): Promise<CreateLobbyResult> {
         const data = await this.request('/api/lobbies', {
@@ -311,10 +316,15 @@ export class LobbyClient {
         return data.lobby as LobbyState;
     }
 
-    async joinLobby(lobbyId: string): Promise<JoinLobbyResult> {
+    async joinLobby(
+        lobbyId: string,
+        options?: { adminBypassQuestParty?: boolean },
+    ): Promise<JoinLobbyResult> {
         const data = await this.request(`/api/lobbies/${lobbyId}/join`, {
             method: 'POST',
-            body: JSON.stringify({}),
+            body: JSON.stringify(
+                options?.adminBypassQuestParty ? { adminBypassQuestParty: true } : {},
+            ),
         });
         return {
             lobby: data.lobby as LobbyState,

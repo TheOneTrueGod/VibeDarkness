@@ -1,7 +1,7 @@
 /**
- * Improvised Sword — the strike a conjured Armory sword grants.
+ * Charge Sword — the strike a conjured Armory sword grants.
  *
- * Same slash as Swing Sword (reach, bleed, knockback) at a higher damage, two uses,
+ * Same slash as Swing Sword (reach, thinner band, longer lunge, bleed, knockback) at a higher damage, two uses,
  * and no refill. Spending the last use discards the weapon on the slash's impact frame.
  * The token exists then; its resting picture stays hidden until the toss finishes.
  * Tagged melee and sword. Swing Sword modifiers do not apply here.
@@ -14,27 +14,28 @@
 
 import { AbilityEventType } from '../../../abilities/Ability';
 import { defineAbility } from '../../../abilities/defineAbility';
-import swordItemIconSvg from '../../../character_defs/items/assets/013_sword.svg?raw';
+import chargeSwordSvg from '../chargeSword.svg?raw';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { MELEE_ATTACK_DEFAULT_IMPACT_AT } from '../../../abilities/CastBehaviours/MeleeAttack';
 import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
 import { releaseHeldConjuredWeapon } from '../../../game/conjuredWeapons/runtime';
 import { createSlashTrailEffect } from '../../../abilities/effectHelpers';
-import { DEFAULT_MELEE_LUNGE } from '../../../game/units/unit_defs/unitConstants';
+import {
+    SWING_SWORD_BLEED_STACKS,
+    SWING_SWORD_HITBOX,
+    SWING_SWORD_KNOCKBACK_MAGNITUDE_SCALE,
+    SWING_SWORD_KNOCKBACK_TIER,
+    SWING_SWORD_LUNGE,
+    SwingSwordAbility,
+} from '../../0112_SwingSword/0112Ability';
 import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import {
-    SWING_SWORD_BLEED_STACKS,
-    SWING_SWORD_HITBOX,
-    SWING_SWORD_KNOCKBACK_MAGNITUDE_SCALE,
-    SWING_SWORD_KNOCKBACK_TIER,
-    SwingSwordAbility,
-} from '../../0112_SwingSword/0112Ability';
-import {
+    ARMORY_SECONDARY_COLOR_NUM,
     IMPROVISED_SWORD_ABILITY_ID,
     IMPROVISED_SWORD_COOLDOWN_END,
     IMPROVISED_SWORD_DAMAGE,
@@ -50,7 +51,7 @@ export const IMPROVISED_SWORD_IMPACT_TIME = IMPROVISED_SWORD_SLASH_START
     + MELEE_ATTACK_DEFAULT_IMPACT_AT * (IMPROVISED_SWORD_SLASH_END - IMPROVISED_SWORD_SLASH_START);
 const SLASH_TRAIL_DURATION = 0.35;
 const SLASH_TRAIL_THICKNESS = 14;
-const SLASH_TRAIL_COLOR = 0xe7e5e4;
+const SLASH_TRAIL_COLOR = ARMORY_SECONDARY_COLOR_NUM;
 
 const TOOLTIP_LINES = [
     'A conjured blade. Slash up to {{MAX_TARGETS}} enemies for {{DAMAGE}} damage.',
@@ -101,8 +102,8 @@ function discardSwordOnLastImpact(ctx: CastBehaviourTickContext): void {
 export const ImprovisedSwordAbility = defineAbility({
     id: IMPROVISED_SWORD_ABILITY_ID,
     tags: ['melee', 'sword'],
-    name: 'Improvised Sword',
-    image: swordItemIconSvg,
+    name: 'Charge Sword',
+    image: chargeSwordSvg,
     resourceCost: null,
     resourceCosts: [],
     rechargeTurns: 1,
@@ -111,8 +112,8 @@ export const ImprovisedSwordAbility = defineAbility({
     prefireTime: IMPROVISED_SWORD_SLASH_START,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
-    aiSettings: { minRange: 0, maxRange: SWING_SWORD_HITBOX.maxRange + DEFAULT_MELEE_LUNGE },
-    lunge: { distance: DEFAULT_MELEE_LUNGE },
+    aiSettings: { minRange: 0, maxRange: SWING_SWORD_HITBOX.maxRange + SWING_SWORD_LUNGE },
+    lunge: { distance: SWING_SWORD_LUNGE },
     movementLock: { until: IMPROVISED_SWORD_SLASH_START },
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [

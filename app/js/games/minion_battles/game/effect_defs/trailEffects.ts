@@ -2,6 +2,7 @@ import { Container, Graphics } from 'pixi.js';
 import type { Effect } from '../effects/Effect';
 import type { IEffectDef, IEffectRenderContext } from './types';
 import { LASER_CYAN } from './impactEffects';
+import { BULLET_TRAIL_COLOR, DEFAULT_BULLET_TRAIL_RADIUS } from './bulletTrail';
 
 /** Bullet trail: short-lived gray line segment that shrinks and fades out over time. */
 export const bulletTrailEffectDef: IEffectDef = {
@@ -11,7 +12,7 @@ export const bulletTrailEffectDef: IEffectDef = {
     updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
         const g = visual as Graphics;
         g.clear();
-        const data = effect.effectData as { dx?: number; dy?: number };
+        const data = effect.effectData as { dx?: number; dy?: number; color?: number; lockWidth?: boolean };
         const dx = data.dx ?? 0;
         const dy = data.dy ?? 0;
         const lengthSq = dx * dx + dy * dy;
@@ -20,13 +21,13 @@ export const bulletTrailEffectDef: IEffectDef = {
         }
         const progress = effect.progress;
         const life = 1 - progress;
-        const baseRadius = effect.effectRadius ?? 3;
-        const width = Math.max(0.5, baseRadius * life);
+        const baseRadius = effect.effectRadius ?? DEFAULT_BULLET_TRAIL_RADIUS;
+        const width = data.lockWidth ? baseRadius : Math.max(0.5, baseRadius * life);
         const alpha = Math.max(0, life * life);
 
         g.moveTo(0, 0);
         g.lineTo(dx, dy);
-        g.stroke({ color: 0xb0b0b0, width, alpha });
+        g.stroke({ color: data.color ?? BULLET_TRAIL_COLOR, width, alpha });
     },
 };
 

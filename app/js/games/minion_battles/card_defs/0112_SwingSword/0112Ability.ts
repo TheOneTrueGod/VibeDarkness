@@ -19,7 +19,13 @@ import swordItemIconSvg from '../../character_defs/items/assets/013_sword.svg?ra
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { DEFAULT_UNIT_RADIUS, DEFAULT_MELEE_LUNGE } from '../../game/units/unit_defs/unitConstants';
+import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
+import {
+    SWORD_SWING_LUNGE,
+    SWORD_SWING_LUNGE_BONUS,
+    SWORD_SWING_THICKNESS,
+    SWORD_SWING_THICKNESS_REDUCTION,
+} from '../weaponSwingProfile';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
 import {
@@ -50,7 +56,12 @@ export const SWING_SWORD_KNOCKBACK_TIER = 1;
 /** A bit more push than a plain tier-1 nudge. */
 export const SWING_SWORD_KNOCKBACK_MAGNITUDE_SCALE = 1.5;
 const MAX_TARGETS = 2;
-const LINE_THICKNESS = 36;
+/** How much thinner the sword band is than a mace swing, along the aim. */
+export const SWING_SWORD_THICKNESS_REDUCTION = SWORD_SWING_THICKNESS_REDUCTION;
+export const SWING_SWORD_THICKNESS = SWORD_SWING_THICKNESS;
+/** Extra step past the shared melee lunge, so the thinner band still connects. */
+export const SWING_SWORD_LUNGE_BONUS = SWORD_SWING_LUNGE_BONUS;
+export const SWING_SWORD_LUNGE = SWORD_SWING_LUNGE;
 const SWING_LENGTH = 80;
 const SLASH_TRAIL_DURATION = 0.35;
 const SLASH_TRAIL_THICKNESS = 14;
@@ -67,7 +78,7 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     MAX_TARGETS: { kind: 'plain', value: MAX_TARGETS },
 };
 
-export const SWING_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
+export const SWING_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, SWING_SWORD_THICKNESS, MAX_TARGETS);
 
 // ---- Charge-up VFX profile (used in beginActiveCast only) ----
 
@@ -143,8 +154,8 @@ export const SwingSwordAbility = defineAbility({
     prefireTime: 0.2,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
-    aiSettings: { minRange: 0, maxRange: SWING_SWORD_HITBOX.maxRange + DEFAULT_MELEE_LUNGE },
-    lunge: { distance: DEFAULT_MELEE_LUNGE },
+    aiSettings: { minRange: 0, maxRange: SWING_SWORD_HITBOX.maxRange + SWING_SWORD_LUNGE },
+    lunge: { distance: SWING_SWORD_LUNGE },
     // movementLock: lock movement through windup; release on lunge.
     movementLock: { until: 0.2 },
 

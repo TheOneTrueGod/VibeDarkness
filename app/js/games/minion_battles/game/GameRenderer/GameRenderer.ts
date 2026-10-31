@@ -347,7 +347,7 @@ export class GameRenderer {
 				const projectilesVisible = isRenderLayerVisible('projectiles');
 				this.projectileRenderer.setLayerVisible(projectilesVisible);
 				if (projectilesVisible) {
-					this.projectileRenderer.render(engine.projectiles, engine.gameTime);
+					this.projectileRenderer.render(engine.projectiles, engine.gameTime, (id) => engine.getUnit(id));
 				}
 			});
 

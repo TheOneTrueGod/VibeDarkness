@@ -82,6 +82,12 @@ import { CreateSwordCard } from './10_armory_core/1001_CreateSword/1001Ability';
 import { ImprovisedSwordCard } from './10_armory_core/1002_ImprovisedSword/1002Ability';
 import { ThrowSwordCard } from './10_armory_core/1003_ThrowSword/1003Ability';
 import { DeployTurretCard } from './10_armory_core/1004_DeployTurret/1004Ability';
+import { CreateMaceCard } from './10_armory_core/1005_CreateMace/1005Ability';
+import { ChargeMaceCard } from './10_armory_core/1006_ChargeMace/1006Ability';
+import { WhirlCard } from './10_armory_core/1007_Whirl/1007Ability';
+import { CreateShieldCard } from './10_armory_core/1008_CreateShield/1008Ability';
+import { ReleaseChargeCard } from './10_armory_core/1009_ReleaseCharge/1009Ability';
+import { ThrowShieldCard } from './10_armory_core/1010_ThrowShield/1010Ability';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,
@@ -166,6 +172,12 @@ const cardDefs: CardDef[] = [
     ImprovisedSwordCard,
     ThrowSwordCard,
     DeployTurretCard,
+    CreateMaceCard,
+    ChargeMaceCard,
+    WhirlCard,
+    CreateShieldCard,
+    ReleaseChargeCard,
+    ThrowShieldCard,
 ];
 
 export const CARD_DEF_MAP: Map<string, CardDef> = new Map(cardDefs.map((c) => [c.abilityId, c]));

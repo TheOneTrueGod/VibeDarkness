@@ -1,3 +1,4 @@
+// Sword and mace feel: see `./Weapons.md`.
 import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
 import type { ResearchNodeDef, ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_WEAPON, RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';

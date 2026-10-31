@@ -12,6 +12,16 @@ import { getCastElapsedAt } from '../game/time/actorClock';
 
 /** Default half-arc in radians: 60° → 120° total blocking arc. */
 export const STANDARD_SHIELD_HALF_ARC_RAD = Math.PI / 3;
+/** Full default blocking arc, in degrees. */
+export const STANDARD_SHIELD_ARC_DEGREES = 120;
+/** Pixels from the caster's body to the inner edge of the arc. */
+export const STANDARD_SHIELD_INNER_OFFSET = 5;
+/** Thickness of the arc wedge, in pixels. */
+export const STANDARD_SHIELD_THICKNESS_PX = 10;
+/** Speed multiplier while a standard shield is raised. 1 is full speed. */
+export const DIRECTIONAL_SHIELD_MOVEMENT_PENALTY = 0.1;
+/** How far a direction click can sit from the caster. */
+export const DIRECTIONAL_SHIELD_AIM_RANGE = 300;
 
 // ---- createDirectionalBlockingArc ----
 

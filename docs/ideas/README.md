@@ -12,5 +12,5 @@ Brainstorming backlog shown on the admin-only **Ideas** tab of the Campaign Home
 The tab's **Plans** view lists **browser plans** from `docs/ideas/plans/*.md`.
 
 - Name each file `NNNN_YYYY-MM-DD_slug.md`. `NNNN` is the plan's permanent id (URL `/campaign/ideas/plans/NNNN`; use the next unused number and never renumber). The date is shown in the list; newest plans come first.
-- The first `# Heading` is the plan title. The rest of the file is rendered as Markdown (headings, paragraphs, nested `-` bullets, `**bold**`, `` `code` ``, `---` rules, and `> [!DECISION]` cards for decisions you need to make).
+- The first `# Heading` is the plan title. The rest of the file is rendered as Markdown (headings, paragraphs, nested `-` bullets, `**bold**`, `` `code` ``, `---` rules, `> [!DECISION]` cards for decisions you need to make, and `> [!PALETTE]` cards that preview a primary and secondary colour on a tree badge, a Charge resource, and a core icon).
 - How to write one (priorities, complexity, structure): the **jp-browser-plan** skill.

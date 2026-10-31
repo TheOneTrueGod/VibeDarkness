@@ -6,16 +6,17 @@ import type { Container, Sprite } from 'pixi.js';
 import type { GameEngine } from '../../GameEngine';
 import {
     DROPPED_WEAPON_ARC_DURATION,
-    DROPPED_WEAPON_KIND_SWORD,
     SWORD_CARD_TIP_OFFSET,
 } from '../../../card_defs/10_armory_core/armoryConstants';
-import { paintTurret } from '../../effect_defs/turretDeployDraw';
+import { paintTurret, turretHullColor } from '../../effect_defs/turretDeployDraw';
+import { rangedAttackPull } from '../../animation/actorAnimation';
 import { turretOpenAmount } from '../../effect_defs/turretDeployPose';
 import {
     DROPPED_SWORD_SCALE,
-    createSwordCardSprite,
+    createWeaponCardSprite,
     sizeSwordCardSprite,
-    syncSwordCardTexture,
+    syncWeaponCardTexture,
+    weaponCardArtUrl,
 } from '../../fieldObjects/swordCardSprite';
 import { ConcealedArrivalClock } from '../../fieldObjects/concealedArrival';
 
@@ -33,16 +34,16 @@ export class FieldObjectRenderer {
         const live = new Set<string>();
         const resting = new Set<string>();
         for (const weapon of manager.droppedWeapons) {
-            if (weapon.kind !== DROPPED_WEAPON_KIND_SWORD) continue;
+            if (!weaponCardArtUrl(weapon.kind)) continue;
             live.add(weapon.id);
             if (!this.arrivals.hasArrived(weapon.id, weapon.spawnedAtGameTime, engine.gameTime, DROPPED_WEAPON_ARC_DURATION)) continue;
             resting.add(weapon.id);
-            const sprite = this.sword(weapon.id);
-            syncSwordCardTexture(sprite);
+            const sprite = this.weaponSprite(weapon.id, weapon.kind);
+            syncWeaponCardTexture(sprite, weapon.kind);
             sprite.position.set(weapon.x, weapon.y);
             sprite.rotation = weapon.facing + SWORD_CARD_TIP_OFFSET;
             sizeSwordCardSprite(sprite, DROPPED_SWORD_SCALE);
-            sprite.alpha = 0.95;
+            sprite.alpha = 1;
         }
         for (const sentry of manager.sentries) {
             live.add(sentry.id);
@@ -50,7 +51,13 @@ export class FieldObjectRenderer {
             g.visible = true;
             g.position.set(sentry.x, sentry.y);
             g.rotation = sentry.facing;
-            paintTurret(g, turretOpenAmount(sentry.spawnedAtGameTime, engine.gameTime), sentry.shotsRemaining);
+            paintTurret(
+                g,
+                turretOpenAmount(sentry.spawnedAtGameTime, engine.gameTime),
+                sentry.shotsRemaining,
+                turretHullColor(engine.getUnit(sentry.ownerUnitId)),
+                rangedAttackPull(sentry.animation, engine.gameTime),
+            );
         }
         for (const [id, visual] of this.visuals) {
             const sentryStillThere = manager.sentries.some((sentry) => sentry.id === id);
@@ -61,10 +68,10 @@ export class FieldObjectRenderer {
         this.arrivals.forgetExcept(live);
     }
 
-    private sword(id: string): Sprite {
+    private weaponSprite(id: string, kind: string): Sprite {
         let visual = this.visuals.get(id);
         if (!visual) {
-            const sprite = createSwordCardSprite();
+            const sprite = createWeaponCardSprite(kind);
             sprite.zIndex = Z_FIELD_OBJECTS;
             this.visuals.set(id, sprite);
             this.gameContainer.addChild(sprite);

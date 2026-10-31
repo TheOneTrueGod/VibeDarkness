@@ -24,6 +24,13 @@ export interface SelectTargetDef {
      */
     pickAtEntry?: boolean;
     /**
+     * Confirmation whose aim is the caster's position. The pointer does not move the shape.
+     * Lock-on highlights still come from the hitbox (units in range). Any click confirms.
+     * Place the select after windup (`start > 0`, not a `nullHitbox`) so ITS plays the windup,
+     * then pauses on this step. Example: Whirl's ring.
+     */
+    confirmAtCaster?: boolean;
+    /**
      * Ask for this pick in the same pause as the previous one, before the cast order is queued
      * and before any simulation time passes. The previous select is the one collected up front.
      */

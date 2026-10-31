@@ -20,6 +20,7 @@ import { type CardDef } from '../types';
 import { Effect } from '../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS, DEFAULT_MELEE_LUNGE } from '../../game/units/unit_defs/unitConstants';
+import { MACE_SWING_THICKNESS } from '../weaponSwingProfile';
 import { setupWindupLungePayload } from '../../abilities/WindupLunge';
 import { perpendicularSwingHitbox, ThickLineHitbox } from '../../hitboxes';
 import {
@@ -47,13 +48,20 @@ const BASE_MAX_RANGE = 25;
 export const SWING_BAT_BASE_DAMAGE = 12;
 const BASE_DAMAGE = SWING_BAT_BASE_DAMAGE;
 const DAMAGE_RESEARCH_BONUS = getApproxIntegerIncrease(BASE_DAMAGE, DescriptiveValue.Medium);
-const SWING_BAT_EFFECT_DURATION = 0.4;
+export const SWING_BAT_EFFECT_DURATION = 0.4;
 const MAX_TARGETS = 3;
-const KNOCKBACK_TIER = 3;
-const LINE_THICKNESS = 26;
+export const SWING_BAT_KNOCKBACK_TIER = 3;
+/** Hit-band thickness along the aim. Swords stay thinner than this. */
+export const SWING_BAT_THICKNESS = MACE_SWING_THICKNESS;
+const LINE_THICKNESS = SWING_BAT_THICKNESS;
 const SWING_LENGTH = 80;
+export const SWING_BAT_WINDUP_END = 0.2;
+export const SWING_BAT_HIT_END = 0.3;
+export const SWING_BAT_COOLDOWN_END = 1.65;
+export const SWING_BAT_SLIDE_FORWARD = 18;
+export const SWING_BAT_SLIDE_BACKWARD = 0;
 
-const SWING_BAT_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
+export const SWING_BAT_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
 
 const SWING_BAT_PROFILE: MeleeAnimationProfile = {
     chargeUp: createChargeUpConfig('high', {
@@ -106,7 +114,7 @@ const SWING_BAT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/20
 
 const swingBatBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(SWING_BAT_HITBOX)
-    .withSlide({ forwardDistance: 18, backwardDistance: 0 })
+    .withSlide({ forwardDistance: SWING_BAT_SLIDE_FORWARD, backwardDistance: SWING_BAT_SLIDE_BACKWARD })
     .withImpactVFX((ctx, _hitUnits, aimX, aimY) => {
         const ep = SWING_BAT_HITBOX.getEndpoints(ctx.caster, aimX, aimY);
         ctx.engine.addEffect(new Effect({
@@ -119,16 +127,16 @@ const swingBatBehaviour = CastBehaviours.MeleeAttack()
         }));
     })
     .withDamage((ctx) => getDamage(ctx.engine as AbilityEngineContext, ctx.caster))
-    .withKnockback(KNOCKBACK_TIER);
+    .withKnockback(SWING_BAT_KNOCKBACK_TIER);
 
 // ---- Timings ----
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
-    { id: 'windup',   start: 0,    end: 0.2,  abilityPhase: AbilityPhase.Windup },
-    { id: 'hit',      start: 0.2,  end: 0.3,  abilityPhase: AbilityPhase.Active, doNotRefund: true,
+    { id: 'windup',   start: 0,    end: SWING_BAT_WINDUP_END,  abilityPhase: AbilityPhase.Windup },
+    { id: 'hit',      start: SWING_BAT_WINDUP_END,  end: SWING_BAT_HIT_END,  abilityPhase: AbilityPhase.Active, doNotRefund: true,
       targetDef: { kind: 'select', label: 'Target', hitbox: SWING_BAT_HITBOX, filter: 'enemy', allowMiss: true },
       behaviour: swingBatBehaviour },
-    { id: 'cooldown', start: 0.3,  end: 1.65, abilityPhase: AbilityPhase.Cooldown },
+    { id: 'cooldown', start: SWING_BAT_HIT_END,  end: SWING_BAT_COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
 ];
 
 // ---- Ability export ----
@@ -142,7 +150,7 @@ export const SwingBatAbility_0115: AbilityStatic = {
     rechargeTurns: 1,
     maxUses: SWING_BAT_MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: 0.2,
+    prefireTime: SWING_BAT_WINDUP_END,
     abilityTimings: ABILITY_TIMINGS,
     targets: [],
     aiSettings: { minRange: BASE_MIN_RANGE, maxRange: SWING_BAT_HITBOX.maxRange + DEFAULT_MELEE_LUNGE },
@@ -152,7 +160,7 @@ export const SwingBatAbility_0115: AbilityStatic = {
         const bindings: TooltipTokenBindings = {
             DAMAGE: { kind: 'damage', base: getTooltipBaseDamage(gameState) },
             MAX_TARGETS: { kind: 'plain', value: MAX_TARGETS },
-            KNOCKBACK: { kind: 'knockback', tier: KNOCKBACK_TIER },
+            KNOCKBACK: { kind: 'knockback', tier: SWING_BAT_KNOCKBACK_TIER },
         };
         return formatTooltipLegacyLines(
             TOOLTIP_LINES,
@@ -166,7 +174,7 @@ export const SwingBatAbility_0115: AbilityStatic = {
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < 0.2) {
+        if (currentTime < SWING_BAT_WINDUP_END) {
             return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
         }
         return [];

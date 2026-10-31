@@ -15,6 +15,8 @@ interface UseCharacterSelectPhaseParams {
     missionDef?: IBaseMissionDef | null;
     /** Optional async work before sending Ready (e.g. freeze Quest Prep loadout). */
     onBeforeReady?: () => Promise<void>;
+    /** Surface API failures (ready, phase advance) instead of only logging them. */
+    onActionError?: (message: string) => void;
 }
 
 export function useCharacterSelectPhase({
@@ -26,11 +28,18 @@ export function useCharacterSelectPhase({
     preMissionStory,
     missionDef,
     onBeforeReady,
+    onActionError,
 }: UseCharacterSelectPhaseParams) {
     const {
         allSelected, allReady, atLeastOneCharacter, allRequiredPlayersPresent,
         setSetReadyLoading, setOptimisticAmReady,
     } = state;
+
+    const reportFailure = useCallback((label: string, error: unknown) => {
+        const detail = error instanceof Error && error.message ? error.message : 'Unknown error';
+        console.error(`${label}:`, error);
+        onActionError?.(`${label}: ${detail}`);
+    }, [onActionError]);
 
     const handleSetReady = useCallback(async () => {
         setSetReadyLoading(true);
@@ -41,11 +50,11 @@ export function useCharacterSelectPhase({
             await api.sendMessage(MessageType.CHARACTER_SELECT_READY, {});
             setOptimisticAmReady(true);
         } catch (error) {
-            console.error('Failed to set ready:', error);
+            reportFailure('Failed to set ready', error);
         } finally {
             setSetReadyLoading(false);
         }
-    }, [api, setSetReadyLoading, setOptimisticAmReady, onBeforeReady]);
+    }, [api, setSetReadyLoading, setOptimisticAmReady, onBeforeReady, reportFailure]);
 
     const handleContinueToStory = useCallback(async () => {
         try {
@@ -63,9 +72,9 @@ export function useCharacterSelectPhase({
                 });
             }
         } catch (error) {
-            console.error('Failed to continue to story:', error);
+            reportFailure('Failed to continue to story', error);
         }
-    }, [api, onPhaseChange, characterSelections]);
+    }, [api, onPhaseChange, characterSelections, reportFailure]);
 
     const handleStartGame = useCallback(async () => {
         try {
@@ -82,9 +91,9 @@ export function useCharacterSelectPhase({
                 });
             }
         } catch (error) {
-            console.error('Failed to start game:', error);
+            reportFailure('Failed to start game', error);
         }
-    }, [api, onPhaseChange, characterSelections]);
+    }, [api, onPhaseChange, characterSelections, reportFailure]);
 
     const handleContinueToPostMissionStory = useCallback(async () => {
         try {
@@ -101,9 +110,9 @@ export function useCharacterSelectPhase({
                 });
             }
         } catch (error) {
-            console.error('Failed to continue to post-mission story:', error);
+            reportFailure('Failed to continue to post-mission story', error);
         }
-    }, [api, onPhaseChange, characterSelections]);
+    }, [api, onPhaseChange, characterSelections, reportFailure]);
 
     const hasTriggeredAdvanceRef = useRef(false);
     useEffect(() => {

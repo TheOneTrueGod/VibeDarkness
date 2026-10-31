@@ -13,7 +13,7 @@ class CreateLobbyHandler
         $data = \getJsonBody();
 
         $accountId = SessionHelper::getAccountId();
-        $maxPlayers = $data['maxPlayers'] ?? 8;
+        $maxPlayers = $data['maxPlayers'] ?? \OPEN_LOBBY_MAX_PLAYERS;
         $isPublic = $data['isPublic'] ?? true;
 
         if ($accountId === null || $accountId < 1) {

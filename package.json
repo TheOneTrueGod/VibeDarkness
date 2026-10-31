@@ -31,6 +31,7 @@
     "desyncDebug-traceCast": "node scripts/desyncDebug-traceCast.js",
     "desyncDebug-desyncs": "node scripts/desyncDebug-desyncs.js",
     "desyncDebug-diffSnapshot": "node scripts/desyncDebug-diffSnapshot.js",
+    "replay-battle": "vite-node scripts/replaySavedBattle.ts",
     "terrain-backup": "node scripts/terrain-backup.js",
     "terrain-restore": "node scripts/terrain-restore.js"
   },

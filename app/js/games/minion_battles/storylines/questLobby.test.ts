@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { OPEN_LOBBY_MAX_PLAYERS } from '../../../../../global_constants.js';
 import {
     buildQuestContinuationClaimPayload,
     missionIdFromResolvedRef,
@@ -11,6 +12,10 @@ import {
     questSlotPillStatus,
     readQuestLobbyFields,
     requiredPlayersFromPartyRoster,
+    questLobbyCapacity,
+    questLobbyShouldStampRequiredPlayers,
+    questSlotReservesParty,
+    requiredPlayersForQuestLobby,
     advanceQuestRunPastClearedMissions,
     wonMissionIdsFromMissionResults,
 } from './questLobby';
@@ -140,6 +145,42 @@ describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
         expect(questRunMatchesLobby(run, activeLobby)).toBe(true);
         expect(questRunMatchesLobby(run, { ...activeLobby, questSlotIndex: 99 })).toBe(false);
         expect(questRunMatchesLobby({ ...run, status: 'abandoned' }, activeLobby)).toBe(false);
+    });
+
+    it('reserves a quest party only from the second mission, unless mid-quest joins are allowed', () => {
+        expect(questLobbyShouldStampRequiredPlayers(0)).toBe(false);
+        expect(questLobbyShouldStampRequiredPlayers(1)).toBe(true);
+        expect(questSlotReservesParty(0, false)).toBe(false);
+        expect(questSlotReservesParty(1, false)).toBe(true);
+        expect(questSlotReservesParty(1, true)).toBe(false);
+        expect(questLobbyCapacity(0, 1, false)).toEqual({
+            maxPlayers: OPEN_LOBBY_MAX_PLAYERS,
+            isPublic: true,
+            reserveParty: false,
+        });
+        expect(questLobbyCapacity(2, 3, false)).toEqual({
+            maxPlayers: 3,
+            isPublic: false,
+            reserveParty: true,
+        });
+        expect(questLobbyCapacity(2, 3, true)).toEqual({
+            maxPlayers: OPEN_LOBBY_MAX_PLAYERS,
+            isPublic: true,
+            reserveParty: false,
+        });
+        expect(requiredPlayersForQuestLobby({
+            questSlotIndex: 0,
+            roster: [{ playerName: 'A', characterId: 'c1' }],
+        })).toBeUndefined();
+        expect(requiredPlayersForQuestLobby({
+            questSlotIndex: 1,
+            roster: [{ playerName: 'A', characterId: 'c1' }],
+        })).toEqual([{ playerName: 'A', characterId: 'c1' }]);
+        expect(requiredPlayersForQuestLobby({
+            questSlotIndex: 1,
+            roster: [],
+            fallbackOwner: { playerName: 'Host', characterId: 'c-host' },
+        })).toEqual([{ playerName: 'Host', characterId: 'c-host' }]);
     });
 
     it('requiredPlayersFromPartyRoster maps roster entries', () => {

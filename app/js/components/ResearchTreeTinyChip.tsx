@@ -7,6 +7,7 @@ import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BookOpen } from 'lucide-react';
 import type { ResearchTreeDef } from '../researchTrees/types';
+import { researchChromeSurfaceStyle, resolveResearchTreeChrome } from '../researchTrees/researchTreeChrome';
 import ResearchNodeCard from './ResearchNodeCard';
 import { MISSION_REWARD_CHIP_CLASSNAME } from './ResearchRewardTinyChip';
 
@@ -41,6 +42,7 @@ export default function ResearchTreeTinyChip({ tree }: { tree: ResearchTreeDef }
     // Root nodes: no prereqs. These are the first things a player can research in the tree.
     const rootNodes = tree.nodes.filter((n) => n.prereqNodeIds.length === 0);
 
+    const chrome = resolveResearchTreeChrome(tree);
     const CARD_W = 200;
     const MARGIN = 8;
 
@@ -108,13 +110,19 @@ export default function ResearchTreeTinyChip({ tree }: { tree: ResearchTreeDef }
     return (
         <>
             <span
+                data-className="ResearchTreeTinyChip"
                 ref={anchorRef}
                 className={`${MISSION_REWARD_CHIP_CLASSNAME} max-w-[min(100%,14rem)] cursor-default`}
+                style={chrome.secondaryColour ? researchChromeSurfaceStyle(chrome) : undefined}
                 onMouseEnter={openPreview}
                 onMouseLeave={scheduleClose}
                 title={`Unlocks ${tree.title} research tree`}
             >
-                <BookOpen className="h-4 w-4 shrink-0 self-center text-violet-400" strokeWidth={2} aria-hidden />
+                {chrome.secondaryColour ? (
+                    <img src={chrome.icon} alt="" className="h-4 w-4 shrink-0 self-center rounded-sm object-cover" />
+                ) : (
+                    <BookOpen className="h-4 w-4 shrink-0 self-center text-violet-400" strokeWidth={2} aria-hidden />
+                )}
                 <span className="min-w-0 flex-1 truncate leading-snug">{tree.title}</span>
             </span>
             {portal}

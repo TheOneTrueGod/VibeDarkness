@@ -3,7 +3,7 @@ import { isDisabledResearchNode, type ResearchNodeDef, type ResearchNodeLevels, 
 import { getResearchNodePurchaseCost } from '../../../../researchTrees/evaluator';
 import { getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
 import { getResearchTreeContainingNode } from '../../../../researchTrees/list';
-import { resolveResearchTreeChrome } from '../../../../researchTrees/researchTreeChrome';
+import { researchChromeSurfaceStyle, resolveResearchTreeChrome } from '../../../../researchTrees/researchTreeChrome';
 import ResourcePill, {
     campaignResourceGains,
     RESOURCE_PILL_SIZE_MEDIUM,
@@ -288,6 +288,9 @@ export default function ResearchNodeCard({
 
     const owningTree = owningTreeForPreview;
     const treeChrome = resolveResearchTreeChrome(owningTree);
+    const usesThemeFill = Boolean(treeChrome.secondaryColour);
+    const usesThemeText = Boolean(treeChrome.fontColour || treeChrome.secondaryColour);
+    const bodyTextClass = usesThemeText ? '' : 'text-gray-300';
 
     const stateClasses =
         tone === 'muted'
@@ -314,7 +317,7 @@ export default function ResearchNodeCard({
 
     const isPointerClickable = isInteractive && state === 'enabled';
     const acceptsClick = isPointerClickable || (isInteractive && allowAdminShiftGrant && Boolean(onClick));
-    const cardClasses = `relative rounded-lg border-2 text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${isPointerClickable ? 'cursor-pointer' : 'cursor-default'} ${className}`;
+    const cardClasses = `relative rounded-lg border-2 text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${usesThemeFill ? 'hover:brightness-95' : ''} ${isPointerClickable ? 'cursor-pointer' : 'cursor-default'} ${className}`;
 
     const titleClass =
         layout === 'comfortable'
@@ -395,7 +398,7 @@ export default function ResearchNodeCard({
                 )}
             </div>
             <div
-                className={`${descSizeClass} shrink-0 text-gray-300 line-clamp-3`}
+                className={`${descSizeClass} shrink-0 ${bodyTextClass} line-clamp-3`}
                 // Full text on hover when the clamp cuts the description short.
                 title={parseHighlightedSegments(node.description).map((segment) => segment.text).join('')}
                 style={{
@@ -414,7 +417,7 @@ export default function ResearchNodeCard({
                 {parseHighlightedSegments(node.description).map((segment, idx) => (
                     <span
                         key={`${node.id}-desc-${idx}`}
-                        className={segment.highlighted ? 'text-amber-300' : 'text-gray-300'}
+                        className={segment.highlighted ? 'text-amber-300' : bodyTextClass}
                     >
                         {segment.text}
                     </span>
@@ -527,7 +530,7 @@ export default function ResearchNodeCard({
                     data-testid={`${TestIds.researchNodeCardPrefix}${node.id}`}
                     onClick={acceptsClick ? onClick : undefined}
                     className={cardClasses}
-                    style={{ borderColor: treeChrome.colour }}
+                    style={researchChromeSurfaceStyle(treeChrome)}
                     disabled={!acceptsClick}
                     aria-label={node.title}
                 >
@@ -538,7 +541,7 @@ export default function ResearchNodeCard({
                     {adminTierBadge}
                 </button>
             ) : (
-                <div className={cardClasses} style={{ borderColor: treeChrome.colour }} aria-label={node.title}>
+                <div className={cardClasses} style={researchChromeSurfaceStyle(treeChrome)} aria-label={node.title}>
                     {content}
                     {tierBadge}
                     {adminIdBadge}

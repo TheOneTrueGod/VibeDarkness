@@ -244,6 +244,11 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
             }
             return;
         }
+        case 'grantResource': {
+            if (effect.amount <= 0) return;
+            context.caster.getResource(effect.resourceId)?.add(effect.amount);
+            return;
+        }
         case 'grantChargeToNearbyAllies': {
             const allies: Unit[] = context.engine.getAllies?.(context.caster)
                 ?? (context.engine.units ?? []).filter(

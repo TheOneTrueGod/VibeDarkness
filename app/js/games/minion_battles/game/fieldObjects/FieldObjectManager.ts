@@ -36,6 +36,8 @@ import {
     WEAPON_DISCARD_ARC_EFFECT_TYPE,
 } from '../../card_defs/10_armory_core/armoryConstants';
 import { Effect } from '../effects/Effect';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import { playAbilityAnimation, readActorAnimation, type ActorAnimationState } from '../animation/actorAnimation';
 import { resolveDroppedWeaponLanding } from './landing';
 
 export interface DroppedWeapon {
@@ -65,6 +67,8 @@ export interface Sentry {
     nextShotAt: number;
     expiresAt: number;
     spawnedAtGameTime: number;
+    /** Clip the turret's ability asked it to play. Null until the first shot. */
+    animation: ActorAnimationState | null;
 }
 
 export interface SerializedFieldObjects {
@@ -144,6 +148,7 @@ export class FieldObjectManager implements DeployableProvider {
                 landY: landing.y,
                 lift: DROPPED_WEAPON_ARC_LIFT,
                 restRotation: facing + SWORD_CARD_TIP_OFFSET,
+                weaponKind: opts.kind,
             },
         }));
         return weapon;
@@ -173,6 +178,7 @@ export class FieldObjectManager implements DeployableProvider {
             nextShotAt: engine.gameTime + TURRET_FIRST_SHOT_DELAY,
             expiresAt: engine.gameTime + TURRET_LIFETIME,
             spawnedAtGameTime: engine.gameTime,
+            animation: null,
         };
         this.sentries.push(sentry);
         mixSpawn(engine, SENTRY_FINGERPRINT, sentry.x, sentry.y);
@@ -275,6 +281,7 @@ export class FieldObjectManager implements DeployableProvider {
         });
         projectile.radius = TURRET_SHOT_HIT_RADIUS;
         engine.addProjectile(projectile);
+        playAbilityAnimation(sentry, getAbility(sentry.abilityId), engine.gameTime);
     }
 
     listDeployables(): Deployable[] {
@@ -322,7 +329,10 @@ export class FieldObjectManager implements DeployableProvider {
 
     restoreFromJSON(data: Partial<SerializedFieldObjects> | undefined): void {
         this.droppedWeapons = (data?.droppedWeapons ?? []).map((weapon) => ({ ...weapon }));
-        this.sentries = (data?.sentries ?? []).map((sentry) => ({ ...sentry }));
+        this.sentries = (data?.sentries ?? []).map((sentry) => ({
+            ...sentry,
+            animation: readActorAnimation(sentry.animation),
+        }));
     }
 }
 

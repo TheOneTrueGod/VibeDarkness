@@ -1,5 +1,6 @@
 import type { Container } from 'pixi.js';
 import { Projectile } from '../../projectiles/Projectile';
+import type { Unit } from '../../units/Unit';
 import type { AssetRegistry } from '../AssetRegistry';
 import { getProjectileDef } from '../../projectiles/projectile_defs';
 
@@ -20,7 +21,11 @@ export class ProjectileRenderer {
         }
     }
 
-    render(projectiles: Projectile[], gameTime: number): void {
+    render(
+        projectiles: Projectile[],
+        gameTime: number,
+        getUnit?: (unitId: string) => Unit | undefined,
+    ): void {
         for (const proj of projectiles) {
             let visual = this.projectileVisuals.get(proj.id);
             if (!visual) {
@@ -32,7 +37,7 @@ export class ProjectileRenderer {
             visual.x = proj.x;
             visual.y = proj.y;
             visual.visible = proj.active;
-            getProjectileDef(proj.projectileType).updateVisual(visual, proj, gameTime);
+            getProjectileDef(proj.projectileType).updateVisual(visual, proj, gameTime, getUnit);
             if (proj.rotationSpeed) {
                 visual.rotation = (proj.rotation * Math.PI) / 180;
             }

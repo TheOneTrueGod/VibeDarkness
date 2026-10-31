@@ -34,6 +34,7 @@ import { useMissionStart } from './app/useMissionStart';
 import { useNextMissionHandoff } from './app/useNextMissionHandoff';
 import { useGameSelection } from './app/useGameSelection';
 import { useMissionResultRecording } from './app/useMissionResultRecording';
+import { joinLobbyAllowingAdminBypass } from './app/joinLobbyWithAdminBypass';
 
 function getLobbyCodeFromPath(): string | null {
     const match = window.location.pathname.match(/^\/lobby\/([A-Za-z0-9]+)$/);
@@ -190,6 +191,7 @@ function AppInner() {
         navigate,
         showToast,
         user,
+        isAdmin,
         lobbyClient,
         currentLobby,
         currentPlayer,
@@ -273,7 +275,7 @@ function AppInner() {
         if (!lobbyCode) return;
         (async () => {
             try {
-                const result = await lobbyClient.joinLobby(lobbyCode);
+                const result = await joinLobbyAllowingAdminBypass(lobbyClient, lobbyCode, isAdmin);
                 const lobby = result.lobby as LobbyState;
                 const player = result.player as PlayerState;
                 const account = result.account as AccountState;

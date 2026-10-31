@@ -5,6 +5,7 @@ export { CircleHitbox, unitOverlapsCircle } from './CircleHitbox';
 export { HitboxSpec, MeleeLineHitboxSpec, meleeLineHitbox, PerpendicularSwingHitboxSpec, perpendicularSwingHitbox, NullHitboxSpec, nullHitbox, GroundPointHitboxSpec, groundPointHitbox, FacingConeHitboxSpec, facingConeHitbox } from './HitboxSpec';
 export { UnitRangeHitboxSpec, unitRangeHitbox } from './UnitRangeHitboxSpec';
 export { CircleAoEHitboxSpec, circleAoEHitbox, type CircleAoEPreviewStyle } from './CircleAoEHitboxSpec';
+export { RingHitboxSpec, ringHitbox, unitOverlapsRing, type RingRadiusSource } from './RingHitbox';
 export { TruncatedConeHitboxSpec, type TruncatedConeGeometry, type TruncatedConeMinRadiusResolver } from './TruncatedConeHitbox';
 export { ConvexQuadHitboxSpec, convexQuadHitbox } from './ConvexQuadHitbox';
 export { AimFrameSegmentHitboxSpec, aimFrameSegmentHitbox, type AimFramePoint, type AimFrameSegmentConfig } from './AimFrameSegmentHitbox';

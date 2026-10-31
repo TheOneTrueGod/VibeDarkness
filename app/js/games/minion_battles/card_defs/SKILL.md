@@ -82,6 +82,7 @@ Correct rules are not enough: make the cast readable (telegraph, payoff, result)
 Required on every ability, as `AbilityTimingInterval` rows (`abilities/abilityTimings.ts`): `id`, half-open `[start, end)` seconds, `abilityPhase`, optional `timelineLabel` / `timelineDescription`, `targetDef`, `conditionalCancel` (see `ConditionalCancelDef`). Overlaps: first listed wins on the merged band; total duration is `max(end)`. Legacy `{ duration, abilityPhase }` is for adapters and tests only.
 
 - **Sequential targeting playahead:** a `targetDef: { kind: 'select', ... }` opts into interactive sequential targeting (`docs/interactive-sequential-targeting.md`). Select defs must be on **raw** timing entries (`getSelectTargetDefsFromTimings` in `abilities/targeting.ts`), not post-split ones. t=0 selects and windup-lunge abilities rely on `findPreviewDeferredSelectLabel`.
+- **Confirmation targeter:** an ability that affects a unit other than the caster confirms in that first window even when the shape is static, so the player can see the hit and undo. Whirl is the example (see the **creating-an-ability** skill).
 - **Entombed (rock tree):** abilities usable while inside terrain pause near the end for an `Entombed` chain or `wait`. Use `withEntombedWallConditionalCancelAndLinger` from `abilities/entombed/entombedWallCancel.ts` (adds the one-tick linger before `cooldown` so the pause fires before Cooldown). Examples: `0107_ThrowRock`, `0108_ThrowChargedRock`; `0534` inlines it.
 
 ## Registration

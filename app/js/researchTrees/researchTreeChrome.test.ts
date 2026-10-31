@@ -9,6 +9,7 @@ import {
     RESEARCH_TREE_COLOUR_GRAVITY,
     RESEARCH_TREE_COLOUR_LIGHT,
     RESEARCH_TREE_COLOUR_WEAPON,
+    RESEARCH_TREE_ICON_ARMORY,
     RESEARCH_TREE_ICON_BLOOD_MAGE,
     RESEARCH_TREE_ICON_COMMAND,
     RESEARCH_TREE_ICON_EARTH,
@@ -16,6 +17,9 @@ import {
     RESEARCH_TREE_ICON_GRAVITY,
     RESEARCH_TREE_ICON_LIGHT,
     RESEARCH_TREE_ICON_WEAPON,
+    RESEARCH_TREE_FONT_ARMORY,
+    RESEARCH_TREE_SECONDARY_ARMORY,
+    researchChromeSurfaceStyle,
     resolveResearchTreeChrome,
 } from './researchTreeChrome';
 import { weaponsTree } from './trees/weapons';
@@ -69,7 +73,15 @@ describe('research tree appearance', () => {
         expect(bloodMageTree.colour).toBe(RESEARCH_TREE_COLOUR_BLOOD_MAGE);
         expect(bloodMageTree.icon).toBe(RESEARCH_TREE_ICON_BLOOD_MAGE);
         expect(armoryTree.colour).toBe(RESEARCH_TREE_COLOUR_ARMORY);
-        expect(armoryTree.icon).toBe(RESEARCH_TREE_ICON_GENERIC);
+        expect(armoryTree.secondaryColour).toBe(RESEARCH_TREE_SECONDARY_ARMORY);
+        expect(armoryTree.fontColour).toBe(RESEARCH_TREE_FONT_ARMORY);
+        expect(armoryTree.icon).toBe(RESEARCH_TREE_ICON_ARMORY);
+        expect(researchChromeSurfaceStyle(armoryTree)).toEqual({
+            borderColor: RESEARCH_TREE_COLOUR_ARMORY,
+            color: RESEARCH_TREE_FONT_ARMORY,
+            backgroundColor: RESEARCH_TREE_SECONDARY_ARMORY,
+        });
+        expect(researchChromeSurfaceStyle(earthTree)).toEqual({ borderColor: RESEARCH_TREE_COLOUR_EARTH });
         expect(trainingTree.colour).toBe(RESEARCH_TREE_COLOUR_GENERIC);
         expect(miscTree.colour).toBe(RESEARCH_TREE_COLOUR_GENERIC);
         expect(trainingTree.icon).toBe(RESEARCH_TREE_ICON_GENERIC);

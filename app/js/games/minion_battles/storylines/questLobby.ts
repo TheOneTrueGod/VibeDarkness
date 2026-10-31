@@ -4,6 +4,11 @@
  */
 
 import {
+    ALLOW_JOIN_MID_QUEST,
+    OPEN_LOBBY_MAX_PLAYERS,
+    QUEST_PARTY_RESERVATION_MIN_SLOT_INDEX,
+} from '../../../../../global_constants.js';
+import {
     advanceQuestRunOnMissionVictory,
     completeQuestRun,
     type CompleteQuestRunResult,
@@ -76,6 +81,56 @@ export function questSlotPillStatus(
     if (slotIndex < currentSlotIndex) return 'completed';
     if (slotIndex === currentSlotIndex) return 'active';
     return 'upcoming';
+}
+
+/** True from the second quest mission onward (slot index >= QUEST_PARTY_RESERVATION_MIN_SLOT_INDEX). */
+export function questLobbyShouldStampRequiredPlayers(questSlotIndex: number): boolean {
+    return questSlotIndex >= QUEST_PARTY_RESERVATION_MIN_SLOT_INDEX;
+}
+
+/**
+ * Join reservation is on only for later quest missions, and only when mid-quest joins are off.
+ * Opening missions and ordinary (non-quest) lobbies stay open.
+ */
+export function questSlotReservesParty(questSlotIndex: number, allowJoinMidQuest: boolean): boolean {
+    return questLobbyShouldStampRequiredPlayers(questSlotIndex) && !allowJoinMidQuest;
+}
+
+/** Roster stamped on later quest lobbies. Opening missions return undefined. */
+export function requiredPlayersForQuestLobby(params: {
+    questSlotIndex: number;
+    roster: ReadonlyArray<{ playerName: string; characterId: string }>;
+    fallbackOwner?: { playerName: string; characterId: string };
+}): Array<{ playerName: string; characterId: string }> | undefined {
+    if (!questLobbyShouldStampRequiredPlayers(params.questSlotIndex)) return undefined;
+    if (params.roster.length > 0) {
+        return params.roster.map((entry) => ({
+            playerName: entry.playerName,
+            characterId: entry.characterId,
+        }));
+    }
+    if (params.fallbackOwner) return [{ ...params.fallbackOwner }];
+    return undefined;
+}
+
+/**
+ * Later quest missions are private and sized to the roster, unless
+ * {@link ALLOW_JOIN_MID_QUEST} is set — then they stay open at the normal cap.
+ */
+export function questLobbyCapacity(
+    questSlotIndex: number,
+    rosterSize: number,
+    allowJoinMidQuest: boolean = ALLOW_JOIN_MID_QUEST,
+): { maxPlayers: number; isPublic: boolean; reserveParty: boolean } {
+    const reserveParty = questSlotReservesParty(questSlotIndex, allowJoinMidQuest);
+    if (!reserveParty) {
+        return { maxPlayers: OPEN_LOBBY_MAX_PLAYERS, isPublic: true, reserveParty: false };
+    }
+    return {
+        maxPlayers: Math.max(rosterSize, 1),
+        isPublic: false,
+        reserveParty: true,
+    };
 }
 
 /** Map frozen party roster → lobby requiredPlayers (identity). */

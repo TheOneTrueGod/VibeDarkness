@@ -1,6 +1,6 @@
 ---
 name: debugging-lobbies
-description: Instructions for diagnosing lobby issues from on-disk storage, /lobby_debug HTTP tools, or desyncDebug npm scripts. Covers local vs production, battle artifacts, and how to summarize failures with tradeoffs.
+description: Instructions for diagnosing lobby issues from on-disk storage, /lobby_debug HTTP tools, or desyncDebug npm scripts. Covers local vs production, battle artifacts, replaying a snapshot forward with injected orders, and how to summarize failures with tradeoffs.
 ---
 
 # Debugging lobbies
@@ -67,6 +67,17 @@ Run via **`npm run <script> -- <flags>`** when you have local disk access. Prefe
 | **`desyncDebug-diffSnapshot`** | Host snapshot vs client log state | Phantom desync check |
 | **`desyncDebug-getOrders`** | Orders in range (`--file pending\|log`) | Correlate orders with divergence |
 | **`desyncDebug-getCombatEvents`** | Death/spawn/VFX timing from snapshots | Visual flash timing |
+| **`replay-battle`** | Load a snapshot, queue orders, step the sim | A cast or spawn is missing and snapshots skip the ticks in between |
+
+## Replaying a save forward
+
+When the question is "what did the engine do after this checkpoint", do not hand-roll a Vitest. Use **`npm run replay-battle`**.
+
+Read the flag list in `scripts/replaySavedBattle.ts`. It loads `storage/lobbies/<CODE>/snapshots/<tick>.json` (or a `--snapshot` file plus `--mission`), rebuilds terrain the way a resync does (`game/debug/loadSavedBattle.ts`), queues any `--orders` file, and steps (`game/debug/replayPlayForward.ts`).
+
+The run clears the parallel order pause before each tick, so an `endTurn` order does not freeze play-forward. It stops if a tick does not advance (a select is still waiting for a pick, or the level ended) and says why. One JSON object per traced tick goes to stdout: projectiles, sentries, and each unit's position, active casts, and resources. Exit code 2 means it stalled.
+
+`--orders` is a JSON array or JSONL of `{ atTick, order }`. The same shape as `applied_orders.jsonl` works. An `atTick` already behind the snapshot is queued for the current tick.
 
 ## Investigation workflow
 

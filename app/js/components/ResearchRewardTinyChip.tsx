@@ -5,7 +5,7 @@
 import React, { useRef } from 'react';
 import type { ResearchNodeDef, ResearchTreeDef } from '../researchTrees/types';
 import { getResearchTreeContainingNode } from '../researchTrees/list';
-import { resolveResearchTreeChrome } from '../researchTrees/researchTreeChrome';
+import { researchChromeSurfaceStyle, resolveResearchTreeChrome } from '../researchTrees/researchTreeChrome';
 import {
     ResearchNodePreviewPortal,
     useResearchNodePreviewHover,
@@ -30,8 +30,10 @@ export default function ResearchRewardTinyChip({
     return (
         <>
             <span
+                data-className="ResearchRewardTinyChip"
                 ref={anchorRef}
                 className={`${MISSION_REWARD_CHIP_CLASSNAME} max-w-[min(100%,14rem)] cursor-default`}
+                style={treeChrome.secondaryColour ? researchChromeSurfaceStyle(treeChrome) : undefined}
                 onMouseEnter={hover.openPreview}
                 onMouseLeave={hover.scheduleClose}
                 title={node.title}

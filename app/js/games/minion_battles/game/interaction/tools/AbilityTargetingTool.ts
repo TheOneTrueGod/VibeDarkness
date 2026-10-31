@@ -5,6 +5,7 @@ import {
     clampSelectTarget,
     clampResolvedTargetToAbilityRange,
     constrainSelectAim,
+    selectConfirmAim,
     resolveSelectTargetCompanionLockOns,
     resolveSelectTargetLockOnCandidates,
 } from '../../../abilities/targeting';
@@ -59,7 +60,11 @@ export class AbilityTargetingTool implements InteractionTool {
             const companionCandidates = cache?.targetIdx === targetIndex ? (cache.companionCandidates ?? []) : [];
             const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
             const clickAim = caster
-                ? constrainSelectAim(caster, selectDef, clickResult.worldPosition, this.targetsByLabel, engine)
+                ? selectConfirmAim(
+                    caster,
+                    selectDef,
+                    constrainSelectAim(caster, selectDef, clickResult.worldPosition, this.targetsByLabel, engine),
+                )
                 : clickResult.worldPosition;
 
             let resolved: ResolvedTarget;

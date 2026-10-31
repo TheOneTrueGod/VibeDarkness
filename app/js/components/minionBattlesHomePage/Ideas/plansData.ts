@@ -6,6 +6,12 @@ export interface PlanListItem {
     children: PlanListItem[];
 }
 
+/** One colour in a `> [!PALETTE]` card. `label` is the words after the hex. */
+export interface PlanPaletteColor {
+    hex: string;
+    label: string;
+}
+
 /** A block-level element of a plan body. Inline `**bold**` / `` `code` `` stays in `text`. */
 export type PlanBlock =
     /** `done` is set when the heading starts with `[x]` (the marker is stripped from `text`). */
@@ -14,7 +20,12 @@ export type PlanBlock =
     | { type: 'list'; items: PlanListItem[] }
     | { type: 'rule' }
     /** A decision the user must make (`> [!DECISION] question`, then `>` lines for the body). */
-    | { type: 'decision'; question: string; blocks: PlanBlock[] };
+    | { type: 'decision'; question: string; blocks: PlanBlock[] }
+    /**
+     * A primary/secondary colour pair (`> [!PALETTE] name`, then `primary:` / `secondary:` lines).
+     * Other `>` lines are the note.
+     */
+    | { type: 'palette'; name: string; primary: PlanPaletteColor; secondary: PlanPaletteColor; blocks: PlanBlock[] };
 
 export interface PlanDoc {
     /** Permanent 4-digit id from the file's numeric prefix, e.g. `0001`. Used in URLs. */
@@ -33,20 +44,23 @@ const HEADING_RE = /^(#{1,6})\s+(.*)$/;
 const BULLET_RE = /^(\s*)[-*]\s+(.*)$/;
 const RULE_RE = /^\s*(-{3,}|\*{3,})\s*$/;
 const DECISION_RE = /^>\s?\[!DECISION\]\s*(.*)$/i;
+const PALETTE_RE = /^>\s?\[!PALETTE\]\s*(.*)$/i;
+const PALETTE_COLOR_RE = /^(primary|secondary):\s*(#[0-9a-fA-F]{6})\s*(.*)$/i;
 const QUOTE_RE = /^>\s?(.*)$/;
 const DONE_RE = /^\[x\]\s+(.*)$/i;
 const FILE_RE = /(?:^|\/)(\d+)_(\d{4}-\d{2}-\d{2})_([^/]+)\.md$/;
 
 /**
  * Parses a plan body into blocks: `#` headings, paragraphs (consecutive lines joined), nested `-`
- * bullets (indent to nest; an indented non-bullet line continues the previous bullet), `---` rules and
- * `> [!DECISION]` cards (the following `>` lines are parsed as the card body).
+ * bullets (indent to nest; an indented non-bullet line continues the previous bullet), `---` rules,
+ * `> [!DECISION]` cards and `> [!PALETTE]` cards (the following `>` lines are the card body).
  */
 export function parsePlanMarkdown(markdown: string): PlanBlock[] {
     const blocks: PlanBlock[] = [];
     let paragraph: string[] = [];
     let list: { items: PlanListItem[]; stack: { indent: number; item: PlanListItem }[] } | null = null;
     let decision: { question: string; lines: string[] } | null = null;
+    let palette: { name: string; lines: string[] } | null = null;
 
     const flushParagraph = () => {
         if (paragraph.length > 0) blocks.push({ type: 'paragraph', text: paragraph.join(' ') });
@@ -62,15 +76,51 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
         }
         decision = null;
     };
+    const flushPalette = () => {
+        if (!palette) return;
+        const missing: PlanPaletteColor = { hex: '', label: '' };
+        let primary: PlanPaletteColor = missing;
+        let secondary: PlanPaletteColor = missing;
+        const body: string[] = [];
+        for (const raw of palette.lines) {
+            const color = PALETTE_COLOR_RE.exec(raw.trim());
+            if (color) {
+                const slot: PlanPaletteColor = { hex: color[2], label: color[3].trim() };
+                if (color[1].toLowerCase() === 'primary') primary = slot;
+                else secondary = slot;
+                continue;
+            }
+            body.push(raw);
+        }
+        blocks.push({
+            type: 'palette',
+            name: palette.name,
+            primary,
+            secondary,
+            blocks: parsePlanMarkdown(body.join('\n')),
+        });
+        palette = null;
+    };
 
     for (const line of markdown.split(/\r?\n/)) {
+        const paletteStart = PALETTE_RE.exec(line);
         const decisionStart = DECISION_RE.exec(line);
-        if (decisionStart) {
+        if (paletteStart || decisionStart) {
             flushParagraph();
             flushList();
             flushDecision();
-            decision = { question: decisionStart[1].trim(), lines: [] };
+            flushPalette();
+            if (paletteStart) palette = { name: paletteStart[1].trim(), lines: [] };
+            if (decisionStart) decision = { question: decisionStart[1].trim(), lines: [] };
             continue;
+        }
+        if (palette) {
+            const quote = QUOTE_RE.exec(line);
+            if (quote) {
+                palette.lines.push(quote[1]);
+                continue;
+            }
+            flushPalette();
         }
         if (decision) {
             const quote = QUOTE_RE.exec(line);
@@ -127,6 +177,7 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
     flushParagraph();
     flushList();
     flushDecision();
+    flushPalette();
     return blocks;
 }
 

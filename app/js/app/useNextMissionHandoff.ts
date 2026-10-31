@@ -11,12 +11,14 @@ import type { QuestLobbyFields } from '../games/minion_battles/storylines/questL
 import type { LobbyState, PlayerState, AccountState, GameStatePayload } from '../types';
 import { LOBBY_PATH_PREFIX } from './constants';
 import { markLobbyForAutoReady } from './autoReadyLobby';
+import { joinLobbyAllowingAdminBypass } from './joinLobbyWithAdminBypass';
 import type { LobbySessionSetters, ShowToast, UserDataUser } from './types';
 
 interface UseNextMissionHandoffArgs extends Pick<LobbySessionSetters, 'setScreen' | 'setCurrentLobby' | 'setCurrentPlayer' | 'setCurrentAccount' | 'setPlayers' | 'setChatMessages' | 'setChatEnabled' | 'setClicks' | 'setConnectionStatus' | 'setLobbyPageState' | 'setLobbyGameId' | 'setLobbyGameType' | 'setLobbyGameData' | 'setCurrentCampaignId' | 'setLastPollMessageId' | 'setPollMessagesReady'> {
     navigate: NavigateFunction;
     showToast: ShowToast;
     user: UserDataUser;
+    isAdmin: boolean;
     lobbyClient: LobbyClient;
     currentLobby: LobbyState | null;
     currentPlayer: PlayerState | null;
@@ -31,6 +33,7 @@ export function useNextMissionHandoff({
     navigate,
     showToast,
     user,
+    isAdmin,
     lobbyClient,
     currentLobby,
     currentPlayer,
@@ -281,7 +284,7 @@ export function useNextMissionHandoff({
 
             // Join the new lobby using the same logic as handleJoinLobby
             try {
-                const result = await lobbyClient.joinLobby(nextLobbyId);
+                const result = await joinLobbyAllowingAdminBypass(lobbyClient, nextLobbyId, isAdmin);
                 const lobby = result.lobby as LobbyState;
                 const player = result.player as PlayerState;
                 const account = result.account as AccountState;
@@ -301,7 +304,7 @@ export function useNextMissionHandoff({
                 );
             }
         },
-        [currentLobby, currentPlayer, lobbyClient, showToast, startInLobby, navigate, setChatEnabled, setChatMessages, setClicks, setConnectionStatus, setCurrentAccount, setCurrentCampaignId, setCurrentLobby, setCurrentPlayer, setLastPollMessageId, setLobbyGameData, setLobbyGameId, setLobbyGameType, setLobbyPageState, setPlayers, setPollMessagesReady, setScreen]
+        [isAdmin, currentLobby, currentPlayer, lobbyClient, showToast, startInLobby, navigate, setChatEnabled, setChatMessages, setClicks, setConnectionStatus, setCurrentAccount, setCurrentCampaignId, setCurrentLobby, setCurrentPlayer, setLastPollMessageId, setLobbyGameData, setLobbyGameId, setLobbyGameType, setLobbyPageState, setPlayers, setPollMessagesReady, setScreen]
     );
 
     return { handleHostContinueToNextMission, handleClientJoinNextLobby };

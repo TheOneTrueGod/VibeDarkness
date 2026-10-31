@@ -16,6 +16,7 @@ import { applyCcArmourStateFromJSON } from '../../crowdControl/ccArmourState';
 import { hoverFlightFromJSON } from './hoverFlight';
 import type { PendingFrozenHit } from './unitDamage';
 import type { HeldConjuredWeaponState } from '../conjuredWeapons/registry';
+import { readActorAnimation } from '../animation/actorAnimation';
 import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
 
 /** Old unit.characterId values for player units before unified `player` id. */
@@ -213,6 +214,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         ]),
     );
     unit.abilityModifiers = (data.abilityModifiers as Record<string, AbilityModifier> | undefined) ?? {};
+    unit.animation = readActorAnimation(data.animation);
 
     const wep = data.wallEntryPoint as { x?: number; y?: number } | undefined;
     if (wep != null && typeof wep.x === 'number' && typeof wep.y === 'number') {

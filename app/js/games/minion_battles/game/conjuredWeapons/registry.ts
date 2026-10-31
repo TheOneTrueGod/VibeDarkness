@@ -10,6 +10,11 @@ export interface ConjuredWeaponDef {
     /** Dropped-weapon kind left on the ground when the weapon is discarded. */
     tokenKind: string;
     heldUses: number;
+    /**
+     * When the held ability's last use ends the weapon, leave a token at the caster.
+     * Default true. A release that drops its own token, or that should leave nothing, sets this false.
+     */
+    leaveTokenWhenHeldUsesEnd?: boolean;
 }
 
 export interface HeldConjuredWeaponState {

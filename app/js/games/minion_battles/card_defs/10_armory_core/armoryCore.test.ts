@@ -3,6 +3,8 @@ import { isAbilityTimingInterval } from '../../abilities/abilityTimings';
 import { pointInCone } from '../../abilities/coneGeometry';
 import type { IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { isSelectTargetDef } from '../../abilities/timingTargetDef';
+import { findPreviewDeferredSelectLabel } from '../../game/interaction/selectTargetLookahead';
+import { resolveItsSelectTargetForClick } from '../../game/interaction/itsCanvasInput';
 import { FIXED_DT, ROUND_DURATION } from '../../game/gameConstants';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { TerrainType } from '../../terrain/TerrainType';
@@ -19,15 +21,41 @@ import {
     placeTargetDummy,
     TINY_BATTLE_PLAYER_ID,
 } from '../../testing/harness/buildTinyBattleEngine';
-import { ARMORY_NODE_CORE, ARMORY_TREE_ID } from '../../../../researchTrees/trees/armory';
+import {
+    ARMORY_NODE_CORE,
+    ARMORY_NODE_CREATE_MACE,
+    ARMORY_NODE_CREATE_SHIELD,
+    ARMORY_TREE_ID,
+    armoryTree,
+} from '../../../../researchTrees/trees/armory';
 import { listTier10RootCoreCandidates } from '../../storylines/WorldOfDarkness/missions/006_core_awakening';
 import {
+    ARMORY_ABILITY_CHARGE_COST,
+    ARMORY_MACE_WEAPON_ID,
+    ARMORY_SHIELD_WEAPON_ID,
+    CREATE_SHIELD_ABILITY_ID,
+    CREATE_SHIELD_CAST_DURATION,
+    DROPPED_WEAPON_KIND_SHIELD,
+    RELEASE_CHARGE_ABILITY_ID,
+    SHIELD_BLOCK_CHARGE_GRANT,
+    THROW_SHIELD_ABILITY_ID,
+    THROW_SHIELD_BOUNCE_RANGE,
+    THROW_SHIELD_COOLDOWN_END,
+    THROW_SHIELD_DAMAGE,
+    THROW_SHIELD_TRAIL_RADIUS,
+    ARMORY_PRIMARY_COLOR,
+    ARMORY_PRIMARY_SHADE_COLOR,
+    ARMORY_SECONDARY_COLOR,
     CHARGE_MISSION_START,
+    CHARGE_MACE_ABILITY_ID,
+    CHARGE_MACE_MAX_USES,
+    CREATE_MACE_ABILITY_ID,
     CREATE_SWORD_ABILITY_ID,
     CREATE_SWORD_CAST_DURATION,
     CREATE_SWORD_MOVE_MULT,
     DEPLOY_TURRET_ABILITY_ID,
     DROPPED_WEAPON_ARC_DISTANCE,
+    DROPPED_WEAPON_KIND_MACE,
     IMPROVISED_SWORD_ABILITY_ID,
     IMPROVISED_SWORD_COOLDOWN_END,
     IMPROVISED_SWORD_MAX_USES,
@@ -51,15 +79,34 @@ import {
     TURRET_SHOT_HIT_RADIUS,
     TURRET_SHOT_RANGE,
     TURRET_SHOT_SPRITE_SCALE,
+    MACE_WHIRL_INNER_CLEARANCE,
+    MACE_WHIRL_MAX_TARGETS,
+    MACE_WHIRL_OUTER_RADIUS,
     WEAPON_DISCARD_ARC_EFFECT_TYPE,
+    WHIRL_ABILITY_ID,
 } from './armoryConstants';
 import { CreateSwordAbility } from './1001_CreateSword/1001Ability';
 import { IMPROVISED_SWORD_IMPACT_TIME, ImprovisedSwordAbility } from './1002_ImprovisedSword/1002Ability';
 import { ThrowSwordAbility } from './1003_ThrowSword/1003Ability';
 import { DeployTurretAbility, validateTurretPlacement } from './1004_DeployTurret/1004Ability';
-import { SWING_SWORD_DAMAGE } from '../0112_SwingSword/0112Ability';
+import { CreateMaceAbility_1005 } from './1005_CreateMace/1005Ability';
+import { CHARGE_MACE_IMPACT_TIME, ChargeMaceAbility_1006 } from './1006_ChargeMace/1006Ability';
+import { MACE_WHIRL_IMPACT_TIME, WHIRL_TARGET_LABEL, WhirlAbility_1007 } from './1007_Whirl/1007Ability';
+import { CreateShieldAbility_1008 } from './1008_CreateShield/1008Ability';
+import { ReleaseChargeAbility_1009 } from './1009_ReleaseCharge/1009Ability';
+import { ThrowShieldAbility_1010 } from './1010_ThrowShield/1010Ability';
+import { CONE_OF_LIGHT_ACTIVE_END, CONE_OF_LIGHT_COOLDOWN_END } from '../0121_ConeOfLight/0121Ability';
+import { Projectile } from '../../game/projectiles/Projectile';
+import { DEFAULT_BULLET_TRAIL_RADIUS } from '../../game/effect_defs/bulletTrail';
+import shieldSvg from './shield.svg?raw';
+import shieldThrowSvg from './shieldThrow.svg?raw';
+import shieldProjectileUrl from './shield.svg';
+import { SWING_SWORD_DAMAGE, SWING_SWORD_HITBOX, SWING_SWORD_LUNGE } from '../0112_SwingSword/0112Ability';
+import { SWING_BAT_HITBOX, SWING_BAT_WINDUP_END } from '../0115_SwingBat/0115Ability';
 import { THROW_RANGE } from '../throwNumbers';
-import swordProjectileUrl from '../../character_defs/items/assets/013_sword.svg';
+import chargeSwordThrowSvg from './chargeSwordThrow.svg?raw';
+import whirlSvg from './1007_Whirl/whirl.svg?raw';
+import swordProjectileUrl from './chargeSword.svg';
 import type { Unit } from '../../game/units/Unit';
 
 const PLAYER = { x: 200, y: 200 };
@@ -140,6 +187,19 @@ function previewRecorder(): { gr: IAbilityPreviewGraphics; circles: Array<{ x: n
 describe('Armory Core', () => {
     it('is offered in Core Awakening', () => {
         expect(listTier10RootCoreCandidates().some((candidate) => candidate.treeId === ARMORY_TREE_ID)).toBe(true);
+    });
+
+    it('paints the quench pair and names the conjured slash Charge Sword', () => {
+        expect(ARMORY_PRIMARY_COLOR).toBe('#4f6d8c');
+        expect(ARMORY_SECONDARY_COLOR).toBe('#e7e5e4');
+        expect(ARMORY_PRIMARY_SHADE_COLOR).toBe('#2b3c4d');
+        expect(ImprovisedSwordAbility.name).toBe('Charge Sword');
+        expect(ImprovisedSwordAbility.lunge?.distance).toBe(SWING_SWORD_LUNGE);
+        expect(ImprovisedSwordAbility.aiSettings?.maxRange).toBe(SWING_SWORD_HITBOX.maxRange + SWING_SWORD_LUNGE);
+        expect(SWING_SWORD_HITBOX.thickness).toBeLessThan(SWING_BAT_HITBOX.thickness);
+        expect(CreateSwordAbility.image).toBe(ImprovisedSwordAbility.image);
+        expect(ThrowSwordAbility.image).toBe(chargeSwordThrowSvg);
+        expect(ThrowSwordAbility.image).not.toBe(ImprovisedSwordAbility.image);
     });
 
     it('grants Charge, Create Sword, Deploy Turret, and remembers the sword as the weapon', () => {
@@ -440,6 +500,8 @@ describe('Armory Core', () => {
         const sprite = firstShot!.spriteConfig?.sprite;
         expect(sprite && 'scale' in sprite ? sprite.scale : undefined).toBe(TURRET_SHOT_SPRITE_SCALE);
         expect(engine.state.fieldObjects.sentries[0]?.shotsRemaining).toBe(TURRET_SHOT_COUNT - 1);
+        expect(engine.state.fieldObjects.sentries[0]?.animation?.request).toEqual(DeployTurretAbility.animation);
+        expect(engine.state.fieldObjects.sentries[0]?.animation?.startedAtGameTime).toBeGreaterThanOrEqual(TURRET_FIRST_SHOT_DELAY);
 
         const empty = buildTinyBattleEngine({
             gridW: 12,
@@ -497,5 +559,305 @@ describe('Armory Core', () => {
             [],
         );
         expect(lines).toEqual([{ x0: caster.x, y0: caster.y, x1: caster.x + THROW_RANGE, y1: caster.y }]);
+    });
+});
+
+function maceBattle(): { engine: GameEngine } {
+    const engine = buildTinyBattleEngine({
+        gridW: 20,
+        gridH: 20,
+        localPlayerId: TINY_BATTLE_PLAYER_ID,
+    });
+    placePlayerFromLoadout(engine, {
+        playerId: TINY_BATTLE_PLAYER_ID,
+        world: PLAYER,
+        equipment: [CORE_ITEM_IDS.BasicCore, swordItem.id],
+        researchTrees: { [ARMORY_TREE_ID]: [ARMORY_NODE_CORE, ARMORY_NODE_CREATE_MACE] },
+    });
+    engine.waitingForOrders = null;
+    engine.isPaused = false;
+    return { engine };
+}
+
+describe('Create Mace', () => {
+    it('uses the quench mace and is granted by its own research node', () => {
+        expect(CreateMaceAbility_1005.image).toBe(ChargeMaceAbility_1006.image);
+        expect(WhirlAbility_1007.image).toBe(whirlSvg);
+        expect(WhirlAbility_1007.image).toContain(ARMORY_PRIMARY_COLOR);
+        expect(WhirlAbility_1007.image).toContain(ARMORY_SECONDARY_COLOR);
+        expect(CreateMaceAbility_1005.image).toContain(ARMORY_PRIMARY_COLOR);
+        expect(CreateMaceAbility_1005.image).toContain(ARMORY_SECONDARY_COLOR);
+        expect(CreateMaceAbility_1005.image).toContain(ARMORY_PRIMARY_SHADE_COLOR);
+        expect(CreateMaceAbility_1005.name).toBe('Create Mace');
+        expect(ChargeMaceAbility_1006.name).toBe('Charge Mace');
+        expect(WhirlAbility_1007.name).toBe('Whirl');
+        const node = armoryTree.nodes.find((entry) => entry.id === ARMORY_NODE_CREATE_MACE);
+        expect(node?.effects).toEqual([{ type: 'addCard', cardId: CREATE_MACE_ABILITY_ID }]);
+        expect(node?.prereqNodeIds).toEqual([ARMORY_NODE_CORE]);
+
+        const { engine } = maceBattle();
+        const player = engine.units[0]!;
+        expect(player.abilities).toContain(CREATE_MACE_ABILITY_ID);
+    });
+
+    it('swings like a mace, then Whirl stuns adjacent enemies and drops the weapon', () => {
+        const { engine } = maceBattle();
+        const player = engine.units[0]!;
+        const chargeBefore = player.getResource('charge')?.current ?? 0;
+        executeUnitAbility(player, CreateMaceAbility_1005, [], engine);
+        const orbit = engine.state.effectManager.effects.find(
+            (effect) => effect.effectData?.weaponKind === DROPPED_WEAPON_KIND_MACE,
+        );
+        expect(orbit).toBeDefined();
+        expect(player.getResource('charge')?.current).toBe(chargeBefore - ARMORY_ABILITY_CHARGE_COST);
+        step(engine, CREATE_SWORD_CAST_DURATION + FIXED_DT);
+        expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_MACE_WEAPON_ID);
+        expect(player.abilities).toContain(CHARGE_MACE_ABILITY_ID);
+        expect(player.abilities).toContain(WHIRL_ABILITY_ID);
+        expect(player.abilityRuntime[CHARGE_MACE_ABILITY_ID]?.currentUses).toBe(CHARGE_MACE_MAX_USES);
+        const swingTiming = ChargeMaceAbility_1006.abilityTimings.find((entry) => isAbilityTimingInterval(entry) && entry.id === 'hit');
+        const swingDef = swingTiming && isAbilityTimingInterval(swingTiming) ? swingTiming.targetDef : undefined;
+        if (!swingDef || !isSelectTargetDef(swingDef)) {
+            throw new Error('Charge Mace hit select is missing');
+        }
+        expect(swingDef.hitbox).toBe(SWING_BAT_HITBOX);
+
+        const swingDummy = placeTargetDummy(engine, { x: PLAYER.x + SWING_BAT_HITBOX.maxRange, y: PLAYER.y }, 'mace_swing');
+        const swingHp = swingDummy.hp;
+        engine.waitingForOrders = null;
+        executeUnitAbility(player, ChargeMaceAbility_1006, [{ type: 'pixel', position: { x: swingDummy.x, y: swingDummy.y } }], engine);
+        step(engine, CHARGE_MACE_IMPACT_TIME + FIXED_DT);
+        expect(swingDummy.hp).toBeLessThan(swingHp);
+        expect(player.heldConjuredWeapon).not.toBeNull();
+
+        const whirlHit = WhirlAbility_1007.abilityTimings.find((entry) => isAbilityTimingInterval(entry) && entry.id === 'hit');
+        const whirlDef = whirlHit && isAbilityTimingInterval(whirlHit) ? whirlHit.targetDef : undefined;
+        if (!whirlHit || !isAbilityTimingInterval(whirlHit) || !whirlDef || !isSelectTargetDef(whirlDef)) {
+            throw new Error('Whirl hit select is missing');
+        }
+        expect(whirlHit.start).toBe(SWING_BAT_WINDUP_END);
+        expect(whirlDef.label).toBe(WHIRL_TARGET_LABEL);
+        expect(whirlDef.confirmAtCaster).toBe(true);
+        expect(whirlDef.hitbox.maxRange).toBe(MACE_WHIRL_OUTER_RADIUS);
+        expect(findPreviewDeferredSelectLabel(WhirlAbility_1007, player, engine)).toBeNull();
+
+        const inner = player.radius + MACE_WHIRL_INNER_CLEARANCE;
+        const adjacentDistance = (inner + MACE_WHIRL_OUTER_RADIUS) / 2;
+        const adjacent = Array.from({ length: MACE_WHIRL_MAX_TARGETS + 1 }, (_, index) => {
+            const angle = (index / (MACE_WHIRL_MAX_TARGETS + 1)) * Math.PI * 2;
+            return placeTargetDummy(engine, {
+                x: player.x + Math.cos(angle) * adjacentDistance,
+                y: player.y + Math.sin(angle) * adjacentDistance,
+            }, `mace_adj_${index}`);
+        });
+        const holeDistance = MACE_WHIRL_INNER_CLEARANCE / 2;
+        const hole = placeTargetDummy(engine, { x: player.x + holeDistance, y: player.y }, 'mace_hole');
+        expect(holeDistance + hole.radius).toBeLessThanOrEqual(inner);
+        const far = placeTargetDummy(engine, { x: player.x + CELL_SIZE * 4, y: player.y }, 'mace_far');
+        const clickAway = { x: player.x + CELL_SIZE * 3, y: player.y };
+        const confirmed = resolveItsSelectTargetForClick(
+            WhirlAbility_1007,
+            player,
+            whirlDef,
+            clickAway,
+            clickAway,
+            {},
+            engine,
+        );
+        expect(confirmed).not.toBeNull();
+        const aimPixel = confirmed!.orderTargets[confirmed!.orderTargets.length - 1];
+        expect(aimPixel).toEqual({ type: 'pixel', position: { x: player.x, y: player.y } });
+        const locked = confirmed!.orderTargets.filter((target) => target.type === 'unit');
+        expect(locked).toHaveLength(MACE_WHIRL_MAX_TARGETS);
+        expect(locked.some((target) => target.unitId === hole.id)).toBe(false);
+        engine.waitingForOrders = null;
+        executeUnitAbility(player, WhirlAbility_1007, confirmed!.orderTargets, engine);
+        step(engine, MACE_WHIRL_IMPACT_TIME + FIXED_DT * 2);
+        const struck = adjacent.filter((unit) => unit.hp < unit.maxHp);
+        expect(struck).toHaveLength(MACE_WHIRL_MAX_TARGETS);
+        for (const unit of struck) expect(unit.hasBuff('stunned')).toBe(true);
+        expect(hole.hp).toBe(hole.maxHp);
+        expect(far.hp).toBe(far.maxHp);
+        expect(player.heldConjuredWeapon).toBeNull();
+        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(1);
+        expect(engine.state.fieldObjects.droppedWeapons[0]?.kind).toBe(DROPPED_WEAPON_KIND_MACE);
+        expect(player.abilityRuntime[CREATE_MACE_ABILITY_ID]?.active).not.toBe(false);
+    });
+});
+
+function shieldBattle(): { engine: GameEngine } {
+    const engine = buildTinyBattleEngine({
+        gridW: 20,
+        gridH: 20,
+        localPlayerId: TINY_BATTLE_PLAYER_ID,
+    });
+    placePlayerFromLoadout(engine, {
+        playerId: TINY_BATTLE_PLAYER_ID,
+        world: PLAYER,
+        equipment: [CORE_ITEM_IDS.BasicCore, swordItem.id],
+        researchTrees: { [ARMORY_TREE_ID]: [ARMORY_NODE_CORE, ARMORY_NODE_CREATE_SHIELD] },
+    });
+    engine.waitingForOrders = null;
+    engine.isPaused = false;
+    return { engine };
+}
+
+/** Raise the buckler toward {@link AIM_POINT} and hold it once the block window closes. */
+function conjureShield(engine: GameEngine): Unit {
+    const player = engine.units[0]!;
+    executeUnitAbility(player, CreateShieldAbility_1008, [AIM], engine);
+    step(engine, CREATE_SHIELD_CAST_DURATION + FIXED_DT);
+    engine.waitingForOrders = null;
+    return player;
+}
+
+function charge(unit: Unit): number {
+    return unit.getResource('charge')?.current ?? 0;
+}
+
+describe('Create Shield', () => {
+    it('draws a quench buckler and is granted by its own research node', () => {
+        for (const image of [shieldSvg, shieldThrowSvg, ReleaseChargeAbility_1009.image]) {
+            expect(image).toContain(ARMORY_PRIMARY_COLOR);
+            expect(image).toContain(ARMORY_SECONDARY_COLOR);
+            expect(image).toContain(ARMORY_PRIMARY_SHADE_COLOR);
+        }
+        expect(CreateShieldAbility_1008.image).toBe(shieldSvg);
+        expect(ThrowShieldAbility_1010.image).toBe(shieldThrowSvg);
+        expect(CreateShieldAbility_1008.name).toBe('Create Shield');
+        expect(ReleaseChargeAbility_1009.name).toBe('Release Charge');
+        expect(ThrowShieldAbility_1010.name).toBe('Throw Shield');
+        expect(CREATE_SHIELD_CAST_DURATION).toBe(CREATE_SWORD_CAST_DURATION);
+        expect(CreateShieldAbility_1008.resourceCost).toEqual({ resourceId: 'charge', amount: ARMORY_ABILITY_CHARGE_COST });
+        expect(ReleaseChargeAbility_1009.resourceCost).toEqual({ resourceId: 'charge', amount: ARMORY_ABILITY_CHARGE_COST });
+        expect(ThrowShieldAbility_1010.resourceCost).toBeNull();
+        const node = armoryTree.nodes.find((entry) => entry.id === ARMORY_NODE_CREATE_SHIELD);
+        expect(node?.effects).toEqual([{ type: 'addCard', cardId: CREATE_SHIELD_ABILITY_ID }]);
+        expect(node?.prereqNodeIds).toEqual([ARMORY_NODE_CORE]);
+
+        const { engine } = shieldBattle();
+        expect(engine.units[0]!.abilities).toContain(CREATE_SHIELD_ABILITY_ID);
+    });
+
+    it('blocks, gains Charge once, orbits bucklers, then holds Release Charge and Throw Shield', () => {
+        const { engine } = shieldBattle();
+        const player = engine.units[0]!;
+        const attacker = placeTargetDummy(engine, { x: PLAYER.x + CELL_SIZE * 3, y: PLAYER.y }, 'shield_attacker');
+        const chargeBefore = charge(player);
+        executeUnitAbility(player, CreateShieldAbility_1008, [AIM], engine);
+        expect(charge(player)).toBe(chargeBefore - ARMORY_ABILITY_CHARGE_COST);
+        const orbit = engine.state.effectManager.effects.find(
+            (effect) => effect.effectData?.weaponKind === DROPPED_WEAPON_KIND_SHIELD,
+        );
+        expect(orbit).toBeDefined();
+
+        const hp = player.hp;
+        for (const offset of [0, 12]) {
+            engine.addProjectile(new Projectile({
+                x: attacker.x - offset,
+                y: attacker.y,
+                velocityX: -400,
+                velocityY: 0,
+                damage: 5,
+                sourceTeamId: attacker.teamId,
+                sourceUnitId: attacker.id,
+                sourceAbilityId: 'throw_rock',
+                maxDistance: CELL_SIZE * 4,
+            }));
+        }
+        step(engine, CREATE_SHIELD_CAST_DURATION / 2);
+        expect(player.hp).toBe(hp);
+        expect(charge(player)).toBe(chargeBefore - ARMORY_ABILITY_CHARGE_COST + SHIELD_BLOCK_CHARGE_GRANT);
+        expect(player.heldConjuredWeapon).toBeNull();
+
+        step(engine, CREATE_SHIELD_CAST_DURATION / 2 + FIXED_DT);
+        expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_SHIELD_WEAPON_ID);
+        expect(player.abilities).toContain(RELEASE_CHARGE_ABILITY_ID);
+        expect(player.abilities).toContain(THROW_SHIELD_ABILITY_ID);
+        expect(player.abilityRuntime[swordItem.cardsToAdd[0]!]?.active).toBe(false);
+        expect(player.abilityRuntime[RELEASE_CHARGE_ABILITY_ID]?.currentUses).toBe(1);
+        expect(player.abilityRuntime[THROW_SHIELD_ABILITY_ID]?.currentUses).toBe(1);
+    });
+
+    it('holds the buckler without Charge when nothing is blocked', () => {
+        const { engine } = shieldBattle();
+        const player = engine.units[0]!;
+        const chargeBefore = charge(player);
+        conjureShield(engine);
+        expect(charge(player)).toBe(chargeBefore - ARMORY_ABILITY_CHARGE_COST);
+        expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_SHIELD_WEAPON_ID);
+    });
+
+    it('Release Charge spends Charge, stuns the cone, and puts the buckler away without a token', () => {
+        const { engine } = shieldBattle();
+        const target = placeTargetDummy(engine, AIM_POINT, 'release_target');
+        const player = conjureShield(engine);
+        player.getResource('charge')!.add(ARMORY_ABILITY_CHARGE_COST);
+        const chargeBefore = charge(player);
+        executeUnitAbility(player, ReleaseChargeAbility_1009, [AIM], engine);
+        expect(charge(player)).toBe(chargeBefore - ARMORY_ABILITY_CHARGE_COST);
+        step(engine, CONE_OF_LIGHT_ACTIVE_END + FIXED_DT);
+        expect(target.hp).toBeLessThan(target.maxHp);
+        expect(target.hasBuff('stunned')).toBe(true);
+        step(engine, CONE_OF_LIGHT_COOLDOWN_END - CONE_OF_LIGHT_ACTIVE_END + FIXED_DT);
+        expect(player.heldConjuredWeapon).toBeNull();
+        expect(player.abilities).not.toContain(RELEASE_CHARGE_ABILITY_ID);
+        expect(player.abilities).not.toContain(THROW_SHIELD_ABILITY_ID);
+        expect(player.abilityRuntime[swordItem.cardsToAdd[0]!]?.active).not.toBe(false);
+        expect(player.abilityRuntime[CREATE_SHIELD_ABILITY_ID]?.active).not.toBe(false);
+        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(0);
+    });
+
+    it('Throw Shield bounces to a second enemy and falls there, with a thick tapered trail', () => {
+        const { engine } = shieldBattle();
+        const first = placeTargetDummy(engine, AIM_POINT, 'throw_first');
+        const second = placeTargetDummy(engine, { x: AIM_POINT.x, y: AIM_POINT.y + CELL_SIZE * 2 }, 'throw_second');
+        const bystander = placeTargetDummy(engine, { x: AIM_POINT.x, y: AIM_POINT.y - CELL_SIZE * 2.5 }, 'throw_bystander');
+        expect(CELL_SIZE * 2).toBeLessThan(THROW_SHIELD_BOUNCE_RANGE);
+        const player = conjureShield(engine);
+        const chargeBefore = charge(player);
+        executeUnitAbility(player, ThrowShieldAbility_1010, [AIM], engine);
+        let thrown: Projectile | null = null;
+        const trailRadii: number[] = [];
+        step(engine, THROW_SHIELD_COOLDOWN_END + 0.6, () => {
+            for (const projectile of engine.projectiles) {
+                if (projectile.sourceAbilityId === THROW_SHIELD_ABILITY_ID) thrown = projectile;
+            }
+            for (const effect of engine.state.effectManager.effects) {
+                if (effect.effectType === 'BulletTrail' && effect.effectRadius != null) trailRadii.push(effect.effectRadius);
+            }
+        });
+        expect(charge(player)).toBe(chargeBefore);
+        const shot = thrown as Projectile | null;
+        expect(shot).not.toBeNull();
+        const frames = shot!.spriteConfig?.sprite;
+        expect(frames && 'frameFiles' in frames ? frames.frameFiles[0] : null).toBe(shieldProjectileUrl);
+        expect(shot!.trailRadius).toBe(THROW_SHIELD_TRAIL_RADIUS);
+        expect(THROW_SHIELD_TRAIL_RADIUS).toBeGreaterThan(DEFAULT_BULLET_TRAIL_RADIUS);
+        expect(shot!.trailTaper).toBe(true);
+        expect(Math.max(...trailRadii)).toBeGreaterThan(Math.min(...trailRadii));
+
+        expect(first.maxHp - first.hp).toBe(THROW_SHIELD_DAMAGE);
+        expect(second.maxHp - second.hp).toBe(THROW_SHIELD_DAMAGE);
+        expect(bystander.hp).toBe(bystander.maxHp);
+        expect(player.heldConjuredWeapon).toBeNull();
+        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(1);
+        const dropped = engine.state.fieldObjects.droppedWeapons[0]!;
+        expect(dropped.kind).toBe(DROPPED_WEAPON_KIND_SHIELD);
+        expect(Math.hypot(dropped.x - second.x, dropped.y - second.y)).toBeCloseTo(DROPPED_WEAPON_ARC_DISTANCE, 0);
+    });
+
+    it('Throw Shield falls at the first enemy when no second enemy is in range', () => {
+        const { engine } = shieldBattle();
+        const first = placeTargetDummy(engine, AIM_POINT, 'throw_only');
+        const player = conjureShield(engine);
+        executeUnitAbility(player, ThrowShieldAbility_1010, [AIM], engine);
+        step(engine, THROW_SHIELD_COOLDOWN_END + 0.6);
+        expect(first.maxHp - first.hp).toBe(THROW_SHIELD_DAMAGE);
+        expect(engine.projectiles.some((projectile) => projectile.sourceAbilityId === THROW_SHIELD_ABILITY_ID)).toBe(false);
+        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(1);
+        const dropped = engine.state.fieldObjects.droppedWeapons[0]!;
+        expect(Math.hypot(dropped.x - first.x, dropped.y - first.y)).toBeCloseTo(DROPPED_WEAPON_ARC_DISTANCE, 0);
+        expect(player.abilityRuntime[CREATE_SHIELD_ABILITY_ID]?.active).not.toBe(false);
     });
 });

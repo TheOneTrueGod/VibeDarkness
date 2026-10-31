@@ -4,6 +4,7 @@ namespace App\Http\Handlers;
 
 use App\LobbyManager;
 use App\AccountService;
+use App\PlayerAccount;
 use App\SessionHelper;
 
 class JoinLobbyHandler
@@ -25,7 +26,10 @@ class JoinLobbyHandler
         }
 
         $playerId = (string) $account->getId();
-        $result = $manager->joinLobby($lobbyId, $playerId, $account->getName());
+        $data = \getJsonBody();
+        $requestedBypass = ($data['adminBypassQuestParty'] ?? false) === true;
+        $adminBypass = $requestedBypass && $account->getRole() === PlayerAccount::ROLE_ADMIN;
+        $result = $manager->joinLobby($lobbyId, $playerId, $account->getName(), $adminBypass);
 
         if ($result === null) {
             http_response_code(404);

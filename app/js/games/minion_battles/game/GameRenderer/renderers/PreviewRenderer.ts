@@ -18,6 +18,7 @@ import {
     constrainSelectAim,
     resolveTurnLimitReference,
     getSelectStepLungeDistance,
+    selectConfirmAim,
 } from '../../../abilities/targeting';
 import { drawClampedLine, drawFacingIndicator } from '../../../abilities/previewHelpers';
 import { resolveAbilitySourceUnits } from '../../../abilities/abilitySourceUnits';
@@ -107,6 +108,7 @@ export function renderSelectTargetDef(
     aimPoint: { x: number; y: number },
     engine: GameEngine,
 ): Unit[] {
+    aimPoint = selectConfirmAim(caster, selectDef, aimPoint);
     const lungeDistance = getSelectStepLungeDistance(ability, caster, selectDef, engine);
     const state = lungeDistance != null
         ? computeLungePreviewState(

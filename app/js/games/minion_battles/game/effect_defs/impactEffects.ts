@@ -172,6 +172,7 @@ export const coneFlashEffectDef: IEffectDef = {
             halfArcRad?: number;
             innerR?: number;
             outerR?: number;
+            color?: number;
         };
         const centerAngle = data.centerAngle ?? 0;
         const halfArcRad = data.halfArcRad ?? Math.PI / 3;
@@ -195,7 +196,7 @@ export const coneFlashEffectDef: IEffectDef = {
             g.lineTo(innerR * Math.cos(a), innerR * Math.sin(a));
         }
         g.lineTo(innerR * Math.cos(startAngle), innerR * Math.sin(startAngle));
-        g.fill({ color: CONE_FLASH_TEAL, alpha });
+        g.fill({ color: data.color ?? CONE_FLASH_TEAL, alpha });
     },
 };
 

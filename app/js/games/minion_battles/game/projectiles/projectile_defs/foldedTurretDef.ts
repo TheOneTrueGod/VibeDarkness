@@ -4,7 +4,7 @@
  */
 import { Graphics } from 'pixi.js';
 import { TURRET_SHOT_COUNT } from '../../../card_defs/10_armory_core/armoryConstants';
-import { paintTurret } from '../../effect_defs/turretDeployDraw';
+import { paintTurret, turretHullColor } from '../../effect_defs/turretDeployDraw';
 import type { IProjectileDef } from './types';
 
 const FOLDED = 0;
@@ -13,7 +13,8 @@ export const foldedTurretDef: IProjectileDef = {
     createVisual(): Graphics {
         return new Graphics();
     },
-    updateVisual(visual): void {
-        paintTurret(visual as Graphics, FOLDED, TURRET_SHOT_COUNT);
+    updateVisual(visual, proj, _gameTime, getUnit): void {
+        const owner = getUnit?.(proj.sourceUnitId);
+        paintTurret(visual as Graphics, FOLDED, TURRET_SHOT_COUNT, turretHullColor(owner));
     },
 };

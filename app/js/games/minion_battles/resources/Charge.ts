@@ -9,9 +9,9 @@ import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
 import { ResourceId } from './resourceIds';
-import { CHARGE_MAX, CHARGE_PER_ROUND } from '../card_defs/10_armory_core/armoryConstants';
+import { ARMORY_SECONDARY_COLOR, CHARGE_MAX, CHARGE_PER_ROUND } from '../card_defs/10_armory_core/armoryConstants';
 
-export const CHARGE_RESOURCE_COLOR = '#d6d3d1';
+export const CHARGE_RESOURCE_COLOR = ARMORY_SECONDARY_COLOR;
 
 export class Charge extends Resource {
     readonly id = ResourceId.Charge;

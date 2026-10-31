@@ -28,6 +28,10 @@ Hitboxes live in `app/js/games/minion_battles/hitboxes/` and provide reusable hi
 
 ## Available Hitbox Types
 
+### RingHitbox
+
+Annulus around the caster (`hitboxes/RingHitbox.ts`). The pointer does not move it. A unit is hit when its circle overlaps the outer disk and is not wholly inside the inner hole. Pair it with a `confirmAtCaster` select when the cast should pause and lock on to whoever is in the ring (Whirl).
+
 ### CircleHitbox
 
 Disk AoE around a point. Prefer this (or `damageEnemiesInCircle`) for circle combat impacts.

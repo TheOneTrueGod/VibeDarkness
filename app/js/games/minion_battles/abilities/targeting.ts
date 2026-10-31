@@ -210,6 +210,16 @@ export type SelectLockOnEngine = {
  * Callers that resolve from the pre-lunge caster position will lock different units than the
  * player saw highlighted during sequential targeting playahead.
  */
+/** Aim for a confirmation select is the caster. Every other select keeps the pointer. */
+export function selectConfirmAim(
+    caster: { x: number; y: number },
+    selectDef: SelectTargetDef,
+    aim: { x: number; y: number },
+): { x: number; y: number } {
+    if (!selectDef.confirmAtCaster) return aim;
+    return { x: caster.x, y: caster.y };
+}
+
 export function resolveSelectTargetLockOnCandidates(
     ability: AbilityStatic,
     caster: Unit,
@@ -217,6 +227,7 @@ export function resolveSelectTargetLockOnCandidates(
     aimPoint: { x: number; y: number },
     engine: SelectLockOnEngine,
 ): Unit[] {
+    aimPoint = selectConfirmAim(caster, selectDef, aimPoint);
     let originX = caster.x;
     let originY = caster.y;
     let effectiveAim = aimPoint;
@@ -609,6 +620,8 @@ export function resolveSelectPickForAim(
     collectedTargets: Record<string, ResolvedTarget>,
     engine: SelectLockOnEngine & { getUnit(id: string): Unit | undefined | null },
 ): SelectPickResolution | null {
+    aimPoint = selectConfirmAim(caster, selectDef, aimPoint);
+    clickWorldPos = selectConfirmAim(caster, selectDef, clickWorldPos);
     aimPoint = constrainSelectAim(caster, selectDef, aimPoint, collectedTargets, engine);
     clickWorldPos = constrainSelectAim(caster, selectDef, clickWorldPos, collectedTargets, engine);
     const candidates = resolveSelectTargetLockOnCandidates(ability, caster, selectDef, aimPoint, engine);
@@ -686,6 +699,13 @@ export function buildAiSelectTargets(
                     y: anchorUnit.y + dirY * distance,
                 },
             };
+            targets.push(pixel);
+            targetsByLabel[selectDef.label] = pixel;
+            continue;
+        }
+
+        if (selectDef.confirmAtCaster) {
+            const pixel: ResolvedTarget = { type: 'pixel', position: { x: caster.x, y: caster.y } };
             targets.push(pixel);
             targetsByLabel[selectDef.label] = pixel;
             continue;

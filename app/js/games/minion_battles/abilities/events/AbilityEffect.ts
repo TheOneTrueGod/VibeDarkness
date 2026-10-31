@@ -27,6 +27,13 @@ export type AbilityEffect =
         abilityIds: readonly string[];
     }
     | {
+        type: 'grantResource';
+        /** Resource on the caster (e.g. `ResourceId.Charge`). No-op when the caster lacks it. */
+        resourceId: string;
+        /** Added to the pool, clamped to its max. */
+        amount: number;
+    }
+    | {
         type: 'grantChargeToNearbyAllies';
         chargeType: RecoveryChargeType;
         /** Charges granted per qualifying ally. */

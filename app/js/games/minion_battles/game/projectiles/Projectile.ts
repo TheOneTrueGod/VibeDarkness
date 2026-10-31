@@ -40,6 +40,7 @@ import {
     type ProjectileBuff,
 } from './ProjectileBuff';
 import { cellsAlongSegment } from '../../abilities/tileAreaHelpers';
+import { bulletTrailSpawnRadius, DEFAULT_BULLET_TRAIL_RADIUS } from '../effect_defs/bulletTrail';
 import { clearTerrainEffects, type TerrainClearSpec } from '../terrainEffects/terrainClearing';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
 
@@ -208,6 +209,19 @@ export class Projectile extends GameObject {
     expireData?: Record<string, unknown>;
 
     /**
+     * After each damaging hit before the last, steer toward the nearest other enemy within this
+     * range of the unit just hit. If none is in range, the projectile expires on that unit.
+     * The last hit also expires there. Serialized.
+     */
+    bounceRange?: number;
+    /** Bullet-trail thickness at the back of the flight. Omitted trails use {@link DEFAULT_BULLET_TRAIL_RADIUS}. */
+    trailRadius?: number;
+    /** When true, the trail narrows to a point at the projectile. Serialized. */
+    trailTaper?: boolean;
+    /** Bullet-trail colour. Omitted trails stay gray. Serialized. */
+    trailColor?: number;
+
+    /**
      * When true, does not collide with units; travels until max distance then expires
      * (e.g. seed pods that only spawn on landing).
      */
@@ -307,6 +321,14 @@ export class Projectile extends GameObject {
         clearsTerrainEffects?: ProjectileTerrainClear;
         /** Plain data for `onProjectileExpired`. See `expireData`. */
         expireData?: Record<string, unknown>;
+        /** See {@link Projectile.bounceRange}. */
+        bounceRange?: number;
+        /** See {@link Projectile.trailRadius}. */
+        trailRadius?: number;
+        /** See {@link Projectile.trailTaper}. */
+        trailTaper?: boolean;
+        /** See {@link Projectile.trailColor}. */
+        trailColor?: number;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -336,6 +358,10 @@ export class Projectile extends GameObject {
         this.frameStartX = config.x;
         this.frameStartY = config.y;
         if (config.expireData) this.expireData = { ...config.expireData };
+        if (config.bounceRange != null) this.bounceRange = config.bounceRange;
+        if (config.trailRadius != null) this.trailRadius = config.trailRadius;
+        if (config.trailTaper) this.trailTaper = true;
+        if (config.trailColor != null) this.trailColor = config.trailColor;
     }
 
     /** True while the launching cast still holds this projectile (before release). */
@@ -507,13 +533,22 @@ export class Projectile extends GameObject {
                 const dx = this.x - prevX;
                 const dy = this.y - prevY;
                 if (dx !== 0 || dy !== 0) {
+                    const progress = this.maxDistance > 0
+                        ? Math.min(1, this.distanceTraveled / this.maxDistance)
+                        : 0;
+                    const baseRadius = this.trailRadius ?? DEFAULT_BULLET_TRAIL_RADIUS;
                     const trail = new Effect({
                         x: prevX,
                         y: prevY,
                         duration: 0.2,
                         effectType: 'BulletTrail',
-                        effectRadius: 3,
-                        effectData: { dx, dy },
+                        effectRadius: bulletTrailSpawnRadius(baseRadius, progress, this.trailTaper === true),
+                        effectData: {
+                            dx,
+                            dy,
+                            ...(this.trailTaper ? { lockWidth: true } : {}),
+                            ...(this.trailColor != null ? { color: this.trailColor } : {}),
+                        },
                     });
                     eng.addEffect(trail);
                 }
@@ -708,7 +743,8 @@ export class Projectile extends GameObject {
         if (candidates.length === 0) return null;
         candidates.sort((a, b) => a.dist - b.dist);
 
-        const toHit = candidates.slice(0, Math.max(0, hitsRemaining));
+        const bouncing = (this.bounceRange ?? 0) > 0;
+        const toHit = candidates.slice(0, Math.max(0, bouncing ? Math.min(1, hitsRemaining) : hitsRemaining));
         let lastHit: Unit | null = null;
 
         // Overflow targets: knocked back but not damaged (overflow `knockbackOnly`).
@@ -787,6 +823,11 @@ export class Projectile extends GameObject {
             lastHit = unit;
         }
 
+        if (bouncing && lastHit) {
+            this.resolveBounce(units, lastHit, engine, maxHits);
+            return lastHit;
+        }
+
         // Deactivate when all damaging hits are spent — unless the overflow policy keeps the
         // projectile flying, in which case it stops colliding but its expire effect/visual
         // still waits for the real end of flight (maxDistance, handled in update()).
@@ -796,6 +837,50 @@ export class Projectile extends GameObject {
         }
 
         return lastHit;
+    }
+
+    /**
+     * Steer toward the next enemy, or expire on the unit just hit when this is the last hit
+     * or no other enemy is in {@link Projectile.bounceRange}.
+     */
+    private resolveBounce(units: Unit[], lastHit: Unit, engine: unknown, maxHits: number): void {
+        if (this.hitUnitIds.size >= maxHits) {
+            this.expireOnUnit(lastHit, engine);
+            return;
+        }
+        const range = this.bounceRange ?? 0;
+        let nearest: Unit | null = null;
+        let nearestDist = range;
+        for (const unit of units) {
+            if (!unit.isAlive() || unit.isUntargetable()) continue;
+            if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
+            if (this.hitUnitIds.has(unit.id)) continue;
+            const dist = Math.hypot(unit.x - lastHit.x, unit.y - lastHit.y);
+            if (dist > range) continue;
+            if (nearest == null || dist < nearestDist) {
+                nearest = unit;
+                nearestDist = dist;
+            }
+        }
+        if (!nearest) {
+            this.expireOnUnit(lastHit, engine);
+            return;
+        }
+        const dx = nearest.x - this.x;
+        const dy = nearest.y - this.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const speed = Math.hypot(this.velocityX, this.velocityY) || 1;
+        this.velocityX = (dx / len) * speed;
+        this.velocityY = (dy / len) * speed;
+        this.maxDistance = this.distanceTraveled + range;
+    }
+
+    /** Stop on `unit` and run the expire hook so the launcher can drop a token there. */
+    private expireOnUnit(unit: Unit, engine: unknown): void {
+        this.x = unit.x;
+        this.y = unit.y;
+        if (engine) this.triggerExpireEffect(engine, unit.id);
+        this.active = false;
     }
 
     /**
@@ -882,6 +967,10 @@ export class Projectile extends GameObject {
             ...(this.arcHeight !== undefined ? { arcHeight: this.arcHeight } : {}),
             ...(this.rotationSpeed !== undefined ? { rotationSpeed: this.rotationSpeed, rotation: this.rotation } : {}),
             ...(this.expireData ? { expireData: { ...this.expireData } } : {}),
+            ...(this.bounceRange != null ? { bounceRange: this.bounceRange } : {}),
+            ...(this.trailRadius != null ? { trailRadius: this.trailRadius } : {}),
+            ...(this.trailTaper ? { trailTaper: true } : {}),
+            ...(this.trailColor != null ? { trailColor: this.trailColor } : {}),
         };
     }
 
@@ -935,6 +1024,10 @@ export class Projectile extends GameObject {
         if (data.expireData && typeof data.expireData === 'object') {
             proj.expireData = { ...(data.expireData as Record<string, unknown>) };
         }
+        if (typeof data.bounceRange === 'number') proj.bounceRange = data.bounceRange;
+        if (typeof data.trailRadius === 'number') proj.trailRadius = data.trailRadius;
+        if (data.trailTaper === true) proj.trailTaper = true;
+        if (typeof data.trailColor === 'number') proj.trailColor = data.trailColor;
         return proj;
     }
 

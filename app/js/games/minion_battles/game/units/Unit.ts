@@ -17,6 +17,7 @@ import type { AbilityNote } from '../AbilityNote';
 import type { Resource } from '../../resources/Resource';
 import type { DamageApplyOptions, EventBus } from '../EventBus';
 import { refundAbilityCost, spendAbilityCost, type AbilityStatic } from '../../abilities/Ability';
+import type { ActorAnimationState } from '../animation/actorAnimation';
 import {
     addRecoveryChargeToUnitAbilities,
     canUseAbilityNow,
@@ -156,6 +157,11 @@ export class Unit extends GameObject {
 
     /** Note set by the currently executing ability (e.g. stored target position). Cleared when ability ends or is overwritten. */
     abilityNote: AbilityNote | null = null;
+    /**
+     * Clip an ability asked this unit to play, and when it started.
+     * Renderers that do not recognize the clip leave the unit's picture unchanged.
+     */
+    animation: ActorAnimationState | null = null;
 
     /**
      * Explicit radius override (spawn config / scenarios). Undefined for nearly all units,

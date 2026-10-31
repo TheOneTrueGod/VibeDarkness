@@ -9,6 +9,8 @@ import {
     questLobbyFieldsFromRun,
     questLobbyNamePrefix,
     requiredPlayersFromPartyRoster,
+    requiredPlayersForQuestLobby,
+    questLobbyCapacity,
     seekQuestRunToSlot,
     startQuestRun,
     advanceQuestRunPastClearedMissions,
@@ -130,11 +132,11 @@ export function useMissionStart({
     );
 
     /**
-     * Start a mission from the Mission Map — required player (character owner) must be present.
-     * The clicker becomes host; the character owner's slot is pre-locked.
+     * Start a mission from the Mission Map. The clicker becomes host.
+     * Anyone can join; quest-party reservation does not apply to a standalone mission.
      */
     const handleStartMissionForCharacter = useCallback(
-        async (missionId: string, character: CampaignCharacter, ownerAccount: AccountState) => {
+        async (missionId: string, _character: CampaignCharacter, _ownerAccount: AccountState) => {
             if (!user?.id) return;
             setCurrentCampaignId(resolveCampaignInstanceId(null, user.campaignIds));
             const missionDef = MISSION_MAP[missionId];
@@ -157,9 +159,6 @@ export function useMissionStart({
                     await lobbyClient.updateGameState(lobby.id, gameId, player.id, {
                         gamePhase: 'character_select',
                         selectedMissionId: missionId,
-                        requiredPlayers: [
-                            { playerName: ownerAccount.name, characterId: character.id },
-                        ],
                     });
                 }
 
@@ -191,7 +190,8 @@ export function useMissionStart({
 
     /**
      * Start (or continue) a quest run for a character, then open a character_select
-     * lobby (Quest Prep for new/prep runs; reserved party for later slots).
+     * lobby. The opening mission is open. Later missions record the quest party
+     * and, unless ALLOW_JOIN_MID_QUEST, reserve the lobby for that party.
      */
     const handleStartQuestForCharacter = useCallback(
         async (
@@ -332,19 +332,23 @@ export function useMissionStart({
                 const missionId = lobbyStamp.selectedMissionId;
                 const missionDef = MISSION_MAP[missionId];
                 const missionName = missionDef?.name ?? missionId;
-                const fromRosterForCreate = requiredPlayersFromPartyRoster(run!.partyRoster);
-                const questMaxPlayers = Math.max(
-                    (preservedRequiredPlayers ?? fromRosterForCreate).length,
-                    1,
+                const roster = (preservedRequiredPlayers && preservedRequiredPlayers.length > 0)
+                    ? preservedRequiredPlayers
+                    : requiredPlayersFromPartyRoster(run!.partyRoster);
+                const requiredPlayers = requiredPlayersForQuestLobby({
+                    questSlotIndex: lobbyStamp.questSlotIndex,
+                    roster,
+                    fallbackOwner: { playerName: ownerAccount.name, characterId: character.id },
+                });
+                const capacity = questLobbyCapacity(
+                    lobbyStamp.questSlotIndex,
+                    requiredPlayers?.length ?? roster.length,
                 );
-                // Later slots / reserved party: private lobby sized to the roster.
-                const isReservedPartyLobby =
-                    run!.status === 'active' || questMaxPlayers > 1 || !!preservedRequiredPlayers;
                 const result = await lobbyClient.createLobby(
                     `Quest: ${questDef.title} — ${missionName}`,
                     user.id,
-                    questMaxPlayers,
-                    !isReservedPartyLobby,
+                    capacity.maxPlayers,
+                    capacity.isPublic,
                 );
                 const lobby = result.lobby as LobbyState;
                 const player = result.player as PlayerState;
@@ -355,14 +359,6 @@ export function useMissionStart({
                 const payload = gameState as unknown as GameStatePayload;
                 const gameId = payload.gameId ?? null;
                 if (gameId) {
-                    const fromRoster = requiredPlayersFromPartyRoster(run!.partyRoster);
-                    const requiredPlayers =
-                        (preservedRequiredPlayers && preservedRequiredPlayers.length > 0
-                            ? preservedRequiredPlayers
-                            : null)
-                        ?? (fromRoster.length > 0
-                            ? fromRoster
-                            : [{ playerName: ownerAccount.name, characterId: character.id }]);
                     await lobbyClient.updateGameState(lobby.id, gameId, player.id, {
                         gamePhase: 'character_select',
                         selectedMissionId: missionId,
@@ -374,7 +370,7 @@ export function useMissionStart({
                             ? { questResolvedSlots: lobbyStamp.questResolvedSlots }
                             : {}),
                         questPrepLoadoutsByPlayer: {},
-                        requiredPlayers,
+                        ...(requiredPlayers ? { requiredPlayers } : {}),
                     });
                 }
 

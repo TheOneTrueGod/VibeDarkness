@@ -1,9 +1,15 @@
 import type { Container } from 'pixi.js';
 import type { Projectile } from '../Projectile';
+import type { Unit } from '../../units/Unit';
 
 export interface IProjectileDef {
     createVisual(proj: Projectile): Container;
-    updateVisual(visual: Container, proj: Projectile, gameTime: number): void;
+    updateVisual(
+        visual: Container,
+        proj: Projectile,
+        gameTime: number,
+        getUnit?: (unitId: string) => Unit | undefined,
+    ): void;
 }
 
 export type SpriteFramesDef =

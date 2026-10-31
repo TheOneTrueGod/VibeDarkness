@@ -33,6 +33,7 @@ import { CharacterSelectAdminTabsCorner } from './characterSelect/CharacterSelec
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
 import HeaderSlotLobbyInfo from '../../../../components/battleUILayout/HeaderSlotLobbyInfo';
 import { useDebugConsole } from '../../../../contexts/DebugConsoleContext';
+import { useToast } from '../../../../contexts/ToastContext';
 import { PrepOverview } from './characterSelect/prep/PrepOverview';
 import { PrepAbilitySlotBar } from './characterSelect/prep/PrepAbilitySlotBar';
 import { PrepLoadoutProvider, usePrepLoadoutContext } from './characterSelect/prep/PrepLoadoutContext';
@@ -174,6 +175,7 @@ export default function CharacterSelectPhase({
     centerOverlay,
 }: CharacterSelectPhaseProps) {
     const { isAdmin, role } = useCurrentUser();
+    const { showToast } = useToast();
     const { user } = useUserData();
     const { debugConsoleEnabled } = useDebugConsole();
     const campaignId = campaignIdProp || (missionDef?.campaignId ?? missionId);
@@ -235,6 +237,7 @@ export default function CharacterSelectPhase({
         isHost,
         preMissionStory,
         missionDef,
+        onActionError: (message) => showToast(message, 'error'),
         onBeforeReady: inQuestPrep && questLobbyFields && characterToEdit
             ? async () => {
                 const primaries = localPrimariesRef.current;

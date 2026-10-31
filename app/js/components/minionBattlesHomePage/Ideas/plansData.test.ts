@@ -56,6 +56,24 @@ describe('decision cards', () => {
     });
 });
 
+describe('palette cards', () => {
+    it('reads the name, the two colours, and the note, and stops at the first plain line', () => {
+        const blocks = parsePlanMarkdown(
+            '> [!PALETTE] Quench\n> primary: #4f6d8c Blue-steel\n> secondary: #e7e5e4 Bone edge\n>\n> Hot metal, then water.\nAfter',
+        );
+        expect(blocks).toEqual([
+            {
+                type: 'palette',
+                name: 'Quench',
+                primary: { hex: '#4f6d8c', label: 'Blue-steel' },
+                secondary: { hex: '#e7e5e4', label: 'Bone edge' },
+                blocks: [{ type: 'paragraph', text: 'Hot metal, then water.' }],
+            },
+            { type: 'paragraph', text: 'After' },
+        ]);
+    });
+});
+
 describe('plan items', () => {
     it('strips a leading [x] from headings and marks them done', () => {
         expect(parsePlanMarkdown('### [x] P0.2 Done thing\n### P0.3 Open thing')).toEqual([
@@ -159,5 +177,17 @@ describe('buildPlans', () => {
 
     it('loads the docs/ideas/plans folder', () => {
         expect(PLANS.map((p) => p.title)).toContain('Chapter 3 Preparations');
+    });
+
+    it('loads the armory colour themes as five palette cards', () => {
+        const plan = PLANS.find((p) => p.id === '0002');
+        expect(plan?.title).toBe('Armory Core colour themes');
+        const group = plan?.sections.find((s) => s.kind === 'group' && s.title.startsWith('P0'));
+        expect(group?.kind).toBe('group');
+        if (group?.kind !== 'group') return;
+        const names = group.children.flatMap((child) =>
+            child.kind === 'block' && child.block.type === 'palette' ? [child.block.name] : [],
+        );
+        expect(names).toEqual(['Shipped steel', 'Quench', 'Spark', 'Brass', 'Left behind']);
     });
 });

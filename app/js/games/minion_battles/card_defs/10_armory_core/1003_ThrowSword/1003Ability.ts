@@ -3,25 +3,23 @@
  * The stowed weapon returns when the blade leaves. The thrown sword becomes a ground token
  * where it stops. That token exists immediately; its resting picture stays hidden until the toss finishes.
  * Single use. Does not cost Charge.
+ * The card picture is the tipped blade. Flight and the token use the upright Charge Sword.
  */
 
 import { defineAbility } from '../../../abilities/defineAbility';
-import swordItemIconSvg from '../../../character_defs/items/assets/013_sword.svg?raw';
+import chargeSwordThrowSvg from '../chargeSwordThrow.svg?raw';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { nullHitbox } from '../../../hitboxes';
 import { drawClampedLine } from '../../../abilities/previewHelpers';
-import { Projectile } from '../../../game/projectiles/Projectile';
+import type { Projectile } from '../../../game/projectiles/Projectile';
 import type { SpriteProjectileConfig } from '../../../game/projectiles/projectile_defs/types';
-import type { ResolvedTarget } from '../../../game/types';
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
-import { THROW_PROJECTILE_SPEED, THROW_RANGE } from '../../throwSharedTimings';
-import type { Unit } from '../../../game/units/Unit';
-import { releaseHeldConjuredWeapon, type ConjureHost } from '../../../game/conjuredWeapons/runtime';
+import { THROW_RANGE } from '../../throwSharedTimings';
 import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
-import swordProjectileUrl from '../../../character_defs/items/assets/013_sword.svg';
+import swordProjectileUrl from '../chargeSword.svg';
 import {
     DROPPED_WEAPON_KIND_SWORD,
     THROW_SWORD_ABILITY_ID,
@@ -30,10 +28,12 @@ import {
     THROW_SWORD_COOLDOWN_END,
     THROW_SWORD_DAMAGE,
     THROW_SWORD_WINDUP_END,
+    THROWN_WEAPON_SPIN_DEGREES_PER_SECOND,
+    THROWN_WEAPON_SPEED,
 } from '../armoryConstants';
+import { launchThrownWeapon, leaveThrownWeapon } from '../thrownWeapon';
 import '../armoryWeapons';
 
-const SWORD_SPIN_DEGREES_PER_SECOND = 720;
 
 const THROW_SWORD_SPRITE: SpriteProjectileConfig = {
     sprite: {
@@ -42,7 +42,7 @@ const THROW_SWORD_SPRITE: SpriteProjectileConfig = {
         frameFiles: [swordProjectileUrl],
     },
     loop: true,
-    animations: [{ type: 'rotation', mode: 'constant', degreesPerSecond: SWORD_SPIN_DEGREES_PER_SECOND }],
+    animations: [{ type: 'rotation', mode: 'constant', degreesPerSecond: THROWN_WEAPON_SPIN_DEGREES_PER_SECOND }],
 };
 
 const TOOLTIP_LINES = [
@@ -85,63 +85,20 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
 ];
 
 export function launchThrownSword(ctx: CastBehaviourTickContext): void {
-    if (!ctx.caster.heldConjuredWeapon) return;
-    const aim = aimPoint(ctx);
-    const dx = aim.x - ctx.caster.x;
-    const dy = aim.y - ctx.caster.y;
-    const len = Math.hypot(dx, dy) || 1;
-    ctx.engine.addProjectile(new Projectile({
-        x: ctx.caster.x,
-        y: ctx.caster.y,
-        velocityX: (dx / len) * THROW_PROJECTILE_SPEED,
-        velocityY: (dy / len) * THROW_PROJECTILE_SPEED,
-        damage: THROW_SWORD_DAMAGE,
-        sourceTeamId: ctx.caster.teamId,
-        sourceUnitId: ctx.caster.id,
-        sourceAbilityId: THROW_SWORD_ABILITY_ID,
-        maxDistance: THROW_RANGE,
-        projectileType: 'sprite_projectile',
-        spriteConfig: THROW_SWORD_SPRITE,
-    }));
-    releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: false });
-}
-
-function leaveThrownSword(engine: unknown, caster: Unit, projectile: Projectile): void {
-    const host = engine as ConjureHost;
-    host.state?.fieldObjects?.spawnDroppedWeapon(host, {
-        originX: projectile.x,
-        originY: projectile.y,
-        directionRad: Math.atan2(projectile.velocityY, projectile.velocityX),
-        kind: DROPPED_WEAPON_KIND_SWORD,
-        ownerUnitId: caster.id,
-        teamId: caster.teamId,
+    launchThrownWeapon(ctx, {
         abilityId: THROW_SWORD_ABILITY_ID,
+        speed: THROWN_WEAPON_SPEED,
+        aimLabel: THROW_SWORD_AIM_LABEL,
+        damage: THROW_SWORD_DAMAGE,
+        spriteConfig: THROW_SWORD_SPRITE,
     });
-}
-
-function aimPoint(ctx: CastBehaviourTickContext): { x: number; y: number } {
-    const active = ctx.caster.activeAbilities.find((entry) => entry.abilityId === ctx.abilityId);
-    const labeled = active?.targetsByLabel?.[THROW_SWORD_AIM_LABEL];
-    const fromLabel = pointOf(labeled);
-    if (fromLabel) return fromLabel;
-    for (const target of ctx.allTargets) {
-        const point = pointOf(target);
-        if (point) return point;
-    }
-    return { x: ctx.caster.x + THROW_RANGE, y: ctx.caster.y };
-}
-
-function pointOf(target: ResolvedTarget | undefined): { x: number; y: number } | null {
-    if (!target) return null;
-    if (target.position) return target.position;
-    return null;
 }
 
 export const ThrowSwordAbility = defineAbility({
     id: THROW_SWORD_ABILITY_ID,
     tags: [],
     name: 'Throw Sword',
-    image: swordItemIconSvg,
+    image: chargeSwordThrowSvg,
     resourceCost: null,
     resourceCosts: [],
     rechargeTurns: 1,
@@ -152,7 +109,7 @@ export const ThrowSwordAbility = defineAbility({
     abilityTimings: ABILITY_TIMINGS,
     aiSettings: { minRange: 0, maxRange: THROW_RANGE },
     onProjectileExpired(engine, caster, projectile): void {
-        leaveThrownSword(engine, caster, projectile as Projectile);
+        leaveThrownWeapon(engine, caster, projectile as Projectile, DROPPED_WEAPON_KIND_SWORD, THROW_SWORD_ABILITY_ID);
     },
     renderTargetingPreviewSelectedTargets(gr, caster, _currentTargets, mouseWorld): void {
         drawClampedLine(gr, caster, mouseWorld, THROW_RANGE);

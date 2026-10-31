@@ -22,6 +22,7 @@ import {
 } from '../../../../researchTrees/evaluator';
 import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
 import { getInactiveResearchNodeIds } from '../../../../researchTrees/activeResearch';
+import { researchChromeSurfaceStyle } from '../../../../researchTrees/researchTreeChrome';
 import { computeResearchTreeNodePositions } from '../../../../researchTrees/researchTreeLayout';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
 import {
@@ -263,7 +264,7 @@ export function ResearchTreeList({
 	const activeTreeId = showAllOption ? selectedTreeId : (selectedTreeId ?? firstTreeId);
 
 	return (
-		<div className="flex flex-col gap-1 overflow-y-auto">
+		<div data-className="ResearchTreeList" className="flex flex-col gap-1 overflow-y-auto">
 			{showAllOption && (
 				<button
 					type="button"
@@ -289,8 +290,8 @@ export function ResearchTreeList({
 						<button
 							type="button"
 							onClick={() => onSelectTree(t.id)}
-							style={{ borderColor: t.colour }}
-							className={`min-w-0 flex-1 rounded-lg border-2 px-3 py-2 text-left text-sm font-medium transition-colors ${dimmed ? 'opacity-80 ' : ''
+							style={researchChromeSurfaceStyle(t, isSelected)}
+							className={`min-w-0 flex-1 rounded-lg border-2 px-3 py-2 text-left text-sm font-medium transition-colors ${dimmed ? 'opacity-80 ' : ''}${t.secondaryColour ? 'hover:brightness-95 ' : ''
 								}${isSelected
 									? 'bg-surface-light text-white'
 									: hasPurchases

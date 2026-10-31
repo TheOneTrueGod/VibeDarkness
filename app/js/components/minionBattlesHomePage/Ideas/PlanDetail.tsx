@@ -11,6 +11,7 @@ import {
     type PlanSection,
     planItems,
 } from './plansData';
+import PalettePreview from './PalettePreview';
 import PlanFilterBar from './PlanFilterBar';
 import PlanSizeChip from './PlanSizeChip';
 
@@ -80,6 +81,14 @@ function Block({ block }: { block: PlanBlock }) {
             return <hr className="border-border-custom my-2" />;
         case 'decision':
             return <DecisionCard question={block.question} blocks={block.blocks} />;
+        case 'palette':
+            return (
+                <PalettePreview name={block.name} primary={block.primary} secondary={block.secondary}>
+                    {block.blocks.map((child, i) => (
+                        <Block key={i} block={child} />
+                    ))}
+                </PalettePreview>
+            );
     }
 }
 
