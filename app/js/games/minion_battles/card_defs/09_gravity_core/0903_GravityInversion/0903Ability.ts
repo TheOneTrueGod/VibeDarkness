@@ -61,9 +61,9 @@ const MAX_USES = 2;
 const HOWL_SHOCKWAVE_EFFECT_TYPE = 'HowlShockwave';
 
 const TOOLTIP_LINES = [
-    'Lift up to {{MAX_TARGETS}} enemies in a small area for {{LIFT_DURATION}}s, then slam for {{DAMAGE}} damage.',
-    'Push drops straight down; Pull slams in front of you.',
-    'Slam knocks back nearby units.',
+    'Lift up to {{MAX_TARGETS}} enemies in a small area for {{LIFT_DURATION}}s, then slam them for {{DAMAGE}} damage.',
+    'Push drops them where they are; Pull slams them in front of you.',
+    'The slam knocks back nearby units.',
     '{knockback 1}',
 ] as const;
 
@@ -246,6 +246,7 @@ function applyGravityInversion(
 export const GravityInversionAbility = defineAbility({
     id: CARD_ID,
     name: 'Lift',
+    flavorText: "You loosen the ground's grip on them, then hand it back twice as hard.",
     image: GRAVITY_INVERSION_IMAGE,
     resourceCost: { resourceId: 'gravity', amount: GRAVITY_INVERSION_GRAVITY_COST },
     rechargeTurns: 1,

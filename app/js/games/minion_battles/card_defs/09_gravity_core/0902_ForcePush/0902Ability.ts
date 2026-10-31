@@ -94,9 +94,9 @@ const COOLDOWN_END = RELEASE_END + FORCE_PUSH_COOLDOWN_DURATION;
 const PUNCH_IMPACT_AT = 0.35;
 
 const TOOLTIP_LINES = [
-    'Lift an enemy, then fling them. They stay just off the ground until they land or hit a wall.',
-    'Enemies they hit take {{ENEMY_DAMAGE}} damage. They take {{FLUNG_DAMAGE}} each time they hit someone.',
-    'A wall deals {{WALL_DAMAGE}} to them, stuns them, and bounces them off it. Allies ricochet them.',
+    'Lift an enemy and fling it until it lands or hits something.',
+    'Deal {{ENEMY_DAMAGE}} damage to each enemy it hits. It takes {{FLUNG_DAMAGE}} each time.',
+    'A wall deals {{WALL_DAMAGE}} damage, stuns it, and bounces it. Allies bounce it too.',
     `{knockback ${FORCE_PUSH_KNOCKBACK_TIER}}`,
 ] as const;
 
@@ -474,6 +474,7 @@ function aimTip(
 export const ForcePushAbility = defineAbility({
     id: CARD_ID,
     name: 'Force Push',
+    flavorText: 'You take hold of the pull on them, and let go all at once.',
     image: FORCE_PUSH_IMAGE,
     resourceCost: { resourceId: 'gravity', amount: FORCE_PUSH_GRAVITY_COST },
     rechargeTurns: 1,

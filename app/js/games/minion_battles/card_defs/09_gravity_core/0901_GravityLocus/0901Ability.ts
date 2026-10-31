@@ -90,6 +90,7 @@ function deployLocusField(ctx: CastBehaviourTickContext): void {
 export const GravityLocusAbility = defineAbility({
     id: CARD_ID,
     name: 'Gravity Locus',
+    flavorText: 'You tie the pull to one spot on the ground and let it work.',
     image: GRAVITY_LOCUS_IMAGE,
     resourceCost: { resourceId: 'gravity', amount: GRAVITY_LOCUS_GRAVITY_COST },
     rechargeTurns: 1,
@@ -148,13 +149,12 @@ export const GravityLocusAbility = defineAbility({
         const mod = getAbilityModifier(gameState, undefined, CARD_ID);
         const duration = GRAVITY_LOCUS_FIELD_DURATION * (mod.durationMult ?? 1);
         const lines = [
-            `Deploy a gravity field for ${duration}s, nudging enemies within {${GRAVITY_LOCUS_FIELD_RADIUS}} each pulse.`,
-            `Deals {${GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE}} damage across its duration to enemies inside.`,
-            'Pull draws inward; Push repels from the locus.',
+            `Create a field for ${duration}s that nudges enemies within {${GRAVITY_LOCUS_FIELD_RADIUS}} and deals {${GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE}} damage over its duration.`,
+            'Pull draws enemies in; Push drives them out.',
         ];
         if (mod.addTags?.includes('GravityRepulse')) {
             lines.push(
-                `Repulse: the field widens into a growing ring, then detonates on expiry — {${mod.explosionDamageFlat ?? 0}} damage and a knockback to enemies still caught inside.`,
+                `Repulse: the field grows into a ring, then bursts for {${mod.explosionDamageFlat ?? 0}} damage and knocks back enemies inside.`,
             );
         }
         return lines;

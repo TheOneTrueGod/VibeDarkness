@@ -15,6 +15,7 @@ import {
     GRAVITY_SHIELD_METAL_COST,
     gravityTree,
 } from './trees/gravity';
+import { GRAVITY_CORE_MISSION_START_AMOUNT } from '../games/minion_battles/card_defs/09_gravity_core/gravityConstants';
 
 describe('Gravity Shield research', () => {
     it('is a tier-13 node that unlocks Gravity Shield after Gravity Core', () => {
@@ -31,19 +32,15 @@ describe('Gravity Shield research', () => {
 });
 
 describe('Gravity research copy and costs', () => {
-    it('shortens Gravity Core by dropping aimed Force Push', () => {
+    it('describes Gravity Core without aimed Force Push, and states the starting Gravity', () => {
         const node = gravityTree.nodes.find((n) => n.id === GRAVITY_NODE_CORE);
-        expect(node?.description).toBe(
-            'Channel proximity to danger into gravitational force. Learn to fling enemies with Force Push.',
-        );
         expect(node?.description.includes('aimed')).toBe(false);
+        expect(node?.description).toContain(`{${GRAVITY_CORE_MISSION_START_AMOUNT}} Gravity`);
     });
 
     it('describes Gravity Locus as a slow push or pull in the field', () => {
         const node = gravityTree.nodes.find((n) => n.id === GRAVITY_NODE_GRAVITY_LOCUS);
-        expect(node?.description).toBe(
-            'Deploy a sustained gravity field at a point. Slowly pushes or pulls enemies in the gravity field.',
-        );
+        expect(node?.description).toMatch(/drawing enemies in or driving them away/);
         expect(node?.cost).toEqual({
             attunement: GRAVITY_LOCUS_ATTUNEMENT_COST,
             vigor: GRAVITY_LOCUS_VIGOR_COST,

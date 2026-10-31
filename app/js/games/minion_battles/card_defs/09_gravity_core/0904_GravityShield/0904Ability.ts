@@ -70,6 +70,7 @@ function spawnGravityShieldImpact(engine: EngineContext, position: { x: number; 
 export const GravityShieldAbility = defineAbility({
     id: CARD_ID,
     name: 'Gravity Shield',
+    flavorText: 'You pull the air tight around them, heavy enough to turn a blade.',
     image: GRAVITY_SHIELD_IMAGE,
     resourceCost: { resourceId: 'gravity', amount: GRAVITY_SHIELD_GRAVITY_COST },
     rechargeTurns: 1,
@@ -140,9 +141,7 @@ export const GravityShieldAbility = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            'Wrap an ally in compressed gravity.',
-            `Grants a {${DescriptiveValue.Large}} shield absorbing {${GRAVITY_SHIELD_HP}} damage.`,
-            `The shield drains over {${GRAVITY_SHIELD_DURATION_ROUNDS}} round.`,
+            `Give an ally a {${DescriptiveValue.Large}} shield that absorbs {${GRAVITY_SHIELD_HP}} damage and drains over {${GRAVITY_SHIELD_DURATION_ROUNDS}} round.`,
         ];
     },
 });

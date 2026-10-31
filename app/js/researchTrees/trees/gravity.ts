@@ -1,17 +1,13 @@
 import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_ICON_GRAVITY } from '../researchTreeChrome';
-import { DescriptiveValue } from '../descriptiveValue';
 
 import {
-    COLLAPSE_MAX_TARGETS,
     GRAVITY_CORE_MISSION_START_AMOUNT,
     GRAVITY_LOCUS_ABILITY_ID,
     GRAVITY_LOCUS_REPULSE_DURATION_MULT,
     GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE,
     GRAVITY_LOCUS_REPULSE_KNOCKBACK_TIER,
-    GRAVITY_SHIELD_DURATION_ROUNDS,
-    GRAVITY_SHIELD_HP,
 } from '../../games/minion_battles/card_defs/09_gravity_core/gravityConstants';
 
 export const GRAVITY_TREE_ID = 'gravity_core';
@@ -63,8 +59,8 @@ export const gravityTree: ResearchTreeDef = {
             id: GRAVITY_NODE_CORE,
             title: 'Gravity Core',
             description:
-                'Channel proximity to danger into gravitational force. Learn to fling enemies with Force Push.',
-            flavorText: 'The void does not pull — you decide which way things fall.',
+                `You learn to feel the pull between things, and to grip it. Danger passing close strengthens your grip. Start each mission with {${GRAVITY_CORE_MISSION_START_AMOUNT}} Gravity.`,
+            flavorText: 'Everything leans on everything else. You learn to lean back.',
             order: 5,
             tier: 10,
             position: { x: 180, y: 290 },
@@ -92,8 +88,8 @@ export const gravityTree: ResearchTreeDef = {
             id: GRAVITY_NODE_GRAVITY_LOCUS,
             title: 'Gravity Locus',
             description:
-                'Deploy a sustained gravity field at a point. Slowly pushes or pulls enemies in the gravity field.',
-            flavorText: 'Bend the battlefield — one pulse at a time.',
+                'You learn to fix the pull to one spot, drawing enemies in or driving them away.',
+            flavorText: 'You tie a knot in the pull, and the ground bends around it.',
             order: 10,
             tier: 2,
             position: { x: 420, y: 290 },
@@ -116,7 +112,7 @@ export const gravityTree: ResearchTreeDef = {
             id: GRAVITY_NODE_REPULSE,
             title: 'Repulse',
             description:
-                `Gravity Locus's field lasts a {${DescriptiveValue.Huge}} amount less time, but widens into a growing ring and detonates when it ends — dealing {${GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE}} damage and knocking back every enemy still caught inside.`,
+                "You learn to let Gravity Locus's pull snap outward when it ends, throwing enemies clear. The field lasts a shorter time.",
             flavorText: 'What was pulled together does not stay together.',
             order: 11,
             tier: 3,
@@ -146,7 +142,7 @@ export const gravityTree: ResearchTreeDef = {
         {
             id: GRAVITY_NODE_GRAVITY_INVERSION,
             title: 'Lift',
-            description: 'Suspend enemies in the air, then slam them down. Pull mode drags them to your feet.',
+            description: "You learn to loosen the ground's hold on enemies, then slam them back down.",
             flavorText: 'For a moment, the ground forgets them.',
             order: 12,
             tier: 2,
@@ -169,8 +165,8 @@ export const gravityTree: ResearchTreeDef = {
             id: GRAVITY_NODE_GRAVITY_SHIELD,
             title: 'Gravity Shield',
             description:
-                `Grant an ally a {${DescriptiveValue.Large}} shield of {${GRAVITY_SHIELD_HP}} armour that drains over {${GRAVITY_SHIELD_DURATION_ROUNDS}} round.`,
-            flavorText: 'The space around them thickens until the next blow has to fight the crush.',
+                'You learn to wrap an ally in a heavy pull that shields them.',
+            flavorText: 'The air around them thickens until a blow has to push through the weight.',
             order: 14,
             tier: 13,
             position: { x: 420, y: 160 },
@@ -191,7 +187,7 @@ export const gravityTree: ResearchTreeDef = {
         {
             id: GRAVITY_NODE_EASE_BURDENS,
             title: 'Ease Burdens',
-            description: 'Target ally moves and acts twice as fast for 3 seconds, while the rest of the world slows to match.',
+            description: 'You learn to lift the weight from an ally, so they move faster than the world around them.',
             flavorText: 'Lift the weight from one pair of shoulders and the whole world feels heavier.',
             order: 15,
             tier: 13,
@@ -214,8 +210,8 @@ export const gravityTree: ResearchTreeDef = {
             id: GRAVITY_NODE_COLLAPSE,
             title: 'Collapse',
             description:
-                `Crush a cone of space inward. Pulls up to {${COLLAPSE_MAX_TARGETS}} enemies nearest your cursor into a tight arc in front of you, dealing damage and leaving them briefly staggered. Combos to melee: if it pulls an enemy, cancel into a melee attack as they land; otherwise recover slowly.`,
-            flavorText: 'Everything leans toward you — and then it lands.',
+                'You learn to haul a group of enemies in front of you, ready for your next strike.',
+            flavorText: 'Everything leans toward you, and then it lands.',
             order: 13,
             tier: 2,
             position: { x: 420, y: 420 },

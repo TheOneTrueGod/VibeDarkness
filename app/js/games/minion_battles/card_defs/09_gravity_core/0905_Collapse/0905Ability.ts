@@ -79,9 +79,9 @@ const COMBO_POINT = RELEASE_END + COLLAPSE_COOLDOWN_DURATION;
 const CAST_END = COMBO_POINT + COLLAPSE_COMBO_COOLDOWN;
 
 const TOOLTIP_LINES = [
-    'Crush a cone inward, pulling up to {{MAX_TARGETS}} enemies nearest your cursor into an arc in front of you.',
-    'Deals {{DAMAGE}} damage and briefly staggers them.',
-    'Combos to melee: if it pulls an enemy, you can cancel into a melee attack as the enemies land. Otherwise, recover slowly.',
+    'Pull up to {{MAX_TARGETS}} enemies nearest your cursor into an arc in front of you.',
+    'Deal {{DAMAGE}} damage and briefly stagger them.',
+    'Combos to melee: if it pulls an enemy, cancel into a melee attack as they land. Otherwise, recover slowly.',
     '{knockback 3}',
 ] as const;
 
@@ -271,6 +271,7 @@ function releaseCollapse(engine: EngineContext, caster: Unit, aim: { x: number; 
 export const CollapseAbility = defineAbility({
     id: CARD_ID,
     name: 'Collapse',
+    flavorText: 'You haul on everything in front of you at once.',
     image: COLLAPSE_IMAGE,
     resourceCost: { resourceId: 'gravity', amount: COLLAPSE_GRAVITY_COST },
     rechargeTurns: 1,

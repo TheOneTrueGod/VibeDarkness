@@ -46,6 +46,7 @@ const EASE_BURDENS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org
 export const EaseBurdensAbility = defineAbility({
     id: CARD_ID,
     name: 'Ease Burdens',
+    flavorText: 'Their feet barely touch the ground.',
     image: EASE_BURDENS_IMAGE,
     resourceCost: { resourceId: 'gravity', amount: EASE_BURDENS_GRAVITY_COST },
     rechargeTurns: 1,
@@ -115,8 +116,8 @@ export const EaseBurdensAbility = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Target ally moves and acts twice as fast for {${EASE_BURDENS_PRESET.durationSeconds}} seconds.`,
-            'Everything else slows to match, so the ally looks normal speed while the world drags.',
+            `An ally moves and acts twice as fast for {${EASE_BURDENS_PRESET.durationSeconds}} seconds.`,
+            'Everything else slows to match.',
         ];
     },
 });
