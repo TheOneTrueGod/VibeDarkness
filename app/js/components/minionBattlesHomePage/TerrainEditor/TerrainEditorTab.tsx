@@ -28,7 +28,7 @@ const TERRAIN_TOOL_HINTS: Partial<Record<EditorTool, string>> = {
 type CreateDir = 'north' | 'south' | 'east' | 'west';
 
 const PREVIEW_DEPTH = 2;
-const PREVIEW_GAP = 8;
+const PREVIEW_GAP = 4;
 
 function ChevronUp() {
     return (
@@ -263,7 +263,7 @@ export default function TerrainEditorTab() {
                 leftClassName="overflow-y-auto"
                 center={
                     state.segmentData ? (
-                        <div className="flex flex-col items-center justify-start p-3">
+                        <div className="flex flex-col items-center justify-start px-3 py-1">
                             <div style={{
                                 display: 'grid',
                                 gridTemplateColumns: `${prevPx}px ${mainWidth * S}px ${prevPx}px`,

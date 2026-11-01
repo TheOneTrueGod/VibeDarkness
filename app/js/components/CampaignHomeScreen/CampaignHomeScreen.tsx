@@ -165,9 +165,9 @@ export default function CampaignHomeScreen({
 
     return (
         <div className="h-screen flex flex-col">
-            <div className="flex-1 overflow-y-auto w-full">
-            <div className="mx-auto w-full px-5 py-2 max-md:px-5 max-md:py-5 max-w-full">
-                <div className={`mx-auto w-full ${CAMPAIGN_HOME_CARD_MAX_WIDTH_CLASS}`}>
+            <div className="flex-1 min-h-0 overflow-y-auto w-full flex flex-col">
+            <div className="flex-1 min-h-0 flex flex-col mx-auto w-full px-5 pt-2 pb-1 max-md:px-5 max-md:py-5 max-w-full">
+                <div className={`flex-1 min-h-0 flex flex-col mx-auto w-full ${CAMPAIGN_HOME_CARD_MAX_WIDTH_CLASS}`}>
                     <CampaignHomeHeader />
 
                 {!hasCampaign && bootstrappingCampaign && (

@@ -8,13 +8,13 @@ interface CampaignHomeTabFrameProps {
     maxWidthClass?: string;
 }
 
-/** Centers a full-height card and lets the caller set the card's max width. */
+/** Centers a card that fills the space down to the tab bar and lets the caller set its max width. */
 export function CampaignHomeTabFrame({
     children,
     maxWidthClass = CAMPAIGN_HOME_CARD_MAX_WIDTH_CLASS,
 }: CampaignHomeTabFrameProps) {
     return (
-        <div className="flex justify-center w-full h-[calc(100vh-140px)] min-h-[500px]">
+        <div className="flex-1 flex justify-center w-full min-h-[500px]">
             <div className={`h-full w-full ${maxWidthClass}`}>
                 {children}
             </div>
