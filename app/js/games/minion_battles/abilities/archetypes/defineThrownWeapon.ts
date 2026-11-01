@@ -8,8 +8,8 @@
  * When the projectile stops (hit, bounce end or max range), the token of `weaponId` drops where it
  * stopped. The aim preview is a line clamped to `range`, and the AI aims within `range`.
  *
- * `echo` also throws a copy from each of the caster's tokens of that type, in the same direction,
- * and destroys those tokens. Echo copies drop nothing. The aim preview draws their lines too.
+ * `echo` also throws a copy from each of the caster's tokens of that type, each aimed at the same
+ * aim point (so each flies at its own angle), and destroys those tokens. Echo copies drop nothing. The aim preview draws their lines too.
  *
  * `trail` gives the projectile a trail; its colour defaults to the ability theme's secondary.
  * The sprite config must carry its own `trail` effect for the trail to draw.
@@ -138,10 +138,10 @@ export function defineThrownWeapon(config: ThrownWeaponConfig): AbilityStatic {
         renderTargetingPreviewSelectedTargets(gr, caster, _currentTargets, mouseWorld, _units, gameState): void {
             drawClampedLine(gr, caster, mouseWorld, range);
             if (!config.echo) return;
-            const dx = mouseWorld.x - caster.x;
-            const dy = mouseWorld.y - caster.y;
+            const fallback = directionTo(caster, mouseWorld, { x: 1, y: 0 });
             for (const token of findEchoTokens(gameState, caster, config.echo)) {
-                drawClampedLine(gr, token, { x: token.x + dx, y: token.y + dy }, range);
+                const dir = directionTo(token, mouseWorld, fallback);
+                drawClampedLine(gr, token, { x: token.x + dir.x * range, y: token.y + dir.y * range }, range);
             }
         },
         getTooltipText: config.getTooltipText,
@@ -157,13 +157,12 @@ function launchThrownWeapon(
 ): void {
     if (!ctx.caster.heldConjuredWeapon) return;
     const aim = aimPoint(ctx, config.aimLabel, range);
-    const dx = aim.x - ctx.caster.x;
-    const dy = aim.y - ctx.caster.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const dir = { x: dx / len, y: dy / len };
+    const dir = directionTo(ctx.caster, aim, { x: 1, y: 0 });
     const echoTokens = config.echo ? findEchoTokens(ctx.engine, ctx.caster, config.echo) : [];
     throwWeaponCopy(ctx, config, range, trailColor, ctx.caster, dir, false);
-    for (const token of echoTokens) throwWeaponCopy(ctx, config, range, trailColor, token, dir, true);
+    for (const token of echoTokens) {
+        throwWeaponCopy(ctx, config, range, trailColor, token, directionTo(token, aim, dir), true);
+    }
     consumeEchoTokens(ctx.engine, echoTokens);
     releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: false });
 }
@@ -219,6 +218,18 @@ function leaveThrownWeapon(
         teamId: caster.teamId,
         abilityId,
     });
+}
+
+/** Unit vector from `from` toward `to`, or `fallback` when they coincide. */
+function directionTo(
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    fallback: { x: number; y: number },
+): { x: number; y: number } {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.hypot(dx, dy);
+    return len > 1e-6 ? { x: dx / len, y: dy / len } : fallback;
 }
 
 function aimPoint(ctx: CastBehaviourTickContext, aimLabel: string, range: number): { x: number; y: number } {

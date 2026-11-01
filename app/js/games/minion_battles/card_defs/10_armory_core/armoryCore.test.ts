@@ -924,7 +924,7 @@ describe('Echo', () => {
         expect(ReleaseChargeAbility_1009.getTooltipText()).toContain('{Echo: Shield}');
     });
 
-    it('Throw Sword also throws from each of your dropped swords, in the same direction, and destroys them', () => {
+    it('Throw Sword also throws from each of your dropped swords, each aimed at the cursor, and destroys them', () => {
         const { engine } = armoryBattle();
         const player = engine.units[0]!;
         executeUnitAbility(player, CreateSwordAbility, [], engine);
@@ -932,7 +932,8 @@ describe('Echo', () => {
         const token = { x: PLAYER.x, y: PLAYER.y + CELL_SIZE * 3 };
         const echoId = placeToken(engine, player, DROPPED_WEAPON_KIND_SWORD, token);
         const allyId = placeToken(engine, player, DROPPED_WEAPON_KIND_SWORD, { x: PLAYER.x, y: PLAYER.y - CELL_SIZE * 3 }, 'ally');
-        const target = placeTargetDummy(engine, { x: token.x + CELL_SIZE * 2, y: token.y }, 'echo_throw_target');
+        // Halfway from the token to the cursor: only an echo aimed at the cursor passes through it.
+        const target = placeTargetDummy(engine, { x: (token.x + AIM_POINT.x) / 2, y: (token.y + AIM_POINT.y) / 2 }, 'echo_throw_target');
 
         const preview = { lines: [] as Array<{ x0: number; y0: number }>, cursor: { x: 0, y: 0 } };
         ThrowSwordAbility.renderTargetingPreviewSelectedTargets!(
@@ -954,7 +955,12 @@ describe('Echo', () => {
 
         engine.waitingForOrders = null;
         executeUnitAbility(player, ThrowSwordAbility, [AIM], engine);
-        step(engine, THROW_SWORD_COOLDOWN_END + FIXED_DT);
+        let echoAngle: number | null = null;
+        step(engine, THROW_SWORD_COOLDOWN_END + FIXED_DT, () => {
+            const echo = engine.projectiles.find((projectile) => projectile.expireData?.echoThrow);
+            if (echo && echoAngle == null) echoAngle = Math.atan2(echo.velocityY, echo.velocityX);
+        });
+        expect(echoAngle).toBeCloseTo(Math.atan2(AIM_POINT.y - token.y, AIM_POINT.x - token.x));
         expect(tokenIds(engine)).not.toContain(echoId);
         expect(tokenIds(engine)).toContain(allyId);
         step(engine, 3);
