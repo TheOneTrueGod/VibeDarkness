@@ -16,7 +16,7 @@ export const CHARGE_MAX = 4;
 /** Granted once at mission start. Round 1 does not also recover, so the opener is this amount. */
 export const CHARGE_MISSION_START = 3;
 /** Added at the start of round 2 and each round after. */
-export const CHARGE_PER_ROUND = 3;
+export const CHARGE_PER_ROUND = 4;
 
 /** Charge is the Armory's "event" colour: the theme secondary (bone). */
 export const CHARGE_RESOURCE_COLOR = getThemeById('armory').secondary;

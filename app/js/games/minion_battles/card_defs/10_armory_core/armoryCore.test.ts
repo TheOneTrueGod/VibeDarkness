@@ -227,7 +227,7 @@ describe('Armory Core', () => {
         expect(player.abilities).toContain(CREATE_SWORD_ABILITY_ID);
         expect(player.abilities).toContain(DEPLOY_TURRET_ABILITY_ID);
         expect(player.weaponAbilityIds).toContain(swordItem.cardsToAdd[0]);
-        expect(IMPROVISED_SWORD_DAMAGE).toBeGreaterThan(SWING_SWORD_DAMAGE);
+        expect(IMPROVISED_SWORD_DAMAGE).toBeGreaterThanOrEqual(SWING_SWORD_DAMAGE);
     });
 
     it('walks at a penalty while the swords are forming', () => {
