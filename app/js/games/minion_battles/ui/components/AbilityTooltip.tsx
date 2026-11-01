@@ -96,7 +96,7 @@ export interface AbilityTooltipProps {
      * these are rendered instead of parsing `lines`.
      */
     segmentLines?: TooltipSegment[][];
-    /** When set, shows a rose-colored section explaining why the ability is disabled. */
+    /** When set, shows why the ability is disabled: a rose card left of the tooltip on desktop, a section under it on mobile. */
     disabledReason?: DisabledReason;
     /** Whether this is a mobile overlay (full-width with dismiss). */
     isMobileOverlay?: boolean;
@@ -190,14 +190,6 @@ export default function AbilityTooltip({
                 ))}
             </div>
             {flavorText && <p className="mt-3 text-xs italic text-muted">{flavorText}</p>}
-            {reasonDisplay && (
-                <div className="mt-auto">
-                    <div className="mt-2 pt-2 border-t border-rose-900">
-                        <p className="text-rose-300 font-bold text-xs">{reasonDisplay.title}</p>
-                        <p className="text-rose-200 text-xs mt-0.5">{reasonDisplay.description}</p>
-                    </div>
-                </div>
-            )}
         </>
     );
 
@@ -223,6 +215,15 @@ export default function AbilityTooltip({
             bare
             className="flex items-start gap-2"
         >
+            {reasonDisplay && (
+                // Why the ability can't be used, on the left; reminder cards sit on the right.
+                <div className="rounded-lg border border-rose-400 bg-black p-2 shadow-lg" style={{ width: KEYWORD_CARD_WIDTH }}>
+                    <h4 className="text-rose-300 font-bold text-xs mb-1">{reasonDisplay.title}</h4>
+                    <p className="text-rose-200 text-xs" style={{ lineHeight: LINE_HEIGHT }}>
+                        {reasonDisplay.description}
+                    </p>
+                </div>
+            )}
             {mainCard}
             {keywordEntries.length > 0 && (
                 <div className="flex flex-col gap-2" style={{ width: KEYWORD_CARD_WIDTH }}>

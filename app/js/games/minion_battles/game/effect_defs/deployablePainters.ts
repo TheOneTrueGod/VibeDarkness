@@ -47,8 +47,9 @@ export interface DeployablePainter {
 
 /** Repair Post roles: arcs = Armory primary, loaded / empty pips match the turret's. */
 const REPAIR_POST_ARC_COLOR = getThemeById('armory').primaryNum;
-const REPAIR_POST_CORE_OUTLINE_COLOR = 0x000000;
-const REPAIR_POST_CORE_OUTLINE_WIDTH = 1;
+/** Thin black outline around the core and the spinning arcs. */
+const REPAIR_POST_OUTLINE_COLOR = 0x000000;
+const REPAIR_POST_OUTLINE_WIDTH = 1;
 const REPAIR_POST_ALPHA = 0.95;
 
 export function paintRepairPost(g: Graphics, state: DeployablePaintState): void {
@@ -57,18 +58,33 @@ export function paintRepairPost(g: Graphics, state: DeployablePaintState): void 
     for (let i = 0; i < REPAIR_POST_ARC_COUNT; i++) {
         const mid = repairPostArcAngle(i, state.wallSeconds);
         const start = mid - REPAIR_POST_ARC_SPAN / 2;
-        g.moveTo(Math.cos(start) * shape.arcRadius, Math.sin(start) * shape.arcRadius);
-        g.arc(0, 0, shape.arcRadius, start, start + REPAIR_POST_ARC_SPAN);
-        g.stroke({ color: REPAIR_POST_ARC_COLOR, width: REPAIR_POST_ARC_WIDTH, alpha: REPAIR_POST_ALPHA, cap: 'round' });
+        traceRoundedArcSegment(g, shape.arcRadius, start, start + REPAIR_POST_ARC_SPAN, REPAIR_POST_ARC_WIDTH / 2);
+        g.fill({ color: REPAIR_POST_ARC_COLOR, alpha: REPAIR_POST_ALPHA });
+        g.stroke({ color: REPAIR_POST_OUTLINE_COLOR, width: REPAIR_POST_OUTLINE_WIDTH });
     }
     g.circle(0, 0, shape.coreRadius);
     g.fill({ color: state.ownerColor, alpha: REPAIR_POST_ALPHA });
-    g.stroke({ color: REPAIR_POST_CORE_OUTLINE_COLOR, width: REPAIR_POST_CORE_OUTLINE_WIDTH });
+    g.stroke({ color: REPAIR_POST_OUTLINE_COLOR, width: REPAIR_POST_OUTLINE_WIDTH });
     for (let i = 0; i < state.charges; i++) {
         const pip = repairPostPipOffset(state.open, i, state.charges);
         g.circle(pip.x, pip.y, shape.pipRadius);
         g.fill({ color: i < state.chargesFilled ? TURRET_PIP_COLOR : TURRET_PIP_EMPTY_COLOR, alpha: REPAIR_POST_ALPHA });
     }
+}
+
+/**
+ * Closed outline of a thick arc band with round ends, centred on `radius` and `halfWidth` to
+ * each side, so a fill plus stroke borders it on every side (a stroked line has no outline).
+ */
+function traceRoundedArcSegment(g: Graphics, radius: number, start: number, end: number, halfWidth: number): void {
+    const outer = radius + halfWidth;
+    const inner = radius - halfWidth;
+    g.moveTo(Math.cos(start) * outer, Math.sin(start) * outer);
+    g.arc(0, 0, outer, start, end);
+    g.arc(Math.cos(end) * radius, Math.sin(end) * radius, halfWidth, end, end + Math.PI);
+    g.arc(0, 0, inner, end, start, true);
+    g.arc(Math.cos(start) * radius, Math.sin(start) * radius, halfWidth, start + Math.PI, start + Math.PI * 2);
+    g.closePath();
 }
 
 const PAINTERS: Record<string, DeployablePainter> = {
