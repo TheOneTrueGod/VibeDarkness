@@ -30,10 +30,16 @@ import {
     WOD_INVESTIGATE_THE_WILDLIFE_BANK,
     WOD_POST_CORE_QUEST_BANK_2,
     WOD_POST_CORE_QUEST_BANK_2_ID,
+    WOD_POST_CORE_QUEST_BANK_3,
+    WOD_POST_CORE_QUEST_BANK_3_ID,
+    WOD_SOUTH_GATE_SWARM_BANK,
+    WOD_CRYSTAL_CORRUPTION_BANK,
     WOD_SURFACE_QUEST_FILTERS,
     WorldOfDarknessStoryline,
 } from './WorldOfDarkness/WorldOfDarkness';
 import { SWARMLING_SOURCE } from './WorldOfDarkness/quests/swarmling_source';
+import { SOUTH_GATE_SWARM_QUEST } from './WorldOfDarkness/quests/south_gate_swarm';
+import { CRYSTAL_CORRUPTION_QUEST } from './WorldOfDarkness/quests/crystal_corruption';
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
 import { INVESTIGATE_THE_WILDLIFE } from './WorldOfDarkness/quests/investigate_the_wildlife';
 import {
@@ -93,16 +99,19 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
             WOD_SWARMLING_SOURCE_BANK,
             WOD_SCAVENGE_THE_PLAINS_BANK,
             WOD_INVESTIGATE_THE_WILDLIFE_BANK,
+            WOD_SOUTH_GATE_SWARM_BANK,
+            WOD_CRYSTAL_CORRUPTION_BANK,
             WOD_EXAMPLE_QUEST_BANK,
             WOD_POST_CORE_QUEST_BANK_2,
+            WOD_POST_CORE_QUEST_BANK_3,
         ]);
         expect(WOD_EXAMPLE_QUEST_BANK.requiredClears).toBe(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS);
         expect(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS).toBe(1);
         expect(WOD_EXAMPLE_QUEST_BANK.isSideQuest).toBe(true);
-        expect(WOD_EXAMPLE_QUEST_BANK.unlockAfterMissionId).toBe('campsite_4');
+        expect(WOD_EXAMPLE_QUEST_BANK.unlockAfterMissionId).toBe('core_awakening');
         expect(WOD_EXAMPLE_QUEST_BANK.questDefId).toBeUndefined();
         expect(WOD_EXAMPLE_QUEST_BANK.mapPosition).toEqual({
-            x: WOD_CH2_MAP_X_COL2,
+            x: WOD_CH2_MAP_X_COL0,
             y: WOD_CH2_MAP_Y_ROW0,
         });
     });
@@ -133,16 +142,10 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         expect(INVESTIGATE_THE_WILDLIFE.tags).toContain(LOCATION_PLAINS_TAG);
     });
 
-    it('unlocks only after the campsite that follows south_gate_swarm', () => {
+    it('unlocks the first picker and every side quest on core_awakening', () => {
         expect(isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [])).toBe(false);
         expect(
             isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('core_awakening')]),
-        ).toBe(false);
-        expect(
-            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('south_gate_swarm')]),
-        ).toBe(false);
-        expect(
-            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('campsite_4')]),
         ).toBe(true);
         expect(
             getUnlockedQuestSlotBanks(WorldOfDarknessStoryline, [victoryMission('core_awakening')]),
@@ -150,36 +153,70 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
             WOD_SWARMLING_SOURCE_BANK,
             WOD_SCAVENGE_THE_PLAINS_BANK,
             WOD_INVESTIGATE_THE_WILDLIFE_BANK,
+            WOD_SOUTH_GATE_SWARM_BANK,
+            WOD_CRYSTAL_CORRUPTION_BANK,
+            WOD_EXAMPLE_QUEST_BANK,
         ]);
     });
 
-    it('chains the second Surface Quests picker on the campsite after the first', () => {
+    it('pins South Gate Swarm and Crystal Corruption as side quests; only Crystal Corruption fills Surface Quests', () => {
+        expect(WOD_SOUTH_GATE_SWARM_BANK.questDefId).toBe(SOUTH_GATE_SWARM_QUEST.id);
+        expect(WOD_SOUTH_GATE_SWARM_BANK.mapPosition!.y).toBe(WOD_CH2_MAP_Y_SIDE_QUEST_ROW);
+        expect(WOD_CRYSTAL_CORRUPTION_BANK.questDefId).toBe(CRYSTAL_CORRUPTION_QUEST.id);
+        expect(WOD_CRYSTAL_CORRUPTION_BANK.mapPosition!.y).toBe(WOD_CH2_MAP_Y_SIDE_QUEST_ROW);
+        expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, CRYSTAL_CORRUPTION_QUEST)).toBe(true);
+        expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, SOUTH_GATE_SWARM_QUEST)).toBe(false);
+        const cleared = [bankVictory(CRYSTAL_CORRUPTION_QUEST.id, WOD_CRYSTAL_CORRUPTION_BANK.id)];
+        expect(countQuestBankClears(WOD_POST_CORE_QUEST_BANK_3, cleared)).toBe(1);
+    });
+
+    it('chains the second and third Surface Quests pickers on the campsite after the previous one', () => {
         expect(WOD_POST_CORE_QUEST_BANK_2.id).toBe(WOD_POST_CORE_QUEST_BANK_2_ID);
-        // Chained through the campsite (which is gated on the first picker), so the map line runs campsite → picker.
+        // Chained through the campsite (which is gated on the previous picker), so the map line runs campsite → picker.
         expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBeUndefined();
-        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterMissionId).toBe('campsite');
+        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterMissionId).toBe('campsite_4');
         expect(WOD_POST_CORE_QUEST_BANK_2.requiredClears).toBe(2);
         expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({
+            x: WOD_CH2_MAP_X_COL2,
+            y: WOD_CH2_MAP_Y_ROW0,
+        });
+        expect(WOD_POST_CORE_QUEST_BANK_2.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
+        expect(WOD_POST_CORE_QUEST_BANK_3.id).toBe(WOD_POST_CORE_QUEST_BANK_3_ID);
+        expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterMissionId).toBe('campsite');
+        expect(WOD_POST_CORE_QUEST_BANK_3.requiredClears).toBe(3);
+        expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({
             x: WOD_CH2_MAP_X_COL3,
             y: WOD_CH2_MAP_Y_ROW1,
         });
-        expect(WOD_POST_CORE_QUEST_BANK_2.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
-        const afterSouthGate = [
-            victoryMission('core_awakening'),
-            victoryMission('south_gate_swarm'),
-            victoryMission('campsite_4'),
-        ];
+        expect(WOD_POST_CORE_QUEST_BANK_3.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
+        const afterCore = [victoryMission('core_awakening')];
         const banks = WorldOfDarknessStoryline.questSlotBanks ?? [];
-        expect(isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterSouthGate, [], banks)).toBe(false);
+        expect(isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterCore, [], banks)).toBe(false);
         const bank1Cleared = [bankVictory(SWARMLING_SOURCE.id, WOD_EXAMPLE_QUEST_BANK_ID)];
         // The first picker alone is not enough; the campsite after it must be visited.
         expect(
-            isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterSouthGate, bank1Cleared, banks),
+            isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterCore, bank1Cleared, banks),
         ).toBe(false);
         expect(
             isQuestSlotBankUnlocked(
                 WOD_POST_CORE_QUEST_BANK_2,
-                [...afterSouthGate, victoryMission('campsite')],
+                [...afterCore, victoryMission('campsite_4')],
+                bank1Cleared,
+                banks,
+            ),
+        ).toBe(true);
+        expect(
+            isQuestSlotBankUnlocked(
+                WOD_POST_CORE_QUEST_BANK_3,
+                [...afterCore, victoryMission('campsite_4')],
+                bank1Cleared,
+                banks,
+            ),
+        ).toBe(false);
+        expect(
+            isQuestSlotBankUnlocked(
+                WOD_POST_CORE_QUEST_BANK_3,
+                [...afterCore, victoryMission('campsite_4'), victoryMission('campsite')],
                 bank1Cleared,
                 banks,
             ),

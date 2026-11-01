@@ -174,8 +174,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             speakerId: '1',
             text: [
 							"You run toward the light, desperate to get away from the flickering darkness.",
-							"You turn, expecting a fight, but they only skulk at the entrance, eyes gleaming.",
-							"They do not follow."
+							"You turn, expecting a fight, but the crystals' light burns and drives back any wolf that dares to follow you in."
 						].join("\n"),
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,

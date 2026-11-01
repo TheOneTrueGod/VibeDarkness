@@ -18,14 +18,14 @@ import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
-/** Campsite between Surface Quests 1 and 2. */
+/** Campsite between Surface Quests 2 and 3. */
 export const CAMPSITE_MISSION_ID = 'campsite';
-/** Campsite between Surface Quests 2 and Displacer. */
+/** Campsite between Surface Quests 3 and Displacer. */
 export const CAMPSITE_2_MISSION_ID = 'campsite_2';
 /** Campsite right after Displacer. */
 export const CAMPSITE_3_MISSION_ID = 'campsite_3';
 /**
- * First campsite on the chapter 2 path, between South Gate Swarm and Surface Quests 1.
+ * First campsite on the chapter 2 path, between Surface Quests 1 and 2.
  * Numbered 4 because it was added last; ids are persisted in saves, so the others keep theirs.
  */
 export const CAMPSITE_4_MISSION_ID = 'campsite_4';
@@ -94,19 +94,19 @@ export class CampsiteMission extends BaseMissionDef {
     ninjutsuPools = { shadow: NINJUTSU_DISABLED };
 }
 
-/** Chapter 2 row 0 col 1, between South Gate Swarm and Surface Quests 1. */
+/** Chapter 2 row 0 col 1, between Surface Quests 1 and 2. */
 export const CAMPSITE_4 = new CampsiteMission(CAMPSITE_4_MISSION_ID, {
     x: WOD_CH2_MAP_X_COL1,
     y: WOD_CH2_MAP_Y_ROW0,
 });
 
-/** Chapter 2 row 0 col 3, between Surface Quests 1 and 2. */
+/** Chapter 2 row 0 col 3, between Surface Quests 2 and 3. */
 export const CAMPSITE = new CampsiteMission(CAMPSITE_MISSION_ID, {
     x: WOD_CH2_MAP_X_COL3,
     y: WOD_CH2_MAP_Y_ROW0,
 });
 
-/** Chapter 2 row 1 col 2, between Surface Quests 2 and Displacer. */
+/** Chapter 2 row 1 col 2, between Surface Quests 3 and Displacer. */
 export const CAMPSITE_2 = new CampsiteMission(CAMPSITE_2_MISSION_ID, {
     x: WOD_CH2_MAP_X_COL2,
     y: WOD_CH2_MAP_Y_ROW1,

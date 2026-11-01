@@ -8,7 +8,7 @@
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { ObjectiveType } from '../../objectiveTypes';
 import { NINJUTSU_3_FLURRY_PER_ROUND } from '../../../game/ninjutsu/ninjutsuConfig';
-import type { LevelEvent, SpecialTilePlacement } from '../../types';
+import type { LevelEvent, LevelEventConvertSpecialTile, SpecialTilePlacement } from '../../types';
 import { MISSION_MAP_DISABLED } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, SLIME } from '../../../constants/enemyConstants';
@@ -16,7 +16,14 @@ import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
-import { MAP_SEGMENT_50_50_CRYSTAL_CAVE, CAVE_CAMPFIRE, crystalSpecialTilesAt, CRYSTAL_POINTS } from '../MapSegments/50_50_crystal_cave';
+import {
+    MAP_SEGMENT_50_50_CRYSTAL_CAVE,
+    CAVE_CAMPFIRE,
+    crystalSpecialTilesAt,
+    CRYSTAL_POINTS,
+    CRYSTAL_TILE_DEFAULTS,
+    DARK_CRYSTAL_TILE_DEFAULTS,
+} from '../MapSegments/50_50_crystal_cave';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 import { WOD_CH0_MAP_X_COL0, WOD_CH0_MAP_Y_ROW1 } from '../chapter0Map';
 
@@ -40,12 +47,48 @@ function createTerrain(): TerrainGrid {
 }
 
 /** DarkCrystal properties used when replacing a converted Crystal. */
-const DARK_CRYSTAL_REPLACEMENT = {
+const DARK_CRYSTAL_REPLACEMENT: LevelEventConvertSpecialTile['replacementTile'] = {
     hp: 1,
     maxHp: 1,
-    emitsLight: { lightAmount: 3, radius: 2, lightType: 'DarkLight' as const },
-    colorFilter: { color: 0x6633aa, alpha: 0.3, filterRadius: 3 },
-} as const;
+    emitsLight: DARK_CRYSTAL_TILE_DEFAULTS.emitsLight,
+    colorFilter: DARK_CRYSTAL_TILE_DEFAULTS.colorFilter,
+};
+
+/** Crystal properties used when a DarkCrystal recovers. */
+export const RESTORED_CRYSTAL_REPLACEMENT: LevelEventConvertSpecialTile['replacementTile'] = {
+    hp: 1,
+    maxHp: 1,
+    emitsLight: CRYSTAL_TILE_DEFAULTS.emitsLight,
+};
+
+const CRYSTAL_ORDER = [
+    CRYSTAL_POINTS.crystal_1,
+    CRYSTAL_POINTS.crystal_2,
+    CRYSTAL_POINTS.crystal_3,
+    CRYSTAL_POINTS.crystal_4,
+    CRYSTAL_POINTS.crystal_5,
+] as const;
+
+/**
+ * One crystal conversion per round (rounds 1–5, crystal_1 first), each swapping the tile for
+ * `replacementDefId`. `messages[i]` is announced with the i-th conversion.
+ */
+export function crystalConversionEvents(
+    replacementDefId: string,
+    replacementTile: LevelEventConvertSpecialTile['replacementTile'],
+    messages: readonly string[],
+): LevelEventConvertSpecialTile[] {
+    return CRYSTAL_ORDER.map((point, i) => ({
+        type: 'convertSpecialTile' as const,
+        trigger: { atRound: i + 1 },
+        col: point.col + RIGHT_SEGMENT_COL,
+        row: point.row,
+        replacementDefId,
+        replacementTile,
+        emittedMessage: messages[i],
+        emittedByNpcId: '1',
+    }));
+}
 
 /** Helper: world-space center of a path-segment grid cell. */
 function pathCell(col: number, row: number): { x: number; y: number } {
@@ -63,7 +106,8 @@ const INITIAL_ENEMIES = [
     { ...SLIME, position: pathCell(19, 12), unitAITreeId: 'hunt' },
 ];
 
-const LEVEL_EVENTS: LevelEvent[] = [
+/** Spawn waves and the round-6 victory check, shared with the quest copy. */
+export const CRYSTAL_CORRUPTION_COMBAT_EVENTS: LevelEvent[] = [
     // --- Periodic wolf waves every 0.5 rounds ---
     {
         type: 'continuousSpawn',
@@ -79,57 +123,6 @@ const LEVEL_EVENTS: LevelEvent[] = [
         trigger: { intervalRounds: 1, startRound: 1, endRound: 5 },
         spawns: [{ characterId: 'slime', spawnBehaviour: 'edgeOfMap', spawnCount: 1, unitAITreeId: 'hunt' }],
     },
-    // --- Crystal conversions: one per round ---
-    {
-        type: 'convertSpecialTile',
-        trigger: { atRound: 1 },
-        col: CRYSTAL_POINTS.crystal_1.col + RIGHT_SEGMENT_COL,
-        row: CRYSTAL_POINTS.crystal_1.row,
-        replacementDefId: 'DarkCrystal',
-        replacementTile: DARK_CRYSTAL_REPLACEMENT,
-        emittedMessage: 'A crystal shatters — the darkness creeps closer.',
-        emittedByNpcId: '1',
-    },
-    {
-        type: 'convertSpecialTile',
-        trigger: { atRound: 2 },
-        col: CRYSTAL_POINTS.crystal_2.col + RIGHT_SEGMENT_COL,
-        row: CRYSTAL_POINTS.crystal_2.row,
-        replacementDefId: 'DarkCrystal',
-        replacementTile: DARK_CRYSTAL_REPLACEMENT,
-        emittedMessage: 'Another crystal falls to corruption.',
-        emittedByNpcId: '1',
-    },
-    {
-        type: 'convertSpecialTile',
-        trigger: { atRound: 3 },
-        col: CRYSTAL_POINTS.crystal_3.col + RIGHT_SEGMENT_COL,
-        row: CRYSTAL_POINTS.crystal_3.row,
-        replacementDefId: 'DarkCrystal',
-        replacementTile: DARK_CRYSTAL_REPLACEMENT,
-        emittedMessage: 'The cave grows darker.',
-        emittedByNpcId: '1',
-    },
-    {
-        type: 'convertSpecialTile',
-        trigger: { atRound: 4 },
-        col: CRYSTAL_POINTS.crystal_4.col + RIGHT_SEGMENT_COL,
-        row: CRYSTAL_POINTS.crystal_4.row,
-        replacementDefId: 'DarkCrystal',
-        replacementTile: DARK_CRYSTAL_REPLACEMENT,
-        emittedMessage: 'The protection is failing.',
-        emittedByNpcId: '1',
-    },
-    {
-        type: 'convertSpecialTile',
-        trigger: { atRound: 5 },
-        col: CRYSTAL_POINTS.crystal_5.col + RIGHT_SEGMENT_COL,
-        row: CRYSTAL_POINTS.crystal_5.row,
-        replacementDefId: 'DarkCrystal',
-        replacementTile: DARK_CRYSTAL_REPLACEMENT,
-        emittedMessage: 'The last crystal is gone. Kill the remaining enemies!',
-        emittedByNpcId: '1',
-    },
     // --- Victory after round 6: eliminate all remaining enemies ---
     {
         type: 'victoryCheck',
@@ -139,14 +132,31 @@ const LEVEL_EVENTS: LevelEvent[] = [
     },
 ];
 
+const LEVEL_EVENTS: LevelEvent[] = [
+    ...CRYSTAL_CORRUPTION_COMBAT_EVENTS,
+    ...crystalConversionEvents('DarkCrystal', DARK_CRYSTAL_REPLACEMENT, [
+        'A crystal shatters — the darkness creeps closer.',
+        'Another crystal falls to corruption.',
+        'The cave grows darker.',
+        'The protection is failing.',
+        'The last crystal is gone. Kill the remaining enemies!',
+    ]),
+];
+
+/** Cave campfire on the right segment. */
+export const CRYSTAL_CORRUPTION_CAMPFIRE: SpecialTilePlacement = {
+    defId: 'Campfire',
+    col: CAVE_CAMPFIRE.col + RIGHT_SEGMENT_COL,
+    row: CAVE_CAMPFIRE.row,
+    hp: 5,
+    emitsLight: { lightAmount: 10, radius: 8 },
+};
+
+/** Global column where the crystal cave segment starts (for crystal placements). */
+export const CRYSTAL_CORRUPTION_CAVE_COL = RIGHT_SEGMENT_COL;
+
 const SPECIAL_TILES: SpecialTilePlacement[] = [
-    {
-        defId: 'Campfire',
-        col: CAVE_CAMPFIRE.col + RIGHT_SEGMENT_COL,
-        row: CAVE_CAMPFIRE.row,
-        hp: 5,
-        emitsLight: { lightAmount: 10, radius: 8 },
-    },
+    CRYSTAL_CORRUPTION_CAMPFIRE,
     ...crystalSpecialTilesAt(RIGHT_SEGMENT_COL),
 ];
 

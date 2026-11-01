@@ -17,6 +17,9 @@ import {
     WOD_SWARMLING_SOURCE_BANK_ID,
     WOD_POST_CORE_QUEST_BANK_ID,
     WOD_POST_CORE_QUEST_BANK_2_ID,
+    WOD_POST_CORE_QUEST_BANK_3_ID,
+    WOD_SOUTH_GATE_SWARM_BANK_ID,
+    WOD_CRYSTAL_CORRUPTION_BANK_ID,
     WOD_SCAVENGE_THE_PLAINS_BANK_ID,
     WOD_INVESTIGATE_THE_WILDLIFE_BANK_ID,
     WorldOfDarknessStoryline,
@@ -37,7 +40,7 @@ const THROUGH_CORE_AWAKENING: MissionResult[] = [
 ];
 
 const wodChapters = getCampaignChapters(WorldOfDarknessStoryline);
-const CH0_IDS = ['thornbinder_arena', 'crystal_corruption', 'the_circle'];
+const CH0_IDS = ['thornbinder_arena', 'south_gate_swarm', 'crystal_corruption', 'the_circle'];
 
 describe('isChapterUnlocked', () => {
     it('always unlocks the first chapter', () => {
@@ -127,32 +130,34 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         expect(unlocked.has('the_circle')).toBe(false);
     });
 
-    it('unlocks chapter 2 entry missions on core_awakening, but not the chained ones', () => {
+    it('keeps South Gate Swarm and the unused missions off the chapter 2 path', () => {
         const unlocked = getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING);
-        expect(unlocked.has('south_gate_swarm')).toBe(true);
+        expect(unlocked.has('south_gate_swarm')).toBe(false);
         expect(unlocked.has('crystal_corruption')).toBe(false);
         expect(unlocked.has('the_circle')).toBe(false);
         expect(unlocked.has('thornbinder_arena')).toBe(false);
     });
 
-    it('unlocks the first campsite right after South Gate Swarm', () => {
+    it('unlocks the first campsite after Surface Quests 1', () => {
         expect(getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING).has('campsite_4')).toBe(false);
+        const bank1Done: QuestResult[] = [
+            { questDefId: 'a', result: 'victory', placement: 'bank', bankId: WOD_POST_CORE_QUEST_BANK_ID },
+        ];
         expect(
-            getUnlockedMissionIds(WorldOfDarknessStoryline, [...THROUGH_CORE_AWAKENING, victory('south_gate_swarm')])
-                .has('campsite_4'),
+            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank1Done).has('campsite_4'),
         ).toBe(true);
     });
 
-    it('unlocks the campsite before Displacer after bank 2, then Displacer after that campsite, then the last campsite after Displacer', () => {
+    it('unlocks the campsite before Displacer after bank 3, then Displacer after that campsite, then the last campsite after Displacer', () => {
         const bankVictory = (questDefId: string): QuestResult => ({
             questDefId,
             result: 'victory',
             placement: 'bank',
-            bankId: WOD_POST_CORE_QUEST_BANK_2_ID,
+            bankId: WOD_POST_CORE_QUEST_BANK_3_ID,
         });
-        const bank2Done = [bankVictory('a'), bankVictory('b')];
+        const bank2Done = [bankVictory('a'), bankVictory('b'), bankVictory('c')];
         expect(
-            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank2Done.slice(0, 1)).has(
+            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank2Done.slice(0, 2)).has(
                 'campsite_2',
             ),
         ).toBe(false);
@@ -197,8 +202,11 @@ describe('chapter composition', () => {
             WOD_SWARMLING_SOURCE_BANK_ID,
             WOD_SCAVENGE_THE_PLAINS_BANK_ID,
             WOD_INVESTIGATE_THE_WILDLIFE_BANK_ID,
+            WOD_SOUTH_GATE_SWARM_BANK_ID,
+            WOD_CRYSTAL_CORRUPTION_BANK_ID,
             WOD_POST_CORE_QUEST_BANK_ID,
             WOD_POST_CORE_QUEST_BANK_2_ID,
+            WOD_POST_CORE_QUEST_BANK_3_ID,
         ]);
     });
 });

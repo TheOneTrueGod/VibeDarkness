@@ -30,7 +30,7 @@ import {
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { WOD_CH2_MAP_X_COL0, WOD_CH2_MAP_Y_ROW0 } from '../chapter2Map';
+import { WOD_CH0_MAP_X_COL1, WOD_CH0_MAP_Y_ROW0 } from '../chapter0Map';
 import {
     CAVE_CAMPFIRE,
     crystalSpecialTilesAt,
@@ -263,8 +263,8 @@ export class SouthGateSwarmMission extends BaseMissionDef {
     enemies: EnemySpawnDef[] = [];
 
     missionId = SouthGateSwarmMission.missionId;
-    /** Chapter 2 grid — row 0 col 0, start of the questline snake. */
-    mapPosition = { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW0 };
+    /** Admin-only Chapter 0; players reach it through the South Gate Swarm side quest. */
+    mapPosition?: { x: number; y: number } = { x: WOD_CH0_MAP_X_COL1, y: WOD_CH0_MAP_Y_ROW0 };
     missionType = 'battle' as const;
     description =
         'Something has nested beyond the southern gate. Clear the opening pack and tear the nest down.';

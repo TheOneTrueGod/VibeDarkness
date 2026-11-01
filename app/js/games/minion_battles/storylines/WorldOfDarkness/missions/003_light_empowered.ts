@@ -211,7 +211,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 		{
 			type: 'dialogue',
 			speakerId: '1',
-			text: "The boar falls. You drag the carcass back through the path, past the wolves that snap at your heels. At last you reach the cave—safe, and fed.",
+			text: "The boar falls. You drag the carcass back through the path, past the wolves that snap at your heels. At last you reach the cave, where the crystals' light burns and drives back any wolf that dares to follow you in.",
 			portraitSide: 'left',
 			backgroundImage: STORY_BACKGROUNDS.campfire,
 		},

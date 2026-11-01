@@ -82,14 +82,14 @@ describe('questBankHoverDescription', () => {
 
 describe('bankDisplayLabel', () => {
     it('uses the Surface Quests picker title', () => {
-        expect(bankDisplayLabel(WOD_POST_CORE_QUEST_BANK)).toBe('Surface Quests');
+        expect(bankDisplayLabel(WOD_POST_CORE_QUEST_BANK)).toBe('Surface Quests (1/3)');
     });
 });
 
 describe('questBankUnlockRequirementLabel', () => {
     it('names the gating mission or prior picker for each Surface Quests picker', () => {
         const banks = [WOD_POST_CORE_QUEST_BANK, WOD_POST_CORE_QUEST_BANK_2];
-        expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK, banks)).toBe('Campsite');
+        expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK, banks)).toBe('Core Awakening');
         expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK_2, banks)).toBe('Campsite');
     });
 });

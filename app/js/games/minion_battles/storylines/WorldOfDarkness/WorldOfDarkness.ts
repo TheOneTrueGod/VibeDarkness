@@ -10,6 +10,7 @@ import {
     WOD_CH2_MAP_X_COL1,
     WOD_CH2_MAP_X_COL2,
     WOD_CH2_MAP_X_COL3,
+    WOD_CH2_MAP_X_COL4,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
     WOD_CH2_MAP_Y_SIDE_QUEST_DIVIDER,
@@ -34,12 +35,23 @@ import {
     INVESTIGATE_THE_WILDLIFE,
     INVESTIGATE_THE_WILDLIFE_QUEST_ID,
 } from './quests/investigate_the_wildlife';
+import {
+    SOUTH_GATE_SWARM_QUEST,
+    SOUTH_GATE_SWARM_QUEST_ID,
+} from './quests/south_gate_swarm';
+import {
+    CRYSTAL_CORRUPTION_QUEST,
+    CRYSTAL_CORRUPTION_QUEST_ID,
+} from './quests/crystal_corruption';
 
 /** Quest slot bank after Core Awakening (side-quest picker on the Mission Map). */
 export const WOD_POST_CORE_QUEST_BANK_ID = 'wod_post_core_awakening_quests';
 
 /** Second Surface Quests picker (after the campsite that follows the first). */
 export const WOD_POST_CORE_QUEST_BANK_2_ID = 'wod_post_core_awakening_quests_2';
+
+/** Third Surface Quests picker (after the campsite that follows the second). */
+export const WOD_POST_CORE_QUEST_BANK_3_ID = 'wod_post_core_awakening_quests_3';
 
 /** Dedicated map node for Swarmling Source. */
 export const WOD_SWARMLING_SOURCE_BANK_ID = 'wod_swarmling_source';
@@ -50,11 +62,20 @@ export const WOD_SCAVENGE_THE_PLAINS_BANK_ID = 'wod_scavenge_the_plains';
 /** Dedicated map node for Investigate the Wildlife. */
 export const WOD_INVESTIGATE_THE_WILDLIFE_BANK_ID = 'wod_investigate_the_wildlife';
 
+/** Dedicated map node for South Gate Swarm. */
+export const WOD_SOUTH_GATE_SWARM_BANK_ID = 'wod_south_gate_swarm';
+
+/** Dedicated map node for Crystal Corruption. */
+export const WOD_CRYSTAL_CORRUPTION_BANK_ID = 'wod_crystal_corruption';
+
 /** Required clears before this bank is "done" (content can raise later). */
 export const WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS = 1;
 
 /** Required clears for the second Surface Quests picker. */
 export const WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS = 2;
+
+/** Required clears for the third Surface Quests picker. */
+export const WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS = 3;
 
 /** A dedicated quest node is complete after one clear of its pinned quest. */
 export const WOD_DEDICATED_QUEST_REQUIRED_CLEARS = 1;
@@ -65,7 +86,11 @@ export const CORE_AWAKENING_MAP_Y = WOD_CH1_MAP_Y_ROW1;
 /** Legacy export; first Surface Quests picker sits on chapter 2 row 0. */
 export const POST_CORE_QUEST_BANK_MAP_Y = WOD_CH2_MAP_Y_ROW0;
 
-const SURFACE_QUEST_TITLE = 'Surface Quests';
+const SURFACE_QUEST_BANK_COUNT = 3;
+
+function surfaceQuestTitle(index: number): string {
+    return `Surface Quests (${index}/${SURFACE_QUEST_BANK_COUNT})`;
+}
 
 /** Shared picker filters: plains quests, excluding Scavenge the Plains (dedicated node only). */
 export const WOD_SURFACE_QUEST_FILTERS: QuestEligibilityFilters = {
@@ -74,32 +99,42 @@ export const WOD_SURFACE_QUEST_FILTERS: QuestEligibilityFilters = {
 };
 
 /**
- * First Surface Quests picker, unlocked by the campsite after South Gate Swarm. Sits on chapter 2
- * row 0 (col 2); dedicated quest nodes sit on the side-quest row below the divider. Plains quests
- * (including dedicated nodes, except Scavenge the Plains) count here.
+ * First Surface Quests picker, unlocked by Core Awakening. Sits on chapter 2 row 0 (col 0), the
+ * start of the questline snake; dedicated quest nodes sit on the side-quest row below the divider.
+ * Plains quests (including dedicated nodes, except Scavenge the Plains) count here. Clears are
+ * cumulative across the pickers, so picker N needs N matching plains quest clears.
  */
 export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
     id: WOD_POST_CORE_QUEST_BANK_ID,
-    title: SURFACE_QUEST_TITLE,
-    unlockAfterMissionId: CAMPSITE_4_MISSION_ID,
+    title: surfaceQuestTitle(1),
+    unlockAfterMissionId: 'core_awakening',
     requiredClears: WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS,
     filters: WOD_SURFACE_QUEST_FILTERS,
     displaySlotCount: WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS,
+    mapPosition: { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW0 },
+    isSideQuest: true,
+};
+
+/** Second Surface Quests picker. Unlocks after the campsite that follows the first picker. */
+export const WOD_POST_CORE_QUEST_BANK_2: QuestSlotBank = {
+    id: WOD_POST_CORE_QUEST_BANK_2_ID,
+    title: surfaceQuestTitle(2),
+    unlockAfterMissionId: CAMPSITE_4_MISSION_ID,
+    requiredClears: WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS,
+    filters: WOD_SURFACE_QUEST_FILTERS,
+    displaySlotCount: WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS,
     mapPosition: { x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW0 },
     isSideQuest: true,
 };
 
-/**
- * Second Surface Quests picker. Unlocks after the campsite that follows the first picker
- * (that campsite is itself gated on the first picker); needs two matching plains quest clears.
- */
-export const WOD_POST_CORE_QUEST_BANK_2: QuestSlotBank = {
-    id: WOD_POST_CORE_QUEST_BANK_2_ID,
-    title: SURFACE_QUEST_TITLE,
+/** Third Surface Quests picker. Unlocks after the campsite that follows the second picker. */
+export const WOD_POST_CORE_QUEST_BANK_3: QuestSlotBank = {
+    id: WOD_POST_CORE_QUEST_BANK_3_ID,
+    title: surfaceQuestTitle(3),
     unlockAfterMissionId: CAMPSITE_MISSION_ID,
-    requiredClears: WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS,
+    requiredClears: WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS,
     filters: WOD_SURFACE_QUEST_FILTERS,
-    displaySlotCount: WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS,
+    displaySlotCount: WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS,
     mapPosition: { x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 },
     isSideQuest: true,
 };
@@ -143,6 +178,32 @@ export const WOD_INVESTIGATE_THE_WILDLIFE_BANK: QuestSlotBank = {
     questDefId: INVESTIGATE_THE_WILDLIFE_QUEST_ID,
 };
 
+/** Map node that starts South Gate Swarm (not a plains quest, so no Surface Quests credit). */
+export const WOD_SOUTH_GATE_SWARM_BANK: QuestSlotBank = {
+    id: WOD_SOUTH_GATE_SWARM_BANK_ID,
+    title: SOUTH_GATE_SWARM_QUEST.title,
+    unlockAfterMissionId: 'core_awakening',
+    requiredClears: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
+    filters: {},
+    displaySlotCount: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
+    mapPosition: { x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_SIDE_QUEST_ROW },
+    isSideQuest: true,
+    questDefId: SOUTH_GATE_SWARM_QUEST_ID,
+};
+
+/** Map node that starts Crystal Corruption (a plains quest, so it also fills Surface Quests). */
+export const WOD_CRYSTAL_CORRUPTION_BANK: QuestSlotBank = {
+    id: WOD_CRYSTAL_CORRUPTION_BANK_ID,
+    title: CRYSTAL_CORRUPTION_QUEST.title,
+    unlockAfterMissionId: 'core_awakening',
+    requiredClears: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
+    filters: {},
+    displaySlotCount: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
+    mapPosition: { x: WOD_CH2_MAP_X_COL4, y: WOD_CH2_MAP_Y_SIDE_QUEST_ROW },
+    isSideQuest: true,
+    questDefId: CRYSTAL_CORRUPTION_QUEST_ID,
+};
+
 /** Alias for tests that still import the old example bank names. */
 export const WOD_EXAMPLE_QUEST_BANK_ID = WOD_POST_CORE_QUEST_BANK_ID;
 export const WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS = WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS;
@@ -159,23 +220,28 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'cave_respite' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        // Chapter 2 questline: South Gate Swarm → Campsite → Surface Quests 1 → Campsite → Surface Quests 2 → Campsite → Displacer → Campsite. Thornbinder Arena lives in the admin-only Chapter 0.
-        { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'south_gate_swarm' },
-        // Campsite sits between South Gate Swarm and Surface Quests 1.
-        { fromMissionId: 'south_gate_swarm', result: 'victory', toMissionId: CAMPSITE_4_MISSION_ID },
+        // Chapter 2 questline: Surface Quests 1 → Campsite → Surface Quests 2 → Campsite → Surface Quests 3 → Campsite → Displacer → Campsite.
+        // South Gate Swarm and Crystal Corruption are side quests; Thornbinder Arena lives in the admin-only Chapter 0.
         // Campsite sits between Surface Quests 1 and 2.
         {
             fromMissionId: 'core_awakening',
             result: 'victory',
-            toMissionId: CAMPSITE_MISSION_ID,
+            toMissionId: CAMPSITE_4_MISSION_ID,
             requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_ID,
         },
-        // Campsite sits between Surface Quests 2 and Displacer.
+        // Campsite sits between Surface Quests 2 and 3.
+        {
+            fromMissionId: 'core_awakening',
+            result: 'victory',
+            toMissionId: CAMPSITE_MISSION_ID,
+            requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_2_ID,
+        },
+        // Campsite sits between Surface Quests 3 and Displacer.
         {
             fromMissionId: 'core_awakening',
             result: 'victory',
             toMissionId: CAMPSITE_2_MISSION_ID,
-            requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_2_ID,
+            requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_3_ID,
         },
         { fromMissionId: CAMPSITE_2_MISSION_ID, result: 'victory', toMissionId: 'displacer' },
         { fromMissionId: 'displacer', result: 'victory', toMissionId: CAMPSITE_3_MISSION_ID },
@@ -186,8 +252,11 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         WOD_SWARMLING_SOURCE_BANK,
         WOD_SCAVENGE_THE_PLAINS_BANK,
         WOD_INVESTIGATE_THE_WILDLIFE_BANK,
+        WOD_SOUTH_GATE_SWARM_BANK,
+        WOD_CRYSTAL_CORRUPTION_BANK,
         WOD_POST_CORE_QUEST_BANK,
         WOD_POST_CORE_QUEST_BANK_2,
+        WOD_POST_CORE_QUEST_BANK_3,
     ],
     chapters: [
         {
@@ -209,11 +278,14 @@ export const WorldOfDarknessStoryline: StorylineDef = {
                 WOD_SWARMLING_SOURCE_BANK_ID,
                 WOD_SCAVENGE_THE_PLAINS_BANK_ID,
                 WOD_INVESTIGATE_THE_WILDLIFE_BANK_ID,
+                WOD_SOUTH_GATE_SWARM_BANK_ID,
+                WOD_CRYSTAL_CORRUPTION_BANK_ID,
                 WOD_POST_CORE_QUEST_BANK_ID,
                 WOD_POST_CORE_QUEST_BANK_2_ID,
+                WOD_POST_CORE_QUEST_BANK_3_ID,
             ],
             missionIds: [
-                'south_gate_swarm', CAMPSITE_4_MISSION_ID, CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID,
+                CAMPSITE_4_MISSION_ID, CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID,
                 'displacer', CAMPSITE_3_MISSION_ID,
             ],
             mapDividers: [{ y: WOD_CH2_MAP_Y_SIDE_QUEST_DIVIDER, label: 'Side Quests' }],
@@ -233,7 +305,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             numeral: '0',
             title: 'Unused Missions',
             adminOnly: true,
-            missionIds: ['thornbinder_arena', 'crystal_corruption', 'the_circle'],
+            missionIds: ['thornbinder_arena', 'south_gate_swarm', 'crystal_corruption', 'the_circle'],
         },
     ],
 };
