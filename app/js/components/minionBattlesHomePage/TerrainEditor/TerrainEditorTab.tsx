@@ -15,8 +15,12 @@ import { EDITOR_CELL_SIZE } from './terrainEditorColors';
 import type { MapSegmentData } from '../../../games/minion_battles/terrain/segmentSchema';
 import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
 import PanelLayout from '../PanelLayout';
+import WorldMapView from './worldMap/WorldMapView';
+import { fetchSegmentData } from './worldMap/worldMapApi';
 
 type RightTab = 'poi' | 'zone';
+/** Single-segment editing, or the zoomed-out world map of all segments. */
+type EditorView = 'segment' | 'world';
 
 /** How-to line under the pickers for terrain tools that are not a plain brush. */
 const TERRAIN_TOOL_HINTS: Partial<Record<EditorTool, string>> = {
@@ -51,6 +55,13 @@ function ChevronLeft() {
         </svg>
     );
 }
+function MapIcon() {
+    return (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+        </svg>
+    );
+}
 function ChevronRight() {
     return (
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,6 +75,7 @@ export default function TerrainEditorTab() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [availableSegments, setAvailableSegments] = useState<Map<string, MapSegmentData>>(new Map());
     const [rightTab, setRightTab] = useState<RightTab>('poi');
+    const [editorView, setEditorView] = useState<EditorView>('segment');
     const [createDir, setCreateDir] = useState<CreateDir | null>(null);
     const [createName, setCreateName] = useState('');
     const createInputRef = useRef<HTMLInputElement>(null);
@@ -99,9 +111,21 @@ export default function TerrainEditorTab() {
         setSearchParams((prev) => { prev.set('segment', data.id); return prev; }, { replace: true });
     }
 
-    function guardedLoadSegment(data: MapSegmentData) {
-        if (state.isDirty && !window.confirm('There are unsaved changes. Discard them and switch maps?')) return;
+    /** Returns false when the author kept their unsaved changes instead. */
+    function guardedLoadSegment(data: MapSegmentData): boolean {
+        if (state.segmentData?.id === data.id) return true;
+        if (state.isDirty && !window.confirm('There are unsaved changes. Discard them and switch maps?')) return false;
         loadAndTrackSegment(data);
+        return true;
+    }
+
+    async function openSegmentFromWorldMap(id: string) {
+        try {
+            const data = availableSegments.get(id) ?? await fetchSegmentData(id);
+            if (guardedLoadSegment(data)) setEditorView('segment');
+        } catch (err) {
+            console.error('Failed to open segment from world map:', err);
+        }
     }
 
     const createCoords = useMemo(() => {
@@ -193,6 +217,7 @@ export default function TerrainEditorTab() {
     const mainWidth = state.segmentData?.width ?? 0;
     const mainHeight = state.segmentData?.height ?? 0;
     const prevPx = PREVIEW_DEPTH * S;
+    const isWorldView = editorView === 'world';
 
     return (
         <>
@@ -200,6 +225,18 @@ export default function TerrainEditorTab() {
                 title="Terrain Editor"
                 actions={
                     <>
+                        <button
+                            type="button"
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium border transition-colors ${
+                                editorView === 'world'
+                                    ? 'bg-primary/20 border-primary text-primary'
+                                    : 'bg-surface border-border-custom text-muted hover:text-white'
+                            }`}
+                            aria-pressed={editorView === 'world'}
+                            onClick={() => setEditorView((v) => (v === 'world' ? 'segment' : 'world'))}
+                        >
+                            <MapIcon /> World
+                        </button>
                         <SegmentSelector
                             selectedId={state.segmentId}
                             onSelect={guardedLoadSegment}
@@ -224,7 +261,7 @@ export default function TerrainEditorTab() {
                         </button>
                     </>
                 }
-                left={
+                left={isWorldView ? undefined : (
                     <div className="flex flex-col gap-4 p-3">
                         <ToolPicker
                             activeTool={state.activeTool}
@@ -258,11 +295,17 @@ export default function TerrainEditorTab() {
                             />
                         )}
                     </div>
-                }
+                )}
                 leftWidth="w-40"
                 leftClassName="overflow-y-auto"
                 center={
-                    state.segmentData ? (
+                    isWorldView ? (
+                        <WorldMapView
+                            segments={availableSegments}
+                            selectedSegment={state.segmentData}
+                            onOpenSegment={(id) => { void openSegmentFromWorldMap(id); }}
+                        />
+                    ) : state.segmentData ? (
                         <div className="flex flex-col items-center justify-start px-3 py-1">
                             <div style={{
                                 display: 'grid',
@@ -328,8 +371,8 @@ export default function TerrainEditorTab() {
                         </div>
                     )
                 }
-                centerClassName="overflow-auto"
-                right={
+                centerClassName={isWorldView ? 'overflow-hidden' : 'overflow-auto'}
+                right={isWorldView ? undefined : (
                     <>
                         <div className="flex shrink-0 border-b border-border-custom">
                             <button
@@ -414,7 +457,7 @@ export default function TerrainEditorTab() {
                             )}
                         </div>
                     </>
-                }
+                )}
                 rightWidth="w-56"
                 rightClassName="flex flex-col overflow-hidden"
             />

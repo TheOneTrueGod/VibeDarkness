@@ -61,6 +61,8 @@ use App\Http\Handlers\Admin\GetCiStatusHandler;
 use App\Http\Handlers\Terrain\ListTerrainSegmentsHandler;
 use App\Http\Handlers\Terrain\GetTerrainSegmentHandler;
 use App\Http\Handlers\Terrain\SaveTerrainSegmentHandler;
+use App\Http\Handlers\Terrain\ListWorldMapTilesHandler;
+use App\Http\Handlers\Terrain\SaveWorldMapTileSvgHandler;
 use App\Http\Handlers\Battle\PostUserStateHandler;
 use App\Http\Handlers\Battle\GetUserStateHandler;
 use App\Http\Handlers\LobbyDebug\LobbyDebugHandler;
@@ -138,6 +140,8 @@ class Router
             ['GET', '#^/api/terrain-segments$#', ListTerrainSegmentsHandler::class],
             ['GET', '#^/api/terrain-segments/([a-z0-9_-]+)$#', GetTerrainSegmentHandler::class],
             ['PUT', '#^/api/terrain-segments/([a-z0-9_-]+)$#', SaveTerrainSegmentHandler::class],
+            ['GET', '#^/api/terrain-world$#', ListWorldMapTilesHandler::class],
+            ['PUT', '#^/api/terrain-world/([a-z0-9_-]+)/svg$#', SaveWorldMapTileSvgHandler::class],
             ['GET', '#^/api/stats$#', StatsHandler::class],
         ];
     }

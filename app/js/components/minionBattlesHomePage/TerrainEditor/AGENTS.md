@@ -16,6 +16,7 @@ The Terrain Editor is an admin-only, canvas-based tool for visually authoring ma
 | `TerrainTypePicker.tsx` | Selector for the active terrain type (dirt / grass / thick grass / rock). |
 | `BrushSizePicker.tsx` | Selector for brush radius (1, 2, or 3 cells). |
 | `POIEditor.tsx` | Sidebar panel for adding, editing, and deleting POIs on the current segment. |
+| `worldMap/` | World map view, zoom levels, preview-status API and the preview regeneration hook. See "World map". |
 | `SegmentSelector.tsx` | Dropdown that combines API-saved segments (loaded from `GET /api/terrain-segments`) and TS-registered segments (from the registry). |
 
 ## Data flow
@@ -24,6 +25,16 @@ The Terrain Editor is an admin-only, canvas-based tool for visually authoring ma
 2. **Load.** `SegmentSelector` populates from both the registry and the API (`GET /api/terrain-segments`). Selecting a segment sets `EditorState.segmentData`.
 3. **Edit.** `TerrainCanvas` reads `EditorState.segmentData` on every render. Mouse events dispatch reducers in `useEditorState` to update `segmentData` in place.
 4. **Save.** The save action calls `PUT /api/terrain-segments/:id`, which writes `storage/terrain-segments/{id}.json` on the server. After a successful save the in-memory state is considered clean.
+
+## World map
+
+The **World** button (left of the segment dropdown) swaps the center panel for `worldMap/WorldMapView.tsx`: every segment drawn as one tile at its `gridCol`/`gridRow`. Clicking a tile opens that segment in the editor.
+
+- **Zoom levels** live in `worldMap/worldMapConfig.ts` (`WORLD_MAP_ZOOM_LEVELS`). `region` uses 24px tiles, and the edge buttons scroll 10 segments. Add new zoom levels there.
+- **Previews:** `generateSegmentPreviewSvg` (`games/minion_battles/terrain/segmentPreviewSvg.ts`) downscales a segment to a 24×24 SVG. When several terrains share one pixel, `SEGMENT_PREVIEW_PRIORITY` decides: paths, then water, then rock, with grass last.
+- **One request:** `GET /api/terrain-world` returns every segment's preview status (`fresh` / `stale` / `missing`) and saved SVG without loading terrain. Previews are saved next to the map file as `{id}.svg`: in `MapSegments/` for TS segments and in `storage/terrain-segments/` for JSON segments.
+- **Regeneration:** `useWorldMapTiles` regenerates missing previews (gray tile with a spinner) and stale ones (old image with a spinner), `WORLD_MAP_SVG_CONCURRENCY` at a time, nearest first. Each one is saved with `PUT /api/terrain-world/{id}/svg` (admin only). A preview is stale when its SVG is older than the map file.
+- **Empty cells** with no segment render black with a `?`.
 
 ## Map tools
 
