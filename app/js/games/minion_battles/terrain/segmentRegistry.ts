@@ -54,6 +54,7 @@ export function parseAndRegisterSegment(raw: unknown): MapSegmentData | null {
             ? incoming
             : {
                   ...incoming,
+                  description: incoming.description ?? existing.description,
                   pointsOfInterest:
                       incoming.pointsOfInterest.length > 0
                           ? incoming.pointsOfInterest

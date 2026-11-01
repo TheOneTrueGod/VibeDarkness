@@ -51,6 +51,8 @@ export const MapSegmentDataSchema = z.object({
     gridRow: z.number().int(),
     width: z.number().int().positive(),
     height: z.number().int().positive(),
+    /** Short, dry explanation of what the place is and what it was used for (one to three sentences). */
+    description: z.string().optional(),
     terrain: z.array(z.array(z.number().int().refine((t) => AUTHORED_TERRAIN_TYPES.includes(t), {
         message: 'Not an authored terrain type (see AUTHORED_TERRAIN_TYPES)',
     }))),

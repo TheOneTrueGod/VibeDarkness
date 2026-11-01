@@ -117,6 +117,7 @@ import {
     NORTHEAST_SPAWN,
     THORN_PATH_2_NETWORK,
 } from './MapSegments/48_52_thorn_path_2';
+import { CASTLE_SEGMENTS } from './MapSegments/castle';
 
 export function registerWorldOfDarknessSegments(): void {
     // 48_50 Wakeup — no POIs
@@ -423,4 +424,19 @@ export function registerWorldOfDarknessSegments(): void {
         ...tsTerrainToSegmentData('48_52_thorn_path_2', 48, 52, MAP_SEGMENT_48_52_THORN_PATH_2, thornPath2POIs),
         network: THORN_PATH_2_NETWORK,
     });
+
+    // Castle 57-65 x 40-49 around the 61_49 gate — plan in MapSegments/castle/index.ts
+    for (const segment of CASTLE_SEGMENTS) {
+        registerSegment({
+            ...tsTerrainToSegmentData(
+                segment.id,
+                segment.gridCol,
+                segment.gridRow,
+                segment.terrain,
+                segment.pointsOfInterest,
+            ),
+            description: segment.description,
+            network: segment.network,
+        });
+    }
 }
