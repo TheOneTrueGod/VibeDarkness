@@ -20,6 +20,11 @@ export interface Deployable {
     ownerAbilityId?: string;
     teamId?: TeamId;
     tags: readonly DeployableTag[];
+    /**
+     * Content-defined type within the kind, e.g. a dropped weapon's token kind (`sword`) or a
+     * placed deployable's def id. Abilities that act on "every token of a type" (Echo) match on it.
+     */
+    subtype?: string;
 }
 
 export interface DeployableQuery {
@@ -33,6 +38,10 @@ export interface DeployableQuery {
     radius?: number;
     /** All listed tags must be present. */
     tags?: DeployableTag[];
+    /** Only deployables with this `subtype`. */
+    subtype?: string;
+    /** Only deployables this unit owns. */
+    ownerUnitId?: string;
     /** Default false. */
     includeInactive?: boolean;
 }

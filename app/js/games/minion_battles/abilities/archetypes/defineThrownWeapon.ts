@@ -8,6 +8,9 @@
  * When the projectile stops (hit, bounce end or max range), the token of `weaponId` drops where it
  * stopped. The aim preview is a line clamped to `range`, and the AI aims within `range`.
  *
+ * `echo` also throws a copy from each of the caster's tokens of that type, in the same direction,
+ * and destroys those tokens. Echo copies drop nothing. The aim preview draws their lines too.
+ *
  * `trail` gives the projectile a trail; its colour defaults to the ability theme's secondary.
  * The sprite config must carry its own `trail` effect for the trail to draw.
  */
@@ -27,6 +30,10 @@ import { releaseHeldConjuredWeapon, type ConjureHost } from '../../game/conjured
 import { getConjuredWeaponDef } from '../../game/conjuredWeapons/registry';
 import { getAbilityTheme } from '../../themes/abilityTheme';
 import { THROW_PROJECTILE_SPEED, THROW_RANGE } from '../../card_defs/throwNumbers';
+import { consumeEchoTokens, findEchoTokens, type EchoSpec } from '../echo/echo';
+
+/** `Projectile.expireData` flag on an echo copy, so it drops no token. */
+const ECHO_THROW_DATA_KEY = 'echoThrow';
 
 export interface ThrownWeaponTrail {
     /** Pixels. Omitted keeps the trail default. */
@@ -54,6 +61,9 @@ export interface ThrownWeaponConfig {
     cooldownEnd: number;
     aimLabel: string;
     sprite: SpriteProjectileConfig;
+    resourceCost?: AbilityStatic['resourceCost'];
+    /** See the file header. */
+    echo?: EchoSpec;
     /** Default 1. */
     maxUses?: number;
     /** Default 1. */
@@ -111,7 +121,7 @@ export function defineThrownWeapon(config: ThrownWeaponConfig): AbilityStatic {
         tags: config.tags ?? [],
         name: config.name,
         image: config.image,
-        resourceCost: null,
+        resourceCost: config.resourceCost ?? null,
         resourceCosts: [],
         rechargeTurns: config.rechargeTurns ?? 1,
         maxUses: config.maxUses ?? 1,
@@ -122,11 +132,17 @@ export function defineThrownWeapon(config: ThrownWeaponConfig): AbilityStatic {
         aiSettings: { minRange: 0, maxRange: range },
         onProjectileExpired(engine, caster, projectile): void {
             const weapon = getConjuredWeaponDef(config.weaponId);
-            if (!weapon) return;
+            if (!weapon || (projectile as Projectile).expireData?.[ECHO_THROW_DATA_KEY]) return;
             leaveThrownWeapon(engine, caster, projectile as Projectile, weapon.tokenKind, config.id);
         },
-        renderTargetingPreviewSelectedTargets(gr, caster, _currentTargets, mouseWorld): void {
+        renderTargetingPreviewSelectedTargets(gr, caster, _currentTargets, mouseWorld, _units, gameState): void {
             drawClampedLine(gr, caster, mouseWorld, range);
+            if (!config.echo) return;
+            const dx = mouseWorld.x - caster.x;
+            const dy = mouseWorld.y - caster.y;
+            for (const token of findEchoTokens(gameState, caster, config.echo)) {
+                drawClampedLine(gr, token, { x: token.x + dx, y: token.y + dy }, range);
+            }
         },
         getTooltipText: config.getTooltipText,
         flavorText: config.flavorText,
@@ -144,13 +160,30 @@ function launchThrownWeapon(
     const dx = aim.x - ctx.caster.x;
     const dy = aim.y - ctx.caster.y;
     const len = Math.hypot(dx, dy) || 1;
+    const dir = { x: dx / len, y: dy / len };
+    const echoTokens = config.echo ? findEchoTokens(ctx.engine, ctx.caster, config.echo) : [];
+    throwWeaponCopy(ctx, config, range, trailColor, ctx.caster, dir, false);
+    for (const token of echoTokens) throwWeaponCopy(ctx, config, range, trailColor, token, dir, true);
+    consumeEchoTokens(ctx.engine, echoTokens);
+    releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: false });
+}
+
+function throwWeaponCopy(
+    ctx: CastBehaviourTickContext,
+    config: ThrownWeaponConfig,
+    range: number,
+    trailColor: number | undefined,
+    from: { x: number; y: number },
+    dir: { x: number; y: number },
+    isEcho: boolean,
+): void {
     const speed = config.speed ?? THROW_PROJECTILE_SPEED;
     const trail = config.trail;
     const projectile = new Projectile({
-        x: ctx.caster.x,
-        y: ctx.caster.y,
-        velocityX: (dx / len) * speed,
-        velocityY: (dy / len) * speed,
+        x: from.x,
+        y: from.y,
+        velocityX: dir.x * speed,
+        velocityY: dir.y * speed,
         damage: config.damage,
         sourceTeamId: ctx.caster.teamId,
         sourceUnitId: ctx.caster.id,
@@ -163,10 +196,10 @@ function launchThrownWeapon(
         ...(trail?.radius != null ? { trailRadius: trail.radius } : {}),
         ...(trail?.taper ? { trailTaper: true } : {}),
         ...(trailColor != null ? { trailColor } : {}),
+        ...(isEcho ? { expireData: { [ECHO_THROW_DATA_KEY]: true } } : {}),
     });
     if (config.hitRadius != null) projectile.radius = config.hitRadius;
     ctx.engine.addProjectile(projectile);
-    releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: false });
 }
 
 function leaveThrownWeapon(

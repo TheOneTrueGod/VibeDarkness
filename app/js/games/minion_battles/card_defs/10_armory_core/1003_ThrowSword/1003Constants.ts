@@ -1,7 +1,7 @@
 /** Throw Sword tuning. Throw Shield reuses the timings and the thrown-weapon flight. */
 import { THROW_PROJECTILE_SPEED } from '../../throwNumbers';
 
-export const THROW_SWORD_DAMAGE = 12;
+export const THROW_SWORD_DAMAGE = 6;
 
 /** Throw Sword cast: a short windup, then the blade leaves. */
 export const THROW_SWORD_WINDUP_END = 0.15;

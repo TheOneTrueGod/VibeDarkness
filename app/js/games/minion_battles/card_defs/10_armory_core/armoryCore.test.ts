@@ -30,7 +30,9 @@ import {
 } from '../../../../researchTrees/trees/armory';
 import { listTier10RootCoreCandidates } from '../../storylines/WorldOfDarkness/missions/006_core_awakening';
 import {
-    ARMORY_ABILITY_CHARGE_COST,
+    ARMORY_CREATE_CHARGE_COST,
+    ARMORY_ECHO_CHARGE_COST,
+    ARMORY_CREATE_MAX_USES,
     ARMORY_MACE_WEAPON_ID,
     ARMORY_PRIMARY_COLOR,
     ARMORY_PRIMARY_SHADE_COLOR,
@@ -47,6 +49,7 @@ import {
     DEPLOY_TURRET_ABILITY_ID,
     DROPPED_WEAPON_KIND_MACE,
     DROPPED_WEAPON_KIND_SHIELD,
+    DROPPED_WEAPON_KIND_SWORD,
     IMPROVISED_SWORD_ABILITY_ID,
     IMPROVISED_SWORD_MAX_USES,
     RELEASE_CHARGE_ABILITY_ID,
@@ -63,7 +66,8 @@ import {
 } from './1010_ThrowShield/1010Constants';
 import { CHARGE_MISSION_START } from '../../resources/Charge';
 import { IMPROVISED_SWORD_COOLDOWN_END, IMPROVISED_SWORD_DAMAGE } from './1002_ImprovisedSword/1002Constants';
-import { THROW_SWORD_COOLDOWN_END } from './1003_ThrowSword/1003Constants';
+import { THROW_SWORD_COOLDOWN_END, THROW_SWORD_DAMAGE } from './1003_ThrowSword/1003Constants';
+import { RELEASE_CHARGE_DAMAGE, RELEASE_CHARGE_ECHO_RADIUS } from './1009_ReleaseCharge/1009Constants';
 import {
     TURRET_AIM_LABEL,
     TURRET_AIM_WINDOW_END,
@@ -84,6 +88,7 @@ import {
     MACE_WHIRL_INNER_CLEARANCE,
     MACE_WHIRL_MAX_TARGETS,
     MACE_WHIRL_OUTER_RADIUS,
+    WHIRL_DAMAGE,
 } from './1007_Whirl/1007Constants';
 import { WEAPON_DISCARD_ARC_EFFECT_TYPE } from '../../game/effect_defs/weaponEffects';
 import { TURRET_BODY_RADIUS, TURRET_OPEN_DURATION } from '../../game/effect_defs/turretDeployPose';
@@ -619,7 +624,7 @@ describe('Create Mace', () => {
             (effect) => effect.effectData?.weaponKind === DROPPED_WEAPON_KIND_MACE,
         );
         expect(orbit).toBeDefined();
-        expect(player.getResource('charge')?.current).toBe(chargeBefore - ARMORY_ABILITY_CHARGE_COST);
+        expect(player.getResource('charge')?.current).toBe(chargeBefore - ARMORY_CREATE_CHARGE_COST);
         step(engine, CREATE_SWORD_CAST_DURATION + FIXED_DT);
         expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_MACE_WEAPON_ID);
         expect(player.abilities).toContain(CHARGE_MACE_ABILITY_ID);
@@ -738,8 +743,8 @@ describe('Create Shield', () => {
         expect(ReleaseChargeAbility_1009.name).toBe('Release Charge');
         expect(ThrowShieldAbility_1010.name).toBe('Throw Shield');
         expect(CREATE_SHIELD_CAST_DURATION).toBe(CREATE_SWORD_CAST_DURATION);
-        expect(CreateShieldAbility_1008.resourceCost).toEqual({ resourceId: 'charge', amount: ARMORY_ABILITY_CHARGE_COST });
-        expect(ReleaseChargeAbility_1009.resourceCost).toEqual({ resourceId: 'charge', amount: ARMORY_ABILITY_CHARGE_COST });
+        expect(CreateShieldAbility_1008.resourceCost).toEqual({ resourceId: 'charge', amount: ARMORY_CREATE_CHARGE_COST });
+        expect(ReleaseChargeAbility_1009.resourceCost).toEqual({ resourceId: 'charge', amount: ARMORY_ECHO_CHARGE_COST });
         expect(ThrowShieldAbility_1010.resourceCost).toBeNull();
         const node = armoryTree.nodes.find((entry) => entry.id === ARMORY_NODE_CREATE_SHIELD);
         expect(node?.effects).toEqual([{ type: 'addCard', cardId: CREATE_SHIELD_ABILITY_ID }]);
@@ -755,7 +760,7 @@ describe('Create Shield', () => {
         const attacker = placeTargetDummy(engine, { x: PLAYER.x + CELL_SIZE * 3, y: PLAYER.y }, 'shield_attacker');
         const chargeBefore = charge(player);
         executeUnitAbility(player, CreateShieldAbility_1008, [AIM], engine);
-        expect(charge(player)).toBe(chargeBefore - ARMORY_ABILITY_CHARGE_COST);
+        expect(charge(player)).toBe(chargeBefore - ARMORY_CREATE_CHARGE_COST);
         const orbit = engine.state.effectManager.effects.find(
             (effect) => effect.effectData?.weaponKind === DROPPED_WEAPON_KIND_SHIELD,
         );
@@ -777,7 +782,7 @@ describe('Create Shield', () => {
         }
         step(engine, CREATE_SHIELD_CAST_DURATION / 2);
         expect(player.hp).toBe(hp);
-        expect(charge(player)).toBe(chargeBefore - ARMORY_ABILITY_CHARGE_COST + SHIELD_BLOCK_CHARGE_GRANT);
+        expect(charge(player)).toBe(chargeBefore - ARMORY_CREATE_CHARGE_COST + SHIELD_BLOCK_CHARGE_GRANT);
         expect(player.heldConjuredWeapon).toBeNull();
 
         step(engine, CREATE_SHIELD_CAST_DURATION / 2 + FIXED_DT);
@@ -794,7 +799,7 @@ describe('Create Shield', () => {
         const player = engine.units[0]!;
         const chargeBefore = charge(player);
         conjureShield(engine);
-        expect(charge(player)).toBe(chargeBefore - ARMORY_ABILITY_CHARGE_COST);
+        expect(charge(player)).toBe(chargeBefore - ARMORY_CREATE_CHARGE_COST);
         expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_SHIELD_WEAPON_ID);
     });
 
@@ -802,10 +807,10 @@ describe('Create Shield', () => {
         const { engine } = shieldBattle();
         const target = placeTargetDummy(engine, AIM_POINT, 'release_target');
         const player = conjureShield(engine);
-        player.getResource('charge')!.add(ARMORY_ABILITY_CHARGE_COST);
+        player.getResource('charge')!.add(ARMORY_ECHO_CHARGE_COST);
         const chargeBefore = charge(player);
         executeUnitAbility(player, ReleaseChargeAbility_1009, [AIM], engine);
-        expect(charge(player)).toBe(chargeBefore - ARMORY_ABILITY_CHARGE_COST);
+        expect(charge(player)).toBe(chargeBefore - ARMORY_ECHO_CHARGE_COST);
         step(engine, CONE_OF_LIGHT_ACTIVE_END + FIXED_DT);
         expect(target.hp).toBeLessThan(target.maxHp);
         expect(target.hasBuff('stunned')).toBe(true);
@@ -869,5 +874,133 @@ describe('Create Shield', () => {
         const dropped = engine.state.fieldObjects.droppedWeapons[0]!;
         expect(Math.hypot(dropped.x - first.x, dropped.y - first.y)).toBeCloseTo(DROPPED_WEAPON_ARC_DISTANCE, 0);
         expect(player.abilityRuntime[CREATE_SHIELD_ABILITY_ID]?.active).not.toBe(false);
+    });
+});
+
+/** Put a resting token straight onto the field (no toss arc), owned by `owner`. */
+function placeToken(engine: GameEngine, owner: Unit, kind: string, at: { x: number; y: number }, ownerUnitId = owner.id): string {
+    const id = `test_drop_${kind}_${at.x}_${at.y}_${ownerUnitId}`;
+    engine.state.fieldObjects.droppedWeapons.push({
+        id,
+        x: at.x,
+        y: at.y,
+        kind,
+        ownerUnitId,
+        teamId: owner.teamId,
+        abilityId: 'test',
+        spawnedAtGameTime: 0,
+        facing: 0,
+    });
+    return id;
+}
+
+function tokenIds(engine: GameEngine): string[] {
+    return engine.state.fieldObjects.droppedWeapons.map((weapon) => weapon.id);
+}
+
+describe('Echo', () => {
+    it('makes the Create abilities cheap, with two uses refilled each round, and the echo abilities cost Charge', () => {
+        for (const ability of [CreateSwordAbility, CreateMaceAbility_1005, CreateShieldAbility_1008]) {
+            expect(ability.resourceCost).toEqual({ resourceId: 'charge', amount: 1 });
+            expect(ability.maxUses).toBe(ARMORY_CREATE_MAX_USES);
+            expect(ability.recoveries).toEqual([
+                { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: ARMORY_CREATE_MAX_USES },
+            ]);
+        }
+        for (const ability of [ThrowSwordAbility, WhirlAbility_1007, ReleaseChargeAbility_1009]) {
+            expect(ability.resourceCost).toEqual({ resourceId: 'charge', amount: ARMORY_ECHO_CHARGE_COST });
+        }
+        expect(THROW_SWORD_DAMAGE).toBe(6);
+        expect(RELEASE_CHARGE_DAMAGE).toBe(10);
+        expect(ThrowSwordAbility.getTooltipText()).toContain('{Echo: Sword}');
+        expect(WhirlAbility_1007.getTooltipText()).toContain('{Echo: Mace}');
+        expect(ReleaseChargeAbility_1009.getTooltipText()).toContain('{Echo: Shield}');
+    });
+
+    it('Throw Sword also throws from each of your dropped swords, in the same direction, and destroys them', () => {
+        const { engine } = armoryBattle();
+        const player = engine.units[0]!;
+        executeUnitAbility(player, CreateSwordAbility, [], engine);
+        step(engine, CREATE_SWORD_CAST_DURATION + FIXED_DT);
+        const token = { x: PLAYER.x, y: PLAYER.y + CELL_SIZE * 3 };
+        const echoId = placeToken(engine, player, DROPPED_WEAPON_KIND_SWORD, token);
+        const allyId = placeToken(engine, player, DROPPED_WEAPON_KIND_SWORD, { x: PLAYER.x, y: PLAYER.y - CELL_SIZE * 3 }, 'ally');
+        const target = placeTargetDummy(engine, { x: token.x + CELL_SIZE * 2, y: token.y }, 'echo_throw_target');
+
+        const preview = { lines: [] as Array<{ x0: number; y0: number }>, cursor: { x: 0, y: 0 } };
+        ThrowSwordAbility.renderTargetingPreviewSelectedTargets!(
+            {
+                clear(): void {},
+                moveTo(x: number, y: number): void { preview.cursor = { x, y }; },
+                lineTo(): void { preview.lines.push({ x0: preview.cursor.x, y0: preview.cursor.y }); },
+                circle(): void {},
+                fill(): void {},
+                stroke(): void {},
+            },
+            player,
+            [],
+            AIM_POINT,
+            engine.units,
+            engine,
+        );
+        expect(preview.lines).toEqual([{ x0: player.x, y0: player.y }, { x0: token.x, y0: token.y }]);
+
+        engine.waitingForOrders = null;
+        executeUnitAbility(player, ThrowSwordAbility, [AIM], engine);
+        step(engine, THROW_SWORD_COOLDOWN_END + FIXED_DT);
+        expect(tokenIds(engine)).not.toContain(echoId);
+        expect(tokenIds(engine)).toContain(allyId);
+        step(engine, 3);
+        expect(target.maxHp - target.hp).toBe(THROW_SWORD_DAMAGE);
+        const swords = engine.state.fieldObjects.droppedWeapons.filter(
+            (weapon) => weapon.ownerUnitId === player.id && weapon.kind === DROPPED_WEAPON_KIND_SWORD,
+        );
+        expect(swords).toHaveLength(1);
+    });
+
+    it('Whirl also whirls around each of your dropped maces, then destroys them', () => {
+        const { engine } = maceBattle();
+        const player = engine.units[0]!;
+        executeUnitAbility(player, CreateMaceAbility_1005, [], engine);
+        step(engine, CREATE_SWORD_CAST_DURATION + FIXED_DT);
+        const token = { x: PLAYER.x, y: PLAYER.y + CELL_SIZE * 5 };
+        const echoId = placeToken(engine, player, DROPPED_WEAPON_KIND_MACE, token);
+        const near = placeTargetDummy(engine, { x: token.x + MACE_WHIRL_OUTER_RADIUS - 10, y: token.y }, 'whirl_echo_near');
+        const far = placeTargetDummy(engine, { x: token.x + MACE_WHIRL_OUTER_RADIUS + CELL_SIZE, y: token.y }, 'whirl_echo_far');
+
+        const { gr, circles } = previewRecorder();
+        WhirlAbility_1007.renderSelectTargetPreviewExtras!(gr, player, engine);
+        expect(circles).toContainEqual({ x: token.x, y: token.y, r: MACE_WHIRL_OUTER_RADIUS });
+
+        engine.waitingForOrders = null;
+        executeUnitAbility(player, WhirlAbility_1007, [{ type: 'pixel', position: { x: player.x, y: player.y } }], engine);
+        step(engine, MACE_WHIRL_IMPACT_TIME + FIXED_DT * 2);
+        expect(near.maxHp - near.hp).toBe(WHIRL_DAMAGE);
+        expect(near.hasBuff('stunned')).toBe(true);
+        expect(far.hp).toBe(far.maxHp);
+        expect(tokenIds(engine)).not.toContain(echoId);
+        // The mace this whirl drops is new, and stays.
+        expect(engine.state.fieldObjects.droppedWeapons.filter((weapon) => weapon.kind === DROPPED_WEAPON_KIND_MACE)).toHaveLength(1);
+    });
+
+    it('Release Charge bursts in a smaller circle around each of your dropped bucklers, then destroys them', () => {
+        const { engine } = shieldBattle();
+        const player = conjureShield(engine);
+        player.getResource('charge')!.add(ARMORY_ECHO_CHARGE_COST);
+        const token = { x: PLAYER.x, y: PLAYER.y + CELL_SIZE * 5 };
+        const echoId = placeToken(engine, player, DROPPED_WEAPON_KIND_SHIELD, token);
+        const near = placeTargetDummy(engine, { x: token.x + RELEASE_CHARGE_ECHO_RADIUS - 10, y: token.y }, 'release_echo_near');
+        const far = placeTargetDummy(engine, { x: token.x + RELEASE_CHARGE_ECHO_RADIUS + CELL_SIZE, y: token.y }, 'release_echo_far');
+
+        const { gr, circles } = previewRecorder();
+        ReleaseChargeAbility_1009.renderSelectTargetPreviewExtras!(gr, player, engine);
+        expect(circles).toContainEqual({ x: token.x, y: token.y, r: RELEASE_CHARGE_ECHO_RADIUS });
+
+        executeUnitAbility(player, ReleaseChargeAbility_1009, [AIM], engine);
+        step(engine, CONE_OF_LIGHT_ACTIVE_END + FIXED_DT);
+        expect(near.maxHp - near.hp).toBe(RELEASE_CHARGE_DAMAGE);
+        expect(near.hasBuff('stunned')).toBe(true);
+        expect(far.hp).toBe(far.maxHp);
+        expect(tokenIds(engine)).not.toContain(echoId);
     });
 });

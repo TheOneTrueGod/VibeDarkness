@@ -5,10 +5,10 @@
  * The first block refunds the Charge it cost. When the cast ends, weapon abilities become
  * Release Charge and Create Shield swaps for Throw Shield. Either one puts the buckler away.
  * If a conjured weapon is already held, it is discarded as this cast starts.
- * Costs Charge. One use, recovered at each round start.
+ * Costs Charge. Two uses, both recovered at each round start.
  */
 
-import { AbilityEventType, type AbilityRecoveryRule } from '../../../abilities/Ability';
+import { AbilityEventType } from '../../../abilities/Ability';
 import { defineDirectionalShield } from '../../../abilities/archetypes/defineDirectionalShield';
 import shieldSvg from '../shield.svg?raw';
 import { type CardDef } from '../../types';
@@ -16,7 +16,9 @@ import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import { ResourceId } from '../../../resources/resourceIds';
 import {
-    ARMORY_ABILITY_CHARGE_COST,
+    ARMORY_CREATE_CHARGE_COST,
+    ARMORY_CREATE_MAX_USES,
+    ARMORY_CREATE_RECOVERIES,
     ARMORY_CONJURE_ORBIT,
     ARMORY_SHIELD_WEAPON_ID,
     CREATE_SHIELD_ABILITY_ID,
@@ -28,10 +30,6 @@ import {
     SHIELD_BLOCK_CHARGE_GRANT,
 } from './1008Constants';
 import { equipConjuredWeaponAtEnd, startConjureCast } from '../../../abilities/archetypes/conjureCast';
-
-const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-];
 
 const TOOLTIP_LINES = [
     'Conjure a buckler and block attacks from the front. The first block gains {{CHARGE}} Charge.',
@@ -48,10 +46,10 @@ export const CreateShieldAbility_1008 = defineDirectionalShield({
     flavorText: 'You raise the ground between yourself and the blow.',
     image: shieldSvg,
     tags: [],
-    resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
+    resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_CREATE_CHARGE_COST },
     rechargeTurns: 1,
-    maxUses: 1,
-    recoveries: RECOVERIES,
+    maxUses: ARMORY_CREATE_MAX_USES,
+    recoveries: ARMORY_CREATE_RECOVERIES,
     duration: CREATE_SHIELD_CAST_DURATION,
     aimLabel: CREATE_SHIELD_AIM_LABEL,
     blockBehaviour: equipConjuredWeaponAtEnd(ARMORY_SHIELD_WEAPON_ID),

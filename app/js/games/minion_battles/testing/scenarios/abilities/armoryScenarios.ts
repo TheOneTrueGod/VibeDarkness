@@ -34,7 +34,7 @@ import {
 } from '../../../../../researchTrees/trees/armory';
 import { registerArmoryContent } from '../../../card_defs/10_armory_core/register';
 import {
-    ARMORY_ABILITY_CHARGE_COST,
+    ARMORY_CREATE_CHARGE_COST,
     CREATE_SHIELD_ABILITY_ID,
     CREATE_SWORD_ABILITY_ID,
     CREATE_SWORD_CAST_DURATION,
@@ -353,10 +353,10 @@ function shieldProblem(engine: GameEngine): string | null {
     if (!player) return 'no player';
     const track = trackShield(engine);
     if (player.hp !== track.startHp) return `player took damage (${track.startHp} -> ${player.hp}); block failed`;
-    if (track.minCharge !== track.startCharge - ARMORY_ABILITY_CHARGE_COST) {
-        return `lowest Charge ${track.minCharge} (want ${track.startCharge - ARMORY_ABILITY_CHARGE_COST})`;
+    if (track.minCharge !== track.startCharge - ARMORY_CREATE_CHARGE_COST) {
+        return `lowest Charge ${track.minCharge} (want ${track.startCharge - ARMORY_CREATE_CHARGE_COST})`;
     }
-    const wantCharge = track.startCharge - ARMORY_ABILITY_CHARGE_COST + SHIELD_BLOCK_CHARGE_GRANT;
+    const wantCharge = track.startCharge - ARMORY_CREATE_CHARGE_COST + SHIELD_BLOCK_CHARGE_GRANT;
     if (charge(engine) !== wantCharge) return `Charge ${charge(engine)} (want ${wantCharge} after the block)`;
     if (damageTaken(engine, SHIELD_FIRST_ID) !== THROW_SHIELD_DAMAGE) {
         return `first dummy took ${damageTaken(engine, SHIELD_FIRST_ID)} (want ${THROW_SHIELD_DAMAGE})`;

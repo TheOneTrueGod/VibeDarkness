@@ -5,6 +5,8 @@
  * on their own position: the ring and the units in it are shown, and the click
  * can still be undone. It damages, knocks back, and stuns up to five enemies
  * in that ring. The mace then falls. One use. The weapon is gone either way.
+ * Costs Charge. Echo: the same whirl (a full circle) hits around each of the caster's dropped maces,
+ * which are destroyed. The mace this whirl drops does not echo.
  *
  * Timings match Swing Mace's windup and hit, then the same cooldown.
  */
@@ -26,14 +28,20 @@ import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants
 import { Effect } from '../../../game/effects/Effect';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
+import { drawEchoBurstPreviews, formatEchoLine } from '../../../abilities/echo/echo';
+import { ResourceId } from '../../../resources/resourceIds';
 import {
-    SWING_BAT_BASE_DAMAGE,
     SWING_BAT_COOLDOWN_END,
     SWING_BAT_HIT_END,
     SWING_BAT_KNOCKBACK_TIER,
     SWING_BAT_WINDUP_END,
 } from '../../0115_SwingBat/0115Ability';
-import { ARMORY_SECONDARY_COLOR_NUM, WHIRL_ABILITY_ID } from '../armoryConstants';
+import {
+    ARMORY_ECHO_CHARGE_COST,
+    ARMORY_MACE_ECHO,
+    ARMORY_SECONDARY_COLOR_NUM,
+    WHIRL_ABILITY_ID,
+} from '../armoryConstants';
 import {
     MACE_WHIRL_EFFECT_DURATION,
     MACE_WHIRL_INNER_CLEARANCE,
@@ -41,6 +49,7 @@ import {
     MACE_WHIRL_OUTER_RADIUS,
     MACE_WHIRL_STUN_SECONDS,
     MACE_WHIRL_VISUAL_RADIUS,
+    WHIRL_DAMAGE,
 } from './1007Constants';
 import { WEAPON_WHIRL_EFFECT_TYPE } from '../../../game/effect_defs/weaponEffects';
 
@@ -68,29 +77,42 @@ const TOOLTIP_LINES = [
     'Deal {{DAMAGE}} damage to {{MAX_TARGETS}} adjacent enemies. The mace drops.',
     `{knockback ${SWING_BAT_KNOCKBACK_TIER}}`,
     `{Stun ${MACE_WHIRL_STUN_SECONDS}}`,
-] as const;
+    formatEchoLine(ARMORY_MACE_ECHO),
+];
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
-    DAMAGE: { kind: 'damage', base: SWING_BAT_BASE_DAMAGE },
+    DAMAGE: { kind: 'damage', base: WHIRL_DAMAGE },
     MAX_TARGETS: { kind: 'plain', value: MACE_WHIRL_MAX_TARGETS },
 };
+
+function addWhirlEffect(engine: unknown, at: { x: number; y: number }): void {
+    (engine as Pick<EngineContext, 'addEffect'>).addEffect(new Effect({
+        x: at.x,
+        y: at.y,
+        duration: MACE_WHIRL_EFFECT_DURATION,
+        effectType: WEAPON_WHIRL_EFFECT_TYPE,
+        timeDomain: 'wall',
+        pauseBehaviour: 'continue',
+        effectData: { radius: MACE_WHIRL_VISUAL_RADIUS, color: ARMORY_SECONDARY_COLOR_NUM },
+    }));
+}
 
 const whirl = CastBehaviours.MeleeAttack()
     .withHitbox(WHIRL_HITBOX)
     .withLockOnMode('strictHitbox')
     .withImpactVFX((ctx) => {
-        ctx.engine.addEffect(new Effect({
-            x: ctx.caster.x,
-            y: ctx.caster.y,
-            duration: MACE_WHIRL_EFFECT_DURATION,
-            effectType: WEAPON_WHIRL_EFFECT_TYPE,
-            timeDomain: 'wall',
-            pauseBehaviour: 'continue',
-            effectData: { radius: MACE_WHIRL_VISUAL_RADIUS, color: ARMORY_SECONDARY_COLOR_NUM },
-        }));
+        addWhirlEffect(ctx.engine, ctx.caster);
         releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: true });
     })
-    .withDamage(SWING_BAT_BASE_DAMAGE)
+    .withEcho(ARMORY_MACE_ECHO, {
+        radius: MACE_WHIRL_OUTER_RADIUS,
+        damage: WHIRL_DAMAGE,
+        maxTargets: MACE_WHIRL_MAX_TARGETS,
+        knockbackTier: SWING_BAT_KNOCKBACK_TIER,
+        stunSeconds: MACE_WHIRL_STUN_SECONDS,
+        vfx: addWhirlEffect,
+    })
+    .withDamage(WHIRL_DAMAGE)
     .withKnockback(SWING_BAT_KNOCKBACK_TIER)
     .onDamage((ctx, unit) => {
         stunWhirlTarget(ctx, unit);
@@ -137,7 +159,7 @@ export const WhirlAbility_1007 = defineAbility({
     name: 'Whirl',
     flavorText: 'You spin once, then hand the weight back to the earth.',
     image: whirlSvg,
-    resourceCost: null,
+    resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ECHO_CHARGE_COST },
     resourceCosts: [],
     rechargeTurns: 1,
     maxUses: 1,
@@ -162,6 +184,11 @@ export const WhirlAbility_1007 = defineAbility({
         units: Unit[],
     ): void {
         WHIRL_HITBOX.renderTargetingPreview(gr, caster, { x: caster.x, y: caster.y }, units);
+    },
+    renderSelectTargetPreviewExtras(gr: IAbilityPreviewGraphics, caster: Unit, gameState?: unknown): void {
+        drawEchoBurstPreviews(gr, gameState, caster, ARMORY_MACE_ECHO, MACE_WHIRL_OUTER_RADIUS, {
+            color: ARMORY_SECONDARY_COLOR_NUM,
+        });
     },
 });
 

@@ -304,6 +304,7 @@ export class FieldObjectManager implements DeployableProvider {
             ownerAbilityId: weapon.abilityId,
             teamId: weapon.teamId,
             tags: ['droppedWeapon'],
+            subtype: weapon.kind,
         }));
         const placed: Deployable[] = this.placedDeployables.map((deployable) => ({
             id: deployable.id,
@@ -315,6 +316,7 @@ export class FieldObjectManager implements DeployableProvider {
             ownerAbilityId: deployable.abilityId,
             teamId: deployable.teamId,
             tags: ['placedDeployable'],
+            subtype: deployable.defId,
         }));
         return [...drops, ...placed];
     }

@@ -26,6 +26,7 @@ The registry lives on `GameState` and is reached via `GameEngine.findDeployables
 - `castingTeam` is required and a deployable only matches when its `teamId` equals it. **Ownerless (no team) deployables are story objects and are never returned for any team**, so campfires and crystals cannot be consumed. There is no `consumable` flag.
 - Inactive entries are skipped unless asked for; results are nearest-first with a stable id tie-break.
 - Preview and cast code must call it with identical arguments so they agree on the target.
+- `subtype` narrows to one content type within a kind (a dropped weapon's token kind, a placed deployable's def id); `ownerUnitId` narrows to one unit's. Echo (`abilities/echo/`) uses both.
 - **Light emitter** means "deployable tagged `lightEmitter`"; the old `findDevourableLightSources` and `lightEmitters.ts` are removed.
 
 ## Interaction

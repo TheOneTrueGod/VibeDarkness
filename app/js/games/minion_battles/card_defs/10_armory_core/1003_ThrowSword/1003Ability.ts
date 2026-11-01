@@ -2,7 +2,7 @@
  * Throw Sword — hurl the conjured blade. It stops on the first enemy or at max range.
  * The stowed weapon returns when the blade leaves. The thrown sword becomes a ground token
  * where it stops. That token exists immediately; its resting picture stays hidden until the toss finishes.
- * Single use. Does not cost Charge.
+ * Single use. Costs Charge. Echo: a copy is also thrown from each of the caster's dropped swords.
  * The card picture is the tipped blade. Flight and the token use the upright Charge Sword.
  */
 
@@ -12,8 +12,15 @@ import type { SpriteProjectileConfig } from '../../../game/projectiles/projectil
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
+import { formatEchoLine } from '../../../abilities/echo/echo';
+import { ResourceId } from '../../../resources/resourceIds';
 import swordProjectileUrl from '../chargeSword.svg';
-import { ARMORY_SWORD_WEAPON_ID, THROW_SWORD_ABILITY_ID } from '../armoryConstants';
+import {
+    ARMORY_ECHO_CHARGE_COST,
+    ARMORY_SWORD_ECHO,
+    ARMORY_SWORD_WEAPON_ID,
+    THROW_SWORD_ABILITY_ID,
+} from '../armoryConstants';
 import {
     THROWN_WEAPON_SPEED,
     THROWN_WEAPON_SPIN_DEGREES_PER_SECOND,
@@ -37,7 +44,8 @@ const THROW_SWORD_SPRITE: SpriteProjectileConfig = {
 const TOOLTIP_LINES = [
     'Throw the sword. Deal {{DAMAGE}} damage to the first enemy it hits.',
     'The sword drops where it stops, and your weapon returns.',
-] as const;
+    formatEchoLine(ARMORY_SWORD_ECHO),
+];
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: THROW_SWORD_DAMAGE },
@@ -49,6 +57,8 @@ export const ThrowSwordAbility = defineThrownWeapon({
     flavorText: 'Let it go. You can always make another.',
     image: chargeSwordThrowSvg,
     weaponId: ARMORY_SWORD_WEAPON_ID,
+    resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ECHO_CHARGE_COST },
+    echo: ARMORY_SWORD_ECHO,
     damage: THROW_SWORD_DAMAGE,
     speed: THROWN_WEAPON_SPEED,
     windupEnd: THROW_SWORD_WINDUP_END,

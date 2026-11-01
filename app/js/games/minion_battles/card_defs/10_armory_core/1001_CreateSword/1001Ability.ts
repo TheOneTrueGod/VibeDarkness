@@ -5,10 +5,9 @@
  * The caster can keep walking, at reduced speed. Weapon abilities are replaced
  * by Charge Sword when the cast ends. Create Sword itself swaps for Throw Sword.
  * If a conjured weapon is already held, it is discarded as this cast starts.
- * Costs Charge. One use, recovered at each round start.
+ * Costs Charge. Two uses, both recovered at each round start.
  */
 
-import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import { defineConjure } from '../../../abilities/archetypes/defineConjure';
 import chargeSwordSvg from '../chargeSword.svg?raw';
 import { type CardDef } from '../../types';
@@ -16,17 +15,15 @@ import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers
 import { formatTooltipLegacyLines } from '../../../abilities/tooltipTokens';
 import { ResourceId } from '../../../resources/resourceIds';
 import {
-    ARMORY_ABILITY_CHARGE_COST,
+    ARMORY_CREATE_CHARGE_COST,
+    ARMORY_CREATE_MAX_USES,
+    ARMORY_CREATE_RECOVERIES,
     ARMORY_CONJURE_ORBIT,
     ARMORY_SWORD_WEAPON_ID,
     CREATE_SWORD_ABILITY_ID,
     CREATE_SWORD_CAST_DURATION,
     CREATE_SWORD_MOVE_MULT,
 } from '../armoryConstants';
-
-const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-];
 
 const TOOLTIP_LINES = [
     'Conjure a sword. Your weapon abilities become Charge Sword and Throw Sword until it is thrown or spent.',
@@ -39,9 +36,9 @@ export const CreateSwordAbility = defineConjure({
     flavorText: 'You hum energy into the ground, and the iron rises to meet your hand as an edge.',
     image: chargeSwordSvg,
     weaponId: ARMORY_SWORD_WEAPON_ID,
-    resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
-    maxUses: 1,
-    recoveries: RECOVERIES,
+    resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_CREATE_CHARGE_COST },
+    maxUses: ARMORY_CREATE_MAX_USES,
+    recoveries: ARMORY_CREATE_RECOVERIES,
     duration: CREATE_SWORD_CAST_DURATION,
     moveMult: CREATE_SWORD_MOVE_MULT,
     orbit: ARMORY_CONJURE_ORBIT,

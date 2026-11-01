@@ -30,6 +30,10 @@ describe('keywordRegistry', () => {
         expect(keywordGlossaryEntries(['Bleeder'])).toEqual([]);
     });
 
+    it('shows the Echo card for any token type', () => {
+        expect(keywordGlossaryEntries(['Echo: Sword', 'Echo: Mace']).map((entry) => entry.title)).toEqual(['Echo']);
+    });
+
     it('throws for unregistered keyword', () => {
         expect(() => formatKeywordText('nope' as never, 1)).toThrow();
     });

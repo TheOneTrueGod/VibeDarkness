@@ -5,6 +5,9 @@
  * interrupted. A `ConeFlash` fades out over the cone. Cone of Light (0121) and Release Charge
  * (1009) are both this shape with different numbers and colours.
  *
+ * `echo` also bursts in a circle of `echo.radius` around each of the caster's tokens of that type
+ * (same damage, targets and stun), then destroys them. The preview draws those circles.
+ *
  * Colours: omitted ones take the ability's two-tone theme (flash = secondary, preview fill = primary,
  * preview stroke = secondary). Without one, the flash keeps the effect's teal and the preview is grey.
  */
@@ -21,6 +24,12 @@ import { getDirectionFromTo, pointInCone } from '../targetHelpers';
 import { areEnemies } from '../../game/teams';
 import { drawConeSlice } from '../previewHelpers';
 import { getTwoToneAbilityTheme } from '../../themes/abilityTheme';
+import { drawEchoBurstPreviews, type EchoSpec } from '../echo/echo';
+
+export interface ConeStrikeEcho extends EchoSpec {
+    /** Burst radius around each token. */
+    radius: number;
+}
 
 export interface ConeStrikeConfig {
     id: string;
@@ -44,6 +53,8 @@ export interface ConeStrikeConfig {
     cooldownEnd: number;
     /** Label of the aim pick (default: 'Direction'). */
     aimLabel?: string;
+    /** See the file header. */
+    echo?: ConeStrikeEcho;
 
     flashDuration: number;
     /** `ConeFlash` fill. Omitted: the theme secondary for a two-tone theme, else the effect's default teal. */
@@ -191,10 +202,10 @@ export function defineConeStrike(config: ConeStrikeConfig): AbilityStatic {
                     allowMiss: true,
                     lockOnMode: 'strictHitbox',
                 },
-                behaviour: CastBehaviours.MeleeAttack()
+                behaviour: withConeStrikeEcho(config, colors.flashColor, CastBehaviours.MeleeAttack()
                     .withHitbox(hitbox)
                     .withLockOnMode('strictHitbox')
-                    .withDamage(config.damage)
+                    .withDamage(config.damage))
                     .withImpactVFX((ctx, _hitUnits, aimX, aimY) => {
                         const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, aimX, aimY);
                         ctx.engine.addEffect(new Effect({
@@ -232,8 +243,50 @@ export function defineConeStrike(config: ConeStrikeConfig): AbilityStatic {
         getTooltipText: config.getTooltipText,
         flavorText: config.flavorText,
 
+        ...(config.echo ? { renderSelectTargetPreviewExtras: drawConeStrikeEchoPreview(config.echo, colors.previewStrokeColor) } : {}),
+
         getAbilityStates(): [] {
             return [];
         },
+    };
+}
+
+type MeleeAttackBehaviour = ReturnType<typeof CastBehaviours.MeleeAttack>;
+
+/** Adds the echo burst (with a full-circle `ConeFlash` at each token) when the config has one. */
+function withConeStrikeEcho(
+    config: ConeStrikeConfig,
+    flashColor: number | undefined,
+    behaviour: MeleeAttackBehaviour,
+): MeleeAttackBehaviour {
+    const echo = config.echo;
+    if (!echo) return behaviour;
+    return behaviour.withEcho(echo, {
+        radius: echo.radius,
+        damage: config.damage,
+        maxTargets: config.maxTargets,
+        stunSeconds: config.stunSeconds,
+        stunCcCharges: config.stunCcCharges,
+        vfx: (engine, origin, radius) => {
+            (engine as { addEffect(effect: Effect): void }).addEffect(new Effect({
+                x: origin.x,
+                y: origin.y,
+                duration: config.flashDuration,
+                effectType: 'ConeFlash',
+                effectData: {
+                    centerAngle: 0,
+                    halfArcRad: Math.PI,
+                    innerR: 0,
+                    outerR: radius,
+                    ...(flashColor !== undefined ? { color: flashColor } : {}),
+                },
+            }));
+        },
+    });
+}
+
+function drawConeStrikeEchoPreview(echo: ConeStrikeEcho, color: number) {
+    return (gr: IAbilityPreviewGraphics, caster: Unit, gameState?: unknown): void => {
+        drawEchoBurstPreviews(gr, gameState, caster, echo, echo.radius, { color });
     };
 }

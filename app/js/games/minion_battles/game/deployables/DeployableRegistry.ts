@@ -14,13 +14,15 @@ export class DeployableRegistry {
     }
 
     findDeployables(query: DeployableQuery): Deployable[] {
-        const { castingTeam, near, halfExtent, radius, tags, includeInactive } = query;
+        const { castingTeam, near, halfExtent, radius, tags, subtype, ownerUnitId, includeInactive } = query;
         const out: { d: Deployable; distSq: number }[] = [];
         for (const provider of this.providers) {
             for (const d of provider.listDeployables()) {
                 if (!includeInactive && !d.active) continue;
                 if (d.teamId === undefined || d.teamId !== castingTeam) continue;
                 if (tags && !tags.every((t) => d.tags.includes(t))) continue;
+                if (subtype !== undefined && d.subtype !== subtype) continue;
+                if (ownerUnitId !== undefined && d.ownerUnitId !== ownerUnitId) continue;
                 const dx = d.x - near.x;
                 const dy = d.y - near.y;
                 if (halfExtent !== undefined && Math.max(Math.abs(dx), Math.abs(dy)) > halfExtent) continue;

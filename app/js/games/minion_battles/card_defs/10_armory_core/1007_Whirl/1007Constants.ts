@@ -1,5 +1,9 @@
 /** Whirl tuning. */
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
+import { SWING_BAT_BASE_DAMAGE } from '../../0115_SwingBat/0115Ability';
+
+/** Half of Swing Mace's hit: Whirl also lands at every dropped mace. */
+export const WHIRL_DAMAGE = SWING_BAT_BASE_DAMAGE / 2;
 
 /** Enemies a Whirl can strike. */
 export const MACE_WHIRL_MAX_TARGETS = 5;

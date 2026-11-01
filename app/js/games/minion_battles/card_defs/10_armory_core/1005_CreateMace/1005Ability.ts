@@ -5,10 +5,9 @@
  * The caster can keep walking, at reduced speed. Weapon abilities become
  * Charge Mace when the cast ends. Create Mace itself swaps for Whirl.
  * If a conjured weapon is already held, it is discarded as this cast starts.
- * Costs Charge. One use, recovered at each round start.
+ * Costs Charge. Two uses, both recovered at each round start.
  */
 
-import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import { defineConjure } from '../../../abilities/archetypes/defineConjure';
 import chargeMaceSvg from '../chargeMace.svg?raw';
 import { type CardDef } from '../../types';
@@ -16,17 +15,15 @@ import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers
 import { formatTooltipLegacyLines } from '../../../abilities/tooltipTokens';
 import { ResourceId } from '../../../resources/resourceIds';
 import {
-    ARMORY_ABILITY_CHARGE_COST,
+    ARMORY_CREATE_CHARGE_COST,
+    ARMORY_CREATE_MAX_USES,
+    ARMORY_CREATE_RECOVERIES,
     ARMORY_CONJURE_ORBIT,
     ARMORY_MACE_WEAPON_ID,
     CREATE_MACE_ABILITY_ID,
     CREATE_SWORD_CAST_DURATION,
     CREATE_SWORD_MOVE_MULT,
 } from '../armoryConstants';
-
-const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-];
 
 const TOOLTIP_LINES = [
     'Conjure a mace. Your weapon abilities become Charge Mace and Whirl until Whirl is used or the mace is spent.',
@@ -39,9 +36,9 @@ export const CreateMaceAbility_1005 = defineConjure({
     flavorText: 'You pack rock onto rock until it is too heavy to hold back.',
     image: chargeMaceSvg,
     weaponId: ARMORY_MACE_WEAPON_ID,
-    resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
-    maxUses: 1,
-    recoveries: RECOVERIES,
+    resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_CREATE_CHARGE_COST },
+    maxUses: ARMORY_CREATE_MAX_USES,
+    recoveries: ARMORY_CREATE_RECOVERIES,
     duration: CREATE_SWORD_CAST_DURATION,
     moveMult: CREATE_SWORD_MOVE_MULT,
     orbit: ARMORY_CONJURE_ORBIT,

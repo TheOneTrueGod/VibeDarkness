@@ -20,6 +20,7 @@ import { resolveMeleeSlideDirection } from '../meleeSlideDirection';
 import { findMeleeAimPixelInTargets } from '../targeting';
 import { assignHitSlots, priorityFillHits } from '../priorityFillHits';
 import { casterSlideMagnitude } from './CasterSlideBehaviour';
+import { findEchoTokens, runEchoBursts, type EchoBurstSpec, type EchoSpec } from '../echo/echo';
 
 /**
  * Returns the effective max range for pixel-target clamping.
@@ -83,6 +84,7 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
     private impactAt: number = MELEE_ATTACK_DEFAULT_IMPACT_AT;
     private slideConfig = { forwardDistance: 12, backwardDistance: 0 };
     private maxHits: number = 1;
+    private echo: { spec: EchoSpec; burst: EchoBurstSpec } | null = null;
     /**
      * When set, overrides the hitbox-derived lock-on range for guaranteed hits.
      * Runtime range = caster.radius + target.radius + lockOnExtraOverride.
@@ -146,6 +148,15 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         fn: (ctx: CastBehaviourTickContext, hitUnits: Unit[], aimX: number, aimY: number) => void,
     ): this {
         this.impactVFXCallback = fn;
+        return this;
+    }
+
+    /**
+     * Echo: after the hit, burst at each of the caster's tokens of `spec.tokenType`, then destroy
+     * them. Tokens are read before the impact VFX, so a token this hit drops does not echo.
+     */
+    withEcho(spec: EchoSpec, burst: EchoBurstSpec): this {
+        this.echo = { spec, burst };
         return this;
     }
 
@@ -409,6 +420,8 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
                     : allCandidates;
         }
 
+        const echoTokens = this.echo ? findEchoTokens(ctx.engine, ctx.caster, this.echo.spec) : [];
+
         // Spawn impact VFX — custom callback takes full control when set.
         // Only animate from caster when the attack actually lands; misses and evades appear in place.
         if (this.impactVFXCallback) {
@@ -432,6 +445,10 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         // Strike pauses are applied inside tryDamageOrBlock, before this knockback,
         // so the freeze stores the launch on the following tick.
         this.applyKnockbackToHits(hitUnits, ctx);
+
+        if (this.echo) {
+            runEchoBursts(ctx.engine, ctx.caster, ctx.abilityId, this.echo.spec, this.echo.burst, echoTokens);
+        }
     }
 
     onInterrupt(ctx: CastBehaviourInterruptContext): void {

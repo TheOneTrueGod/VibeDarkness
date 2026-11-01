@@ -70,7 +70,8 @@ export function keywordGlossaryEntries(keywordTexts: readonly string[]): Keyword
     const seen = new Set<string>();
     for (const text of keywordTexts) {
         const lower = text.trim().toLowerCase();
-        const word = lower.replace(/\s+[\d./]+$/, '');
+        // `Stun 2` and `Echo: Sword` both match on the leading word.
+        const word = lower.replace(/\s+[\d./]+$/, '').replace(/:.*$/, '');
         for (const term of glossaryTerms) {
             if (seen.has(term.title) || !term.matches.some((m) => m.toLowerCase() === word)) continue;
             seen.add(term.title);
@@ -127,6 +128,12 @@ registerGlossaryTerm({
     title: 'Bleed',
     matches: ['bleed', 'bleeding'],
     description: `Deals {1} damage per {${BLEED_STACKS_PER_DAMAGE}} stacks every {1/${BLEED_TICKS_PER_ROUND}} round.`,
+});
+
+registerGlossaryTerm({
+    title: 'Echo',
+    matches: ['echo'],
+    description: 'This also happens at each of your tokens of that type, then those tokens are destroyed.',
 });
 
 registerGlossaryTerm({
