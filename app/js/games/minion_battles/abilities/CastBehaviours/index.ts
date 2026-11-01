@@ -11,6 +11,7 @@ import { Leap, type LeapConfig, type LeapBehaviour } from './LeapBehaviour';
 import { GroundPatch, type GroundPatchConfig, type GroundPatchBehaviour } from './GroundPatchBehaviour';
 import { terrainStrike, type TerrainStrikeBehaviour } from './TerrainStrikeBehaviour';
 import { pulse, type PulseConfig, type PulseBehaviour } from './PulseBehaviour';
+import { arcSweep, type ArcSweepConfig, type ArcSweepBehaviour } from './ArcSweepBehaviour';
 import type { CastBehaviourTickContext } from '../castBehaviourTypes';
 
 export const CastBehaviours = {
@@ -38,6 +39,8 @@ export const CastBehaviours = {
     TerrainStrike: (): TerrainStrikeBehaviour => terrainStrike(),
     /** Repeated pulses through its window; the damage function receives the pulse number. */
     Pulse: (config: PulseConfig): PulseBehaviour => pulse(config),
+    /** A whirlwind: arc segments laid around the caster one after another, each a fading effect and a hitbox. Supports Echo. */
+    ArcSweep: (config: ArcSweepConfig): ArcSweepBehaviour => arcSweep(config),
 };
 
 export { BaseAttackBehaviour } from './BaseAttackBehaviour';

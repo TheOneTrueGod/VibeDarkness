@@ -3,9 +3,10 @@
  * then those tokens are destroyed. A token is any deployable with a `subtype`
  * (`game/deployables/Deployable.ts`), e.g. a dropped sword is subtype `sword`.
  *
- * The ability decides what "happens at a token" means. Two shapes are built in:
+ * The ability decides what "happens at a token" means. Built-in shapes:
  * - a burst ({@link EchoBurstSpec}, {@link strikeEchoBurst}): damage, knockback and stun in a circle
  *   around the token. `MeleeAttack.withEcho` runs it after the main hit.
+ * - an arc sweep (`CastBehaviours.ArcSweep` with `echo`): the same whirlwind turns around each token.
  * - anything else: call {@link findEchoTokens}, act at each one, then {@link consumeEchoTokens}
  *   (`defineThrownWeapon` throws a copy from each token).
  *
@@ -13,12 +14,9 @@
  */
 import type { IAbilityPreviewGraphics } from '../Ability';
 import type { Deployable, DeployableQuery } from '../../game/deployables/Deployable';
-import type { EventBus } from '../../game/EventBus';
 import type { Unit } from '../../game/units/Unit';
-import { tryDamageOrBlock } from '../blockingHelpers';
 import { damageEnemiesInCircle } from '../targetHelpers';
-import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
-import { tryApplyHardCcStun } from '../../crowdControl/tryApplyHardCcStun';
+import { landAreaStrike, type AreaStrikeEngine, type AreaStrikeSpec } from '../areaStrike';
 
 /** Which tokens an ability echoes at. */
 export interface EchoSpec {
@@ -28,17 +26,11 @@ export interface EchoSpec {
     tokenLabel: string;
 }
 
-/** What one echo does in a circle around its token. */
-export interface EchoBurstSpec {
+/** What one echo does in a circle around its token: an area strike (`abilities/areaStrike.ts`). */
+export interface EchoBurstSpec extends AreaStrikeSpec {
     radius: number;
-    damage: number;
     /** Closest enemies hit. Omitted hits every enemy in the circle. */
     maxTargets?: number;
-    /** Knockback tier, pushing away from the token. */
-    knockbackTier?: number;
-    stunSeconds?: number;
-    /** CC armour charges the stun spends. Default 1. */
-    stunCcCharges?: number;
     /** Impact effect at the token. */
     vfx?: (engine: unknown, origin: { x: number; y: number }, radius: number) => void;
 }
@@ -46,14 +38,6 @@ export interface EchoBurstSpec {
 interface EchoEngine {
     findDeployables?(query: DeployableQuery): Deployable[];
     consumeDeployable?(deployable: Pick<Deployable, 'id' | 'kind'>): boolean;
-}
-
-interface EchoStrikeEngine {
-    units: Unit[];
-    gameTime: number;
-    roundNumber?: number;
-    eventBus: EventBus;
-    getUnit?(id: string): Unit | undefined;
 }
 
 /** Tooltip keyword line, e.g. `{Echo: Sword}`. */
@@ -78,7 +62,7 @@ export function consumeEchoTokens(engine: unknown, tokens: readonly Deployable[]
     for (const token of tokens) eng?.consumeDeployable?.(token);
 }
 
-/** One echo burst at `origin`: damage the closest enemies, then knock back and stun the ones it hit. */
+/** One echo burst at `origin`: strike the closest enemies in the circle (see `landAreaStrike`). */
 export function strikeEchoBurst(
     engine: unknown,
     caster: Unit,
@@ -86,10 +70,9 @@ export function strikeEchoBurst(
     origin: { x: number; y: number },
     burst: EchoBurstSpec,
 ): Unit[] {
-    const eng = engine as EchoStrikeEngine;
     const landed: Unit[] = [];
     damageEnemiesInCircle({
-        engine: eng,
+        engine: engine as AreaStrikeEngine,
         caster,
         center: origin,
         radius: burst.radius,
@@ -97,37 +80,10 @@ export function strikeEchoBurst(
         abilityId,
         maxTargets: burst.maxTargets,
         onHit: (unit) => {
-            const outcome = tryDamageOrBlock(unit, {
-                engine: eng,
-                gameTime: eng.gameTime,
-                eventBus: eng.eventBus,
-                attackerX: origin.x,
-                attackerY: origin.y,
-                attackerId: caster.id,
-                abilityId,
-                damage: burst.damage,
-                attackType: 'melee',
-            });
-            if (outcome.hit) landed.push(unit);
+            if (landAreaStrike(engine, caster, abilityId, origin, unit, burst)) landed.push(unit);
         },
     });
     burst.vfx?.(engine, origin, burst.radius);
-    const round = eng.roundNumber ?? 0;
-    for (const unit of landed) {
-        if (burst.knockbackTier != null) {
-            tryApplyKnockbackByTier(
-                unit,
-                burst.knockbackTier,
-                { unitId: caster.id, abilityId },
-                origin.x,
-                origin.y,
-                knockbackCtxFromEngine(eng as Parameters<typeof knockbackCtxFromEngine>[0]),
-            );
-        }
-        if (burst.stunSeconds != null) {
-            tryApplyHardCcStun(unit, burst.stunSeconds, eng.gameTime, round, eng.eventBus, burst.stunCcCharges ?? 1);
-        }
-    }
     return landed;
 }
 

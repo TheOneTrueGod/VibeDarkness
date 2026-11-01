@@ -6,7 +6,8 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 
 | Path | Owns |
 |------|------|
-| `CastBehaviours/` | Reusable timed behaviours (`CastBehaviours.MeleeAttack()`, Dash, ProjectileLaunch, Instant, CasterSlide, CasterShake, Charge, SpawnUnits, Leap, GroundPatch, TerrainStrike, Pulse, …). Every ability is built from these (there is no per-tick ability hook). Blocks: MeleeAttack, Dash, ProjectileLaunch, Instant, InitAbilityNote, CasterSlide, CasterShake, Charge, SpawnUnits, Leap, GroundPatch, TerrainStrike, Pulse. |
+| `CastBehaviours/` | Reusable timed behaviours (`CastBehaviours.MeleeAttack()`, Dash, ProjectileLaunch, Instant, CasterSlide, CasterShake, Charge, SpawnUnits, Leap, GroundPatch, TerrainStrike, Pulse, ArcSweep, …). Every ability is built from these (there is no per-tick ability hook). Blocks: MeleeAttack, Dash, ProjectileLaunch, Instant, InitAbilityNote, CasterSlide, CasterShake, Charge, SpawnUnits, Leap, GroundPatch, TerrainStrike, Pulse, ArcSweep (a whirlwind of arc segments, each a fading `ArcSegmentFade` effect and an `ArcSegmentHitbox`; Whirl). |
+| `areaStrike.ts` | `landAreaStrike`: damage, then knockback and stun from a point that is not the caster. Echo bursts and ArcSweep share it. |
 | `tileAreaHelpers.ts`, `telegraphStyles.ts`, `easing.ts`, `previewHelpers.ts` | Tile-area geometry and occupancy (`getUnitsInTiles`), named telegraph palettes, easing curves, and preview drawing. Tile hitboxes themselves are in `hitboxes/TileAreaHitboxSpec.ts`; its `tileShapes` (incl. `disc(r)`) and `cellsAroundPoint` also serve non-select AoEs (e.g. Thornbinder's landing footprint), with `damageEnemiesInTiles` / `placeJitteredGroundThorns({ cells })` in `targetHelpers.ts` so effect and `drawTileAreaTelegraph` preview share one cell list. |
 | `Ability.ts` / `AbilityRegistry.ts` | Ability static contract and id → ability lookup. New abilities must `register(...)` here or they are silently missing at runtime. |
 | `abilityTimings.ts` | Timing intervals, `emitterDef`, and `getEffectiveCastBehaviours` (normalises `castBehaviours` vs `behaviour` shorthand). Interval enter detection must treat `start: 0` correctly (`enteredTimingIds` special-cases the first tick — needed for emitters and Instant behaviours). |
@@ -14,7 +15,7 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 | `hitboxDef.ts` | Pure hitbox data + `resolveHitbox`. When a `priorityUnitId` is set and that unit is out of the shape, the result is empty (miss), not a redirect to another unit. |
 | `castBehaviourTypes.ts` / `resolveCastBehaviourTarget.ts` | Behaviour context, `targetIndex`, interrupt typing. |
 | `targetDowngrade.ts` | Freezes unit targets to pixels when they die (pair with evade/tether handling in the ability tick). |
-| `echo/` | Echo: an ability also happens at each of the caster's tokens of one type (`Deployable.subtype`), then destroys them. Burst echoes via `MeleeAttack.withEcho`; `defineThrownWeapon` and `defineConeStrike` take an `echo` config. Tooltip line `{Echo: Sword}` has a glossary card. |
+| `echo/` | Echo: an ability also happens at each of the caster's tokens of one type (`Deployable.subtype`), then destroys them. Burst echoes via `MeleeAttack.withEcho`, sweeps via `ArcSweep`'s `echo`; `defineThrownWeapon` and `defineConeStrike` take an `echo` config. Tooltip line `{Echo: Sword}` has a glossary card. |
 | `keywords/` | Reusable ability keywords (`bright`, `knockback`, `devourLight`), registry, and cast-time runner. See `keywords/AGENTS.md`. |
 
 ## Per-cast ability modes

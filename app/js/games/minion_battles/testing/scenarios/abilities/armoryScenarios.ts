@@ -7,6 +7,8 @@
  * - `armory_turret_fires_and_expires` — the folded-turret delivery and a `DeployableDef` firing its own charges.
  * - `armory_shield_block_and_bounce` — the directional block granting Charge, then a bouncing thrown buckler.
  * - `armory_repair_post_heals_allies` — a `healPulse` deployable healing the caster each quarter round, not an enemy.
+ * - `armory_mace_whirl_echo` — Create Mace twice (the second drops the first as a token), then Whirl: an `ArcSweep`
+ *   around the caster and, through Echo, around the dropped mace, which is destroyed.
  *
  * Later casts are pre-queued in `buildEngine()` with `orderMgr.queueOrder(futureTick, …)`, after the previous
  * cast's cooldown has ended (see the ability-tests skill).
@@ -28,23 +30,30 @@ import { swordItem } from '../../../character_defs/items/weapons/013_sword';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
     ARMORY_NODE_CORE,
+    ARMORY_NODE_CREATE_MACE,
     ARMORY_NODE_CREATE_SHIELD,
     ARMORY_NODE_REPAIR_POST,
     ARMORY_TREE_ID,
 } from '../../../../../researchTrees/trees/armory';
 import { registerArmoryContent } from '../../../card_defs/10_armory_core/register';
+import { MACE_WHIRL_SWEEP_END, WHIRL_TARGET_LABEL } from '../../../card_defs/10_armory_core/1007_Whirl/1007Ability';
+import { WHIRL_DAMAGE } from '../../../card_defs/10_armory_core/1007_Whirl/1007Constants';
+import { DROPPED_WEAPON_ARC_ANGLE, DROPPED_WEAPON_ARC_DISTANCE } from '../../../game/fieldObjects/landing';
 import {
     ARMORY_CREATE_CHARGE_COST,
+    CREATE_MACE_ABILITY_ID,
     CREATE_SHIELD_ABILITY_ID,
     CREATE_SWORD_ABILITY_ID,
     CREATE_SWORD_CAST_DURATION,
     DEPLOY_TURRET_ABILITY_ID,
+    DROPPED_WEAPON_KIND_MACE,
     DROPPED_WEAPON_KIND_SHIELD,
     DROPPED_WEAPON_KIND_SWORD,
     IMPROVISED_SWORD_ABILITY_ID,
     REPAIR_POST_ABILITY_ID,
     THROW_SHIELD_ABILITY_ID,
     THROW_SWORD_ABILITY_ID,
+    WHIRL_ABILITY_ID,
 } from '../../../card_defs/10_armory_core/armoryConstants';
 import { IMPROVISED_SWORD_COOLDOWN_END, IMPROVISED_SWORD_DAMAGE } from '../../../card_defs/10_armory_core/1002_ImprovisedSword/1002Constants';
 import {
@@ -478,9 +487,75 @@ export const armoryRepairPostHealsAlliesScenario: ScenarioDefinition = {
     },
 };
 
+// ---------------------------------------------------------------------------
+// armory_mace_whirl_echo
+// ---------------------------------------------------------------------------
+
+const WHIRL_PLAYER = cellCentre(3, 3);
+/** Where re-casting Create Mace tosses the held mace: the default discard arc from the caster. */
+const WHIRL_TOKEN = {
+    x: WHIRL_PLAYER.x + Math.cos(DROPPED_WEAPON_ARC_ANGLE) * DROPPED_WEAPON_ARC_DISTANCE,
+    y: WHIRL_PLAYER.y + Math.sin(DROPPED_WEAPON_ARC_ANGLE) * DROPPED_WEAPON_ARC_DISTANCE,
+};
+const WHIRL_NEAR_DUMMY_ID = 'armory_whirl_near_dummy';
+/** Inside the caster's ring, far from the token. */
+const WHIRL_NEAR_DUMMY = { x: WHIRL_PLAYER.x - CELL_SIZE, y: WHIRL_PLAYER.y };
+const WHIRL_TOKEN_DUMMY_ID = 'armory_whirl_token_dummy';
+/** Beside the dropped mace, out of the caster's own ring: only the echo reaches it. */
+const WHIRL_TOKEN_DUMMY = { x: WHIRL_TOKEN.x + CELL_SIZE * 1.1, y: WHIRL_TOKEN.y };
+const RECONJURE_AT = CREATE_SWORD_CAST_DURATION + ORDER_GAP;
+const WHIRL_AT = RECONJURE_AT + CREATE_SWORD_CAST_DURATION + ORDER_GAP;
+const WHIRL_CHECK_AT = WHIRL_AT + MACE_WHIRL_SWEEP_END + 0.4;
+const WHIRL_KEEP_ALIVE_AT = WHIRL_CHECK_AT + 0.5;
+
+function whirlProblem(engine: GameEngine): string | null {
+    const near = damageTaken(engine, WHIRL_NEAR_DUMMY_ID);
+    if (near !== WHIRL_DAMAGE) return `near dummy took ${near} (want ${WHIRL_DAMAGE})`;
+    const byToken = damageTaken(engine, WHIRL_TOKEN_DUMMY_ID);
+    if (byToken !== WHIRL_DAMAGE) return `token dummy took ${byToken} (want ${WHIRL_DAMAGE} from the echo)`;
+    const maces = engine.state.fieldObjects.droppedWeapons.filter((weapon) => weapon.kind === DROPPED_WEAPON_KIND_MACE);
+    if (maces.length !== 1) return `${maces.length} mace tokens (want 1: the echoed one destroyed, the whirl's own dropped)`;
+    return null;
+}
+
+export const armoryMaceWhirlEchoScenario: ScenarioDefinition = {
+    id: 'armory_mace_whirl_echo',
+    title: 'Armory: Whirl sweeps around the caster and echoes around a dropped mace, destroying it',
+    category: 'ability',
+    maxDurationMs: Math.ceil((WHIRL_KEEP_ALIVE_AT + 1) * 1000),
+
+    buildEngine() {
+        const engine = buildArmoryEngine(8, 8, WHIRL_PLAYER, [ARMORY_NODE_CORE, ARMORY_NODE_CREATE_MACE]);
+        const me = playerUnitId(engine);
+        placeTargetDummy(engine, WHIRL_NEAR_DUMMY, WHIRL_NEAR_DUMMY_ID);
+        placeTargetDummy(engine, WHIRL_TOKEN_DUMMY, WHIRL_TOKEN_DUMMY_ID);
+        engine.state.orderMgr.queueOrder(toTick(RECONJURE_AT), { unitId: me, abilityId: CREATE_MACE_ABILITY_ID, targets: [] });
+        engine.state.orderMgr.queueOrder(
+            toTick(WHIRL_AT),
+            aimedOrder(me, WHIRL_ABILITY_ID, WHIRL_TARGET_LABEL, WHIRL_PLAYER),
+        );
+        engine.state.orderMgr.queueOrder(toTick(WHIRL_KEEP_ALIVE_AT), { unitId: me, abilityId: 'wait', targets: [] });
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        return [{ unitId: playerUnitId(engine), abilityId: CREATE_MACE_ABILITY_ID, targets: [] }];
+    },
+
+    assertPass(engine) {
+        if (engine.gameTime < WHIRL_CHECK_AT) return false;
+        return whirlProblem(engine) === null;
+    },
+
+    failureMessage(engine) {
+        return `t=${engine.gameTime.toFixed(2)}s; ${whirlProblem(engine) ?? 'ok'}`;
+    },
+};
+
 export const ARMORY_SCENARIOS: ScenarioDefinition[] = [
     armorySwordCycleScenario,
     armoryTurretFiresAndExpiresScenario,
     armoryShieldBlockAndBounceScenario,
     armoryRepairPostHealsAlliesScenario,
+    armoryMaceWhirlEchoScenario,
 ];

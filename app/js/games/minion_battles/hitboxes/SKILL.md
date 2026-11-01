@@ -32,6 +32,10 @@ Hitboxes live in `app/js/games/minion_battles/hitboxes/` and provide reusable hi
 
 Annulus around the caster (`hitboxes/RingHitbox.ts`). The pointer does not move it. A unit is hit when its circle overlaps the outer disk and is not wholly inside the inner hole. Pair it with a `confirmAtCaster` select when the cast should pause and lock on to whoever is in the ring (Whirl).
 
+### ArcSegmentHitbox
+
+Part of a ring between two angles (`hitboxes/ArcSegmentHitbox.ts`): `getUnitsInArcSegment` / `unitOverlapsArcSegment`. Ring overlap as `RingHitbox`, plus the unit's centre (widened by its radius) inside the angle span. `CastBehaviours.ArcSweep` uses one per step.
+
 ### CircleHitbox
 
 Disk AoE around a point. Prefer this (or `damageEnemiesInCircle`) for circle combat impacts.

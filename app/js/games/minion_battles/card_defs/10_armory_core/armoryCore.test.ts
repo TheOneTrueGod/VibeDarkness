@@ -35,6 +35,8 @@ import {
     ARMORY_CREATE_MAX_USES,
     ARMORY_MACE_WEAPON_ID,
     ARMORY_PRIMARY_COLOR,
+    ARMORY_PRIMARY_COLOR_NUM,
+    ARMORY_SECONDARY_COLOR_NUM,
     ARMORY_PRIMARY_SHADE_COLOR,
     ARMORY_SECONDARY_COLOR,
     ARMORY_SHIELD_WEAPON_ID,
@@ -88,9 +90,12 @@ import {
     MACE_WHIRL_INNER_CLEARANCE,
     MACE_WHIRL_MAX_TARGETS,
     MACE_WHIRL_OUTER_RADIUS,
+    MACE_WHIRL_SEGMENT_LIFETIME,
+    MACE_WHIRL_SEGMENTS,
     WHIRL_DAMAGE,
 } from './1007_Whirl/1007Constants';
 import { WEAPON_DISCARD_ARC_EFFECT_TYPE } from '../../game/effect_defs/weaponEffects';
+import { ARC_SEGMENT_EFFECT_TYPE } from '../../game/effect_defs/arcSegmentEffects';
 import { TURRET_BODY_RADIUS, TURRET_OPEN_DURATION } from '../../game/effect_defs/turretDeployPose';
 import { DEPLOYABLE_DELIVERY_PROJECTILE_TYPE } from '../../game/fieldObjects/deployableDefs';
 import { CreateSwordAbility } from './1001_CreateSword/1001Ability';
@@ -99,7 +104,7 @@ import { ThrowSwordAbility } from './1003_ThrowSword/1003Ability';
 import { DeployTurretAbility, validateTurretPlacement } from './1004_DeployTurret/1004Ability';
 import { CreateMaceAbility_1005 } from './1005_CreateMace/1005Ability';
 import { CHARGE_MACE_IMPACT_TIME, ChargeMaceAbility_1006 } from './1006_ChargeMace/1006Ability';
-import { MACE_WHIRL_IMPACT_TIME, WHIRL_TARGET_LABEL, WhirlAbility_1007 } from './1007_Whirl/1007Ability';
+import { MACE_WHIRL_SWEEP_END, WHIRL_TARGET_LABEL, WhirlAbility_1007 } from './1007_Whirl/1007Ability';
 import { CreateShieldAbility_1008 } from './1008_CreateShield/1008Ability';
 import { ReleaseChargeAbility_1009 } from './1009_ReleaseCharge/1009Ability';
 import { ThrowShieldAbility_1010 } from './1010_ThrowShield/1010Ability';
@@ -686,9 +691,11 @@ describe('Create Mace', () => {
         expect(locked).toHaveLength(MACE_WHIRL_MAX_TARGETS);
         expect(locked.some((target) => target.unitId === hole.id)).toBe(false);
         engine.waitingForOrders = null;
+        const hpBeforeWhirl = new Map([...adjacent, swingDummy].map((unit) => [unit.id, unit.hp]));
         executeUnitAbility(player, WhirlAbility_1007, confirmed!.orderTargets, engine);
-        step(engine, MACE_WHIRL_IMPACT_TIME + FIXED_DT * 2);
-        const struck = adjacent.filter((unit) => unit.hp < unit.maxHp);
+        step(engine, MACE_WHIRL_SWEEP_END + FIXED_DT * 2);
+        // The sweep strikes the first five it reaches, which can include the dummy from the swing above.
+        const struck = [...adjacent, swingDummy].filter((unit) => unit.hp < hpBeforeWhirl.get(unit.id)!);
         expect(struck).toHaveLength(MACE_WHIRL_MAX_TARGETS);
         for (const unit of struck) expect(unit.hasBuff('stunned')).toBe(true);
         expect(hole.hp).toBe(hole.maxHp);
@@ -974,7 +981,7 @@ describe('Echo', () => {
 
         engine.waitingForOrders = null;
         executeUnitAbility(player, WhirlAbility_1007, [{ type: 'pixel', position: { x: player.x, y: player.y } }], engine);
-        step(engine, MACE_WHIRL_IMPACT_TIME + FIXED_DT * 2);
+        step(engine, MACE_WHIRL_SWEEP_END + FIXED_DT * 2);
         expect(near.maxHp - near.hp).toBe(WHIRL_DAMAGE);
         expect(near.hasBuff('stunned')).toBe(true);
         expect(far.hp).toBe(far.maxHp);
@@ -1002,5 +1009,48 @@ describe('Echo', () => {
         expect(near.hasBuff('stunned')).toBe(true);
         expect(far.hp).toBe(far.maxHp);
         expect(tokenIds(engine)).not.toContain(echoId);
+    });
+});
+
+describe('Whirl sweep', () => {
+    it('turns around the caster, striking each side as the arc reaches it, in fading segments', () => {
+        const { engine } = maceBattle();
+        const player = engine.units[0]!;
+        executeUnitAbility(player, CreateMaceAbility_1005, [], engine);
+        step(engine, CREATE_SWORD_CAST_DURATION + FIXED_DT);
+        const reach = (player.radius + MACE_WHIRL_INNER_CLEARANCE + MACE_WHIRL_OUTER_RADIUS) / 2;
+        // The sweep starts at screen right and turns clockwise (down first, on screen).
+        const first = placeTargetDummy(engine, { x: player.x + reach, y: player.y + 4 }, 'sweep_first');
+        const last = placeTargetDummy(engine, { x: player.x + reach * 0.7, y: player.y - reach * 0.7 }, 'sweep_last');
+        engine.waitingForOrders = null;
+        executeUnitAbility(player, WhirlAbility_1007, [{ type: 'pixel', position: { x: player.x, y: player.y } }], engine);
+
+        const hitTick: Record<string, number> = {};
+        let tick = 0;
+        let segments = 0;
+        const segmentTicks: number[] = [];
+        const seenEffects = new Set<unknown>();
+        // Two extra ticks for the hitstop each hit gives the caster.
+        stepTicks(engine, Math.ceil(MACE_WHIRL_SWEEP_END / FIXED_DT) + 4, () => {
+            tick += 1;
+            for (const unit of [first, last]) {
+                if (hitTick[unit.id] == null && unit.hp < unit.maxHp) hitTick[unit.id] = tick;
+            }
+            for (const effect of engine.state.effectManager.effects) {
+                if (effect.effectType !== ARC_SEGMENT_EFFECT_TYPE || seenEffects.has(effect)) continue;
+                seenEffects.add(effect);
+                segments += 1;
+                segmentTicks.push(tick);
+                expect(effect.duration).toBeCloseTo(MACE_WHIRL_SEGMENT_LIFETIME);
+                expect(effect.effectData?.colorFrom).toBe(ARMORY_PRIMARY_COLOR_NUM);
+                expect(effect.effectData?.colorTo).toBe(ARMORY_SECONDARY_COLOR_NUM);
+            }
+        });
+        expect(segments).toBe(MACE_WHIRL_SEGMENTS);
+        // One segment a tick: never two on the same tick.
+        expect(new Set(segmentTicks).size).toBe(segmentTicks.length);
+        expect(hitTick[first.id]).toBeDefined();
+        expect(hitTick[last.id]).toBeDefined();
+        expect(hitTick[last.id]!).toBeGreaterThan(hitTick[first.id]! + MACE_WHIRL_SEGMENTS / 2);
     });
 });

@@ -6,6 +6,7 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Effect } from '../effects/Effect';
 
+import { ARC_SEGMENT_EFFECT_TYPE, arcSegmentEffectDef } from './arcSegmentEffects';
 export type { IEffectDef, IEffectRenderContext } from './types';
 import type { IEffectDef, IEffectRenderContext } from './types';
 
@@ -122,6 +123,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     [WEAPON_ORBIT_EFFECT_TYPE]: weaponOrbitEffectDef,
     [WEAPON_DISCARD_ARC_EFFECT_TYPE]: weaponDiscardArcEffectDef,
     [WEAPON_WHIRL_EFFECT_TYPE]: weaponWhirlEffectDef,
+    [ARC_SEGMENT_EFFECT_TYPE]: arcSegmentEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

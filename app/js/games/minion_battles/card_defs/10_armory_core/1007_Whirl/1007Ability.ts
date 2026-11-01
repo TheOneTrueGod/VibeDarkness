@@ -1,14 +1,16 @@
 /**
  * Whirl — the release a conjured mace grants in place of Create Mace.
  *
- * One swing in a ring around the caster. After the windup, the player confirms
+ * One spin in a ring around the caster. After the windup, the player confirms
  * on their own position: the ring and the units in it are shown, and the click
- * can still be undone. It damages, knocks back, and stuns up to five enemies
- * in that ring. The mace then falls. One use. The weapon is gone either way.
- * Costs Charge. Echo: the same whirl (a full circle) hits around each of the caster's dropped maces,
- * which are destroyed. The mace this whirl drops does not echo.
+ * can still be undone. The spin is an arc sweep (`CastBehaviours.ArcSweep`): one
+ * arc segment a tick turns around the caster, fading from Armory primary to
+ * secondary, and each segment strikes what it covers. It damages, knocks back,
+ * and stuns up to five enemies. The mace falls as the spin starts. One use.
+ * Costs Charge. Echo: the same whirlwind turns around each of the caster's dropped
+ * maces, which are destroyed. The mace this whirl drops does not echo.
  *
- * Timings match Swing Mace's windup and hit, then the same cooldown.
+ * The windup and cooldown match Swing Mace; the hit window is as long as the sweep.
  */
 
 import type { IAbilityPreviewGraphics } from '../../../abilities/Ability';
@@ -16,46 +18,58 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import whirlSvg from './whirl.svg?raw';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
-import { MELEE_ATTACK_DEFAULT_IMPACT_AT } from '../../../abilities/CastBehaviours/MeleeAttack';
-import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
+import { sweepSeconds, type ArcSweepConfig } from '../../../abilities/CastBehaviours/ArcSweepBehaviour';
 import { releaseHeldConjuredWeapon } from '../../../game/conjuredWeapons/runtime';
-import { tryApplyHardCcStun } from '../../../crowdControl/tryApplyHardCcStun';
-import type { EngineContext } from '../../../game/EngineContext';
 import { ringHitbox } from '../../../hitboxes';
 import type { Unit } from '../../../game/units/Unit';
 import { type CardDef } from '../../types';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
-import { Effect } from '../../../game/effects/Effect';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import { drawEchoBurstPreviews, formatEchoLine } from '../../../abilities/echo/echo';
 import { ResourceId } from '../../../resources/resourceIds';
 import {
     SWING_BAT_COOLDOWN_END,
-    SWING_BAT_HIT_END,
     SWING_BAT_KNOCKBACK_TIER,
     SWING_BAT_WINDUP_END,
 } from '../../0115_SwingBat/0115Ability';
 import {
     ARMORY_ECHO_CHARGE_COST,
     ARMORY_MACE_ECHO,
+    ARMORY_PRIMARY_COLOR_NUM,
     ARMORY_SECONDARY_COLOR_NUM,
     WHIRL_ABILITY_ID,
 } from '../armoryConstants';
 import {
-    MACE_WHIRL_EFFECT_DURATION,
     MACE_WHIRL_INNER_CLEARANCE,
     MACE_WHIRL_MAX_TARGETS,
     MACE_WHIRL_OUTER_RADIUS,
+    MACE_WHIRL_SEGMENT_LIFETIME,
+    MACE_WHIRL_SEGMENT_SECONDS,
+    MACE_WHIRL_SEGMENTS,
     MACE_WHIRL_STUN_SECONDS,
-    MACE_WHIRL_VISUAL_RADIUS,
     WHIRL_DAMAGE,
 } from './1007Constants';
-import { WEAPON_WHIRL_EFFECT_TYPE } from '../../../game/effect_defs/weaponEffects';
 
-/** Game time of the whirl hit, measured from the start of the cast. */
-export const MACE_WHIRL_IMPACT_TIME = SWING_BAT_WINDUP_END
-    + MELEE_ATTACK_DEFAULT_IMPACT_AT * (SWING_BAT_HIT_END - SWING_BAT_WINDUP_END);
+const WHIRL_SWEEP: ArcSweepConfig = {
+    innerRadius: (caster) => caster.radius + MACE_WHIRL_INNER_CLEARANCE,
+    outerRadius: MACE_WHIRL_OUTER_RADIUS,
+    segments: MACE_WHIRL_SEGMENTS,
+    segmentSeconds: MACE_WHIRL_SEGMENT_SECONDS,
+    segmentLifetime: MACE_WHIRL_SEGMENT_LIFETIME,
+    maxTargets: MACE_WHIRL_MAX_TARGETS,
+    strike: {
+        damage: WHIRL_DAMAGE,
+        knockbackTier: SWING_BAT_KNOCKBACK_TIER,
+        stunSeconds: MACE_WHIRL_STUN_SECONDS,
+    },
+    visual: { colorFrom: ARMORY_PRIMARY_COLOR_NUM, colorTo: ARMORY_SECONDARY_COLOR_NUM },
+    echo: ARMORY_MACE_ECHO,
+    onStart: (ctx) => releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: true }),
+};
+
+/** Game time, from the start of the cast, when the whirl's last segment strikes. */
+export const MACE_WHIRL_SWEEP_END = SWING_BAT_WINDUP_END + sweepSeconds(WHIRL_SWEEP);
 
 export const WHIRL_TARGET_LABEL = 'Target';
 
@@ -85,45 +99,14 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     MAX_TARGETS: { kind: 'plain', value: MACE_WHIRL_MAX_TARGETS },
 };
 
-function addWhirlEffect(engine: unknown, at: { x: number; y: number }): void {
-    (engine as Pick<EngineContext, 'addEffect'>).addEffect(new Effect({
-        x: at.x,
-        y: at.y,
-        duration: MACE_WHIRL_EFFECT_DURATION,
-        effectType: WEAPON_WHIRL_EFFECT_TYPE,
-        timeDomain: 'wall',
-        pauseBehaviour: 'continue',
-        effectData: { radius: MACE_WHIRL_VISUAL_RADIUS, color: ARMORY_SECONDARY_COLOR_NUM },
-    }));
-}
-
-const whirl = CastBehaviours.MeleeAttack()
-    .withHitbox(WHIRL_HITBOX)
-    .withLockOnMode('strictHitbox')
-    .withImpactVFX((ctx) => {
-        addWhirlEffect(ctx.engine, ctx.caster);
-        releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: true });
-    })
-    .withEcho(ARMORY_MACE_ECHO, {
-        radius: MACE_WHIRL_OUTER_RADIUS,
-        damage: WHIRL_DAMAGE,
-        maxTargets: MACE_WHIRL_MAX_TARGETS,
-        knockbackTier: SWING_BAT_KNOCKBACK_TIER,
-        stunSeconds: MACE_WHIRL_STUN_SECONDS,
-        vfx: addWhirlEffect,
-    })
-    .withDamage(WHIRL_DAMAGE)
-    .withKnockback(SWING_BAT_KNOCKBACK_TIER)
-    .onDamage((ctx, unit) => {
-        stunWhirlTarget(ctx, unit);
-    });
+const whirl = CastBehaviours.ArcSweep(WHIRL_SWEEP);
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: SWING_BAT_WINDUP_END, abilityPhase: AbilityPhase.Windup },
     {
         id: 'hit',
         start: SWING_BAT_WINDUP_END,
-        end: SWING_BAT_HIT_END,
+        end: MACE_WHIRL_SWEEP_END,
         abilityPhase: AbilityPhase.Active,
         doNotRefund: true,
         targetDef: {
@@ -137,21 +120,8 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         },
         behaviour: whirl,
     },
-    { id: 'cooldown', start: SWING_BAT_HIT_END, end: SWING_BAT_COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
+    { id: 'cooldown', start: MACE_WHIRL_SWEEP_END, end: SWING_BAT_COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
 ];
-
-function stunWhirlTarget(ctx: CastBehaviourTickContext, unit: Unit): void {
-    const result = tryApplyHardCcStun(
-        unit,
-        MACE_WHIRL_STUN_SECONDS,
-        ctx.engine.gameTime,
-        ctx.engine.roundNumber ?? 0,
-        ctx.engine.eventBus,
-    );
-    if (result.outcome === 'applied') {
-        unit.interruptAllAbilities(ctx.engine as EngineContext);
-    }
-}
 
 export const WhirlAbility_1007 = defineAbility({
     id: WHIRL_ABILITY_ID,
