@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     CAMPSITE,
     CAMPSITE_CHOICE_ID,
+    CAMPSITE_CORE_PICKS,
     CAMPSITE_HUNGER_RECOVERY,
     CAMPSITE_INTRO_TEXT,
     CAMPSITE_RESEARCH_OPTION_COUNT,
@@ -16,7 +17,7 @@ import { WEAPONS_TREE_ID, WEAPON_ITEM_MACE } from '../../../../../researchTrees/
 import { TRAINING_NODE_CORE, TRAINING_TREE_ID } from '../../../../../researchTrees/trees/training';
 import { CORE_ITEM_IDS } from '../../../character_defs/items';
 
-/** A player who is in a weapon tree, the stat tree and a core tree. */
+/** A player who is in a weapon tree, the stat tree and a core tree: only the core tree is offered. */
 const RESEARCHED = {
     [LIGHT_TREE_ID]: [LIGHT_NODE_CORE],
     [WEAPONS_TREE_ID]: [],
@@ -56,25 +57,22 @@ describe('campsite mission', () => {
         expect(phrases).toHaveLength(3);
     });
 
-    it('lays slots out so the grid shows weapon (left), stat (middle), core (right), two rows deep', () => {
-        // The choice grid fills row-major across 3 columns: columns are index % 3.
-        expect(CAMPSITE_RESEARCH_OPTION_COUNT).toBe(6);
-        expect(CAMPSITE_RESEARCH_SLOTS.map((s) => (s as { tag?: string }).tag)).toEqual([
-            'weapon', 'stat', 'core', 'weapon', 'stat', 'core',
-        ]);
-        for (const slot of CAMPSITE_RESEARCH_SLOTS) expect((slot as { random?: boolean }).random).toBe(true);
+    it('only has random core slots, which drop out when nothing is left', () => {
+        expect(CAMPSITE_RESEARCH_OPTION_COUNT).toBe(CAMPSITE_CORE_PICKS);
+        for (const slot of CAMPSITE_RESEARCH_SLOTS) {
+            expect(slot).toEqual({ tag: 'core', random: true, omitWhenUnavailable: true });
+        }
     });
 
-    it('offers two distinct upgrades of each type, deterministically', () => {
+    it('offers distinct core upgrades only, with no weapon or stat research, deterministically', () => {
         const rows = offer('p1');
-        expect(rows).toHaveLength(6);
-        const keys = rows.map((r) => JSON.stringify(r.action));
-        expect(new Set(keys).size).toBe(6);
-        const expected = ['weapon', 'stat', 'core', 'weapon', 'stat', 'core'];
-        rows.forEach((row, i) => {
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows.length).toBeLessThanOrEqual(CAMPSITE_CORE_PICKS);
+        expect(new Set(rows.map((r) => JSON.stringify(r.action))).size).toBe(rows.length);
+        for (const row of rows) {
             expect(row.disabledLabel).toBeUndefined();
-            expect(tagsOf(row)).toContain(expected[i]);
-        });
+            expect(tagsOf(row)).toContain('core');
+        }
         expect(offer('p1')).toEqual(rows);
     });
 
@@ -93,9 +91,7 @@ describe('campsite mission', () => {
         }
     });
 
-    it('offers nothing selectable for a fresh character', () => {
-        const rows = resolveResearchRewardSlots(CAMPSITE_RESEARCH_SLOTS, {}, [], 'p1');
-        expect(rows).toHaveLength(6);
-        for (const row of rows) expect(row.disabledLabel).toBeDefined();
+    it('offers nothing to a fresh character, rather than disabled placeholders', () => {
+        expect(resolveResearchRewardSlots(CAMPSITE_RESEARCH_SLOTS, {}, [], 'p1')).toEqual([]);
     });
 });

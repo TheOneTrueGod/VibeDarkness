@@ -218,4 +218,16 @@ describe('resolveResearchRewardSlots - stat (Training) slots', () => {
         const seen = offeredStatNodeIds(research, CHIP_EQUIPMENT, { accountKnowledge: KNOWS_RESEARCH });
         expect(seen.has(TRAINING_NODE_CORE)).toBe(false);
     });
+
+    it('leaves out a filter slot with omitWhenUnavailable when nothing matches', () => {
+        const rows = resolveResearchRewardSlots(
+            [{ tag: 'core', random: true, omitWhenUnavailable: true }, { tag: 'core', random: true }],
+            {},
+            [],
+            'seed',
+        );
+        expect(rows).toHaveLength(1);
+        expect(rows[0]!.id).toBe('slot_1');
+        expect(rows[0]!.disabledLabel).toBeDefined();
+    });
 });

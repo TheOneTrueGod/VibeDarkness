@@ -154,6 +154,11 @@ export type ResearchRewardSlot =
         loreTitle?: string;
         loreDescription?: string;
         respectRequirements?: boolean;
+        /**
+         * Leave the slot out when nothing matches, instead of showing a disabled
+         * "No research available" option, so the offers that remain pack together.
+         */
+        omitWhenUnavailable?: boolean;
     };
 
 /** Choice phrase: player selects one option; action is applied (e.g. equip item). */

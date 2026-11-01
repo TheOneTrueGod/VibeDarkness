@@ -56,6 +56,8 @@ function sortCandidatesDeterministic(candidates: NodeCandidate[]): NodeCandidate
  *   seeded-random candidate (seed = `randomSeed` + slot index, so the same state gives the same
  *   offer) and uses the strict eligibility rules (`requirementsStrictlyMet`, `treeOpenForRandomReward`).
  *
+ * - A filter slot with `omitWhenUnavailable` is left out when nothing matches, instead of a disabled row.
+ *
  * - `{ kind: 'equipmentUpgrade' }` slots become `equip_item` rows for upgrades of equipped items (no research),
  *   omitted when the player has no upgrade left to offer.
  *
@@ -94,14 +96,15 @@ export function resolveResearchRewardSlots(
             return row ? [row] : [];
         }
 
-        return [resolveNodeSlot(slot, index, id)];
+        const row = resolveNodeSlot(slot, index, id);
+        return row ? [row] : [];
     });
 
     function resolveNodeSlot(
         slot: Exclude<ResearchRewardSlot, { kind: 'equipmentUpgrade' }>,
         index: number,
         id: string,
-    ): StoryChoiceOptionRow {
+    ): StoryChoiceOptionRow | null {
         if ('nodeId' in slot && slot.nodeId !== undefined) {
             // Specific node — no prereq/exclusivity checks (intentional designer grant)
             const tree = RESEARCH_TREES.find((t) => t.id === slot.treeId);
@@ -154,6 +157,7 @@ export function resolveResearchRewardSlots(
             : sorted[0];
 
         if (!picked) {
+            if (slot.omitWhenUnavailable) return null;
             return {
                 id,
                 label: slot.loreTitle ?? (slot.tag ? `No ${slot.tag} research available` : 'No research available'),

@@ -1,6 +1,6 @@
 /**
- * Campsite — special story node. Skips battle, recovers Hunger, and offers six random free
- * research picks: two weapon (left), two stat (middle), two core (right).
+ * Campsite — special story node. Skips battle, recovers Hunger, and offers up to six random free
+ * core research picks. Weapon and stat research is not offered here.
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
@@ -31,19 +31,16 @@ export const CAMPSITE_3_MISSION_ID = 'campsite_3';
 export const CAMPSITE_4_MISSION_ID = 'campsite_4';
 export const CAMPSITE_CHOICE_ID = 'campsite_research_choice';
 export const CAMPSITE_HUNGER_RECOVERY = 20;
+/** Core picks offered at a campsite, at most. */
+export const CAMPSITE_CORE_PICKS = 6;
 /**
- * Six random reward slots. The choice grid fills row-major across three columns, so this order
- * puts the two weapon slots on the left, the two stat slots in the middle and the two core slots
- * on the right.
+ * Random core reward slots. The choice grid fills row-major from the top left, so the picks run
+ * across and then down. A slot with no core research left is dropped, keeping the rest packed.
  */
-export const CAMPSITE_RESEARCH_SLOTS: ResearchRewardSlot[] = [
-    { tag: 'weapon', random: true },
-    { tag: 'stat', random: true },
-    { tag: 'core', random: true },
-    { tag: 'weapon', random: true },
-    { tag: 'stat', random: true },
-    { tag: 'core', random: true },
-];
+export const CAMPSITE_RESEARCH_SLOTS: ResearchRewardSlot[] = Array.from(
+    { length: CAMPSITE_CORE_PICKS },
+    () => ({ tag: 'core', random: true, omitWhenUnavailable: true }),
+);
 export const CAMPSITE_RESEARCH_OPTION_COUNT = CAMPSITE_RESEARCH_SLOTS.length;
 export const CAMPSITE_INTRO_TEXT = 'You have discovered a campsite';
 
