@@ -29,6 +29,7 @@ import {
     readOnlyPrepSelection,
     removeQuestPrepAbility,
     resolveInitialMissionSelection,
+    defaultLoadoutAfterPrepChange,
 } from './questPrepLoadout';
 import { coreEarthItem } from '../character_defs/items/core/019_core_earth';
 import { EARTH_NODE_EARTH_CORE, EARTH_NODE_GATHER_STONE, EARTH_TREE_ID } from '../../../researchTrees/trees/earth';
@@ -171,6 +172,11 @@ describe('mission Prepare Carefully helpers', () => {
 
     it('auto-selects all selectable when under/at cap', () => {
         expect(resolveInitialMissionSelection(['a', 'b'], ['x'])).toEqual(['a', 'b']);
+    });
+
+    it('starts under/at cap in the saved default order, dropping lost ids and appending new ones', () => {
+        expect(resolveInitialMissionSelection(['a', 'b', 'c'], ['c', 'a'])).toEqual(['c', 'a', 'b']);
+        expect(resolveInitialMissionSelection(['a', 'b'], ['b', 'gone', 'a'])).toEqual(['b', 'a']);
     });
 
     it('pre-selects remembered abilities that are still selectable when over cap', () => {
@@ -359,5 +365,29 @@ describe('prep loadout after a story choice equips an item', () => {
     it('mirrors backend equipItem: removes replaced items and appends once', () => {
         expect(equipmentWithEquippedItem(['019', '001'], '011', ['001'])).toEqual(['019', '011']);
         expect(equipmentWithEquippedItem(['019', '001'], '001')).toEqual(['019', '001']);
+    });
+});
+
+describe('defaultLoadoutAfterPrepChange', () => {
+    it('saves a new pick set as the default', () => {
+        expect(defaultLoadoutAfterPrepChange(['a', 'b'], ['a', 'c'])).toEqual(['a', 'c']);
+    });
+
+    it('saves a reorder of the same picks as the default', () => {
+        expect(defaultLoadoutAfterPrepChange(['a', 'b'], ['b', 'a'])).toEqual(['b', 'a']);
+    });
+
+    it('saves the first default for old saves that have none', () => {
+        expect(defaultLoadoutAfterPrepChange([], ['a'])).toEqual(['a']);
+    });
+
+    it('skips the save when the default already matches or the loadout is empty', () => {
+        expect(defaultLoadoutAfterPrepChange(['a', 'b'], ['a', 'b'])).toBeNull();
+        expect(defaultLoadoutAfterPrepChange(['a'], [])).toBeNull();
+    });
+
+    it('caps the saved default to the prep slot count', () => {
+        const picks = Array.from({ length: PREP_ABILITY_SLOT_COUNT + 2 }, (_, i) => `id${i}`);
+        expect(defaultLoadoutAfterPrepChange([], picks)).toEqual(picks.slice(0, PREP_ABILITY_SLOT_COUNT));
     });
 });

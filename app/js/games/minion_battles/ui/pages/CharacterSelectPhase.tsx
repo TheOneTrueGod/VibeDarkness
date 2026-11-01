@@ -213,7 +213,11 @@ export default function CharacterSelectPhase({
     /** The only things that differ between Quest Prep and Prepare Carefully. */
     const prepConfig = useMemo(
         () => (inQuestPrep
-            ? questPrepConfig(questDefId ? getQuestDef(questDefId) : undefined, rememberedQuestAbilityIds)
+            ? questPrepConfig(
+                questDefId ? getQuestDef(questDefId) : undefined,
+                rememberedQuestAbilityIds,
+                lastMissionAbilityIds,
+            )
             : missionPrepConfig(lastMissionAbilityIds)),
         [inQuestPrep, questDefId, rememberedQuestAbilityIds, lastMissionAbilityIds],
     );

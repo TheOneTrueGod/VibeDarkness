@@ -42,6 +42,12 @@ describe('prep configs', () => {
         });
     });
 
+    it("quest prep starts from the character's default loadout when the quest has no picks yet", () => {
+        expect(questPrepConfig(undefined, undefined, ['d']).rememberedAbilityIds).toEqual(['d']);
+        expect(questPrepConfig(undefined, ['q'], ['d']).rememberedAbilityIds).toEqual(['q']);
+        expect(questPrepConfig(undefined).rememberedAbilityIds).toEqual([]);
+    });
+
     it('mission prep syncs the mission lobby map, uses the campfire and gates Ready', () => {
         const config = missionPrepConfig(['b']);
         expect(config).toEqual({

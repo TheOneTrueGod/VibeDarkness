@@ -71,18 +71,37 @@ export function releaseHeldConjuredWeapon(
         }
         if (!unit.abilities.includes(def.conjureAbilityId)) unit.abilities.push(def.conjureAbilityId);
         setAbilityActive(unit, def.conjureAbilityId, true);
-        if (opts.leaveToken) {
-            engine.state?.fieldObjects?.spawnDroppedWeapon(engine, {
-                originX: unit.x,
-                originY: unit.y,
-                kind: def.tokenKind,
-                ownerUnitId: unit.id,
-                teamId: unit.teamId,
-                abilityId: def.heldAbilityId,
-            });
-        }
+        if (opts.leaveToken) dropWeaponToken(unit, engine, def);
     }
     notifyBar(unit, engine);
+}
+
+/**
+ * Call on a held ability's impact frame (its use is already spent). The last use discards the
+ * weapon with a token; an earlier use drops a token only when the def has `dropTokenEachHeldUse`.
+ */
+export function landHeldWeaponStrike(unit: Unit, engine: ConjureHost, abilityId: string): void {
+    const held = unit.heldConjuredWeapon;
+    if (!held) return;
+    const def = getConjuredWeaponDef(held.defId);
+    if (!def || def.heldAbilityId !== abilityId) return;
+    const uses = unit.abilityRuntime[abilityId]?.currentUses ?? 0;
+    if (uses <= 0) {
+        releaseHeldConjuredWeapon(unit, engine, { leaveToken: true });
+    } else if (def.dropTokenEachHeldUse) {
+        dropWeaponToken(unit, engine, def);
+    }
+}
+
+function dropWeaponToken(unit: Unit, engine: ConjureHost, def: ConjuredWeaponDef): void {
+    engine.state?.fieldObjects?.spawnDroppedWeapon(engine, {
+        originX: unit.x,
+        originY: unit.y,
+        kind: def.tokenKind,
+        ownerUnitId: unit.id,
+        teamId: unit.teamId,
+        abilityId: def.heldAbilityId,
+    });
 }
 
 /** Safety net: discard a held weapon that ended with no uses left and was not already dropped on impact. */

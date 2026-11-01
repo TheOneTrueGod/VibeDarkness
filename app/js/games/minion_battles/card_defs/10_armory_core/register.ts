@@ -86,6 +86,7 @@ export function registerArmoryContent(): void {
         tokenKind: DROPPED_WEAPON_KIND_SWORD,
         art: { url: swordCardUrl },
         heldUses: IMPROVISED_SWORD_MAX_USES,
+        dropTokenEachHeldUse: true,
     });
 
     registerConjuredWeapon({
@@ -96,6 +97,7 @@ export function registerArmoryContent(): void {
         tokenKind: DROPPED_WEAPON_KIND_MACE,
         art: { url: maceCardUrl },
         heldUses: CHARGE_MACE_MAX_USES,
+        dropTokenEachHeldUse: true,
     });
 
     registerConjuredWeapon({

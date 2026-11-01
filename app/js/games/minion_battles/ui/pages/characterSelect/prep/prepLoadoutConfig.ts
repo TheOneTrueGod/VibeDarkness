@@ -26,20 +26,24 @@ export function questPrepBackgroundImage(quest: Pick<QuestDef, 'prepBackgroundIm
     return quest?.prepBackgroundImage ?? campfireBackgroundForPrep();
 }
 
-/** Quest Prep (side quest, first slot / prep run): picks are frozen into the quest run on Ready. */
+/**
+ * Quest Prep (side quest, first slot / prep run): picks are frozen into the quest run on Ready.
+ * Starts from this quest's remembered picks, else the character's default loadout.
+ */
 export function questPrepConfig(
     quest: Pick<QuestDef, 'prepBackgroundImage'> | undefined,
-    rememberedAbilityIds: readonly string[] = [],
+    rememberedAbilityIds?: readonly string[],
+    defaultAbilityIds: readonly string[] = [],
 ): PrepLoadoutConfig {
     return {
         lobbyField: 'questPrepLoadoutsByPlayer',
-        rememberedAbilityIds,
+        rememberedAbilityIds: rememberedAbilityIds ?? defaultAbilityIds,
         requireCompleteLoadout: false,
         backgroundImage: questPrepBackgroundImage(quest),
     };
 }
 
-/** Prepare Carefully (regular mission): starts from the character's last mission picks. */
+/** Prepare Carefully (regular mission): starts from the character's default loadout. */
 export function missionPrepConfig(lastMissionAbilityIds: readonly string[] = []): PrepLoadoutConfig {
     return {
         lobbyField: 'missionPrepLoadoutsByPlayer',

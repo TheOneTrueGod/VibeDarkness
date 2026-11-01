@@ -75,8 +75,9 @@ export interface CampaignCharacterData {
      */
     activeQuestRun?: QuestRunState | null;
     /**
-     * Last primary ability IDs selected on Prepare Carefully for a regular mission
-     * (up to PREP_ABILITY_SLOT_COUNT). Used to pre-select on the next mission lobby.
+     * Default prep loadout: the primary ability IDs (up to PREP_ABILITY_SLOT_COUNT, in slot order)
+     * the player last picked or reordered on Prepare Carefully / Quest Prep. Seeds the next prep;
+     * ids no longer selectable are dropped. Missing on old saves (falls back to the first slots).
      */
     lastMissionAbilityIds?: string[];
     /**

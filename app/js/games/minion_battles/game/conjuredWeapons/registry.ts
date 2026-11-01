@@ -28,6 +28,11 @@ export interface ConjuredWeaponDef {
      * Default true. A release that drops its own token, or that should leave nothing, sets this false.
      */
     leaveTokenWhenHeldUsesEnd?: boolean;
+    /**
+     * Every landed held strike drops a token, not just the last. The weapon stays in hand until its
+     * uses run out; the last strike's token is the discarded weapon itself. See `landHeldWeaponStrike`.
+     */
+    dropTokenEachHeldUse?: boolean;
 }
 
 export interface HeldConjuredWeaponState {

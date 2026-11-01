@@ -48,6 +48,29 @@ class UpdateCharacterHandler
             return ['success' => false, 'error' => 'Not your character'];
         }
 
+        $updates = self::updatesFromBody($data);
+
+        $updated = $characterManager->updateCharacter($characterId, $updates);
+        if ($updated === null) {
+            http_response_code(500);
+            return ['success' => false, 'error' => 'Update failed'];
+        }
+
+        return [
+            'success' => true,
+            'character' => $updated->toArray(),
+        ];
+    }
+
+    /**
+     * Character fields a PATCH body may change; anything else in the body is ignored.
+     * CharacterManager::updateCharacter normalizes each value.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public static function updatesFromBody(array $data): array
+    {
         $updates = [];
         if (isset($data['equipment']) && is_array($data['equipment'])) {
             $updates['equipment'] = $data['equipment'];
@@ -79,19 +102,13 @@ class UpdateCharacterHandler
         if (array_key_exists('campaignId', $data)) {
             $updates['campaignId'] = (string) $data['campaignId'];
         }
+        if (isset($data['lastMissionAbilityIds']) && is_array($data['lastMissionAbilityIds'])) {
+            $updates['lastMissionAbilityIds'] = $data['lastMissionAbilityIds'];
+        }
         if (isset($data['locationDeck']) && is_array($data['locationDeck'])) {
             $updates['locationDeck'] = $data['locationDeck'];
         }
 
-        $updated = $characterManager->updateCharacter($characterId, $updates);
-        if ($updated === null) {
-            http_response_code(500);
-            return ['success' => false, 'error' => 'Update failed'];
-        }
-
-        return [
-            'success' => true,
-            'character' => $updated->toArray(),
-        ];
+        return $updates;
     }
 }

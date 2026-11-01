@@ -3,7 +3,7 @@
  *
  * Same swing as Swing Mace: reach, targets, knockback, and timing, at that swing's
  * base damage. Two uses, and no refill. Training Regime does not apply here.
- * Spending the last use discards the mace on the impact frame.
+ * Every swing drops a mace token on its impact frame; the last one discards the mace.
  *
  * Timings match Swing Mace:
  *   0.00–0.20  windup
@@ -16,8 +16,7 @@ import chargeMaceSvg from '../chargeMace.svg?raw';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { MELEE_ATTACK_DEFAULT_IMPACT_AT } from '../../../abilities/CastBehaviours/MeleeAttack';
-import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
-import { releaseHeldConjuredWeapon } from '../../../game/conjuredWeapons/runtime';
+import { landHeldWeaponStrike } from '../../../game/conjuredWeapons/runtime';
 import { DEFAULT_MELEE_LUNGE, DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
@@ -85,7 +84,7 @@ const swing = CastBehaviours.MeleeAttack()
             duration: SWING_BAT_EFFECT_DURATION,
             effectType: 'punch',
         }));
-        discardMaceOnLastImpact(ctx);
+        landHeldWeaponStrike(ctx.caster, ctx.engine, CHARGE_MACE_ABILITY_ID);
     })
     .withDamage(SWING_BAT_BASE_DAMAGE)
     .withKnockback(SWING_BAT_KNOCKBACK_TIER);
@@ -103,13 +102,6 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     },
     { id: 'cooldown', start: SWING_BAT_HIT_END, end: SWING_BAT_COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
 ];
-
-/** The last swing's uses are already spent by the impact frame. Earlier swings still have uses left. */
-function discardMaceOnLastImpact(ctx: CastBehaviourTickContext): void {
-    const uses = ctx.caster.abilityRuntime[CHARGE_MACE_ABILITY_ID]?.currentUses ?? 0;
-    if (uses > 0) return;
-    releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: true });
-}
 
 export const ChargeMaceAbility_1006 = defineAbility({
     id: CHARGE_MACE_ABILITY_ID,

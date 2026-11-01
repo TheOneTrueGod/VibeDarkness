@@ -16,6 +16,7 @@ import {
     removeQuestPrepAbility,
     resolveInitialMissionSelection,
 } from '../../../../storylines/questPrepLoadout';
+import { createDefaultLoadoutSaver, type DefaultLoadoutSaver } from './defaultLoadoutSaver';
 import type { PrepLoadoutConfig } from './prepLoadoutConfig';
 
 interface UsePrepLoadoutParams {
@@ -31,7 +32,8 @@ interface UsePrepLoadoutParams {
  * Local + lobby sync for prep ability slots (Quest Prep and Prepare Carefully).
  * Under/at cap: read-only (every selectable primary brought; order is still the player's).
  * Over cap: the player picks up to PREP_ABILITY_SLOT_COUNT. Empty lobby → remembered picks, else
- * the first PREP_ABILITY_SLOT_COUNT selectable.
+ * the first PREP_ABILITY_SLOT_COUNT selectable. Player picks and reorders are also saved as the
+ * character's default loadout (`lastMissionAbilityIds`), which seeds the next mission's prep.
  */
 export function usePrepLoadout({
     api,
@@ -70,9 +72,26 @@ export function usePrepLoadout({
     );
     const seededRef = useRef(false);
 
+    // One saver per character (the provider is not keyed by character, so a switch rebuilds it).
+    const defaultSaverRef = useRef<{ characterId: string; saver: DefaultLoadoutSaver } | null>(null);
+    if (defaultSaverRef.current?.characterId !== character.id) {
+        const characterId = character.id;
+        defaultSaverRef.current = {
+            characterId,
+            saver: createDefaultLoadoutSaver(
+                (ids) => api.updateCharacter(characterId, { lastMissionAbilityIds: ids }),
+                character.lastMissionAbilityIds,
+            ),
+        };
+    }
+    const saveDefaultLoadout = useCallback((picks: string[]) => {
+        void defaultSaverRef.current?.saver.save(picks);
+    }, []);
+
     const pushLoadout = useCallback(
-        async (next: string[]) => {
+        async (next: string[], { saveAsDefault = false }: { saveAsDefault?: boolean } = {}) => {
             const toPush = readOnly ? readOnlyPrepSelection(next, selectableIds) : next;
+            if (saveAsDefault) saveDefaultLoadout(toPush);
             const key = JSON.stringify(toPush);
             if (key === lastPushedRef.current && key === JSON.stringify(localPrimaries)) {
                 return;
@@ -93,7 +112,7 @@ export function usePrepLoadout({
                 syncingRef.current = false;
             }
         },
-        [api, playerId, lobbyField, loadoutsByPlayer, readOnly, selectableIds, localPrimaries],
+        [api, playerId, lobbyField, loadoutsByPlayer, readOnly, selectableIds, localPrimaries, saveDefaultLoadout],
     );
 
     // Seed lobby state once when empty (read-only auto-fill or remembered picks).
@@ -142,7 +161,7 @@ export function usePrepLoadout({
             if (readOnly) return;
             const next = addQuestPrepAbility(localPrimaries, abilityId);
             if (next.length === localPrimaries.length) return;
-            void pushLoadout(next);
+            void pushLoadout(next, { saveAsDefault: true });
         },
         [localPrimaries, pushLoadout, readOnly],
     );
@@ -152,7 +171,7 @@ export function usePrepLoadout({
             if (readOnly) return;
             const next = removeQuestPrepAbility(localPrimaries, abilityId);
             if (next.length === localPrimaries.length) return;
-            void pushLoadout(next);
+            void pushLoadout(next, { saveAsDefault: true });
         },
         [localPrimaries, pushLoadout, readOnly],
     );
@@ -163,7 +182,7 @@ export function usePrepLoadout({
             if (readOnly) return;
             const next = placeQuestPrepAbilityAt(localPrimaries, slotIndex, abilityId);
             if (JSON.stringify(next) === JSON.stringify(localPrimaries)) return;
-            void pushLoadout(next);
+            void pushLoadout(next, { saveAsDefault: true });
         },
         [localPrimaries, pushLoadout, readOnly],
     );
@@ -173,7 +192,7 @@ export function usePrepLoadout({
         (fromIndex: number, insertIndex: number) => {
             const next = moveQuestPrepAbility(localPrimaries, fromIndex, insertIndex);
             if (JSON.stringify(next) === JSON.stringify(localPrimaries)) return;
-            void pushLoadout(next);
+            void pushLoadout(next, { saveAsDefault: true });
         },
         [localPrimaries, pushLoadout],
     );

@@ -187,7 +187,7 @@ export function isMissionPrepAbilityReady(
 
 /**
  * Initial prep selection (Quest Prep + mission Prepare Carefully):
- * under/at cap → all selectable;
+ * under/at cap → all selectable, in the remembered order (new ones appended);
  * over cap with remembered picks → remembered ids that are still selectable (up to slot count);
  * over cap with no previous loadout → first {@link PREP_ABILITY_SLOT_COUNT} selectable.
  */
@@ -196,13 +196,30 @@ export function resolveInitialMissionSelection(
     rememberedIds: readonly string[],
 ): string[] {
     if (selectableIds.length <= PREP_ABILITY_SLOT_COUNT) {
-        return [...selectableIds];
+        return readOnlyPrepSelection(rememberedIds, selectableIds);
     }
     const remembered = rememberedIds.filter((id) => selectableIds.includes(id));
     if (remembered.length === 0) {
         return selectableIds.slice(0, PREP_ABILITY_SLOT_COUNT);
     }
     return remembered.slice(0, PREP_ABILITY_SLOT_COUNT);
+}
+
+/**
+ * The character's default loadout (`lastMissionAbilityIds`) after the player picks or reorders
+ * prep slots: the picks capped to {@link PREP_ABILITY_SLOT_COUNT}, or null when the stored default
+ * already matches (nothing to save). Order is kept, since reordering alone changes the default.
+ */
+export function defaultLoadoutAfterPrepChange(
+    storedDefault: readonly string[],
+    selectedPrimaryIds: readonly string[],
+): string[] | null {
+    const next = selectedPrimaryIds.slice(0, PREP_ABILITY_SLOT_COUNT);
+    if (next.length === 0) return null;
+    if (next.length === storedDefault.length && next.every((id, i) => storedDefault[i] === id)) {
+        return null;
+    }
+    return next;
 }
 
 /** Copy of research trees with `nodeId` present on `treeId` (idempotent). */

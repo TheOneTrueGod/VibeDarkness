@@ -103,7 +103,7 @@ export class CampaignCharacter {
     readonly questResults: Record<string, QuestResult[]>;
     /** Active QuestRun (Quest Character lives on `questCharacter`); null when none. */
     readonly activeQuestRun: QuestRunState | null;
-    /** Last Prepare Carefully primary ability picks for regular missions. */
+    /** Default prep loadout: the player's last picked/ordered primaries; seeds the next prep. */
     readonly lastMissionAbilityIds: string[];
     /** Per-campaign location card decks. Key = campaignId. */
     readonly locationDeck: Record<string, unknown> | undefined;

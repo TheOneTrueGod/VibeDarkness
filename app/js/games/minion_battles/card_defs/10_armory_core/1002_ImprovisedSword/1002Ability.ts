@@ -2,8 +2,8 @@
  * Charge Sword — the strike a conjured Armory sword grants.
  *
  * Same slash as Swing Sword (reach, thinner band, longer lunge, bleed, knockback) at a higher damage, two uses,
- * and no refill. Spending the last use discards the weapon on the slash's impact frame.
- * The token exists then; its resting picture stays hidden until the toss finishes.
+ * and no refill. Every slash drops a sword token on its impact frame, and the last one discards the
+ * weapon. Each token exists then; its resting picture stays hidden until the toss finishes.
  * Tagged melee and sword. Swing Sword modifiers do not apply here.
  *
  * Timings match Swing Sword:
@@ -18,8 +18,7 @@ import chargeSwordSvg from '../chargeSword.svg?raw';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { MELEE_ATTACK_DEFAULT_IMPACT_AT } from '../../../abilities/CastBehaviours/MeleeAttack';
-import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
-import { releaseHeldConjuredWeapon } from '../../../game/conjuredWeapons/runtime';
+import { landHeldWeaponStrike } from '../../../game/conjuredWeapons/runtime';
 import { createSlashTrailEffect } from '../../../abilities/effectHelpers';
 import {
     SWING_SWORD_BLEED_STACKS,
@@ -74,7 +73,7 @@ const slash = CastBehaviours.MeleeAttack()
             ep.leftX, ep.leftY, ep.rightX, ep.rightY,
             SLASH_TRAIL_DURATION, SLASH_TRAIL_THICKNESS, SLASH_TRAIL_COLOR,
         ));
-        discardSwordOnLastImpact(ctx);
+        landHeldWeaponStrike(ctx.caster, ctx.engine, IMPROVISED_SWORD_ABILITY_ID);
     })
     .withDamage(IMPROVISED_SWORD_DAMAGE)
     .withKnockback(SWING_SWORD_KNOCKBACK_TIER, { magnitudeScale: SWING_SWORD_KNOCKBACK_MAGNITUDE_SCALE });
@@ -92,13 +91,6 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     },
     { id: 'cooldown', start: IMPROVISED_SWORD_SLASH_END, end: IMPROVISED_SWORD_COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
 ];
-
-/** The last swing's uses are already spent by the impact frame. Earlier swings still have uses left. */
-function discardSwordOnLastImpact(ctx: CastBehaviourTickContext): void {
-    const uses = ctx.caster.abilityRuntime[IMPROVISED_SWORD_ABILITY_ID]?.currentUses ?? 0;
-    if (uses > 0) return;
-    releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: true });
-}
 
 export const ImprovisedSwordAbility = defineAbility({
     id: IMPROVISED_SWORD_ABILITY_ID,
