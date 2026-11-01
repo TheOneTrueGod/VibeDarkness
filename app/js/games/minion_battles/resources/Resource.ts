@@ -22,7 +22,11 @@ export interface ResourceDisplay {
     perRoundGain?: number;
     /** If present, tooltip shows "+N/s" in the resource colour (continuous gain resources). */
     perSecondGain?: number;
+    /** How the default bar draws it. `pips`: one orb per point of max (small, whole-number pools). Default `bar`. */
+    barStyle?: ResourceBarStyle;
 }
+
+export type ResourceBarStyle = 'bar' | 'pips';
 
 export abstract class Resource {
     /** Unique resource type ID (e.g. 'rage', 'mana'). */
@@ -33,6 +37,8 @@ export abstract class Resource {
     abstract readonly color: string;
     /** Lucide icon name for UI display. Swap-point for future SVG/PNG migration. */
     abstract readonly iconName: string;
+    /** See `ResourceDisplay.barStyle`. */
+    readonly barStyle?: ResourceBarStyle;
 
     /** Current value. */
     current: number;

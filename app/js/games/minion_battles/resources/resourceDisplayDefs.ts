@@ -17,7 +17,7 @@ export const ALL_RESOURCE_DISPLAY_DEFS: Array<Omit<ResourceDisplay, 'current'>> 
     { id: 'resonance',   name: 'Resonance',   color: '#84cc16', iconName: 'Layers',     max: 100 },
     { id: 'super',       name: 'Super',       color: '#38bdf8', iconName: 'Zap',        max: 3 },
     { id: 'movement_points', name: 'Movement Points', color: '#22c55e', iconName: 'Footprints', max: MOVEMENT_BASE_MAX },
-    { id: 'charge', name: 'Charge', color: CHARGE_RESOURCE_COLOR, iconName: 'Swords', max: CHARGE_MAX, perRoundGain: CHARGE_PER_ROUND },
+    { id: 'charge', name: 'Charge', color: CHARGE_RESOURCE_COLOR, iconName: 'Swords', max: CHARGE_MAX, perRoundGain: CHARGE_PER_ROUND, barStyle: 'pips' },
 ];
 
 /** Convenience export for the handful of places that render a plain shield icon/overlay (not via ResourceIcon). */

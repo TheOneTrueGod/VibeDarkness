@@ -12,7 +12,7 @@ import { ResourceId } from './resourceIds';
 import { getThemeById } from '../themes/abilityTheme';
 
 /** Charge stored on the unit. */
-export const CHARGE_MAX = 6;
+export const CHARGE_MAX = 4;
 /** Granted once at mission start. Round 1 does not also recover, so the opener is this amount. */
 export const CHARGE_MISSION_START = 3;
 /** Added at the start of round 2 and each round after. */
@@ -26,6 +26,7 @@ export class Charge extends Resource {
     readonly name = 'Charge';
     readonly color = CHARGE_RESOURCE_COLOR;
     readonly iconName = 'Swords';
+    readonly barStyle = 'pips';
 
     constructor() {
         super(0, CHARGE_MAX);

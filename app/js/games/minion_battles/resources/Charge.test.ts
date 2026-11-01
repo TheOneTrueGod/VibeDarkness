@@ -15,10 +15,15 @@ describe('Charge', () => {
         expect(charge.current).toBe(CHARGE_MISSION_START);
 
         charge.onRoundStart({} as Unit, engineAtRound(2));
-        expect(charge.current).toBe(CHARGE_MISSION_START + CHARGE_PER_ROUND);
-        expect(charge.current).toBe(CHARGE_MAX);
+        expect(charge.current).toBe(Math.min(CHARGE_MAX, CHARGE_MISSION_START + CHARGE_PER_ROUND));
 
         charge.onRoundStart({} as Unit, engineAtRound(3));
         expect(charge.current).toBe(CHARGE_MAX);
+    });
+
+    it('holds four and draws as orbs', () => {
+        const charge = new Charge();
+        expect(charge.max).toBe(4);
+        expect(charge.barStyle).toBe('pips');
     });
 });

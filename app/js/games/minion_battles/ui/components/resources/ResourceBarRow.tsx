@@ -5,6 +5,7 @@ import { RockBar } from './RockBar';
 import { GravityBar } from './GravityBar';
 import { LightBar } from './LightBar';
 import { GenericResourceBar } from './GenericResourceBar';
+import { PipResourceBar } from './PipResourceBar';
 
 interface ResourceBarRowProps {
     resource: ResourceDisplay;
@@ -21,7 +22,9 @@ function ResourceBarContent({ resource }: { resource: ResourceDisplay }) {
         case 'light':
             return <LightBar current={resource.current} max={resource.max} />;
         default:
-            return <GenericResourceBar resource={resource} />;
+            return resource.barStyle === 'pips'
+                ? <PipResourceBar resource={resource} />
+                : <GenericResourceBar resource={resource} />;
     }
 }
 
