@@ -215,7 +215,7 @@ describe('Gather Stone (0536) cast behaviours', () => {
         const caster = makeUnit({ id: 'caster', teamId: 'player', col: 5, row: 5 });
         caster.attachResource(new Rock(), new EventBus());
         const enemy = makeUnit({ id: 'enemy', teamId: 'enemy', col: 5, row: 5 });
-        const { engine } = makeEngine({ terrain: { '5,5': TerrainType.Rubble }, units: [caster, enemy] });
+        const { engine } = makeEngine({ terrain: { '5,5': TerrainType.Gravel }, units: [caster, enemy] });
 
         gather(engine, caster, pixelTarget(5, 5));
 
@@ -230,7 +230,7 @@ describe('Gather Stone (0536) cast behaviours', () => {
         const onGrass = makeUnit({ id: 'on_grass', teamId: 'enemy', col: 6, row: 5 });
         const outsideRegion = makeUnit({ id: 'outside', teamId: 'enemy', col: 9, row: 9 });
         const { engine } = makeEngine({
-            terrain: { '5,5': TerrainType.Rubble, '9,9': TerrainType.Rubble },
+            terrain: { '5,5': TerrainType.Gravel, '9,9': TerrainType.Gravel },
             researchNodes: [EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE],
             units: [caster, onRubble, onGrass, outsideRegion],
         });

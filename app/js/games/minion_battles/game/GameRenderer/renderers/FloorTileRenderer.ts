@@ -36,10 +36,10 @@ export class FloorTileRenderer {
         const activeKeys = new Set<string>();
 
         for (const { col, row, tile } of entries) {
-            if (tile.terrainType === TerrainType.Rubble) {
+            if (tile.terrainType === TerrainType.Gravel) {
                 const key = cellKey(col, row);
                 activeKeys.add(key);
-                const cacheKey = visualCacheKey(col, row, TerrainType.Rubble, 0);
+                const cacheKey = visualCacheKey(col, row, TerrainType.Gravel, 0);
                 this.ensureCellVisual(key, col, row, cacheKey, RUBBLE_FLOOR_VISUAL.svgString);
                 continue;
             }

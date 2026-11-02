@@ -60,7 +60,7 @@ describe('TerrainManager.destroyRock', () => {
         const transition = manager.destroyRock(1, 1, 'unit-a');
 
         expect(transition).not.toBeNull();
-        expect(manager.getEffectiveTerrainType(1, 1)).toBe(TerrainType.Rubble);
+        expect(manager.getEffectiveTerrainType(1, 1)).toBe(TerrainType.Gravel);
         expect(manager.isPassable(grid.gridToWorld(1, 1).x, grid.gridToWorld(1, 1).y)).toBe(true);
         expect(emitter).toHaveBeenCalledTimes(1);
         const event = emitter.mock.calls[0]?.[0];
@@ -69,7 +69,7 @@ describe('TerrainManager.destroyRock', () => {
         expect(event?.previousTerrainType).toBe(TerrainType.Rock);
         expect(event?.previousHealth).toBe(EARTH_CORE_STONE_HEALTH);
         expect(event?.health).toBe(0);
-        expect(event?.terrainType).toBe(TerrainType.Rubble);
+        expect(event?.terrainType).toBe(TerrainType.Gravel);
         expect(event?.tier).toBe(DAMAGE_TIER_NONE);
         expect(event?.sourceUnitId).toBe('unit-a');
     });
@@ -84,9 +84,9 @@ describe('TerrainManager.destroyRock', () => {
         const transition = manager.destroyRock(2, 2);
 
         expect(transition).not.toBeNull();
-        expect(manager.getEffectiveTerrainType(2, 2)).toBe(TerrainType.Rubble);
+        expect(manager.getEffectiveTerrainType(2, 2)).toBe(TerrainType.Gravel);
         expect(emitter).toHaveBeenCalledTimes(1);
-        expect(emitter.mock.calls[0]?.[0]?.terrainType).toBe(TerrainType.Rubble);
+        expect(emitter.mock.calls[0]?.[0]?.terrainType).toBe(TerrainType.Gravel);
     });
 
     it('is a no-op on tiles that are not intact rock', () => {
@@ -112,7 +112,7 @@ describe('TerrainManager.createRubble', () => {
 
         expect(manager.createRubble(1, 1)).toBe(true);
 
-        expect(manager.getEffectiveTerrainType(1, 1)).toBe(TerrainType.Rubble);
+        expect(manager.getEffectiveTerrainType(1, 1)).toBe(TerrainType.Gravel);
         expect(manager.isPassable(grid.gridToWorld(1, 1).x, grid.gridToWorld(1, 1).y)).toBe(true);
         expect(manager.navEpoch).toBeGreaterThan(epoch);
         expect(emitter).not.toHaveBeenCalled();
@@ -204,8 +204,8 @@ describe('TerrainManager rock and gravel on water (water levels)', () => {
 
     it.each([
         [TerrainType.DeepWater, TerrainType.ShallowWater],
-        [TerrainType.Water, TerrainType.Rubble],
-        [TerrainType.ShallowWater, TerrainType.Rubble],
+        [TerrainType.Water, TerrainType.Gravel],
+        [TerrainType.ShallowWater, TerrainType.Gravel],
     ])('rock on %s becomes %s, not rock', (start, result) => {
         const manager = managerWith(start);
         const epoch = manager.navEpoch;
@@ -217,7 +217,7 @@ describe('TerrainManager rock and gravel on water (water levels)', () => {
     it.each([
         [TerrainType.DeepWater, TerrainType.Water],
         [TerrainType.Water, TerrainType.ShallowWater],
-        [TerrainType.ShallowWater, TerrainType.Rubble],
+        [TerrainType.ShallowWater, TerrainType.Gravel],
     ])('gravel on %s becomes %s', (start, result) => {
         const manager = managerWith(start);
         expect(manager.createRubble(2, 2)).toBe(true);
@@ -228,7 +228,7 @@ describe('TerrainManager rock and gravel on water (water levels)', () => {
         const manager = managerWith(TerrainType.Water);
         manager.createRubble(2, 2);
         manager.createRubble(2, 2);
-        expect(manager.getEffectiveTerrainType(2, 2)).toBe(TerrainType.Rubble);
+        expect(manager.getEffectiveTerrainType(2, 2)).toBe(TerrainType.Gravel);
         expect(manager.createOrMarkRock(2, 2)?.terrainType).toBe(TerrainType.Rock);
     });
 

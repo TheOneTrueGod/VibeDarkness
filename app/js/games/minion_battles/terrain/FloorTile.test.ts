@@ -14,15 +14,15 @@ import { EARTH_CORE_STONE_HEALTH } from '../card_defs/05_earth_core/earthCoreCon
 describe('FloorTile helpers', () => {
     it('resolves effective terrain from floor or bedrock', () => {
         expect(getEffectiveTerrain(null, TerrainType.Grass)).toBe(TerrainType.Grass);
-        expect(getEffectiveTerrain({ terrainType: TerrainType.Rubble }, TerrainType.Rock)).toBe(TerrainType.Rubble);
+        expect(getEffectiveTerrain({ terrainType: TerrainType.Gravel }, TerrainType.Rock)).toBe(TerrainType.Gravel);
     });
 
     it('classifies intact rock and excludes rubble', () => {
         expect(isIntactRock(TerrainType.Rock)).toBe(true);
         expect(isIntactRock(TerrainType.Rock, { health: 10, maxHealth: 30, kind: 'rock' })).toBe(true);
         expect(isIntactRock(TerrainType.Rock, { health: 0, maxHealth: 30, kind: 'rock' })).toBe(false);
-        expect(isIntactRock(TerrainType.Rubble)).toBe(false);
-        expect(isOnStone(TerrainType.Rubble)).toBe(false);
+        expect(isIntactRock(TerrainType.Gravel)).toBe(false);
+        expect(isOnStone(TerrainType.Gravel)).toBe(false);
     });
 
     it('maps health percentage to damage tiers', () => {
@@ -53,10 +53,10 @@ describe('TerrainLayerManager floor tiles', () => {
             terrainType: TerrainType.Rock,
             destructible: { health: 18, maxHealth: 30, kind: 'rock' },
         });
-        layers.setFloorTile(4, 1, { terrainType: TerrainType.Rubble });
+        layers.setFloorTile(4, 1, { terrainType: TerrainType.Gravel });
         const restored = TerrainLayerManager.fromJSON([], layers.toFloorTilesJSON());
         expect(restored.getFloorTile(2, 3)?.destructible?.health).toBe(18);
-        expect(restored.getFloorTile(4, 1)?.terrainType).toBe(TerrainType.Rubble);
+        expect(restored.getFloorTile(4, 1)?.terrainType).toBe(TerrainType.Gravel);
     });
 
     it('migrates legacy rock floor effects on load', () => {
@@ -79,7 +79,7 @@ describe('TerrainLayerManager floor tiles', () => {
             },
         ]);
         expect(restored.getFloorTile(1, 2)?.destructible?.health).toBe(24);
-        expect(restored.getFloorTile(3, 2)?.terrainType).toBe(TerrainType.Rubble);
+        expect(restored.getFloorTile(3, 2)?.terrainType).toBe(TerrainType.Gravel);
         expect(restored.toEffectsJSON()).toHaveLength(0);
     });
 });

@@ -11,6 +11,7 @@ import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
 const D = TerrainType.Dirt;
+const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
 const SW = TerrainType.ShallowWater;
 const W = TerrainType.Water;
@@ -22,14 +23,14 @@ export const SEGMENT_59_49_STOREROOMS: CastleSegment = {
     description: 'General stores for cloth, tools, salted meat, lamp oil and everything else the household used, managed by the steward.',
     terrain: [
         [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
-        [R, D, D, D, D, D, R, D, D, D, D, D, D, D, D, R, D, D, D, D, D, R],
-        [R, D, R, D, D, D, R, D, R, D, D, D, D, D, D, R, D, D, R, D, D, R],
-        [R, D, D, D, D, D, R, D, D, D, D, D, D, D, D, R, D, D, D, D, D, R],
+        [R, G, G, G, G, G, R, G, G, D, D, D, D, G, G, R, G, G, G, G, G, R],
+        [R, G, R, G, G, G, R, G, R, D, D, D, G, G, G, R, G, G, R, G, G, R],
+        [R, D, G, G, G, G, R, G, G, D, D, D, G, G, G, R, G, G, G, G, D, R],
+        [D, D, D, D, D, D, D, D, D, D, D, D, G, D, D, D, D, D, D, D, D, D],
         [D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D],
-        [D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D],
         [R, D, D, D, D, D, R, D, D, D, D, D, D, D, D, R, D, D, D, D, D, R],
-        [R, D, D, R, D, D, R, D, D, D, D, D, D, R, D, R, D, D, D, R, D, R],
-        [R, D, D, D, D, D, R, D, D, D, D, D, D, D, D, R, D, D, D, D, D, R],
+        [R, G, G, R, G, G, R, D, D, D, D, D, D, R, D, R, G, G, G, R, G, R],
+        [R, G, G, G, G, G, R, G, G, G, G, G, G, G, G, R, G, G, G, G, G, R],
         [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
         [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
         [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
@@ -56,7 +57,7 @@ export const SEGMENT_59_49_STOREROOMS: CastleSegment = {
         nodes: [{ id: '59_49_center', position: { kind: 'gridPoint', col: 10, row: 6 }, tags: ['castle'] }],
         edges: [
             ['59_48_center', '59_49_center'],
-            ['60_49_center', '59_49_center'],
+            ['58_49_center', '59_49_center'],
         ],
     },
 };

@@ -9,7 +9,7 @@ export const TERRAIN_COLORS: Record<TerrainType, string> = {
     [TerrainType.Grass]: TERRAIN_PROPERTIES[TerrainType.Grass].color,
     [TerrainType.ThickGrass]: TERRAIN_PROPERTIES[TerrainType.ThickGrass].color,
     [TerrainType.Rock]: TERRAIN_PROPERTIES[TerrainType.Rock].color,
-    [TerrainType.Rubble]: TERRAIN_PROPERTIES[TerrainType.Rubble].color,
+    [TerrainType.Gravel]: TERRAIN_PROPERTIES[TerrainType.Gravel].color,
     [TerrainType.Impassable]: TERRAIN_PROPERTIES[TerrainType.Impassable].color,
     [TerrainType.Water]: TERRAIN_PROPERTIES[TerrainType.Water].color,
     [TerrainType.ShallowWater]: TERRAIN_PROPERTIES[TerrainType.ShallowWater].color,

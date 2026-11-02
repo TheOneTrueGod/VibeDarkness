@@ -11,6 +11,7 @@ import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
 const D = TerrainType.Dirt;
+const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
 
 export const SEGMENT_63_46_CHAPEL_ALTAR: CastleSegment = {
@@ -19,27 +20,27 @@ export const SEGMENT_63_46_CHAPEL_ALTAR: CastleSegment = {
     gridRow: 46,
     description: 'The chancel at the far end of the chapel, holding the altar, where the priest led services.',
     terrain: [
-        [R, R, R, R, R, D, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, D, D, D, D, D, D, D, D, D, D, D, R, R, R, R, R, R, R],
-        [R, R, R, R, D, D, D, D, D, D, D, D, D, D, D, R, D, D, D, D, R, R],
-        [R, R, R, R, D, D, D, D, D, D, D, D, D, D, D, R, D, D, D, D, R, R],
-        [R, R, R, R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R, R],
-        [R, R, R, R, D, D, D, D, D, D, D, D, D, D, D, R, D, D, D, D, R, R],
-        [R, R, R, R, D, D, D, D, D, D, D, D, D, D, D, R, R, R, R, R, R, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, _, _, _, _, _, _, D, D, D, D, D, D, D, R],
-        [D, D, D, D, D, D, D, D, _, _, R, R, _, _, D, D, D, D, D, D, D, D],
-        [D, D, D, D, D, D, D, D, _, _, R, R, _, _, D, D, D, D, D, D, D, D],
-        [D, D, D, D, D, D, D, D, _, _, R, R, _, _, D, D, D, D, D, D, D, D],
+        [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
+        [R, R, R, R, G, G, G, G, G, D, D, D, D, G, G, R, R, R, R, R, R, R],
+        [R, R, R, R, G, G, G, G, G, D, D, D, G, G, G, R, G, G, G, G, R, R],
+        [R, R, R, R, G, G, G, G, G, D, D, D, G, G, G, R, G, G, G, G, R, R],
+        [R, R, R, R, G, G, G, G, G, D, D, D, G, G, G, G, G, G, G, G, R, R],
+        [R, R, R, R, G, G, G, G, G, D, D, D, G, G, G, R, G, G, G, G, R, R],
+        [R, R, R, R, G, G, G, G, G, D, D, D, G, G, G, R, R, R, R, R, R, R],
+        [R, G, G, G, G, G, G, G, D, D, D, D, G, G, G, G, G, G, G, G, G, R],
+        [R, D, G, G, G, G, G, G, _, _, _, _, _, _, G, G, G, G, G, G, G, R],
+        [D, D, G, G, G, G, G, G, _, _, R, R, _, _, G, G, G, G, G, G, D, R],
+        [D, D, D, G, G, G, G, G, _, _, R, R, _, _, G, G, G, G, G, D, D, D],
+        [D, D, D, D, G, G, G, G, _, _, R, R, _, _, G, G, G, G, D, D, D, D],
         [R, D, D, D, D, D, D, D, _, _, _, _, _, _, D, D, D, D, D, D, D, R],
         [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
         [R, R, R, R, R, R, R, D, D, D, D, D, D, D, D, R, R, R, R, R, R, R],
-        [R, R, D, D, D, D, R, D, D, D, D, D, D, D, D, R, D, D, D, D, R, R],
-        [R, R, D, D, D, D, R, D, D, D, D, D, D, D, D, R, D, D, D, D, R, R],
-        [R, R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R, R],
-        [R, R, D, D, D, D, R, D, D, D, D, D, D, D, D, R, D, D, D, D, R, R],
-        [R, R, D, D, D, D, R, D, D, D, D, D, D, D, D, R, D, D, D, D, R, R],
-        [R, R, R, R, R, R, R, D, D, D, D, D, D, D, D, R, R, R, R, R, R, R],
+        [R, R, G, G, G, G, R, D, D, D, D, D, D, D, D, R, G, G, G, G, R, R],
+        [R, R, G, G, G, G, R, G, D, D, D, D, D, D, G, R, G, G, G, G, R, R],
+        [R, R, G, G, G, G, G, G, G, D, D, D, G, G, G, G, G, G, G, G, R, R],
+        [R, R, G, G, G, G, R, G, G, D, D, D, G, G, G, R, G, G, G, G, R, R],
+        [R, R, G, G, G, G, R, G, G, D, D, D, G, G, G, R, G, G, G, G, R, R],
+        [R, R, R, R, R, R, R, G, G, D, D, D, D, G, G, R, R, R, R, R, R, R],
         [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
     ],
     pointsOfInterest: [

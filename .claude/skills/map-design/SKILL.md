@@ -70,6 +70,8 @@ Light types and their gameplay effects: `game/lighting/AGENTS.md`.
 
 Read `terrain/TerrainType.ts` for the list of terrain types and their properties before painting. Do not copy the list into this skill.
 
+**Floors in buildings:** Dirt for the main routes through a room (door to door), Gravel for the floor off them. Gravel is slightly slow, so units drift toward the main routes.
+
 Water comes in **levels** (see `terrain/AGENTS.md`); none of them block projectiles:
 
 | Level | Type | Use |

@@ -255,7 +255,7 @@ describe('Stone Tomb (0530)', () => {
         guard = 0;
         while (engine.gameTime - start < STONE_TOMB_STAGE1_TIME + STONE_TOMB_STAGE_GAP + 0.1 && guard++ < 300) tick();
 
-        expect(tm.getEffectiveTerrainType(5, 5)).toBe(TerrainType.Rubble);
+        expect(tm.getEffectiveTerrainType(5, 5)).toBe(TerrainType.Gravel);
         for (const [c, r] of plus.slice(1)) expect(tm.getEffectiveTerrainType(c!, r!)).toBe(TerrainType.ShallowWater);
     });
 

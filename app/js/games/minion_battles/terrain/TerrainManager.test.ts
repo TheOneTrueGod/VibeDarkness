@@ -40,7 +40,7 @@ describe('TerrainManager stone mutation hooks', () => {
             manager.damageRock(1, 1);
         }
         const destroyEvent = emitter.mock.calls[emitter.mock.calls.length - 1]?.[0];
-        expect(destroyEvent?.terrainType).toBe(TerrainType.Rubble);
+        expect(destroyEvent?.terrainType).toBe(TerrainType.Gravel);
         expect(destroyEvent?.health).toBe(0);
     });
 
@@ -53,7 +53,7 @@ describe('TerrainManager stone mutation hooks', () => {
 
         const hits = Math.ceil(EARTH_CORE_STONE_HEALTH / EARTH_CORE_STONE_DAMAGE_PER_INSTANCE);
         for (let i = 0; i < hits; i++) manager.damageRock(1, 1);
-        expect(manager.getEffectiveTerrainType(1, 1)).toBe(TerrainType.Rubble);
+        expect(manager.getEffectiveTerrainType(1, 1)).toBe(TerrainType.Gravel);
         expect(manager.isPassable(world.x, world.y)).toBe(true);
         expect(grid.get(1, 1)).toBe(TerrainType.Rock);
     });
@@ -84,7 +84,7 @@ describe('TerrainManager stone mutation hooks', () => {
         expect(transition?.row).toBe(2);
         expect(emitter).toHaveBeenCalledTimes(1);
         const event = emitter.mock.calls[0]?.[0];
-        expect(event?.terrainType).toBe(TerrainType.Rubble);
+        expect(event?.terrainType).toBe(TerrainType.Gravel);
     });
 
     it('lazy-copies bedrock on first damage to natural rock', () => {

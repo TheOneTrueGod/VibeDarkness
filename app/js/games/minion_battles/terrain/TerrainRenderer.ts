@@ -32,7 +32,7 @@ const LAYER_ORDER: TerrainType[] = [
     TerrainType.ShallowWater,
     TerrainType.Water,
     TerrainType.DeepWater,
-    TerrainType.Rubble,
+    TerrainType.Gravel,
     TerrainType.Rock,
 ];
 

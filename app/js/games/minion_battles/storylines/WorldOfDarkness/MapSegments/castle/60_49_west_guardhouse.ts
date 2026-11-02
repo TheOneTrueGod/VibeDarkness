@@ -12,6 +12,7 @@ import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
 const D = TerrainType.Dirt;
+const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
 const SW = TerrainType.ShallowWater;
 const T = TerrainType.ThickGrass;
@@ -24,15 +25,15 @@ export const SEGMENT_60_49_WEST_GUARDHOUSE: CastleSegment = {
     description: 'Guard post beside the main gate. Sentries kept watch from here, checked everyone entering, and stored the arms used to defend the gate.',
     terrain: [
         [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, R, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, R, D, D, R, R, R, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, R, D, D, D, D, D, D, R],
-        [D, D, D, D, D, D, R, R, R, D, D, D, D, D, R, D, D, D, D, D, D, R],
-        [D, D, D, D, D, D, R, R, R, D, D, D, D, D, R, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, R, D, D, D, D, D, D, R],
-        [R, R, R, R, R, D, R, R, R, R, R, R, R, R, R, R, D, R, R, R, R, R],
+        [R, G, G, G, G, G, G, G, G, D, D, D, D, G, R, G, G, G, G, G, G, R],
+        [R, G, G, G, G, G, G, G, G, D, D, D, G, G, R, G, G, R, R, R, G, R],
+        [R, D, G, G, G, G, G, G, G, D, D, D, G, G, R, G, G, G, G, G, G, R],
+        [D, D, D, G, G, G, R, R, R, D, D, D, G, G, R, G, G, G, G, G, G, R],
+        [D, D, D, D, D, D, R, R, R, D, D, D, G, G, R, G, G, G, G, G, G, R],
+        [R, D, D, D, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, R],
+        [R, D, D, D, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, R],
+        [R, G, G, G, G, G, G, G, G, G, G, G, G, G, R, G, G, G, G, G, G, R],
+        [R, R, R, R, R, G, R, R, R, R, R, R, R, R, R, R, G, R, R, R, R, R],
         [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
         [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
@@ -56,6 +57,7 @@ export const SEGMENT_60_49_WEST_GUARDHOUSE: CastleSegment = {
         nodes: [{ id: '60_49_center', position: { kind: 'gridPoint', col: 10, row: 6 }, tags: ['castle'] }],
         edges: [
             ['60_48_center', '60_49_center'],
+            ['59_49_center', '60_49_center'],
         ],
     },
 };

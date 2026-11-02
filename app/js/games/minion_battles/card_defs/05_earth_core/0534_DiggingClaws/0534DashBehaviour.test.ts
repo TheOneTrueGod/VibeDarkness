@@ -31,7 +31,7 @@ describe('Digging Claws on the Dash behaviour', () => {
         for (const col of [4, 5]) {
             const floor = tm.getFloorTile(col, 5);
             const intact = floor?.destructible ? floor.destructible.health : undefined;
-            const cracked = floor !== null && (floor.terrainType === TerrainType.Rubble || (intact !== undefined && intact < floor.destructible!.maxHealth));
+            const cracked = floor !== null && (floor.terrainType === TerrainType.Gravel || (intact !== undefined && intact < floor.destructible!.maxHealth));
             expect(cracked).toBe(true);
         }
     });

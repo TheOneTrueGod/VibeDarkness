@@ -7,10 +7,10 @@ import { MAP_SEGMENT_60_50_CAVE_ROAD } from '../60_50_cave_road';
 import { CASTLE_SEGMENTS } from './index';
 
 const SIZE = 22;
-const COL0 = 57;
-const ROW0 = 40;
-const COLS = 9;
-const ROWS = 10;
+const COL0 = 58;
+const ROW0 = 43;
+const COLS = 7;
+const ROWS = 7;
 
 const byAddress = new Map<string, TerrainType[][]>([
     ['61_49', MAP_SEGMENT_61_49_CASTLE_GATE],
@@ -50,8 +50,8 @@ function floodFrom(grid: TerrainType[][], col: number, row: number): boolean[][]
     return seen;
 }
 
-describe('castle segments (57-65 x 40-49)', () => {
-    it('fills the 9x10 block around the existing gate and courtyard with 22x22 segments', () => {
+describe('castle segments (58-64 x 43-49)', () => {
+    it('fills the 7x7 block around the existing gate and courtyard with 22x22 segments', () => {
         expect(CASTLE_SEGMENTS).toHaveLength(COLS * ROWS - 2);
         expect(byAddress.size).toBe(COLS * ROWS);
         for (const s of CASTLE_SEGMENTS) {

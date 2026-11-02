@@ -2,12 +2,13 @@ import { z } from 'zod';
 import { TerrainType } from './TerrainType';
 import { MapSegmentNetworkSchema } from './networkSchema';
 
-/** Terrain types a segment may contain. Rubble and Impassable are runtime-only. */
+/** Terrain types a segment may contain. Impassable is runtime-only. */
 export const AUTHORED_TERRAIN_TYPES: readonly number[] = [
     TerrainType.Dirt,
     TerrainType.Grass,
     TerrainType.ThickGrass,
     TerrainType.Rock,
+    TerrainType.Gravel,
     TerrainType.ShallowWater,
     TerrainType.Water,
     TerrainType.DeepWater,

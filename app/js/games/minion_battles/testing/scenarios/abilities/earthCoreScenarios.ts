@@ -211,7 +211,7 @@ export const earthCoreStoneTombScenario: ScenarioDefinition = {
         if (!d || !tm) return false;
         const outer = [[5, 4], [6, 5], [5, 6], [4, 5]];
         const centreRock = tm.getEffectiveTerrainType(5, 5) === TerrainType.Rock;
-        const outerGravel = outer.every(([c, r]) => tm.getEffectiveTerrainType(c, r) === TerrainType.Rubble);
+        const outerGravel = outer.every(([c, r]) => tm.getEffectiveTerrainType(c, r) === TerrainType.Gravel);
         const rockLeft = e.getLocalPlayerUnit()?.getResource('rock')?.current;
         return d.maxHp - d.hp >= 10 && centreRock && outerGravel && rockLeft === 0;
     },
@@ -1032,7 +1032,7 @@ export const earthCoreGatherStoneRubbleStrikeScenario: ScenarioDefinition = {
             grass: true,
             playerResearchTreesByPlayer: researchByPlayer,
         });
-        engine.terrainManager!.grid.set(4, 5, TerrainType.Rubble);
+        engine.terrainManager!.grid.set(4, 5, TerrainType.Gravel);
         placePlayerAndDummy(engine, {
             playerId: P,
             playerWorld: GS_PLAYER_POS,
@@ -1072,7 +1072,7 @@ export const earthCoreGatherStoneNoRubbleStrikeWithoutResearchScenario: Scenario
             grass: true,
             playerResearchTreesByPlayer: researchByPlayer,
         });
-        engine.terrainManager!.grid.set(4, 5, TerrainType.Rubble);
+        engine.terrainManager!.grid.set(4, 5, TerrainType.Gravel);
         placePlayerAndDummy(engine, {
             playerId: P,
             playerWorld: GS_PLAYER_POS,
@@ -1148,7 +1148,7 @@ export const earthCoreRockSlideScenario: ScenarioDefinition = {
         return Boolean(
             d
             && d.maxHp - d.hp === ROCK_SLIDE_DAMAGE
-            && tm.getEffectiveTerrainType(rc, rr) === TerrainType.Rubble
+            && tm.getEffectiveTerrainType(rc, rr) === TerrainType.Gravel
             && tm.getEffectiveTerrainType(lc, lr) === TerrainType.Rock
             && e.projectiles.every((p) => !p.active),
         );

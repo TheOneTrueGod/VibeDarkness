@@ -10,8 +10,11 @@ export enum TerrainType {
     Grass = 1,
     ThickGrass = 2,
     Rock = 3,
-    /** Runtime-only: destroyed rock rubble (passable). Not in terrain editor bedrock palette. */
-    Rubble = 4,
+    /**
+     * Loose stone floor: passable but slightly slow. Authored in segments to mark ground off the main
+     * paths, and left behind at runtime by destroyed rock and Earth abilities (`createRubble`).
+     */
+    Gravel = 4,
     /**
      * Synthetic filler for gaps in a stitched mission map (e.g. the unused corner of an L-shaped
      * layout) — see `stitchTerrain`. Renders as void (fully transparent, no fog/darkness overlay)
@@ -127,8 +130,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         blocksBleed: true,
         hardEdgeFamily: [],
     },
-    [TerrainType.Rubble]: {
-        name: 'Rubble',
+    [TerrainType.Gravel]: {
+        name: 'Gravel',
         color: '#6b5b4f',
         passable: true,
         forcedMovementPassable: true,
@@ -211,7 +214,7 @@ export const GROUND_RAISE = {
 
 /** Terrain for each water level; level 0 (water filled in) is gravel. */
 const TERRAIN_FOR_WATER_LEVEL: readonly TerrainType[] = [
-    TerrainType.Rubble,
+    TerrainType.Gravel,
     TerrainType.ShallowWater,
     TerrainType.Water,
     TerrainType.DeepWater,

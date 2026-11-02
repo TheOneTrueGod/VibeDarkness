@@ -91,7 +91,7 @@ describe('Rock Slide (0537) timeline', () => {
         expect(liveProjectiles(engine)).toHaveLength(0);
 
         stepToElapsed(engine, start, ROCK_SLIDE_AIM_START + 0.05);
-        expect(terrain(engine, col, row)).toBe(TerrainType.Rubble);
+        expect(terrain(engine, col, row)).toBe(TerrainType.Gravel);
         expect(liveProjectiles(engine)).toHaveLength(0);
 
         stepToElapsed(engine, start, ROCK_SLIDE_SPAWN_TIME + 0.05);
@@ -124,7 +124,7 @@ describe('Rock Slide (0537) timeline', () => {
         expect(rock.current).toBe(0);
 
         stepToElapsed(engine, start, ROCK_SLIDE_AIM_START + 0.05);
-        expect(terrain(engine, col, row)).toBe(TerrainType.Rubble);
+        expect(terrain(engine, col, row)).toBe(TerrainType.Gravel);
         expect(rock.current).toBe(ROCK_SLIDE_ROCK_RESOURCE_GAIN);
 
         // Granted once, not again later in the cast.
@@ -150,7 +150,7 @@ describe('Rock Slide (0537) interrupts', () => {
         engine.interruptUnitAndRefundAbilities(player);
         stepToElapsed(engine, start, ROCK_SLIDE_CAST_TIME);
         const { col, row } = ROCK_SLIDE_SCENARIO_ROCK_TILE;
-        expect(terrain(engine, col, row)).toBe(TerrainType.Rubble);
+        expect(terrain(engine, col, row)).toBe(TerrainType.Gravel);
         expect(engine.projectiles).toHaveLength(0);
         const dummy = engine.getUnit('target_dummy')!;
         expect(dummy.hp).toBe(dummy.maxHp);
@@ -221,7 +221,7 @@ describe('Rock Slide (0537) interactive targeting', () => {
         while (!engine.waitingForTargetInput && guard++ < 300) tick(engine);
 
         expect(engine.waitingForTargetInput?.label).toBe('Direction');
-        expect(terrain(engine, col, row)).toBe(TerrainType.Rubble);
+        expect(terrain(engine, col, row)).toBe(TerrainType.Gravel);
         expect(engine.gameTime - start).toBeGreaterThanOrEqual(ROCK_SLIDE_AIM_START - 1e-6);
         expect(engine.gameTime - start).toBeLessThan(ROCK_SLIDE_AIM_START + 0.05);
 
@@ -373,8 +373,8 @@ describe('Rock Slide (0537) wall landing', () => {
 
 describe('Rock Slide (0537) water', () => {
     it.each([
-        [TerrainType.ShallowWater, TerrainType.Rubble],
-        [TerrainType.Water, TerrainType.Rubble],
+        [TerrainType.ShallowWater, TerrainType.Gravel],
+        [TerrainType.Water, TerrainType.Gravel],
         [TerrainType.DeepWater, TerrainType.ShallowWater],
     ])('slid into %s, the rock is lost and the first water tile becomes %s', (water, filled) => {
         const engine = buildTinyBattleEngine({ gridW: 21, gridH: 21, localPlayerId: TINY_BATTLE_PLAYER_ID, grass: true });

@@ -95,7 +95,7 @@ const rubbleStrike = CastBehaviours.Instant((ctx) => {
     const pixel = getPixelTargetPosition([ctx.target], 0);
     if (!tm || !pixel) return;
     const rubbleCells = gatherCells(ctx).filter((cell) =>
-        tm.isInBounds(cell.col, cell.row) && tm.getEffectiveTerrainType(cell.col, cell.row) === TerrainType.Rubble);
+        tm.isInBounds(cell.col, cell.row) && tm.getEffectiveTerrainType(cell.col, cell.row) === TerrainType.Gravel);
     const anchor = GATHER_STONE_HITBOX.resolveAnchor(ctx.caster, pixel);
     const origin = anchor ? tileCentre(anchor) : { x: ctx.caster.x, y: ctx.caster.y };
     damageEnemiesInTiles({

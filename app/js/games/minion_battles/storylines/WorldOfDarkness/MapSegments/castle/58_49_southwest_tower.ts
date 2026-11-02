@@ -1,0 +1,61 @@
+/**
+ * 58_49 South-west Tower - part of the castle around the 61_49 gate (see castle/index.ts for the plan).
+ *
+ * Round corner tower with a small fighting room; the moat wraps around it. Joins the south strip
+ * and the west wall walk.
+ * No light spots unless listed in the POIs: the castle is meant to be dark.
+ * Generated with terrain/mapTools-style painting on one castle-wide canvas, so seams always line up.
+ */
+
+import { TerrainType } from '../../../../terrain/TerrainType';
+import type { CastleSegment } from './castleSegment';
+
+const _ = TerrainType.Grass;
+const D = TerrainType.Dirt;
+const G = TerrainType.Gravel;
+const R = TerrainType.Rock;
+const SW = TerrainType.ShallowWater;
+const W = TerrainType.Water;
+
+export const SEGMENT_58_49_SOUTHWEST_TOWER: CastleSegment = {
+    id: '58_49_southwest_tower',
+    gridCol: 58,
+    gridRow: 49,
+    description: 'A corner tower of the curtain wall. Towers stood out from the wall so archers inside could shoot along the wall face at anyone trying to climb or undermine it.',
+    terrain: [
+        [_, _, _, _, _, _, _, SW, W, W, R, R, R, R, R, D, D, R, R, R, R, R],
+        [_, _, _, _, _, _, _, SW, W, W, R, R, R, G, D, D, D, D, G, R, R, R],
+        [_, _, _, _, _, _, SW, SW, W, W, R, R, R, G, D, D, D, G, G, R, R, R],
+        [_, _, _, _, _, SW, SW, W, W, W, R, R, R, G, D, D, D, D, D, D, D, R],
+        [_, _, _, _, SW, W, W, W, W, R, R, R, R, G, D, D, D, D, D, D, D, D],
+        [_, _, _, SW, SW, W, W, R, R, R, R, R, R, G, D, D, D, D, D, D, D, D],
+        [_, _, _, SW, W, W, R, R, R, R, R, R, R, G, G, G, G, G, G, G, D, R],
+        [_, _, SW, W, W, W, R, R, R, R, G, G, G, G, G, G, G, G, G, G, G, R],
+        [_, _, SW, W, W, R, R, R, R, G, G, G, G, G, G, G, G, G, G, G, G, R],
+        [_, _, SW, W, W, R, R, R, G, G, G, G, G, G, G, R, R, R, R, R, R, R],
+        [_, _, SW, W, W, R, R, R, G, G, G, G, G, G, G, R, R, R, R, R, R, R],
+        [_, _, SW, W, W, R, R, R, G, G, G, G, G, G, G, R, R, R, R, R, R, R],
+        [_, _, SW, W, W, R, R, R, R, G, G, G, G, G, R, R, R, R, W, W, W, W],
+        [_, _, SW, W, W, W, R, R, R, R, G, G, G, R, R, R, R, W, W, W, W, W],
+        [_, _, _, SW, W, W, R, R, R, R, R, R, R, R, R, R, R, W, W, SW, SW, SW],
+        [_, _, _, SW, SW, W, W, R, R, R, R, R, R, R, R, R, W, W, SW, SW, _, _],
+        [_, _, _, _, SW, W, W, W, W, R, R, R, R, R, W, W, W, W, SW, _, _, _],
+        [_, _, _, _, _, SW, SW, W, W, W, W, W, W, W, W, W, SW, SW, _, _, _, _],
+        [_, _, _, _, _, _, SW, SW, W, W, W, W, W, W, W, SW, SW, _, _, _, _, _],
+        [_, _, _, _, _, _, _, _, SW, SW, SW, SW, SW, SW, SW, _, _, _, _, _, _, _],
+        [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+        [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    ],
+    pointsOfInterest: [
+        // Centre of the tower room.
+        { id: '58_49_southwest_tower_room', label: 'South-west Tower Room', col: 11, row: 10, type: 'generic' },
+        // Where the wall walks meet.
+        { id: '58_49_southwest_tower_landing', label: 'South-west Tower Landing', col: 15, row: 4, type: 'patrol_point' },
+    ],
+    network: {
+        nodes: [{ id: '58_49_center', position: { kind: 'gridPoint', col: 15, row: 4 }, tags: ['castle'] }],
+        edges: [
+            ['58_48_center', '58_49_center'],
+        ],
+    },
+};

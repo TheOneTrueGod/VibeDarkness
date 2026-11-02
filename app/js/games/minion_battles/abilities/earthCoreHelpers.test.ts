@@ -14,7 +14,7 @@ describe('earthCoreHelpers', () => {
         expect(isOnStone(TerrainType.Rock)).toBe(true);
         expect(isOnStone(TerrainType.Rock, { health: 12, maxHealth: 30, kind: 'rock' })).toBe(true);
         expect(isOnStone(TerrainType.Rock, { health: 0, maxHealth: 30, kind: 'rock' })).toBe(false);
-        expect(isOnStone(TerrainType.Rubble)).toBe(false);
+        expect(isOnStone(TerrainType.Gravel)).toBe(false);
         expect(isOnStone(TerrainType.Grass)).toBe(false);
     });
 

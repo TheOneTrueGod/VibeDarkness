@@ -12,6 +12,7 @@ import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
 const D = TerrainType.Dirt;
+const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
 
 export const SEGMENT_62_46_CHAPEL_NAVE: CastleSegment = {
@@ -20,27 +21,27 @@ export const SEGMENT_62_46_CHAPEL_NAVE: CastleSegment = {
     gridRow: 46,
     description: 'The nave is the main body of a chapel, where the household gathered for services.',
     terrain: [
-        [R, R, R, R, R, R, R, R, R, R, D, D, D, R, R, R, R, R, R, R, R, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
+        [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
+        [R, G, G, G, G, G, G, G, G, D, D, D, D, G, G, G, G, G, G, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, D, G, G, G, G, G, G, G, G, D, D, D, G, G, G, G, G, G, G, D, R],
         [D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D],
         [D, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, D],
         [D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, R, D, R, D, R, D, R, D, D, D, D, D, R, D, R, D, R, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
+        [R, D, G, G, G, G, G, G, G, G, D, D, D, G, G, G, G, G, G, G, D, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, R, G, R, G, R, G, R, G, D, D, D, G, R, G, R, G, R, G, G, R],
+        [R, G, G, G, G, G, G, G, G, G, D, D, D, G, G, G, G, G, G, G, G, R],
+        [R, G, G, G, G, G, G, G, G, D, D, D, D, G, G, G, G, G, G, G, G, R],
         [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
     ],
     pointsOfInterest: [
@@ -55,6 +56,7 @@ export const SEGMENT_62_46_CHAPEL_NAVE: CastleSegment = {
         nodes: [{ id: '62_46_center', position: { kind: 'gridPoint', col: 11, row: 10 }, tags: ['castle'] }],
         edges: [
             ['61_46_center', '62_46_center'],
+            ['62_45_center', '62_46_center'],
         ],
     },
 };

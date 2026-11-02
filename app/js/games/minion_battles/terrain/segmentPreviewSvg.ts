@@ -15,7 +15,7 @@ export const SEGMENT_PREVIEW_PRIORITY: Record<TerrainType, number> = {
     [TerrainType.Water]: 6,
     [TerrainType.ShallowWater]: 5,
     [TerrainType.Rock]: 4,
-    [TerrainType.Rubble]: 3,
+    [TerrainType.Gravel]: 3,
     [TerrainType.Impassable]: 2,
     [TerrainType.ThickGrass]: 1,
     [TerrainType.Grass]: 0,

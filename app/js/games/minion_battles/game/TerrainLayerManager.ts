@@ -146,7 +146,7 @@ function migrateLegacyRockEffect(record: TerrainEffectRecord): SerializedFloorTi
     const entries: SerializedFloorTileEntry[] = [];
     for (const { col, row } of cells) {
         if (state === 'spent_rubble') {
-            entries.push({ col, row, tile: { terrainType: TerrainType.Rubble } });
+            entries.push({ col, row, tile: { terrainType: TerrainType.Gravel } });
         } else {
             entries.push({
                 col,

@@ -11,6 +11,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const D = TerrainType.Dirt;
+const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
 
 export const SEGMENT_60_46_BARRACKS: CastleSegment = {
@@ -19,27 +20,27 @@ export const SEGMENT_60_46_BARRACKS: CastleSegment = {
     gridRow: 46,
     description: 'Sleeping and living quarters for the garrison, with rows of bunks and weapon racks. Barracks sat close to the gates so soldiers could turn out quickly.',
     terrain: [
-        [R, R, R, R, R, R, R, R, R, D, D, D, R, R, R, R, R, R, R, R, R, R],
-        [R, D, D, D, D, D, D, R, D, D, D, D, D, D, R, D, D, D, D, D, D, R],
-        [R, R, R, D, D, R, R, R, D, D, D, D, D, D, R, R, R, D, D, R, R, R],
-        [R, D, D, D, D, D, D, R, D, D, D, D, D, D, R, D, D, D, D, D, D, R],
-        [R, R, R, D, D, R, R, R, D, D, D, D, D, D, R, R, R, D, D, R, R, R],
-        [R, D, D, D, D, D, D, R, D, D, D, D, D, D, R, D, D, D, D, D, D, R],
-        [R, R, R, D, D, R, R, R, D, D, D, D, D, D, R, R, R, D, D, R, R, R],
-        [R, D, D, D, D, D, D, R, D, D, D, D, D, D, R, D, D, D, D, D, D, R],
-        [R, R, R, D, D, R, R, R, D, D, D, D, D, D, R, R, R, D, D, R, R, R],
+        [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
+        [R, G, G, G, G, G, G, R, G, D, D, D, D, G, R, G, G, G, G, G, G, R],
+        [R, R, R, G, G, R, R, R, G, D, D, D, G, G, R, R, R, G, G, R, R, R],
+        [R, G, G, G, G, G, G, R, G, D, D, D, G, G, R, G, G, G, G, G, G, R],
+        [R, R, R, G, G, R, R, R, G, D, D, D, G, G, R, R, R, G, G, R, R, R],
+        [R, G, G, G, G, G, G, R, G, D, D, D, G, G, R, G, G, G, G, G, G, R],
+        [R, R, R, G, G, R, R, R, G, D, D, D, G, G, R, R, R, G, G, R, R, R],
+        [R, G, G, G, G, G, G, R, G, D, D, D, G, G, R, G, G, G, G, G, G, R],
+        [R, R, R, G, G, R, R, R, G, D, D, D, G, G, R, R, R, G, G, R, R, R],
         [D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D],
         [D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D],
         [D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D],
-        [R, R, R, D, D, R, R, R, R, R, R, R, R, R, R, R, R, D, D, R, R, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, R, R, R, R, R, D, D, D, D, R, R, R, R, R, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, R, R, R, R, R, D, D, D, D, R, R, R, R, R, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
+        [R, R, R, D, D, R, R, R, R, R, R, R, R, R, R, R, R, G, G, R, R, R],
+        [R, G, G, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, G, R],
+        [R, G, G, D, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, R],
+        [R, G, G, G, R, R, R, R, R, D, D, D, G, R, R, R, R, R, G, G, G, R],
+        [R, G, G, G, G, G, G, G, G, D, D, D, G, G, G, G, G, G, G, G, G, R],
+        [R, G, G, G, G, G, G, G, G, D, D, D, G, G, G, G, G, G, G, G, G, R],
+        [R, G, G, G, R, R, R, R, R, D, D, D, G, R, R, R, R, R, G, G, G, R],
+        [R, G, G, G, G, G, G, G, G, D, D, D, G, G, G, G, G, G, G, G, G, R],
+        [R, G, G, G, G, G, G, G, G, D, D, D, D, G, G, G, G, G, G, G, G, R],
         [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
     ],
     pointsOfInterest: [
@@ -54,6 +55,7 @@ export const SEGMENT_60_46_BARRACKS: CastleSegment = {
         nodes: [{ id: '60_46_center', position: { kind: 'gridPoint', col: 10, row: 10 }, tags: ['castle'] }],
         edges: [
             ['61_46_center', '60_46_center'],
+            ['60_45_center', '60_46_center'],
         ],
     },
 };

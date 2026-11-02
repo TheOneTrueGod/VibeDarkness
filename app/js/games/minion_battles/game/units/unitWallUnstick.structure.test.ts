@@ -48,7 +48,7 @@ describe('structures in rock', () => {
 
         tickFor(engine, nest, 1.0);
 
-        expect(engine.terrainManager!.getEffectiveTerrainType(TILE.col, TILE.row)).toBe(TerrainType.Rubble);
+        expect(engine.terrainManager!.getEffectiveTerrainType(TILE.col, TILE.row)).toBe(TerrainType.Gravel);
         expect(hp0 - nest.hp).toBe(getUnitTerrainCrushDamage('swarm_nest'));
         expect(getUnitTerrainCrushDamage('swarm_nest')).toBe(DEFAULT_STRUCTURE_TERRAIN_CRUSH_DAMAGE);
         // Not pushed or bounced.
@@ -70,7 +70,7 @@ describe('structures in rock', () => {
             const hp0 = nest.hp;
             engine.terrainManager!.createOrMarkRock(TILE.col, TILE.row);
             tickFor(engine, nest, 0.5);
-            expect(engine.terrainManager!.getEffectiveTerrainType(TILE.col, TILE.row)).toBe(TerrainType.Rubble);
+            expect(engine.terrainManager!.getEffectiveTerrainType(TILE.col, TILE.row)).toBe(TerrainType.Gravel);
             expect(hp0 - nest.hp).toBe(getUnitTerrainCrushDamage(characterId));
             engine.destroy();
         }

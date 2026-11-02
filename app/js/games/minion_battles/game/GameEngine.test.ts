@@ -344,7 +344,7 @@ describe('GameEngine', () => {
 
         expect(emitted.length).toBeGreaterThan(0);
         expect(emitted[emitted.length - 1]?.health).toBe(0);
-        expect(emitted[emitted.length - 1]?.terrainType).toBe(TerrainType.Rubble);
+        expect(emitted[emitted.length - 1]?.terrainType).toBe(TerrainType.Gravel);
 
         engine.destroy();
     });
@@ -379,7 +379,7 @@ describe('GameEngine', () => {
         expect(restoredTerrainManager.getFloorTile(1, 1)?.destructible?.health).toBe(
             EARTH_CORE_STONE_HEALTH - EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
         );
-        expect(restoredTerrainManager.getEffectiveTerrainType(2, 1)).toBe(TerrainType.Rubble);
+        expect(restoredTerrainManager.getEffectiveTerrainType(2, 1)).toBe(TerrainType.Gravel);
 
         restored.destroy();
         engine.destroy();

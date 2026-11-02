@@ -281,15 +281,15 @@ export class TerrainManager {
 
         let nextTerrainType = TerrainType.Rock;
         if (nextHealth <= 0) {
-            nextTerrainType = TerrainType.Rubble;
-            floor.terrainType = TerrainType.Rubble;
+            nextTerrainType = TerrainType.Gravel;
+            floor.terrainType = TerrainType.Gravel;
             floor.destructible = undefined;
         }
 
         this.terrainLayers.setFloorTile(col, row, floor);
 
         // Bump navEpoch only if effective passability changed (rock destroyed).
-        const destroyed = nextTerrainType === TerrainType.Rubble;
+        const destroyed = nextTerrainType === TerrainType.Gravel;
         if (destroyed) {
             this.notifyNavChanged(col, row);
         }
@@ -385,7 +385,7 @@ export class TerrainManager {
             this.lastRockDamageSourceUnitId = sourceUnitId;
         }
 
-        this.terrainLayers.setFloorTile(col, row, { terrainType: TerrainType.Rubble });
+        this.terrainLayers.setFloorTile(col, row, { terrainType: TerrainType.Gravel });
 
         // Destroyed rock changes effective passability, so bump navEpoch and mark the cell dirty.
         this.notifyNavChanged(col, row);
@@ -397,7 +397,7 @@ export class TerrainManager {
             health: 0,
             maxHealth,
             previousTerrainType,
-            terrainType: TerrainType.Rubble,
+            terrainType: TerrainType.Gravel,
             tier: DAMAGE_TIER_NONE,
             sourceUnitId: sourceUnitId ?? this.lastRockDamageSourceUnitId,
         });
@@ -414,9 +414,9 @@ export class TerrainManager {
         if (!this.isInBounds(col, row)) return false;
         const current = this.getEffectiveTerrainType(col, row);
         const raised = raiseGround(current, GROUND_RAISE.gravel);
-        if (raised === null && (current === TerrainType.Rubble || !TERRAIN_PROPERTIES[current].passable)) return false;
+        if (raised === null && (current === TerrainType.Gravel || !TERRAIN_PROPERTIES[current].passable)) return false;
 
-        this.terrainLayers.setFloorTile(col, row, { terrainType: raised ?? TerrainType.Rubble });
+        this.terrainLayers.setFloorTile(col, row, { terrainType: raised ?? TerrainType.Gravel });
         // The effective terrain type changed (movement cost, and the terrain sprite repaints on navEpoch).
         this.notifyNavChanged(col, row);
         return true;
