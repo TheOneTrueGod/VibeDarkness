@@ -2,7 +2,8 @@
  * Armory Core (10xx) — high-level AbilityTests through the real order path.
  *
  * Three scenarios, one per Armory kit, because each kit is a different engine piece:
- * - `armory_sword_cycle` — `defineConjure` + held-weapon swap + `defineThrownWeapon` + dropped-weapon token
+ * - `armory_sword_cycle` — `defineConjure` + held-weapon swap + a token per swing + `defineThrownWeapon` echoing
+ *   from that token + the thrown sword's token
  *   (and its checkpoint round-trip).
  * - `armory_turret_fires_and_expires` — the folded-turret delivery and a `DeployableDef` firing its own charges.
  * - `armory_shield_block_and_bounce` — the directional block granting Charge, then a bouncing thrown buckler.
@@ -168,8 +169,10 @@ function swordCycleProblem(engine: GameEngine): string | null {
     if (damageTaken(engine, SWORD_SWING_DUMMY_ID) < IMPROVISED_SWORD_DAMAGE) {
         return `swing dummy took ${damageTaken(engine, SWORD_SWING_DUMMY_ID)} (want >= ${IMPROVISED_SWORD_DAMAGE})`;
     }
-    if (damageTaken(engine, SWORD_THROW_DUMMY_ID) !== THROW_SWORD_DAMAGE) {
-        return `throw dummy took ${damageTaken(engine, SWORD_THROW_DUMMY_ID)} (want ${THROW_SWORD_DAMAGE})`;
+    // The swing drops a sword token, so the throw also echoes from it at the same dummy.
+    const wantThrow = THROW_SWORD_DAMAGE * 2;
+    if (damageTaken(engine, SWORD_THROW_DUMMY_ID) !== wantThrow) {
+        return `throw dummy took ${damageTaken(engine, SWORD_THROW_DUMMY_ID)} (want ${wantThrow}: throw and echo)`;
     }
     const tokens = engine.state.fieldObjects.droppedWeapons;
     if (tokens.length !== 1 || tokens[0]!.kind !== DROPPED_WEAPON_KIND_SWORD) {

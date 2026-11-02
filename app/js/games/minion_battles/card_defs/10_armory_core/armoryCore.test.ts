@@ -245,7 +245,7 @@ describe('Armory Core', () => {
         expect(traveled).toBeLessThan(fullSpeedDistance);
     });
 
-    it('replaces weapon abilities while the sword is held, then drops a token that does not expire', () => {
+    it('replaces weapon abilities while the sword is held, drops a token each slash, and the tokens do not expire', () => {
         const { engine } = armoryBattle();
         const player = engine.units[0]!;
         executeUnitAbility(player, CreateSwordAbility, [], engine);
@@ -258,37 +258,39 @@ describe('Armory Core', () => {
 
         executeUnitAbility(player, ImprovisedSwordAbility, [AIM], engine);
         step(engine, IMPROVISED_SWORD_COOLDOWN_END + FIXED_DT);
+        // The first slash drops a token and keeps the sword in hand.
         expect(player.heldConjuredWeapon).not.toBeNull();
-        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(0);
+        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(1);
 
         engine.waitingForOrders = null;
         executeUnitAbility(player, ImprovisedSwordAbility, [AIM], engine);
         const ticksBeforeImpact = Math.floor(IMPROVISED_SWORD_IMPACT_TIME / FIXED_DT);
         stepTicks(engine, ticksBeforeImpact);
         expect(player.heldConjuredWeapon).not.toBeNull();
-        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(0);
+        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(1);
         stepTicks(engine, 2);
+        // The last slash discards the sword: one more token, not two.
         expect(player.heldConjuredWeapon).toBeNull();
         expect(player.abilities).not.toContain(IMPROVISED_SWORD_ABILITY_ID);
         expect(player.abilityRuntime[swordItem.cardsToAdd[0]!]?.active).not.toBe(false);
-        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(1);
-        const toss = engine.state.effectManager.effects.find(
+        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(2);
+        const toss = engine.state.effectManager.effects.filter(
             (effect) => effect.effectType === WEAPON_DISCARD_ARC_EFFECT_TYPE,
-        );
+        ).at(-1);
         expect(toss?.pauseBehaviour).toBe('continue');
         expect(toss?.active).toBe(true);
-        const dropped = engine.state.fieldObjects.droppedWeapons[0]!;
+        const dropped = engine.state.fieldObjects.droppedWeapons[1]!;
         const travel = Math.hypot(dropped.x - player.x, dropped.y - player.y);
         expect(travel).toBeCloseTo(DROPPED_WEAPON_ARC_DISTANCE, 0);
 
-        const keptId = dropped.id;
+        const keptIds = engine.state.fieldObjects.droppedWeapons.map((weapon) => weapon.id);
         step(engine, ROUND_DURATION * 3);
-        expect(engine.state.fieldObjects.droppedWeapons.map((weapon) => weapon.id)).toContain(keptId);
+        expect(engine.state.fieldObjects.droppedWeapons.map((weapon) => weapon.id)).toEqual(keptIds);
 
         const saved = engine.toJSON();
         const restored = GameEngine.fromJSON(saved, TINY_BATTLE_PLAYER_ID, engine.terrainManager);
-        expect(restored.state.fieldObjects.droppedWeapons.map((weapon) => weapon.id)).toEqual([keptId]);
-        expect(restored.state.fieldObjects.droppedWeapons[0]?.facing).toBe(dropped.facing);
+        expect(restored.state.fieldObjects.droppedWeapons.map((weapon) => weapon.id)).toEqual(keptIds);
+        expect(restored.state.fieldObjects.droppedWeapons[1]?.facing).toBe(dropped.facing);
     });
 
     it('leaves a token where the thrown sword stops, and not while it is still in the air', () => {

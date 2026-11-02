@@ -6,7 +6,7 @@ Conjured weapons and the objects they leave on the field. The tree's identity an
 
 The Armory Core player draws energy and materials out of the terrain around them and forges weaponry from it. Research node flavour text, and card flavour text, should tell that story: the ground giving up what the player needs, shaped into a blade, a mace, a buckler or a post. Copy rules are in `.claude/skills/narrative/writing-style-abilities/STYLE.md`.
 
-How swords and maces should differ — speed, hit band, lunge, bleed, knockback, stun — is in `../../../../researchTrees/trees/Weapons.md`. Read that before adding or retuning a conjured weapon. The shield has no held strike of its own: Release Charge is its held ability, with one use, and a weapon whose held ability should leave nothing sets `leaveTokenWhenHeldUsesEnd: false`. Charge Sword follows Swing Sword, and Charge Mace follows Swing Mace.
+How swords and maces should differ — speed, hit band, lunge, bleed, knockback, stun — is in `../../../../researchTrees/trees/Weapons.md`. Read that before adding or retuning a conjured weapon. The shield has no held strike of its own: Release Charge is its held ability, with one use, and a weapon whose held ability should leave nothing sets `leaveTokenWhenHeldUsesEnd: false`. A weapon whose every held strike should leave a token (sword, mace) sets `dropTokenEachHeldUse` and calls `landHeldWeaponStrike` on the impact frame. Charge Sword follows Swing Sword, and Charge Mace follows Swing Mace.
 
 A discarded or thrown sword is a real field object on the frame it is created: the slash impact, or the moment a thrown sword hits or reaches max range. Its resting picture stays hidden until the flight effect finishes. Game time and wall time both count, so an order pause does not freeze the picture. That hide-until-arrival check is `ConcealedArrivalClock` in `game/fieldObjects/concealedArrival.ts`. `FieldObjectManager` creates the object and its flight together.
 
@@ -36,14 +36,14 @@ Quench, the `armory` theme. The values and the role rules (primary, secondary, s
 | Path | Owns |
 |---|---|
 | `1001_CreateSword/` | Spend Charge and equip the conjured sword. Four blades orbit the caster, who can keep walking at a reduced speed |
-| `1002_ImprovisedSword/` | Charge Sword, the slash. The last hit discards the sword |
+| `1002_ImprovisedSword/` | Charge Sword, the slash. Every slash drops a sword token (`dropTokenEachHeldUse`); the last one discards the sword |
 | `chargeSword.svg` | Ghostly blade for Create Sword, Charge Sword, the throw's flight, and the dropped token |
 | `chargeSwordThrow.svg` | Same blade, tipped and trailed, for the Throw Sword card only |
 | `1003_ThrowSword/` | The throw. The sword becomes a token when the projectile stops |
 | `1004_DeployTurret/` | The folded turret that becomes a placed deployable when it lands |
 | `1011_RepairPost/` | Repair Post: a `healPulse` deployable that heals allies each quarter round; `repairPost.svg` is its card |
 | `1005_CreateMace/` | Spend Charge and equip the conjured mace. The orbit uses the mace picture |
-| `1006_ChargeMace/` | Charge Mace, the swing. Same strike as Swing Mace. The last hit discards the mace |
+| `1006_ChargeMace/` | Charge Mace, the swing. Same strike as Swing Mace. Every swing drops a mace token; the last one discards the mace |
 | `1007_Whirl/` | The full-circle release, and the swung-mace card picture |
 | `chargeMace.svg` | Ghostly mace for Create Mace, Charge Mace, the orbit, and the dropped token |
 | `1008_CreateShield/` | A standard directional shield (`defineDirectionalShield`) that spends Charge, orbits bucklers, gains Charge on its first block, and equips the buckler when the block ends |
