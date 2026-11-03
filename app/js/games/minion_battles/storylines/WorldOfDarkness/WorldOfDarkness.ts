@@ -23,6 +23,7 @@ import {
     CAMPSITE_4_MISSION_ID,
 } from './questMissions/campsite';
 import { THE_LONELY_CASTLE_MISSION_ID } from './missions/011_the_lonely_castle';
+import { THE_CASTLE_COURTYARD_MISSION_ID } from './missions/012_the_castle_courtyard';
 import {
     SWARMLING_SOURCE,
     SWARMLING_SOURCE_QUEST_ID,
@@ -247,6 +248,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'displacer', result: 'victory', toMissionId: CAMPSITE_3_MISSION_ID },
         // Chapter 3
         { fromMissionId: CAMPSITE_3_MISSION_ID, result: 'victory', toMissionId: THE_LONELY_CASTLE_MISSION_ID },
+        { fromMissionId: THE_LONELY_CASTLE_MISSION_ID, result: 'victory', toMissionId: THE_CASTLE_COURTYARD_MISSION_ID },
     ],
     questSlotBanks: [
         WOD_SWARMLING_SOURCE_BANK,
@@ -296,7 +298,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             numeral: 'III',
             title: 'The Lonely Castle',
             unlockAfterMissionId: CAMPSITE_3_MISSION_ID,
-            missionIds: [THE_LONELY_CASTLE_MISSION_ID],
+            missionIds: [THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID],
         },
         {
             // Admin-only holding ground for missions not yet placed in a player chapter.

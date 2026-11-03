@@ -1,6 +1,6 @@
 /**
- * The Lonely Castle's Husks: the former residents pace their routes in the gate yard and courtyard,
- * asleep while the party is far away, leaving miasma behind them as they walk.
+ * The Castle Courtyard's Husks: the former residents pace their routes in the gate yard and courtyard,
+ * asleep while the party waits on the bridge, leaving miasma behind them as they walk.
  */
 import { describe, it, expect } from 'vitest';
 import { GameEngine } from '../../../game/GameEngine';
@@ -12,7 +12,7 @@ import { resolveParallelOrderPause } from '../../../testing/runner/SimulationRun
 import { registerWorldOfDarknessSegments } from '../registerSegments';
 import { MIASMA_EFFECT_TYPE } from '../../../game/terrainEffects/terrainEffectDefs';
 import type { SentryPatrolAITreeContext } from '../../../game/units/unitAI/sentryPatrol/context';
-import { HUSK_ROUTES, THE_LONELY_CASTLE } from './011_the_lonely_castle';
+import { HUSK_ROUTES, THE_CASTLE_COURTYARD } from './012_the_castle_courtyard';
 
 registerWorldOfDarknessSegments();
 
@@ -22,9 +22,9 @@ function initMission(seed = 7): GameEngine {
     resetGameObjectIdCounter(1);
     const engine = new GameEngine();
     engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: seed });
-    const terrainManager = new TerrainManager(THE_LONELY_CASTLE.createTerrain());
-    const composed = THE_LONELY_CASTLE.composeMap();
-    THE_LONELY_CASTLE.initializeGameState(engine, {
+    const terrainManager = new TerrainManager(THE_CASTLE_COURTYARD.createTerrain());
+    const composed = THE_CASTLE_COURTYARD.composeMap();
+    THE_CASTLE_COURTYARD.initializeGameState(engine, {
         playerUnits: [{ playerId: 'p1', name: 'P1', portraitId: 'warrior' }],
         localPlayerId: 'p1',
         eventBus: engine.eventBus,
@@ -33,7 +33,7 @@ function initMission(seed = 7): GameEngine {
         terrainSegmentPOIs: composed?.pois,
         terrainSegmentZones: composed?.zones,
     });
-    engine.registerBattleObjectives(THE_LONELY_CASTLE.battleObjectives ?? []);
+    engine.registerBattleObjectives(THE_CASTLE_COURTYARD.battleObjectives ?? []);
     return engine;
 }
 
@@ -46,9 +46,9 @@ function step(engine: GameEngine, ticks: number): void {
 
 const husks = (engine: GameEngine) => engine.units.filter((u) => u.characterId === 'husk');
 
-describe('The Lonely Castle (011) Husks', () => {
+describe('The Castle Courtyard (012) Husks', () => {
     it('routes start and end on walkable castle ground', () => {
-        const terrain = THE_LONELY_CASTLE.createTerrain();
+        const terrain = THE_CASTLE_COURTYARD.createTerrain();
         for (const route of HUSK_ROUTES) {
             for (const cell of [route.from, route.to]) {
                 const col = route.slot.tileCol * SEGMENT_SIZE + cell.col;
@@ -71,7 +71,7 @@ describe('The Lonely Castle (011) Husks', () => {
         engine.destroy();
     });
 
-    it('keeps the Husks asleep while the party is in the cave, pacing and leaving miasma', () => {
+    it('keeps the Husks asleep while the party waits on the bridge, pacing and leaving miasma', () => {
         const engine = initMission();
         const start = husks(engine).map((h) => ({ x: h.x, y: h.y }));
         let guard = 0;

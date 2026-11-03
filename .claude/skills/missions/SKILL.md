@@ -58,8 +58,8 @@ When instructed to have enemies "start spawned" or "spawn at the start", both ph
 - **Objective gates** on any level event (`LevelEventBase` in `types.ts`): `afterObjective` keeps the event inactive until that objective completes (a continuous spawn starts its interval then); `untilObjective` stops it once that objective completes. Use these for "spawn X until the party reaches Y" and "when they reach Y, spawn Z".
 - **Victory from objectives:** a `victoryCheck` with `{ type: 'objectiveCompleted', objectiveId }`, so the win follows the objective chain.
 - **Exact-position spawns mid-battle** (e.g. swarm nests with their config): `spawnWave.extraEnemySpawns`, like `proximitySpawn`.
-- An objective revealed in a pass is first evaluated on the next tick, after level events react to the completion that revealed it. So "kill the spawners" revealed by "reach the bridge" does not complete before the spawners exist.
-- Example: `WorldOfDarkness/missions/011_the_lonely_castle.ts`.
+- An objective revealed in a pass is first evaluated on the next tick, after level events react to the completion that revealed it. So a "kill the spawners" objective revealed by "reach the bridge" does not complete before the spawners exist. A `unitDead` objective that is revealed from the start completes at once if no such unit exists yet, so pre-place those targets in `enemies`.
+- Examples: `WorldOfDarkness/missions/011_the_lonely_castle.ts` (trigger + `untilObjective` spawns, win on reaching a location) and `012_the_castle_courtyard.ts` (pre-placed kill targets).
 
 ## Movement targets and story text
 
