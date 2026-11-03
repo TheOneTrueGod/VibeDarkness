@@ -36,6 +36,8 @@ export class PollLoop {
      * for parallel order sync. Used by `BattleNet.pollOnce`'s `waiting_for_host` watchdog.
      */
     waitingForHostUiPollStreak = 0;
+    /** A peer nudge arrived while a poll was running; run one more poll when it finishes. */
+    private nudgePollPending = false;
 
     constructor(
         private readonly ctx: BattleNetContext,
@@ -210,7 +212,34 @@ export class PollLoop {
         this.ctx.fingerprintBatcher.startPeriodicFlush(1000);
     }
 
+    /**
+     * Peer nudge: poll now instead of waiting for the timer. Nudges that land while a poll is
+     * running coalesce into a single follow-up poll (that poll may have read the server before
+     * the nudged order or merge landed). The regular timer keeps running unchanged.
+     */
+    requestNudgePoll(): void {
+        if (!this.heartbeatPollActive || this.ctx.isRecovering) {
+            return;
+        }
+        if (this.isPolling) {
+            this.nudgePollPending = true;
+            return;
+        }
+        const { pollOnce } = this.requireSiblings();
+        void pollOnce({ pollSource: 'peer-nudge', bypassThrottle: true });
+    }
+
+    /** Called by `BattleNet.pollOnce` once `isPolling` clears; runs a coalesced nudge poll. */
+    onPollFinished(): void {
+        if (!this.nudgePollPending) {
+            return;
+        }
+        this.nudgePollPending = false;
+        this.requestNudgePoll();
+    }
+
     stop(): void {
+        this.nudgePollPending = false;
         console.info('[BattleNet] stop() — tearing down heartbeat poll', {
             lobbyId: this.ctx.lobbyId,
             gameId: this.ctx.gameId,

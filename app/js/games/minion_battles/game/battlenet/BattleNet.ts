@@ -41,6 +41,7 @@ import type {
 	BattleApi,
 	BattleNetArgs,
 	BattleNetPollOnceOptions,
+	BattleSyncNudge,
 	BattleHeartbeatApiResult,
 	BattleNetFactoryArgs,
 	SubmitOrderOptions,
@@ -70,6 +71,7 @@ export type {
 	BattleNetSyncTerminalStatus,
 	BattleNetPollOnceOptions,
 	BattleNetFactoryArgs,
+	BattleSyncNudge,
 	LoadFromSnapshotOpts,
 	LocalSyncAnomalyContext,
 	RemoteOrderWireRow,
@@ -106,6 +108,8 @@ export class BattleNet implements BattleNetContext {
 	private readonly hostUnackedAppends = new Map<string, number>();
 	/** Parallel-batch ticks whose merge was skipped until appends land. */
 	private readonly pendingMergeTicks = new Set<number>();
+	/** Optional peer fast path (see {@link BattleNetArgs.sendSyncNudge}). */
+	private readonly sendSyncNudgeFn: ((nudge: BattleSyncNudge) => void) | null;
 
 	/** {@link BattleNetContext} requires the controllers as a public surface for siblings. */
 	get syncStatus(): SyncStatusController {
@@ -161,6 +165,7 @@ export class BattleNet implements BattleNetContext {
 		this.lobbyId = args.lobbyId;
 		this.gameId = args.gameId;
 		this.playerId = args.playerId;
+		this.sendSyncNudgeFn = args.sendSyncNudge ?? null;
 		this.heartbeatState.setHostTickChangeListener((prev, next) => this.logHostTailChange(prev, next));
 		this.heartbeatHttp = new HeartbeatHttp({
 			api: this.api,
@@ -222,6 +227,36 @@ export class BattleNet implements BattleNetContext {
 
 	stop(): void {
 		this.pollLoop.stop();
+	}
+
+	/**
+	 * A peer told us the server just accepted an order or merged a batch: poll now. The poll is the
+	 * only thing a nudge does, so a lost, duplicated or forged nudge costs at most one heartbeat GET.
+	 */
+	handlePeerSyncNudge(fromPlayerId: string, nudge: BattleSyncNudge): void {
+		if (fromPlayerId === this.playerId) {
+			return;
+		}
+		traceBattleHeartbeatLine('peer sync nudge received', {
+			traceInstanceId: this.heartbeatTraceInstanceId,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			fromPlayerId,
+			kind: nudge.kind,
+			atTick: nudge.atTick,
+		});
+		this.pollLoop.requestNudgePoll();
+	}
+
+	private sendSyncNudge(kind: BattleSyncNudge['kind'], atTick: number): void {
+		if (this.sendSyncNudgeFn == null) {
+			return;
+		}
+		try {
+			this.sendSyncNudgeFn({ kind, atTick });
+		} catch (err) {
+			console.warn('[BattleNet] sendSyncNudge failed', err);
+		}
 	}
 
 	on<K extends keyof BattleNetEventMap>(event: K, cb: Listener<K>): Unsub {
@@ -917,7 +952,11 @@ export class BattleNet implements BattleNetContext {
 			return true;
 		}
 		this.pendingMergeTicks.delete(batchAtTick);
-		return this.snapshotPersistence.mergeAppliedOrdersForBatch(batchAtTick);
+		const merged = await this.snapshotPersistence.mergeAppliedOrdersForBatch(batchAtTick);
+		if (merged && this.isHost) {
+			this.sendSyncNudge('batch-merged', batchAtTick);
+		}
+		return merged;
 	}
 
 	/**
@@ -1073,7 +1112,7 @@ export class BattleNet implements BattleNetContext {
 			const hbRaw = await this.getBattleHeartbeatThrottled({
 				gameTick: engineTick,
 				includePastApplied,
-				bypassThrottle: opts?.forceHttp === true,
+				bypassThrottle: opts?.forceHttp === true || opts?.bypassThrottle === true,
 				tracePhase: `poll:${pollSource}`,
 			});
 			traceBattleHeartbeatLine('pollOnce heartbeat received', {
@@ -1286,6 +1325,7 @@ export class BattleNet implements BattleNetContext {
 			});
 		} finally {
 			this.isPolling = false;
+			this.pollLoop.onPollFinished();
 		}
 	}
 
@@ -1818,6 +1858,7 @@ export class BattleNet implements BattleNetContext {
 		this.appliedOrderIdHashes.add(res.idHash || idHash);
 		if (res.accepted) {
 			this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== idHash);
+			this.sendSyncNudge('order-appended', atTick);
 			if (!this.isHost) {
 				this.orderQueue.noteAcceptedOurPostAtTick(atTick);
 				const t =
@@ -2196,6 +2237,10 @@ export class BattleNet implements BattleNetContext {
 		}
 		this.emitHostPersistBacklogState();
 		const acceptedSet = new Set(res.acceptedIdHashes);
+		const acceptedTicks = new Set(orders.filter((row) => acceptedSet.has(row.idHash)).map((row) => row.atTick));
+		for (const tick of acceptedTicks) {
+			this.sendSyncNudge('order-appended', tick);
+		}
 		for (const row of orders) {
 			if (acceptedSet.has(row.idHash)) {
 				this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== row.idHash);

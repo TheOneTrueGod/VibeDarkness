@@ -352,7 +352,19 @@ export interface BattleNetArgs {
     lobbyId: string;
     gameId: string;
     playerId: string;
+    /**
+     * Optional fast path to peers (WebRTC mesh). Fired after the server accepts one of our orders
+     * or (host) merges a batch to applied, so peers poll now instead of on their next timer tick.
+     * Only a wake-up hint: orders still come exclusively from the server.
+     */
+    sendSyncNudge?: (nudge: BattleSyncNudge) => void;
 }
+
+/** Peer-to-peer "poll the server now" hint. Carries no order data. */
+export type BattleSyncNudge = {
+    kind: 'order-appended' | 'batch-merged';
+    atTick: number;
+};
 
 export type BattleNetPollOnceOptions = {
     /**
@@ -361,7 +373,9 @@ export type BattleNetPollOnceOptions = {
      */
     forceHttp?: boolean;
     /** Who invoked `BattleNet.pollOnce` (poll loop timer vs `visibilitychange` vs ITS pre-action). */
-    pollSource?: 'timer' | 'visibility' | 'its-refresh';
+    pollSource?: 'timer' | 'visibility' | 'its-refresh' | 'peer-nudge';
+    /** Skip the minimum spacing between heartbeat GETs (peer nudges; coalesced by {@link PollLoop}). */
+    bypassThrottle?: boolean;
 };
 
 export type BattleHeartbeatApiResult = Awaited<ReturnType<BattleApi['getBattleHeartbeat']>>;

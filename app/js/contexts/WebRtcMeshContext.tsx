@@ -23,7 +23,14 @@ export interface WebRtcMeshContextValue {
     peerStatesByType: Record<string, Record<string, ReceivedPeerState>>;
     broadcastPeerState: (eventType: string, payload: unknown, tick: number | null) => void;
     sendTransientEvent: (event: Record<string, unknown>) => void;
+    /**
+     * Listen for one peer event type. Subscribed types are delivered to listeners only (never stored
+     * in {@link PeerStateStore} or resent on reconnect), so use this for fire-and-forget signals.
+     */
+    subscribePeerEvent: (eventType: string, listener: PeerEventListener) => () => void;
 }
+
+export type PeerEventListener = (fromPlayerId: string, event: Record<string, unknown>) => void;
 
 export interface WebRtcMeshHandle {
     handleSignal: (fromPlayerId: string, signal: Record<string, unknown>) => void;
@@ -70,6 +77,7 @@ export const WebRtcMeshProvider = forwardRef<WebRtcMeshHandle, WebRtcMeshProvide
     peerIdsRef.current = peerIds;
     const onTransientEventRef = useRef(onTransientEvent);
     onTransientEventRef.current = onTransientEvent;
+    const peerEventListenersRef = useRef(new Map<string, Set<PeerEventListener>>());
 
     const [ready, setReady] = useState(false);
     const [peerConnected, setPeerConnected] = useState<Record<string, boolean>>({});
@@ -101,6 +109,20 @@ export const WebRtcMeshProvider = forwardRef<WebRtcMeshHandle, WebRtcMeshProvide
         [],
     );
 
+    const subscribePeerEvent = useCallback((eventType: string, listener: PeerEventListener) => {
+        const listeners = peerEventListenersRef.current;
+        let set = listeners.get(eventType);
+        if (!set) {
+            set = new Set();
+            listeners.set(eventType, set);
+        }
+        set.add(listener);
+        return () => {
+            set.delete(listener);
+            if (set.size === 0) listeners.delete(eventType);
+        };
+    }, []);
+
     const handleSignal = useCallback((fromPlayerId: string, signal: Record<string, unknown>) => {
         void meshRef.current?.handleSignal(fromPlayerId, signal);
     }, []);
@@ -131,7 +153,14 @@ export const WebRtcMeshProvider = forwardRef<WebRtcMeshHandle, WebRtcMeshProvide
             sendSignal,
             onPeerEvent: (fromPlayerId, event) => {
                 const eventType = event.type as string | undefined;
-                if (eventType === 'ping') {
+                const subscribed = eventType ? peerEventListenersRef.current.get(eventType) : undefined;
+                if (subscribed) {
+                    for (const listener of [...subscribed]) {
+                        listener(fromPlayerId, event);
+                    }
+                } else if (event.transient === true) {
+                    // Fire-and-forget signal nobody here is listening for; never store it.
+                } else if (eventType === 'ping') {
                     onTransientEventRef.current?.(fromPlayerId, event);
                 } else if (eventType === GHOST_PLAN_UPDATE_EVENT) {
                     const plan = event.plan ?? null;
@@ -206,8 +235,9 @@ export const WebRtcMeshProvider = forwardRef<WebRtcMeshHandle, WebRtcMeshProvide
             peerStatesByType,
             broadcastPeerState,
             sendTransientEvent,
+            subscribePeerEvent,
         }),
-        [ready, peerConnected, peerStatesByType, broadcastPeerState, sendTransientEvent],
+        [ready, peerConnected, peerStatesByType, broadcastPeerState, sendTransientEvent, subscribePeerEvent],
     );
 
     return <WebRtcMeshContext.Provider value={contextValue}>{children}</WebRtcMeshContext.Provider>;

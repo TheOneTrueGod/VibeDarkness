@@ -374,3 +374,63 @@ describe('PollLoop.publishSyncDebugBridge', () => {
         expect(bridge.orderSyncSummary).toEqual({ queued: 1, sending: 0 });
     });
 });
+
+describe('PollLoop.requestNudgePoll', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    const nudgeCalls = (h: Harness) =>
+        h.pollOnce.mock.calls.filter((args) => (args[0] as { pollSource?: string })?.pollSource === 'peer-nudge');
+
+    it('ignores nudges before start()', () => {
+        const h = makeHarness();
+        h.loop.requestNudgePoll();
+        expect(h.pollOnce).not.toHaveBeenCalled();
+    });
+
+    it('ignores nudges while recovering', () => {
+        const h = makeHarness({ isRecovering: true });
+        h.loop.start();
+        h.loop.requestNudgePoll();
+        expect(nudgeCalls(h)).toHaveLength(0);
+        h.loop.stop();
+    });
+
+    it('polls immediately and bypasses the heartbeat throttle', () => {
+        const h = makeHarness();
+        h.loop.start();
+        h.loop.requestNudgePoll();
+        expect(nudgeCalls(h)).toEqual([[{ pollSource: 'peer-nudge', bypassThrottle: true }]]);
+        h.loop.stop();
+    });
+
+    it('coalesces nudges during a running poll into one follow-up poll', () => {
+        const h = makeHarness();
+        h.loop.start();
+        h.loop.isPolling = true;
+        h.loop.requestNudgePoll();
+        h.loop.requestNudgePoll();
+        expect(nudgeCalls(h)).toHaveLength(0);
+        h.loop.isPolling = false;
+        h.loop.onPollFinished();
+        h.loop.onPollFinished();
+        expect(nudgeCalls(h)).toHaveLength(1);
+        h.loop.stop();
+    });
+
+    it('stop() drops a pending coalesced nudge', () => {
+        const h = makeHarness();
+        h.loop.start();
+        h.loop.isPolling = true;
+        h.loop.requestNudgePoll();
+        h.loop.stop();
+        h.loop.isPolling = false;
+        h.loop.onPollFinished();
+        expect(nudgeCalls(h)).toHaveLength(0);
+    });
+});

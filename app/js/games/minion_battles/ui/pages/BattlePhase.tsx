@@ -48,6 +48,7 @@ import { useBossHudPolling } from './battlePhase/useBossHudPolling';
 import { useBattleDebugBridge } from './battlePhase/useBattleDebugBridge';
 import { useInteractiveTargetingProgress } from './battlePhase/useInteractiveTargetingProgress';
 import { useBattleGhostPlans } from './battlePhase/useBattleGhostPlans';
+import { useBattleSyncNudges } from './battlePhase/useBattleSyncNudges';
 import { useRewindOverlay, REWIND_OVERLAY_FADE_MS } from './battlePhase/useRewindOverlay';
 import ITSTimelineControls from '../components/ITSTimelineControls';
 import { abilityDurationSecondsToTicks } from '../components/itsTimelineMath';
@@ -131,6 +132,7 @@ export default function BattlePhase({
 
     const sessionRef = useRef<BattleSession | null>(null);
     const netRef = useRef<BattleNet | null>(null);
+    const sendSyncNudge = useBattleSyncNudges(netRef);
     const hudEffectCanvasRef = useRef<HudEffectCanvasHandle | null>(null);
     const battleCanvasAreaRef = useRef<HTMLDivElement>(null);
     // One notice store per mount; useInteractiveTargetingProgress shows ended-early / missing-pick notices in it.
@@ -329,6 +331,7 @@ export default function BattlePhase({
         wireNetEvents,
         onSessionEventRef: handleSessionEventRef,
         setNetSyncStatus,
+        sendSyncNudge,
     });
 
     const objectivesPresenter = useObjectivesPresenter({

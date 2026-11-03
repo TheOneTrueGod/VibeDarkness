@@ -4003,3 +4003,113 @@ describe('BattleNet: pause plane structural divergence (5E0F6B)', () => {
         });
     });
 });
+
+describe('BattleNet peer sync nudges', () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('sends order-appended after the server accepts our order', async () => {
+        const sendSyncNudge = vi.fn();
+        const net = new BattleNet({
+            api: makeApi({
+                getBattleHeartbeat: vi.fn(async () => ({
+                    hostTick: 20,
+                    hostFingerprint: 'aaaaaaaaaaaaaaaa',
+                    ordersTipTick: 20,
+                    pausedAtTick: null,
+                    expectingFromPlayerIds: null,
+                    initialFingerprint: '0011223344556677',
+                })),
+            }),
+            session: makeSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+            sendSyncNudge,
+        });
+        await net.pollOnce();
+        await net.submitOrder(makeOrder('a'), 21);
+        expect(sendSyncNudge).toHaveBeenCalledWith({ kind: 'order-appended', atTick: 21 });
+    });
+
+    it('does not send order-appended when the server rejects the order', async () => {
+        const sendSyncNudge = vi.fn();
+        const net = new BattleNet({
+            api: makeApi({
+                appendBattleOrder: vi.fn(async () => ({ accepted: false, idHash: 'x', rejectedReason: 'tick_ahead_of_host' })),
+            }),
+            session: makeSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+            sendSyncNudge,
+        });
+        await net.submitOrder(makeOrder('a'), 20);
+        expect(sendSyncNudge).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'order-appended' }));
+    });
+
+    it('host sends batch-merged after merge-applied succeeds', async () => {
+        const sendSyncNudge = vi.fn();
+        const net = new BattleNet({
+            api: makeApi(),
+            session: makeSession(),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+            sendSyncNudge,
+        });
+        await expect(net.mergeAppliedOrdersForBatch(5)).resolves.toBe(true);
+        expect(sendSyncNudge).toHaveBeenCalledWith({ kind: 'batch-merged', atTick: 5 });
+    });
+
+    it('non-host merge is a no-op and sends nothing', async () => {
+        const sendSyncNudge = vi.fn();
+        const net = new BattleNet({
+            api: makeApi(),
+            session: makeSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+            sendSyncNudge,
+        });
+        await net.mergeAppliedOrdersForBatch(5);
+        expect(sendSyncNudge).not.toHaveBeenCalled();
+    });
+
+    it('a throwing sender does not break order submission', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const net = new BattleNet({
+            api: makeApi(),
+            session: makeSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+            sendSyncNudge: () => {
+                throw new Error('mesh down');
+            },
+        });
+        await expect(net.submitOrder(makeOrder('a'), 20)).resolves.toBeUndefined();
+    });
+
+    it('handlePeerSyncNudge requests a nudge poll, ignoring our own player id', () => {
+        const net = new BattleNet({
+            api: makeApi(),
+            session: makeSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const spy = vi.spyOn(net.pollLoop, 'requestNudgePoll');
+        net.handlePeerSyncNudge('p1', { kind: 'order-appended', atTick: 3 });
+        expect(spy).not.toHaveBeenCalled();
+        net.handlePeerSyncNudge('p2', { kind: 'order-appended', atTick: 3 });
+        expect(spy).toHaveBeenCalledTimes(1);
+    });
+});

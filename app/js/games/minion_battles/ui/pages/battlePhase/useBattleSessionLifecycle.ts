@@ -4,7 +4,12 @@ import type { MessageEntry } from '../../../../../components/Chat';
 import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 
 import { BattleSession, type BattleSessionEvent } from '../../../game/BattleSession';
-import { createBattleNet, type BattleNet, type BattleNetSyncTerminalStatus } from '../../../game/battlenet';
+import {
+    createBattleNet,
+    type BattleNet,
+    type BattleNetSyncTerminalStatus,
+    type BattleSyncNudge,
+} from '../../../game/battlenet';
 import { runBattleBootstrap, type BattleInitPhase } from '../../../game/battleBootstrap';
 import type { BattleNetSyncWireResult } from './useBattleNetSyncState';
 import type { DarknessUpgradesState } from '../../../../../types';
@@ -36,6 +41,8 @@ interface UseBattleSessionLifecycleParams {
     wireNetEvents: (net: BattleNet, session: BattleSession) => BattleNetSyncWireResult;
     onSessionEventRef: MutableRefObject<(ev: BattleSessionEvent, session: BattleSession) => void>;
     setNetSyncStatus: (status: BattleNetSyncTerminalStatus) => void;
+    /** Peer fast path for "poll now" hints (see `useBattleSyncNudges`). Must be stable. */
+    sendSyncNudge?: (nudge: BattleSyncNudge) => void;
 }
 
 /** Mount-once BattleSession load + UI subscription; preserves Strict Mode abort teardown (T1/T7). */
@@ -57,6 +64,7 @@ export function useBattleSessionLifecycle({
     wireNetEvents,
     onSessionEventRef,
     setNetSyncStatus,
+    sendSyncNudge,
 }: UseBattleSessionLifecycleParams) {
     const [battleInitPhase, setBattleInitPhase] = useState<BattleInitPhase>('fetching_assets');
 
@@ -85,6 +93,7 @@ export function useBattleSessionLifecycle({
             lobbyId: api.getLobbyId(),
             gameId: api.getGameId(),
             playerId,
+            sendSyncNudge,
         });
         netRef.current = net;
         session.setNetAdapter(net);

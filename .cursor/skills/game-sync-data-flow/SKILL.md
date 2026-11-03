@@ -67,6 +67,10 @@ Also exposes optional **`fingerprintTailTick`** / **`fingerprintTailFingerprint`
 
 Poll interval: **`HEARTBEAT_POLL_INTERVAL_MS = 500`** (foreground).
 
+### Peer sync nudges (WebRTC fast path)
+
+After the server accepts one of our orders (`order-appended`) or the host's `merge-applied` succeeds (`batch-merged`), `BattleNet` calls `sendSyncNudge`, which `useBattleSyncNudges` broadcasts over the WebRTC mesh as a `battle_sync_nudge` transient event. Receivers call `BattleNet.handlePeerSyncNudge` → `PollLoop.requestNudgePoll`: an immediate heartbeat poll (`pollSource: 'peer-nudge'`, bypasses the 500 ms throttle; nudges during a running poll coalesce into one follow-up poll). Nudges carry **no order data** — orders still come only from the server, so a lost or forged nudge costs at most one extra GET.
+
 ## Checkpoint save
 
 Host **`saveBattleSnapshot`** → **`SaveSnapshotHandler`**: persists snapshot with optional **`checkpointFingerprint`** as **`synchash`**, **`appendFingerprints`**, then **`prunePendingOrdersAfterSnapshot`** keeps only **`completedTick + 1`** pending rows whose **`basisFingerprint`** matches **`synchash`** on **`completedTick`** when both present.
