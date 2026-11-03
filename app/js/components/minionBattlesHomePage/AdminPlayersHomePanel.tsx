@@ -6,7 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { AccountState } from '../../types';
 import type { LobbyClient } from '../../LobbyClient';
+import { Heart } from 'lucide-react';
 import PanelLayout from './PanelLayout';
+import { getPortrait } from '../../games/minion_battles/character_defs/portraits';
 import { playerCharactersPath } from '../ability-tests/campaignTabPaths';
 
 function formatCountdown(seconds: number): string {
@@ -29,6 +31,8 @@ function AccountCard({
         ? Math.max(0, account.emergencyRecoveryExpiresAt - now)
         : 0;
     const inEAR = earSecondsLeft > 0;
+    const favoriteCharacter = account.adminFavoriteCharacter ?? null;
+    const favoritePicture = favoriteCharacter ? getPortrait(favoriteCharacter.portraitId)?.picture : undefined;
 
     return (
         <button
@@ -42,10 +46,23 @@ function AccountCard({
         >
             <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="font-semibold text-white truncate">{account.name}</p>
+                    <p className="flex items-center gap-1.5 font-semibold text-white">
+                        {account.adminFavorite && (
+                            <Heart className="h-3.5 w-3.5 shrink-0 text-rose-400" fill="currentColor" aria-label="Tracked" />
+                        )}
+                        <span className="truncate">{account.name}</span>
+                    </p>
                     <p className="text-xs text-muted">
                         {account.role === 'admin' ? 'Admin' : account.role === 'dm' ? 'DM' : 'Player'}
                     </p>
+                    {favoriteCharacter && (
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-300" title="Tracked character">
+                            {favoritePicture && (
+                                <img src={favoritePicture} alt="" className="h-5 w-5 rounded-full border border-rose-400/70 object-cover" />
+                            )}
+                            <span className="truncate">{favoriteCharacter.name}</span>
+                        </p>
+                    )}
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                     {inEAR && (
@@ -74,7 +91,9 @@ export default function AdminPlayersHomePanel({ lobbyClient }: AdminPlayersPanel
     const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const sortedAccounts = useMemo(
-        () => [...accounts].sort((a, b) => a.name.localeCompare(b.name)),
+        () => [...accounts].sort(
+            (a, b) => Number(!!b.adminFavorite) - Number(!!a.adminFavorite) || a.name.localeCompare(b.name),
+        ),
         [accounts],
     );
 

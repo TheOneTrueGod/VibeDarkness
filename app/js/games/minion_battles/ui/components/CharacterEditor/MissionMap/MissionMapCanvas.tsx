@@ -31,6 +31,8 @@ interface Props {
     onNodeEnter: (id: string, svgPosX: number, svgPosY: number) => void;
     onNodeLeave: (id: string) => void;
     onQuestBankClick: (bank: QuestSlotBank, svgPosX: number, svgPosY: number) => void;
+    /** Extra SVG drawn above every node (e.g. the Campaign Summary facepiles). */
+    overlay?: React.ReactNode;
 }
 
 /** The SVG map: chapter dividers, connection lines, mission nodes and quest-bank nodes. */
@@ -57,6 +59,7 @@ export default function MissionMapCanvas({
     onNodeEnter,
     onNodeLeave,
     onQuestBankClick,
+    overlay,
 }: Props) {
     const { vbX, vbY, vbW, vbH } = viewBox;
     const edgeDone = (a: string, b: string): boolean => completedNodeKeys.has(a) && completedNodeKeys.has(b);
@@ -226,6 +229,8 @@ export default function MissionMapCanvas({
                         onQuestBankClick={onQuestBankClick}
                     />
                 ))}
+
+                {overlay}
             </svg>
     );
 }

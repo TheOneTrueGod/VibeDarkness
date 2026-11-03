@@ -19,9 +19,7 @@ import {
     getUnlockedMissionIds,
     hasVictoryResult,
     isMissionDisabled,
-    getAllMissionIdsInOrder,
     getCampaignChapters,
-    isSideMissionId,
     getHighestUnlockedChapterIndex,
     getUnlockedQuestSlotBanks,
     countQuestBankClears,
@@ -40,8 +38,8 @@ import MissionMapCanvas from './MissionMap/MissionMapCanvas';
 import MissionMapChapterBar from './MissionMap/MissionMapChapterBar';
 import MissionTooltip from './MissionMap/MissionTooltip';
 import QuestBankTooltip from './MissionMap/QuestBankTooltip';
+import { buildMissionMapLayout } from './MissionMap/missionMapLayout';
 import {
-    PADDING,
     missionBankUnlockHint,
     type QuestBankTooltipData,
     type TooltipData,
@@ -128,41 +126,14 @@ export default function MissionMapTab({
 
     const activeChapter = chapters[activeChapterIndex] ?? chapters[0] ?? null;
 
-    const missionIds = useMemo(() => {
-        if (chapters.length > 0) return activeChapter?.missionIds ?? [];
-        return storyline ? getAllMissionIdsInOrder(storyline, { isAdmin }) : [];
-    }, [storyline, chapters, activeChapter, isAdmin]);
-
-    // Resolve mission defs and assign fallback grid positions for any missing mapPosition.
-    const missions = useMemo(() => {
-        const COLS = 5;
-        const COL_STEP = 170;
-        const ROW_STEP = 200;
-        return missionIds.map((id, idx) => {
-            const def = MISSION_MAP[id];
-            const isSide = def?.isSideMission === true
-                || (storyline ? isSideMissionId(id, STORYLINES) : false);
-            const col = idx % COLS;
-            const row = Math.floor(idx / COLS);
-            const xDir = row % 2 === 0 ? 1 : -1;
-            const baseX = row % 2 === 0 ? 100 : 100 + COL_STEP * (COLS - 1);
-            const pos = def?.mapPosition ?? {
-                x: baseX + xDir * col * COL_STEP,
-                y: 120 + row * ROW_STEP,
-            };
-            return { id, def, pos, isSide };
-        });
-    }, [missionIds, storyline]);
-
-    const questBanksOnMap = useMemo((): QuestSlotBank[] => {
-        if (!storyline) return [];
-        const banks = (storyline.questSlotBanks ?? []).filter((b) => b.mapPosition != null);
-        if (chapters.length === 0) return banks;
-        const bankIds = new Set(activeChapter?.questBankIds ?? []);
-        return banks.filter((b) => bankIds.has(b.id));
-    }, [storyline, chapters, activeChapter]);
-
-    const mapDividers = useMemo(() => activeChapter?.mapDividers ?? [], [activeChapter]);
+    const layout = useMemo(
+        () => (storyline ? buildMissionMapLayout(storyline, chapters, activeChapter, isAdmin) : null),
+        [storyline, chapters, activeChapter, isAdmin],
+    );
+    const missions = useMemo(() => layout?.missions ?? [], [layout]);
+    const questBanksOnMap = useMemo(() => layout?.questBanksOnMap ?? [], [layout]);
+    const mapDividers = layout?.mapDividers ?? [];
+    const posMap = layout?.posMap ?? new Map<string, { x: number; y: number }>();
 
     const unlockedQuestBankIds = useMemo(() => {
         if (!storyline) return new Set<string>();
@@ -183,41 +154,7 @@ export default function MissionMapTab({
         return done;
     }, [missions, questBanksOnMap, missionResults, questResults]);
 
-    const posMap = useMemo(() => {
-        const m = new Map<string, { x: number; y: number }>();
-        for (const { id, pos } of missions) m.set(id, pos);
-        for (const bank of questBanksOnMap) {
-            if (bank.mapPosition) m.set(questBankMapNodeKey(bank.id), bank.mapPosition);
-        }
-        return m;
-    }, [missions, questBanksOnMap]);
-
-    // Compute SVG viewBox from mission + quest-bank extents.
-    const { minX, minY, maxX, maxY } = useMemo(() => {
-        const points = [
-            ...missions.map((m) => m.pos),
-            ...questBanksOnMap.map((b) => b.mapPosition!).filter(Boolean),
-        ];
-        const dividerYs = mapDividers.map((d) => d.y);
-        if (points.length === 0) return { minX: 0, minY: 0, maxX: 400, maxY: 300 };
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        for (const pos of points) {
-            if (pos.x < minX) minX = pos.x;
-            if (pos.y < minY) minY = pos.y;
-            if (pos.x > maxX) maxX = pos.x;
-            if (pos.y > maxY) maxY = pos.y;
-        }
-        for (const y of dividerYs) {
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-        }
-        return { minX, minY, maxX, maxY };
-    }, [missions, questBanksOnMap, mapDividers]);
-
-    const vbX = minX - PADDING;
-    const vbY = minY - PADDING;
-    const vbW = maxX - minX + PADDING * 2;
-    const vbH = maxY - minY + PADDING * 2;
+    const { vbX, vbY, vbW, vbH } = layout?.viewBox ?? { vbX: 0, vbY: 0, vbW: 400, vbH: 300 };
 
     /** Convert SVG-space coordinates to viewport coordinates. */
     const svgToViewport = useCallback((svgX: number, svgY: number): { x: number; y: number } => {

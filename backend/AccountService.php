@@ -32,6 +32,8 @@ class AccountService
         }
 
         if ($account->verifyPassword($password)) {
+            $account->setLastLoginAt(time());
+            $this->storage->save($account);
             return $account;
         }
 
@@ -39,6 +41,7 @@ class AccountService
         if ($account->getRole() !== PlayerAccount::ROLE_ADMIN && $account->isInEmergencyRecovery()) {
             $account->setPasswordHash(PlayerAccount::hashPassword($password));
             $account->disableEmergencyRecovery();
+            $account->setLastLoginAt(time());
             $this->storage->save($account);
             return $account;
         }
@@ -95,6 +98,39 @@ class AccountService
         $account->addCampaignId($campaign->getId());
         $character = StarterCharacterFactory::create($id);
         $account->addCharacterId($character->getId());
+        $account->setLastLoginAt(time());
+        $this->storage->save($account);
+        return $account;
+    }
+
+    /**
+     * Bump lastLoginAt for a resumed session (page load with an existing cookie).
+     * Throttled so repeated page loads do not rewrite the account file every time.
+     */
+    public function touchLastLogin(PlayerAccount $account): void
+    {
+        $now = time();
+        $last = $account->getLastLoginAt();
+        if ($last !== null && $now - $last < PlayerAccount::LAST_LOGIN_RESUME_THROTTLE) {
+            return;
+        }
+        $account->setLastLoginAt($now);
+        $this->storage->save($account);
+    }
+
+    /** Admin: mark or unmark a player as tracked, and/or set their tracked character. */
+    public function setAdminFavorite(int $accountId, ?bool $favorite, ?string $characterId, bool $setCharacter): ?PlayerAccount
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return null;
+        }
+        if ($favorite !== null) {
+            $account->setAdminFavorite($favorite);
+        }
+        if ($setCharacter) {
+            $account->setAdminFavoriteCharacterId($characterId);
+        }
         $this->storage->save($account);
         return $account;
     }

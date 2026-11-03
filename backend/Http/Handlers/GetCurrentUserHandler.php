@@ -27,6 +27,8 @@ class GetCurrentUserHandler
             ];
         }
 
+        $accountService->touchLastLogin($account);
+
         return [
             'success' => true,
             'user' => $account->toArray(),

@@ -2,6 +2,7 @@ import { CAMPAIGN_TAB_IDS, type TabId } from '../ability-tests/campaignTabPaths'
 import type { CampaignHomeTabDef } from './campaignHomeTabDef';
 import { welcomeTab } from './CampaignHomeWelcomeTab';
 import { missionSelectTab } from './CampaignHomeMissionSelectTab';
+import { campaignSummaryTab } from './CampaignHomeCampaignSummaryTab';
 import { joinMissionTab } from './CampaignHomeJoinMissionTab';
 import { playersTab } from './CampaignHomePlayersTab';
 import { charactersTab } from './CampaignHomeCharactersTab';
@@ -14,6 +15,7 @@ import { bestiaryTab } from './CampaignHomeBestiaryTab';
 const TAB_DEFS: Record<TabId, CampaignHomeTabDef> = {
     welcome: welcomeTab,
     mission_select: missionSelectTab,
+    campaign_summary: campaignSummaryTab,
     join_mission: joinMissionTab,
     players: playersTab,
     characters: charactersTab,

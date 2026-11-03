@@ -3,6 +3,7 @@
 namespace App\Http\Handlers;
 
 use App\AccountService;
+use App\CharacterManager;
 use App\LobbyManager;
 use App\PlayerAccount;
 use App\SessionHelper;
@@ -32,10 +33,24 @@ class ListAdminAccountsHandler
             return $a->getName() <=> $b->getName();
         });
 
+        $characterManager = CharacterManager::getInstance();
         return [
             'success' => true,
             'accounts' => array_map(
-                static fn (PlayerAccount $account): array => $account->toArray(),
+                static function (PlayerAccount $account) use ($characterManager): array {
+                    $row = $account->toArray();
+                    // Small preview of the tracked character for the admin Players list.
+                    $favId = $account->getAdminFavoriteCharacterId();
+                    $character = $favId !== null ? $characterManager->getCharacter($favId) : null;
+                    $row['adminFavoriteCharacter'] = $character !== null && $character->getOwnerAccountId() === $account->getId()
+                        ? [
+                            'id' => $character->getId(),
+                            'name' => $character->getName(),
+                            'portraitId' => $character->getPortraitId(),
+                        ]
+                        : null;
+                    return $row;
+                },
                 $accounts
             ),
         ];

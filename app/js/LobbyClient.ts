@@ -127,6 +127,9 @@ interface AccountInfo {
     campaignIds?: string[];
     inventoryItemIds?: string[];
     knowledge?: Record<string, Record<string, unknown>>;
+    lastLoginAt?: number | null;
+    adminFavorite?: boolean;
+    adminFavoriteCharacterId?: string | null;
 }
 
 interface AdminAccountDetailsResponse {
@@ -551,6 +554,18 @@ export class LobbyClient {
             account: data.account as AccountInfo,
             characters: (data.characters as CampaignCharacterPayload[]) ?? [],
         };
+    }
+
+    /** Admin: set a player's tracked flag and/or tracked character (`null` clears it). */
+    async setAdminFavorite(
+        accountId: number | string,
+        updates: { favorite?: boolean; characterId?: string | null },
+    ): Promise<AccountInfo> {
+        const data = await this.request(`/api/admin/accounts/${encodeURIComponent(String(accountId))}/favorite`, {
+            method: 'POST',
+            body: JSON.stringify(updates),
+        });
+        return data.account as AccountInfo;
     }
 
     async setEmergencyRecovery(accountId: number | string, action: 'enable' | 'disable'): Promise<void> {

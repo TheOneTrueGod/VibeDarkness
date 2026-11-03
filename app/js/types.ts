@@ -37,6 +37,14 @@ export interface AccountState {
     knowledge?: Record<string, Record<string, unknown>>;
     /** Unix timestamp when emergency recovery expires, null/undefined if not active */
     emergencyRecoveryExpiresAt?: number | null;
+    /** Unix timestamp of the last sign-in or session resume; null when never recorded. */
+    lastLoginAt?: number | null;
+    /** Admin-only: a player the admins are tracking (Campaign Summary). */
+    adminFavorite?: boolean;
+    /** Admin-only: the character admins track for this player (Campaign Summary). */
+    adminFavoriteCharacterId?: string | null;
+    /** Admin Players list only: preview of the tracked character. */
+    adminFavoriteCharacter?: { id: string; name: string; portraitId: string } | null;
 }
 
 export interface CampaignCharacter {

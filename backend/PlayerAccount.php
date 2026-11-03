@@ -42,7 +42,16 @@ class PlayerAccount
     /** Unix timestamp when emergency recovery expires, or null if not active */
     private ?int $emergencyRecoveryExpiresAt;
 
+    /** Unix timestamp of the most recent sign-in or session resume, or null if never recorded */
+    private ?int $lastLoginAt = null;
+    /** Admin-only flag: this player is one the admins are tracking (Campaign Summary). */
+    private bool $adminFavorite = false;
+    /** Admin-only: the character admins track for this player (Campaign Summary). */
+    private ?string $adminFavoriteCharacterId = null;
+
     public const EMERGENCY_RECOVERY_DURATION = 600; // 10 minutes
+    /** Session resumes only rewrite lastLoginAt when it is older than this, to avoid a save per page load. */
+    public const LAST_LOGIN_RESUME_THROTTLE = 300;
 
     public function __construct(
         int $id,
@@ -249,6 +258,37 @@ class PlayerAccount
         $this->emergencyRecoveryExpiresAt = null;
     }
 
+    public function getLastLoginAt(): ?int
+    {
+        return $this->lastLoginAt;
+    }
+
+    public function setLastLoginAt(?int $timestamp): void
+    {
+        $this->lastLoginAt = $timestamp;
+    }
+
+    public function isAdminFavorite(): bool
+    {
+        return $this->adminFavorite;
+    }
+
+    public function setAdminFavorite(bool $favorite): void
+    {
+        $this->adminFavorite = $favorite;
+    }
+
+    public function getAdminFavoriteCharacterId(): ?string
+    {
+        return $this->adminFavoriteCharacterId;
+    }
+
+    public function setAdminFavoriteCharacterId(?string $characterId): void
+    {
+        $id = $characterId !== null ? trim($characterId) : '';
+        $this->adminFavoriteCharacterId = $id === '' ? null : $id;
+    }
+
     public function getFire(): int
     {
         return $this->fire;
@@ -317,6 +357,9 @@ class PlayerAccount
             'inventoryItemIds' => array_values($this->inventoryItemIds),
             'knowledge' => $this->knowledge,
             'emergencyRecoveryExpiresAt' => $this->emergencyRecoveryExpiresAt,
+            'lastLoginAt' => $this->lastLoginAt,
+            'adminFavorite' => $this->adminFavorite,
+            'adminFavoriteCharacterId' => $this->adminFavoriteCharacterId,
         ];
     }
 
@@ -348,7 +391,7 @@ class PlayerAccount
         // Lazy rename (M0005): an account missed by the deploy sweep still works.
         $knowledge = ResourceRenames::renameKnowledgeMap($knowledge);
         $emergencyRecoveryExpiresAt = isset($data['emergencyRecoveryExpiresAt']) ? (int) $data['emergencyRecoveryExpiresAt'] : null;
-        return new self(
+        $account = new self(
             (int) $data['id'],
             $data['name'],
             $passwordHash,
@@ -364,6 +407,11 @@ class PlayerAccount
             $knowledge,
             $emergencyRecoveryExpiresAt
         );
+        $account->lastLoginAt = isset($data['lastLoginAt']) ? (int) $data['lastLoginAt'] : null;
+        $account->adminFavorite = (bool) ($data['adminFavorite'] ?? false);
+        $favCharacterId = $data['adminFavoriteCharacterId'] ?? null;
+        $account->setAdminFavoriteCharacterId(is_string($favCharacterId) ? $favCharacterId : null);
+        return $account;
     }
 
     public static function hashPassword(string $password): string

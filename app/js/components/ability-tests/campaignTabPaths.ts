@@ -1,11 +1,12 @@
-export type TabId = 'welcome' | 'mission_select' | 'join_mission' | 'players' | 'characters' | 'ability_test' | 'terrain_editor' | 'lobby_archive' | 'ideas' | 'bestiary';
+export type TabId = 'welcome' | 'mission_select' | 'campaign_summary' | 'join_mission' | 'players' | 'characters' | 'ability_test' | 'terrain_editor' | 'lobby_archive' | 'ideas' | 'bestiary';
 
-export const CAMPAIGN_TAB_IDS: TabId[] = ['welcome', 'mission_select', 'join_mission', 'players', 'characters', 'ability_test', 'terrain_editor', 'lobby_archive', 'ideas', 'bestiary'];
+export const CAMPAIGN_TAB_IDS: TabId[] = ['welcome', 'mission_select', 'campaign_summary', 'join_mission', 'players', 'characters', 'ability_test', 'terrain_editor', 'lobby_archive', 'ideas', 'bestiary'];
 
 /** URL path segment under `/campaign/:tabSlug`. 'players' and 'characters' use /players/* routes instead. */
 export const CAMPAIGN_TAB_SLUG: Record<TabId, string> = {
     welcome: 'welcome',
     mission_select: 'mission-select',
+    campaign_summary: 'campaign-summary',
     join_mission: 'join-mission',
     players: 'players',
     characters: 'characters',
