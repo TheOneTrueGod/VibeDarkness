@@ -1,8 +1,13 @@
 import { getAbilityResourceCosts, type AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
 import { getLivingPetsOfUnit } from '../../game/units/petHelpers';
-import { getAbilityUseConfig, unitAbilityHasTag, type AbilityRecoveryRule } from '../../abilities/abilityUses';
-import { describeAbilityRecovery, FULL_ROUND_REFILL_DESCRIPTION } from './recoveryChargeDefinitions';
+import {
+    getAbilityUseConfig,
+    unitAbilityHasTag,
+    type AbilityRecoveryRule,
+    type RecoveryChargeType,
+} from '../../abilities/abilityUses';
+import { describeChargeRequirement, describeRoundRecovery, FULL_ROUND_REFILL_DESCRIPTION } from './recoveryChargeDefinitions';
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../../resources/resourceDisplayDefs';
 
 export type DisabledReasonId =
@@ -20,6 +25,8 @@ export interface DisabledReason {
     recoveries?: readonly AbilityRecoveryRule[];
     /** Populated for 'no_uses_remaining' when the ability refills at round start. */
     refillsEachRound?: boolean;
+    /** Populated for 'no_uses_remaining': recovery charges the unit gains each round, by type. */
+    chargesPerRound?: Partial<Record<RecoveryChargeType, number>>;
 }
 
 /** Disabled-reason text renders as plain text, so drop legacy `{n}` highlight braces. */
@@ -29,6 +36,26 @@ function stripTooltipBraces(text: string): string {
 
 function getResourceDisplayName(resourceId: string): string {
     return ALL_RESOURCE_DISPLAY_DEFS.find((d) => d.id === resourceId)?.name ?? resourceId;
+}
+
+/** One sentence per recovery rule: what it needs, and how much of it comes back each round. */
+function describeNoUsesRecovery(reason: DisabledReason): string {
+    if (reason.refillsEachRound) return FULL_ROUND_REFILL_DESCRIPTION;
+    if (!reason.recoveries?.length) return 'This ability has no uses left.';
+    return reason.recoveries
+        .map((rule) => rule.chargeType === 'roundCharge'
+            ? describeRoundRecovery(rule)
+            : describeChargeRequirement(rule, reason.chargesPerRound?.[rule.chargeType] ?? 0))
+        .join(' ');
+}
+
+/** Sums a unit's per-round recovery charges (item passives) by charge type. */
+function getChargesPerRound(unit: Unit | null): Partial<Record<RecoveryChargeType, number>> {
+    const out: Partial<Record<RecoveryChargeType, number>> = {};
+    for (const { chargeType, amount } of unit?.roundStartRecoveryCharges ?? []) {
+        out[chargeType] = (out[chargeType] ?? 0) + amount;
+    }
+    return out;
 }
 
 export function getDisabledReasonDisplay(reason: DisabledReason): { title: string; description: string } {
@@ -45,11 +72,7 @@ export function getDisabledReasonDisplay(reason: DisabledReason): { title: strin
         case 'no_uses_remaining':
             return {
                 title: 'No Uses Remaining',
-                description: reason.refillsEachRound
-                    ? FULL_ROUND_REFILL_DESCRIPTION
-                    : reason.recoveries?.length
-                        ? stripTooltipBraces(describeAbilityRecovery(reason.recoveries))
-                        : 'This ability has no uses left.',
+                description: stripTooltipBraces(describeNoUsesRecovery(reason)),
             };
         case 'no_pet_source':
             return { title: 'No Pet', description: 'This ability requires a living pet.' };
@@ -110,6 +133,7 @@ export function getAbilityDisabledReason(params: {
             reason_id: 'no_uses_remaining',
             recoveries: useConfig.recoveries,
             refillsEachRound: useConfig.refillsEachRound,
+            chargesPerRound: getChargesPerRound(playerUnit),
         };
     }
 

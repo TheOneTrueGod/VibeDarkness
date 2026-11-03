@@ -109,7 +109,7 @@ function describeUsesRecovered(usesRecovered: number): string {
 }
 
 /** Round recovery is described as uses per round, without naming the charge. */
-function describeRoundRecovery(rule: AbilityRecoveryRule): string {
+export function describeRoundRecovery(rule: AbilityRecoveryRule): string {
     const uses = describeUsesRecovered(rule.usesRecovered);
     if (rule.chargesPerRecovery <= 1) return `Recovers ${uses} per round.`;
     return `Recovers ${uses} every {${rule.chargesPerRecovery}} rounds.`;
@@ -129,6 +129,20 @@ export function describeAbilityRecovery(recoveries: readonly AbilityRecoveryRule
             return `Recovers ${uses} for ${charges}. ${def.howToGain}`;
         })
         .join(' ');
+}
+
+function describeChargeCount(count: number, def: RecoveryChargeDefinition): string {
+    return `{${count}} ${def.displayName}${count === 1 ? '' : 's'}`;
+}
+
+/**
+ * Short "out of uses" line for a charge-based rule: the charges one use needs, and how many
+ * the unit gains per round (item passives), e.g. "Requires 1 Light charge. You gain 1 per round."
+ */
+export function describeChargeRequirement(rule: AbilityRecoveryRule, chargesPerRound: number): string {
+    const def = RECOVERY_CHARGE_DEFINITIONS[rule.chargeType];
+    return `Requires ${describeChargeCount(rule.chargesPerRecovery, def)}. `
+        + `You gain {${chargesPerRound}} per round.`;
 }
 
 /** Reminder card on ability tooltips explaining how the ability gets its uses back. */
