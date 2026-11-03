@@ -6,6 +6,8 @@ export interface ShieldDamageResult {
     shieldAbsorbed: number;
     /** Damage left over after shields, to continue through armour/HP. */
     remainingDamage: number;
+    /** Shields that absorbed part of this hit, in consumption order. */
+    absorbingShields: ShieldBuff[];
 }
 
 /**
@@ -17,8 +19,9 @@ export interface ShieldDamageResult {
 export function applyDamageToShields(unit: Unit, incomingDamage: number): ShieldDamageResult {
     let remaining = Math.max(0, incomingDamage);
     let shieldAbsorbed = 0;
+    const absorbingShields: ShieldBuff[] = [];
     if (remaining <= 0) {
-        return { shieldAbsorbed, remainingDamage: remaining };
+        return { shieldAbsorbed, remainingDamage: remaining, absorbingShields };
     }
 
     for (const buff of unit.buffs) {
@@ -30,9 +33,10 @@ export function applyDamageToShields(unit: Unit, incomingDamage: number): Shield
         shield.remainingHp -= consumed;
         remaining -= consumed;
         shieldAbsorbed += consumed;
+        absorbingShields.push(shield);
     }
 
-    return { shieldAbsorbed, remainingDamage: remaining };
+    return { shieldAbsorbed, remainingDamage: remaining, absorbingShields };
 }
 
 /** Sum of `remainingHp` across all active `ShieldBuff`s on a unit (0 when none). */

@@ -165,8 +165,7 @@ export const ShiningBlockAbility = {
     abilityEvents: {
         [AbilityEventType.ON_BLOCK_SUCCESS]: [
             {
-                maxTriggersPerCast: 1,
-                conditions: [{ type: 'always' }],
+                conditions: [{ type: 'maxTriggers', count: 1 }],
                 effects: [
                     {
                         type: 'custom',

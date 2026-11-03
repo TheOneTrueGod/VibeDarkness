@@ -3,9 +3,11 @@
  *
  * Point-and-click peel: pick a nearby ally (including yourself) and grant a fat absorb
  * shield that dumps its armour in one round. High starting pool, fast fade — spend it
- * on the hit that is coming now, not as a standing wall.
+ * on the hit that is coming now, not as a standing wall. The first attack the shield absorbs
+ * returns some Gravity to the caster (ON_BLOCK_SUCCESS fired by the sourced ShieldBuff).
  */
 
+import { AbilityEventType } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
@@ -19,12 +21,14 @@ import { unitRangeHitbox } from '../../../hitboxes';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
 import { GRAVITY_VIOLET } from '../../../game/effect_defs/aoeEffects';
+import { ResourceId } from '../../../resources/resourceIds';
 import {
     GRAVITY_INVERSION_SHOCKWAVE_COLORS,
     GRAVITY_SHIELD_ACTIVE_DURATION,
     GRAVITY_SHIELD_COOLDOWN_DURATION,
     GRAVITY_SHIELD_DRAIN_PER_SECOND,
     GRAVITY_SHIELD_DURATION_ROUNDS,
+    GRAVITY_SHIELD_FIRST_BLOCK_GRAVITY_REFUND,
     GRAVITY_SHIELD_GRAVITY_COST,
     GRAVITY_SHIELD_HP,
     GRAVITY_SHIELD_IMPACT_SHOCKWAVE_SCALE,
@@ -108,7 +112,10 @@ export const GravityShieldAbility = defineAbility({
                 if (!targetUnit?.isAlive()) return;
 
                 targetUnit.addBuff(
-                    new ShieldBuff(GRAVITY_SHIELD_HP, GRAVITY_SHIELD_DRAIN_PER_SECOND, 'gravity'),
+                    new ShieldBuff(GRAVITY_SHIELD_HP, GRAVITY_SHIELD_DRAIN_PER_SECOND, 'gravity', 0, {
+                        unitId: ctx.caster.id,
+                        abilityId: CARD_ID,
+                    }),
                     eng.gameTime,
                     eng.roundNumber,
                     eng.eventBus,
@@ -124,6 +131,20 @@ export const GravityShieldAbility = defineAbility({
         },
     ],
     targets: [],
+
+    abilityEvents: {
+        // Fired by the ShieldBuff (not the cast), so `maxTriggers` counts per shield.
+        [AbilityEventType.ON_BLOCK_SUCCESS]: [
+            {
+                conditions: [{ type: 'maxTriggers', count: 1 }],
+                effects: [{
+                    type: 'grantResource',
+                    resourceId: ResourceId.Gravity,
+                    amount: GRAVITY_SHIELD_FIRST_BLOCK_GRAVITY_REFUND,
+                }],
+            },
+        ],
+    },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {
         return { minRange: 0, maxRange: GRAVITY_SHIELD_MAX_RANGE };
@@ -141,6 +162,7 @@ export const GravityShieldAbility = defineAbility({
     getTooltipText(): string[] {
         return [
             `Shield an ally from {${GRAVITY_SHIELD_HP}} damage, draining over {${GRAVITY_SHIELD_DURATION_ROUNDS}} round`,
+            `The first time it absorbs an attack, gain {${GRAVITY_SHIELD_FIRST_BLOCK_GRAVITY_REFUND}} Gravity`,
         ];
     },
 });

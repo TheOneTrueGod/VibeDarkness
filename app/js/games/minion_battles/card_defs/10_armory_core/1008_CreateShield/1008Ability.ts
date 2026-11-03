@@ -64,8 +64,7 @@ export const CreateShieldAbility_1008 = defineDirectionalShield({
     abilityEvents: {
         [AbilityEventType.ON_BLOCK_SUCCESS]: [
             {
-                maxTriggersPerCast: 1,
-                conditions: [{ type: 'always' }],
+                conditions: [{ type: 'maxTriggers', count: 1 }],
                 effects: [{ type: 'grantResource', resourceId: ResourceId.Charge, amount: SHIELD_BLOCK_CHARGE_GRANT }],
             },
         ],

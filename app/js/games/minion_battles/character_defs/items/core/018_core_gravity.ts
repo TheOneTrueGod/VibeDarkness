@@ -6,7 +6,7 @@ export const coreGravityItem: ItemDef = {
     description: 'Channels proximity to danger into gravitational force. Unlocks Force Push when researched.',
     slots: ['core'],
     slotLayout: { weaponSlots: 1, utilitySlots: 1 },
-    // Force Push (0902) is granted via Gravity Core research `addCard`.
+    // Force Push (0902) and Gravity Shield (0904) are granted via Gravity Core research `addCard`.
     cardsToAdd: ['0101', '0120', '0601'],
     resourcesToAdd: ['gravity'],
     icon: '018_core_gravity.svg',

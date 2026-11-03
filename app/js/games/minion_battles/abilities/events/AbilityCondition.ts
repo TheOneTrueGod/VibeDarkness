@@ -21,6 +21,12 @@ export type AbilityCondition =
      * In dev mode the dispatcher warns if the ordering contract is violated.
      */
     | { type: 'selfRuleHasTriggeredAtLeast'; ruleId: string; count: number }
+    /**
+     * Passes while this rule has fired fewer than `count` times in its trigger scope: the active
+     * cast for cast events, or the source buff for buff-owned events (e.g. a `ShieldBuff`'s
+     * ON_BLOCK_SUCCESS). The dispatcher folds it into the rule's trigger cap; lowest count wins.
+     */
+    | { type: 'maxTriggers'; count: number }
     | AbilityCustomCondition;
 
 /**

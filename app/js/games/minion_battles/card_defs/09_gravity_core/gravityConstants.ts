@@ -81,6 +81,8 @@ export const GRAVITY_SHIELD_DRAIN_PER_SECOND =
     GRAVITY_SHIELD_HP / (GRAVITY_SHIELD_DURATION_ROUNDS * ROUND_DURATION);
 /** Medium spend: twice the spine abilities' cost of 5. */
 export const GRAVITY_SHIELD_GRAVITY_COST = 10;
+/** Gravity the caster regains the first time the shield absorbs an attack. */
+export const GRAVITY_SHIELD_FIRST_BLOCK_GRAVITY_REFUND = 5;
 export const GRAVITY_SHIELD_TARGET_LABEL = 'Ally';
 /** Visual scale for the apply-burst shockwave on the shielded ally. */
 export const GRAVITY_SHIELD_IMPACT_SHOCKWAVE_SCALE = 0.55;

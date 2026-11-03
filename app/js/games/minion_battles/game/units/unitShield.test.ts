@@ -24,22 +24,24 @@ function makeUnit(overrides: Partial<ConstructorParameters<typeof Unit>[0]> = {}
 describe('applyDamageToShields', () => {
     it('a single shield absorbs a partial hit and reduces only remainingHp, leaving unit.hp untouched', () => {
         const unit = makeUnit();
-        unit.buffs = [new ShieldBuff(30, 0)];
+        const shield = new ShieldBuff(30, 0);
+        unit.buffs = [shield];
 
         const result = applyDamageToShields(unit, 10);
 
-        expect(result).toEqual({ shieldAbsorbed: 10, remainingDamage: 0 });
+        expect(result).toEqual({ shieldAbsorbed: 10, remainingDamage: 0, absorbingShields: [shield] });
         expect((unit.buffs[0] as ShieldBuff).remainingHp).toBe(20);
         expect(unit.hp).toBe(40);
     });
 
     it('a hit exceeding shield hp carries the excess through as remainingDamage', () => {
         const unit = makeUnit();
-        unit.buffs = [new ShieldBuff(10, 0)];
+        const shield = new ShieldBuff(10, 0);
+        unit.buffs = [shield];
 
         const result = applyDamageToShields(unit, 15);
 
-        expect(result).toEqual({ shieldAbsorbed: 10, remainingDamage: 5 });
+        expect(result).toEqual({ shieldAbsorbed: 10, remainingDamage: 5, absorbingShields: [shield] });
         expect((unit.buffs[0] as ShieldBuff).remainingHp).toBe(0);
     });
 
@@ -51,7 +53,7 @@ describe('applyDamageToShields', () => {
 
         const result = applyDamageToShields(unit, 15);
 
-        expect(result).toEqual({ shieldAbsorbed: 15, remainingDamage: 0 });
+        expect(result).toEqual({ shieldAbsorbed: 15, remainingDamage: 0, absorbingShields: [first, second] });
         expect(first.remainingHp).toBe(0);
         expect(second.remainingHp).toBe(15);
     });
@@ -61,7 +63,7 @@ describe('applyDamageToShields', () => {
 
         const result = applyDamageToShields(unit, 10);
 
-        expect(result).toEqual({ shieldAbsorbed: 0, remainingDamage: 10 });
+        expect(result).toEqual({ shieldAbsorbed: 0, remainingDamage: 10, absorbingShields: [] });
     });
 });
 
@@ -81,12 +83,13 @@ describe('getTotalShieldHp', () => {
 describe('applyDamageToUnitDetailed shieldAbsorbed', () => {
     it('reports shieldAbsorbed matching what was actually consumed, and lets the rest through to hp', () => {
         const unit = makeUnit({ hp: 40, maxHp: 40 });
-        unit.buffs = [new ShieldBuff(10, 0)];
+        const shield = new ShieldBuff(10, 0);
+        unit.buffs = [shield];
         const eventBus = new EventBus();
 
         const breakdown = applyDamageToUnitDetailed(unit, 15, null, eventBus);
 
-        expect(breakdown).toEqual({ hpDamage: 5, armourRemoved: 0, shieldAbsorbed: 10 });
+        expect(breakdown).toEqual({ hpDamage: 5, armourRemoved: 0, shieldAbsorbed: 10, absorbingShields: [shield] });
         expect(unit.hp).toBe(35);
     });
 

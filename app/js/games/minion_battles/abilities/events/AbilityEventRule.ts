@@ -11,10 +11,6 @@ export interface AbilityEventRule {
     id?: string;
     /** Optional sort key. Higher priority runs first. Default 0. */
     priority?: number;
-    /** If true, this rule can fire at most once per cast instance. */
-    oncePerCast?: boolean;
-    /** Optional explicit cap per cast; ignored when omitted. */
-    maxTriggersPerCast?: number;
     conditions: AbilityCondition[];
     effects: AbilityEffect[];
 }

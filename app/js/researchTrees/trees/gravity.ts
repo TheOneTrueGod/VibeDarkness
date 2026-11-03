@@ -14,7 +14,6 @@ export const GRAVITY_TREE_ID = 'gravity_core';
 export const GRAVITY_NODE_CORE = 'gravity_core';
 export const GRAVITY_NODE_GRAVITY_LOCUS = 'gravity_locus';
 export const GRAVITY_NODE_GRAVITY_INVERSION = 'gravity_inversion';
-export const GRAVITY_NODE_GRAVITY_SHIELD = 'gravity_shield';
 export const GRAVITY_NODE_EASE_BURDENS = 'gravity_ease_burdens';
 export const GRAVITY_NODE_REPULSE = 'gravity_repulse';
 export const GRAVITY_NODE_COLLAPSE = 'gravity_collapse';
@@ -34,10 +33,6 @@ export const GRAVITY_REPULSE_METAL_COST = 1;
 export const GRAVITY_LIFT_ATTUNEMENT_COST = 13;
 export const GRAVITY_LIFT_VIGOR_COST = 5;
 export const GRAVITY_LIFT_METAL_COST = 1;
-
-export const GRAVITY_SHIELD_ATTUNEMENT_COST = 16;
-export const GRAVITY_SHIELD_VIGOR_COST = 5;
-export const GRAVITY_SHIELD_METAL_COST = 5;
 
 export const GRAVITY_EASE_BURDENS_ATTUNEMENT_COST = 16;
 export const GRAVITY_EASE_BURDENS_VIGOR_COST = 5;
@@ -59,7 +54,7 @@ export const gravityTree: ResearchTreeDef = {
             id: GRAVITY_NODE_CORE,
             title: 'Gravity Core',
             description:
-                `You learn to feel the pull between things, and to grip it. Danger passing close strengthens your grip. Start each mission with {${GRAVITY_CORE_MISSION_START_AMOUNT}} Gravity.`,
+                `You learn to feel the pull between things, and to grip it. Danger passing close strengthens your grip, and you can wrap an ally in it to shield them. Start each mission with {${GRAVITY_CORE_MISSION_START_AMOUNT}} Gravity.`,
             flavorText: 'Everything leans on everything else. You learn to lean back.',
             order: 5,
             tier: 10,
@@ -80,6 +75,7 @@ export const gravityTree: ResearchTreeDef = {
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.LightCore, toItemId: CORE_ITEM_IDS.GravityCore },
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.ArmoryCore, toItemId: CORE_ITEM_IDS.GravityCore },
                 { type: 'addCard', cardId: '0902' },
+                { type: 'addCard', cardId: '0904' },
                 { type: 'grantMissionStartResource', resourceId: 'gravity', amount: GRAVITY_CORE_MISSION_START_AMOUNT },
             ],
             modifiesAbility: { from: '0902', to: '0902' },
@@ -159,29 +155,6 @@ export const gravityTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'addCard', cardId: '0903' },
-            ],
-        },
-        {
-            id: GRAVITY_NODE_GRAVITY_SHIELD,
-            title: 'Gravity Shield',
-            description:
-                'You learn to wrap an ally in a heavy pull that shields them.',
-            flavorText: 'The air around them thickens until a blow has to push through the weight.',
-            order: 14,
-            tier: 13,
-            position: { x: 420, y: 160 },
-            prereqNodeIds: [GRAVITY_NODE_CORE],
-            exclusiveWithNodeIds: [],
-            requirements: [
-                { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
-            ],
-            cost: {
-                attunement: GRAVITY_SHIELD_ATTUNEMENT_COST,
-                vigor: GRAVITY_SHIELD_VIGOR_COST,
-                metal: GRAVITY_SHIELD_METAL_COST,
-            },
-            effects: [
-                { type: 'addCard', cardId: '0904' },
             ],
         },
         {

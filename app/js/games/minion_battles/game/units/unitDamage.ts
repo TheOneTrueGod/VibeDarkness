@@ -4,6 +4,7 @@ import type { EngineContext } from '../EngineContext';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import { applyDamageToShields } from './unitShield';
+import type { ShieldBuff } from '../../buffs/ShieldBuff';
 import { applyDamageLinks } from './unitDamageLinks';
 import {
     DARKNESS_CORRUPTION_RATE,
@@ -52,6 +53,8 @@ export interface DamageBreakdown {
     armourRemoved: number;
     /** Shield-buff hp consumed by this hit (shields are consumed before armour). */
     shieldAbsorbed: number;
+    /** Shield buffs that absorbed part of this hit (omitted when none did). */
+    absorbingShields?: readonly ShieldBuff[];
 }
 
 const NO_DAMAGE_BREAKDOWN: DamageBreakdown = { hpDamage: 0, armourRemoved: 0, shieldAbsorbed: 0 };
@@ -123,6 +126,13 @@ export function applyDamageToUnitDetailed(
         eventBus.emit('stack_members_died', { unitId: unit.id, count: membersKilled - 1 });
     }
 
+    const breakdown: DamageBreakdown = {
+        hpDamage: actual,
+        armourRemoved: armourDamage.armourRemoved,
+        shieldAbsorbed: shieldDamage.shieldAbsorbed,
+        ...(shieldDamage.absorbingShields.length > 0 ? { absorbingShields: shieldDamage.absorbingShields } : {}),
+    };
+
     eventBus.emit('damage_taken', {
         unitId: unit.id,
         amount: actual,
@@ -137,7 +147,7 @@ export function applyDamageToUnitDetailed(
     if (unit.hp <= 0) {
         if (unit.hasBuff('cant_die')) {
             unit.hp = 1;
-            return { hpDamage: actual, armourRemoved: armourDamage.armourRemoved, shieldAbsorbed: shieldDamage.shieldAbsorbed };
+            return breakdown;
         }
 
         unit.hp = 0;
@@ -149,7 +159,7 @@ export function applyDamageToUnitDetailed(
         });
     }
 
-    return { hpDamage: actual, armourRemoved: armourDamage.armourRemoved, shieldAbsorbed: shieldDamage.shieldAbsorbed };
+    return breakdown;
 }
 
 /** Apply damage to a unit. Returns actual hp damage dealt (thin wrapper — see `applyDamageToUnitDetailed`). */

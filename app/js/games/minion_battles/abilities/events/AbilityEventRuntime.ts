@@ -49,6 +49,11 @@ export interface AbilityEventRuntimeContext {
     projectile?: Projectile;
     /** Populated for ON_PROJECTILE_EXPIRED: the unit struck, if the projectile hit one. */
     hitUnit?: Unit;
+    /**
+     * Trigger-count scope for events that outlive the cast (e.g. a `ShieldBuff`'s block rules).
+     * Omit to count against `activeAbility`'s cast payload.
+     */
+    dispatchState?: AbilityEventDispatchState;
     customConditionHandlers?: Record<string, CustomConditionHandler>;
     customEffectHandlers?: Record<string, CustomEffectHandler>;
 }
@@ -78,7 +83,7 @@ interface CastPayloadWithAbilityEvents {
 export function triggerAbilityEvent(context: AbilityEventRuntimeContext): string[] {
     const rules = context.ability.abilityEvents?.[context.eventType] ?? [];
     if (rules.length === 0) return [];
-    const state = getOrCreateDispatchState(context.activeAbility);
+    const state = getDispatchState(context);
     // Merge ability-level custom handlers with call-site handlers; call-site wins on collision.
     const mergedContext: AbilityEventRuntimeContext =
         context.ability.customEffectHandlers
@@ -162,6 +167,10 @@ function findMostRecentActiveAbility(caster: Unit, abilityId: string): ActiveAbi
     return matching[0];
 }
 
+function getDispatchState(context: AbilityEventRuntimeContext): AbilityEventDispatchState {
+    return context.dispatchState ?? getOrCreateDispatchState(context.activeAbility);
+}
+
 function getOrCreateDispatchState(activeAbility?: ActiveAbility): AbilityEventDispatchState {
     if (!activeAbility) return createAbilityEventDispatchState();
     const payload = (activeAbility.castPayload ?? {}) as CastPayloadWithAbilityEvents;
@@ -206,9 +215,12 @@ function evaluateCondition(condition: AbilityCondition, context: AbilityEventRun
         case 'primaryTargetHasBuff':
             return context.primaryTarget?.hasBuff(condition.buffType) ?? false;
         case 'selfRuleHasTriggeredAtLeast': {
-            const dispatchState = getOrCreateDispatchState(context.activeAbility);
+            const dispatchState = getDispatchState(context);
             return (dispatchState.ruleTriggerCounts[condition.ruleId] ?? 0) >= condition.count;
         }
+        case 'maxTriggers':
+            // Enforced by the dispatcher's trigger cap (see `getMaxTriggers`).
+            return true;
         case 'custom':
             return context.customConditionHandlers?.[condition.conditionId]?.(condition.params, context) ?? false;
         default:

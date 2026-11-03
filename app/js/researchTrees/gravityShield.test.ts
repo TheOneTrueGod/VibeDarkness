@@ -7,27 +7,21 @@ import {
     GRAVITY_NODE_CORE,
     GRAVITY_NODE_GRAVITY_INVERSION,
     GRAVITY_NODE_GRAVITY_LOCUS,
-    GRAVITY_NODE_GRAVITY_SHIELD,
     GRAVITY_LOCUS_METAL_COST,
     GRAVITY_LIFT_METAL_COST,
-    GRAVITY_SHIELD_ATTUNEMENT_COST,
-    GRAVITY_SHIELD_VIGOR_COST,
-    GRAVITY_SHIELD_METAL_COST,
     gravityTree,
 } from './trees/gravity';
 import { GRAVITY_CORE_MISSION_START_AMOUNT } from '../games/minion_battles/card_defs/09_gravity_core/gravityConstants';
 
 describe('Gravity Shield research', () => {
-    it('is a tier-13 node that unlocks Gravity Shield after Gravity Core', () => {
-        const node = gravityTree.nodes.find((n) => n.id === GRAVITY_NODE_GRAVITY_SHIELD);
-        expect(node?.tier).toBe(13);
-        expect(node?.prereqNodeIds).toEqual([GRAVITY_NODE_CORE]);
-        expect(node?.effects).toEqual([{ type: 'addCard', cardId: '0904' }]);
-        expect(node?.cost).toEqual({
-            attunement: GRAVITY_SHIELD_ATTUNEMENT_COST,
-            vigor: GRAVITY_SHIELD_VIGOR_COST,
-            metal: GRAVITY_SHIELD_METAL_COST,
-        });
+    it('is granted by Gravity Core alongside Force Push, with no node of its own', () => {
+        const core = gravityTree.nodes.find((n) => n.id === GRAVITY_NODE_CORE);
+        expect(core?.effects).toContainEqual({ type: 'addCard', cardId: '0902' });
+        expect(core?.effects).toContainEqual({ type: 'addCard', cardId: '0904' });
+        const grantingNodes = gravityTree.nodes.filter((n) =>
+            n.effects.some((e) => e.type === 'addCard' && e.cardId === '0904'),
+        );
+        expect(grantingNodes.map((n) => n.id)).toEqual([GRAVITY_NODE_CORE]);
     });
 });
 

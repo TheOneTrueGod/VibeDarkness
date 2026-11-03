@@ -13,6 +13,7 @@ import { AbilityEventType } from './Ability';
 import { getModifiedAbilityDamage } from './damageModifiers';
 import { triggerAbilityEvent, triggerAbilityEventFromAttack } from './events';
 import { applyUnitHitPause, resolveHitImpactSeconds } from '../buffs/hitPause';
+import type { ShieldBuff } from '../buffs/ShieldBuff';
 
 export interface BlockingArc {
     abilityId: string;
@@ -169,6 +170,39 @@ export function executeBlock(
     }
 }
 
+/**
+ * Fire ON_BLOCK_SUCCESS on the granting ability of each sourced `ShieldBuff` that absorbed part
+ * of an attack. `caster` is the shield's source unit and `primaryTarget` the shielded defender;
+ * trigger counts live on the shield, so `maxTriggers` caps fires per shield, not per cast.
+ */
+export function fireShieldBlockHooks(
+    engine: unknown,
+    defender: Unit,
+    shields: readonly ShieldBuff[],
+    attackInfo: AttackBlockedInfo,
+): void {
+    const eng = engine as BlockingEngineContext;
+    for (const shield of shields) {
+        if (!shield.source) continue;
+        const caster = eng.getUnit(shield.source.unitId);
+        const ability = getAbility(shield.source.abilityId);
+        if (!caster || !ability) continue;
+        triggerAbilityEvent({
+            engine: eng,
+            caster,
+            ability,
+            targets: [],
+            eventType: AbilityEventType.ON_BLOCK_SUCCESS,
+            currentTime: 0,
+            prevTime: 0,
+            primaryTarget: defender,
+            attackInfo,
+            hitResult: 'blocked',
+            dispatchState: { ruleTriggerCounts: shield.blockRuleTriggerCounts },
+        });
+    }
+}
+
 export interface TryDamageOrBlockParams {
     engine: unknown;
     gameTime: number;
@@ -255,17 +289,19 @@ export function tryDamageOrBlock(
     const modifiedDamage = getModifiedAbilityDamage(attacker, damage, ability?.damageModifierMultiplier);
     // Note: this only covers damage routed through tryDamageOrBlock (melee/projectile
     // CastBehaviours). Direct/AoE unit.takeDamage() call sites still get HP-pool shield
-    // absorption (universal, in unitDamage.ts) but won't fire onBlock.
+    // absorption (universal, in unitDamage.ts) but fire no block hooks.
     const breakdown = defender.takeDamageDetailed(modifiedDamage, attackerId, eventBus);
     const roundNumber = (engine as { roundNumber?: number }).roundNumber ?? 1;
     applyStrikeHitPauses(defender, attacker, ability, gameTime, roundNumber);
+    const attackInfo: AttackBlockedInfo = {
+        type: attackType, sourceUnitId: attackerId, attackSourceX: attackerX, attackSourceY: attackerY,
+    };
+    // Any shield absorb counts as that shield blocking (including the hit that breaks it).
+    if (breakdown.absorbingShields) {
+        fireShieldBlockHooks(engine, defender, breakdown.absorbingShields, attackInfo);
+    }
     if (breakdown.shieldAbsorbed >= modifiedDamage && breakdown.hpDamage <= 0) {
-        fireAttackBlockedHooks(
-            engine,
-            abilityId,
-            defender,
-            { type: attackType, sourceUnitId: attackerId, attackSourceX: attackerX, attackSourceY: attackerY },
-        );
+        fireAttackBlockedHooks(engine, abilityId, defender, attackInfo);
         return { hit: false, amountDealt: 0 };
     }
     triggerAbilityEventFromAttack({

@@ -41,8 +41,7 @@ export const AbsorptionShieldAbility = defineDirectionalShield({
     abilityEvents: {
         [AbilityEventType.ON_BLOCK_SUCCESS]: [
             {
-                maxTriggersPerCast: MAX_BLOCK_SURGES,
-                conditions: [{ type: 'always' }],
+                conditions: [{ type: 'maxTriggers', count: MAX_BLOCK_SURGES }],
                 effects: [
                     {
                         type: 'recoverCharge',

@@ -49,7 +49,7 @@ export function dispatchAbilityEventRules<TContext>(
         (rule) => ({
             id: rule.id,
             priority: rule.priority,
-            maxTriggers: getMaxTriggersPerCast(rule),
+            maxTriggers: getMaxTriggers(rule),
             conditions: rule.conditions,
             effects: rule.effects,
         }),
@@ -77,8 +77,11 @@ export function dispatchAbilityEventRules<TContext>(
     return { matchedRuleIds: result.matchedRuleIds };
 }
 
-function getMaxTriggersPerCast(rule: AbilityEventRule): number {
-    if (typeof rule.maxTriggersPerCast === 'number') return Math.max(0, rule.maxTriggersPerCast);
-    if (rule.oncePerCast) return 1;
-    return Number.POSITIVE_INFINITY;
+/** Lowest `maxTriggers` condition on the rule; unlimited when it has none. */
+function getMaxTriggers(rule: AbilityEventRule): number {
+    let max = Number.POSITIVE_INFINITY;
+    for (const condition of rule.conditions) {
+        if (condition.type === 'maxTriggers') max = Math.min(max, Math.max(0, condition.count));
+    }
+    return max;
 }

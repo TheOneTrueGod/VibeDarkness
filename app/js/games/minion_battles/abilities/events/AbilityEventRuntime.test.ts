@@ -149,7 +149,7 @@ describe('AbilityEventRuntime', () => {
         expect(matchedRuleIds).toEqual(['high_priority', 'low_priority']);
     });
 
-    it('honors oncePerCast trigger caps while preserving rule evaluation semantics', () => {
+    it('honors maxTriggers condition caps while preserving rule evaluation semantics', () => {
         const caster = createUnit({ id: 'caster', ownerId: 'p1', abilities: ['throw_charged_rock'] });
         ensureAbilityRuntimeState(caster, 'throw_charged_rock');
         const runtime = caster.abilityRuntime.throw_charged_rock;
@@ -172,8 +172,7 @@ describe('AbilityEventRuntime', () => {
                 [AbilityEventType.ON_ATTACK_HIT]: [
                     {
                         id: 'single_trigger_recover',
-                        oncePerCast: true,
-                        conditions: [{ type: 'always' }],
+                        conditions: [{ type: 'maxTriggers', count: 1 }],
                         effects: [{ type: 'recoverCharge', chargeType: 'lightCharge', amount: 1 }],
                     },
                 ],

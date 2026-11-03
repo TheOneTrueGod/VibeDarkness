@@ -8,7 +8,8 @@ import { updateUnit } from '../../../game/units/unitMovementTick';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import { getAbilityDisabledReason } from '../../../ui/components/abilityDisabledReason';
 import { getSelectTargetDefsFromTimings, resolveSelectTargetLockOnCandidates } from '../../../abilities/targeting';
-import { SHIELD_BUFF_TYPE, type ShieldBuff } from '../../../buffs/ShieldBuff';
+import { SHIELD_BUFF_TYPE, ShieldBuff } from '../../../buffs/ShieldBuff';
+import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import { Gravity } from '../../../resources/Gravity';
 import type { TeamId } from '../../../game/teams';
 import type { ResolvedTarget } from '../../../game/types';
@@ -16,6 +17,7 @@ import { ROUND_DURATION } from '../../../game/gameConstants';
 import {
     GRAVITY_SHIELD_DRAIN_PER_SECOND,
     GRAVITY_SHIELD_DURATION_ROUNDS,
+    GRAVITY_SHIELD_FIRST_BLOCK_GRAVITY_REFUND,
     GRAVITY_SHIELD_GRAVITY_COST,
     GRAVITY_SHIELD_HP,
     GRAVITY_SHIELD_PREFIRE_TIME,
@@ -105,6 +107,25 @@ function allyShield(ally: Unit): ShieldBuff | undefined {
     return ally.buffs.find((b) => b._type === SHIELD_BUFF_TYPE) as ShieldBuff | undefined;
 }
 
+function gravityOf(unit: Unit): number {
+    return unit.getResource('gravity')?.current ?? 0;
+}
+
+/** A melee strike on `defender` from below, routed through the normal hit/block path. */
+function strike(defender: Unit, engine: EngineContext, damage: number): void {
+    tryDamageOrBlock(defender, {
+        engine,
+        gameTime: engine.gameTime,
+        eventBus: engine.eventBus,
+        attackerX: defender.x,
+        attackerY: defender.y + 40,
+        attackerId: 'enemy',
+        abilityId: 'test_enemy_strike',
+        damage,
+        attackType: 'melee',
+    });
+}
+
 describe('GravityShieldAbility', () => {
     it('grants the target a gravity-themed ShieldBuff at the starting armour pool', () => {
         const caster = makeCaster(GRAVITY_SHIELD_GRAVITY_COST + 5);
@@ -119,6 +140,53 @@ describe('GravityShieldAbility', () => {
         expect(shield?.remainingHp).toBeCloseTo(GRAVITY_SHIELD_HP, 0);
         expect(shield?.theme).toBe('gravity');
         expect(shield?.drainPerSecond).toBe(GRAVITY_SHIELD_DRAIN_PER_SECOND);
+    });
+
+    it('refunds Gravity to the caster the first time the shield absorbs an attack, once per shield', () => {
+        const caster = makeCaster(GRAVITY_SHIELD_GRAVITY_COST);
+        const ally = makeAlly('ally');
+        const engine = makeEngine([caster, ally]);
+
+        executeUnitAbility(caster, GravityShieldAbility, targetsFor(ally), engine);
+        advanceSimulation([caster, ally], engine, ACTIVE_TICK_ADVANCE);
+        expect(gravityOf(caster)).toBe(0);
+
+        strike(ally, engine, 3);
+        expect(gravityOf(caster)).toBe(GRAVITY_SHIELD_FIRST_BLOCK_GRAVITY_REFUND);
+        expect(ally.hp).toBe(80);
+
+        strike(ally, engine, 3);
+        expect(gravityOf(caster)).toBe(GRAVITY_SHIELD_FIRST_BLOCK_GRAVITY_REFUND);
+    });
+
+    it('refunds on a hit that breaks the shield and spills into HP', () => {
+        const caster = makeCaster(GRAVITY_SHIELD_GRAVITY_COST);
+        const ally = makeAlly('ally');
+        const engine = makeEngine([caster, ally]);
+
+        executeUnitAbility(caster, GravityShieldAbility, targetsFor(ally), engine);
+        advanceSimulation([caster, ally], engine, ACTIVE_TICK_ADVANCE);
+
+        strike(ally, engine, GRAVITY_SHIELD_HP + 10);
+        expect(gravityOf(caster)).toBe(GRAVITY_SHIELD_FIRST_BLOCK_GRAVITY_REFUND);
+        expect(ally.hp).toBeLessThan(80);
+    });
+
+    it('keeps the shield source and spent refund across serialization', () => {
+        const caster = makeCaster(GRAVITY_SHIELD_GRAVITY_COST);
+        const ally = makeAlly('ally');
+        const engine = makeEngine([caster, ally]);
+
+        executeUnitAbility(caster, GravityShieldAbility, targetsFor(ally), engine);
+        advanceSimulation([caster, ally], engine, ACTIVE_TICK_ADVANCE);
+        strike(ally, engine, 3);
+
+        const restored = ShieldBuff.fromJSON(allyShield(ally)!.toJSON());
+        expect(restored.source).toEqual({ unitId: caster.id, abilityId: CARD_ID });
+        ally.buffs = ally.buffs.map((b) => (b._type === SHIELD_BUFF_TYPE ? restored : b));
+
+        strike(ally, engine, 3);
+        expect(gravityOf(caster)).toBe(GRAVITY_SHIELD_FIRST_BLOCK_GRAVITY_REFUND);
     });
 
     it('drains an undamaged shield to expired over one round', () => {
