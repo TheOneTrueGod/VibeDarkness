@@ -41,11 +41,6 @@ export default function ObjectiveMarkerOverlay({
 
         const update = () => {
             const localUnit = engine.getLocalPlayerUnit();
-            const completedIds = new Set(
-                engine.getBattleObjectiveRows()
-                    .filter((r) => r.completed)
-                    .map((r) => r.id),
-            );
 
             for (const obj of markersWithConfig) {
                 const el = markerRefs.current.get(obj.id);
@@ -53,7 +48,8 @@ export default function ObjectiveMarkerOverlay({
                 const arrow = arrowRefs.current.get(obj.id);
                 if (arrow) arrow.style.display = 'none';
 
-                if (completedIds.has(obj.id)) {
+                // Only objectives listed (and incomplete) in the objectives panel get a marker.
+                if (!engine.isBattleObjectiveActive(obj.id)) {
                     el.style.display = 'none';
                     continue;
                 }

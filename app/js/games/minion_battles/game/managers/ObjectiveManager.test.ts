@@ -56,6 +56,8 @@ describe('ObjectiveManager', () => {
         let rows = engine.getBattleObjectiveRows();
         expect(rows.map((r) => r.id)).toEqual(['kill_boar']);
         expect(rows[0]?.completed).toBe(false);
+        expect(engine.isBattleObjectiveActive('kill_boar')).toBe(true);
+        expect(engine.isBattleObjectiveActive('mop_up')).toBe(false);
 
         boar.hp = 0;
         engine.state.objectiveManager.processObjectives();
@@ -66,6 +68,8 @@ describe('ObjectiveManager', () => {
         expect(mop).toBeDefined();
         // Revealed this pass: first evaluated next pass, after level events can react to the reveal.
         expect(mop?.completed).toBe(false);
+        expect(engine.isBattleObjectiveActive('kill_boar')).toBe(false);
+        expect(engine.isBattleObjectiveActive('mop_up')).toBe(true);
 
         engine.state.objectiveManager.processObjectives();
         rows = engine.getBattleObjectiveRows();

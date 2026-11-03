@@ -111,6 +111,11 @@ export class ObjectiveManager {
         return this.completedIds.has(id);
     }
 
+    /** Revealed (listed in the objectives panel) and not yet completed. */
+    isActive(id: string): boolean {
+        return this.revealedIds.has(id) && !this.completedIds.has(id);
+    }
+
     getDisplayRows(): { id: string; label: string; completed: boolean }[] {
         const rows: { id: string; label: string; completed: boolean }[] = [];
         for (const d of this.defs) {
@@ -131,7 +136,7 @@ export class ObjectiveManager {
     getActiveTileMarkers(): ObjectiveTileMarker[] {
         const out: ObjectiveTileMarker[] = [];
         for (const d of this.defs) {
-            if (!this.revealedIds.has(d.id) || this.completedIds.has(d.id)) continue;
+            if (!this.isActive(d.id)) continue;
             const image = getObjectiveTilesImage(d);
             if (!image) continue;
             const cfg = typeof d.showObjectiveTiles === 'object' ? d.showObjectiveTiles : {};

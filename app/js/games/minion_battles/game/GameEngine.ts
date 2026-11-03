@@ -548,6 +548,11 @@ export class GameEngine implements EngineContext {
         return this.state.objectiveManager.getDisplayRows();
     }
 
+    /** True when the objective is revealed in the objectives panel and not yet completed. */
+    isBattleObjectiveActive(id: string): boolean {
+        return this.state.objectiveManager.isActive(id);
+    }
+
     getObjectiveTileMarkers() {
         return this.state.objectiveManager.getActiveTileMarkers();
     }
