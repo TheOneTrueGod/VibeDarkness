@@ -331,7 +331,7 @@ export function useLobbyLifecycle({
         setLastPollMessageId(null);
         setPollMessagesReady(false);
         const home =
-            isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
+            isAdmin ? campaignPathForTab('campaign_summary') : campaignPathForTab('join_mission');
         // typeof guard: DOM onClick handlers can leak a MouseEvent into this optional param
         const target = typeof characterId === 'string' && user?.id ? playerCharacterPath(user.id, characterId) : home;
         navigate(target, { replace: true });
@@ -371,7 +371,7 @@ export function useLobbyLifecycle({
         setLastPollMessageId(null);
         setPollMessagesReady(false);
 
-        const home = isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
+        const home = isAdmin ? campaignPathForTab('campaign_summary') : campaignPathForTab('join_mission');
         const target = characterId && user?.id ? playerCharacterPath(user.id, characterId) : home;
         navigate(target, {
             replace: true,

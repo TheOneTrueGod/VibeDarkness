@@ -661,7 +661,7 @@ export interface MissionBattleConfig {
     randomStoryPool?: boolean;
     /**
      * When true, non-admins cannot select or host this mission from the Mission Map
-     * or Mission Select. Admins can still select and start it.
+     * or the Campaign Summary. Admins can still select and start it.
      */
     disabled?: boolean;
 }

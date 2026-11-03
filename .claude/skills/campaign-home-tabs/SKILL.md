@@ -19,7 +19,7 @@ Use when:
 |------|---------|
 | `app/js/components/CampaignHomeScreen/` | Shell, tab registry, and one `CampaignHome*Tab.tsx` per tab. See that folder's `AGENTS.md`. |
 | `app/js/components/ability-tests/campaignTabPaths.ts` | Canonical `TabId` union, URL slugs, and path helpers. |
-| `app/js/components/minionBattlesHomePage/` | Panel implementations composed by the tab wrappers (Mission Select, Terrain Editor, etc.). |
+| `app/js/components/minionBattlesHomePage/` | Panel implementations composed by the tab wrappers (Campaign Summary, Terrain Editor, etc.). |
 
 Tab ids, labels, and visibility live on each `CampaignHome*Tab.tsx` export (registered in `campaignHomeTabs.ts`). Do not list them here — open those files.
 

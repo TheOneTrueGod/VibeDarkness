@@ -60,7 +60,7 @@ export function CampaignIndexRedirect() {
     const { user } = useUserData();
     // Non-admins land on their Characters page, which opens the most recent character's Mission Map.
     const to = isAdmin
-        ? campaignPathForTab('mission_select')
+        ? campaignPathForTab('campaign_summary')
         : user
           ? playerCharactersPath(user.id)
           : campaignPathForTab('join_mission');

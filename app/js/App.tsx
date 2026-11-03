@@ -73,7 +73,7 @@ function AppInner() {
     const [lobbyGameId, setLobbyGameId] = useState<string | null>(null);
     const [lobbyGameType, setLobbyGameType] = useState<string | null>(null);
     const [lobbyGameData, setLobbyGameData] = useState<Record<string, unknown> | null>(null);
-    /** Set when creating a lobby from campaign Mission Select; used to record mission results on victory. */
+    /** Set when creating a lobby from the admin Campaign Summary; used to record mission results on victory. */
     const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(null);
 
     /** Message cursor for GameSyncProvider polling (seed from getLobbyState.lastMessageId). */
@@ -294,7 +294,7 @@ function AppInner() {
                         (error instanceof Error ? error.message : 'Unknown error'),
                     'error'
                 );
-                navigate(isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission'), {
+                navigate(isAdmin ? campaignPathForTab('campaign_summary') : campaignPathForTab('join_mission'), {
                     replace: true,
                 });
             }

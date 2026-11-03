@@ -54,7 +54,6 @@ export {
     canPlayerSelectMission,
     canPlayerViewMission,
     MISSION_DISABLED_PLAYER_NOTICE,
-    MISSION_DISABLED_ADMIN_NOTICE,
     getAllMissionIdsInOrder,
     getCampaignChapters,
     isChapterUnlocked,
