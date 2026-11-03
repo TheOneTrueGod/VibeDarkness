@@ -75,6 +75,12 @@ export default function WorldMapView({ segments, selectedSegment, onOpenSegment 
     const zoom = WORLD_MAP_ZOOM_LEVELS[zoomId];
     const [center, setCenter] = useState(() =>
         selectedSegment ? { col: selectedSegment.gridCol, row: selectedSegment.gridRow } : WORLD_MAP_DEFAULT_CENTER);
+    // Follow the selected segment when it changes while the map is open (selector, late load).
+    const selectedCol = selectedSegment?.gridCol;
+    const selectedRow = selectedSegment?.gridRow;
+    useEffect(() => {
+        if (selectedCol != null && selectedRow != null) setCenter({ col: selectedCol, row: selectedRow });
+    }, [selectedCol, selectedRow]);
     const { tilesByCell, error } = useWorldMapTiles(segments, center);
 
     const areaRef = useRef<HTMLDivElement>(null);
@@ -83,10 +89,12 @@ export default function WorldMapView({ segments, selectedSegment, onOpenSegment 
         const el = areaRef.current;
         if (!el) return;
         const step = zoom.tilePx + zoom.gapPx;
-        const measure = () => setView({
-            cols: Math.max(1, Math.floor((el.clientWidth + zoom.gapPx) / step)),
-            rows: Math.max(1, Math.floor((el.clientHeight + zoom.gapPx) / step)),
-        });
+        // Odd counts so the center tile sits exactly in the middle of the area.
+        const fit = (px: number) => {
+            const n = Math.max(1, Math.floor((px + zoom.gapPx) / step));
+            return n % 2 === 0 ? n - 1 : n;
+        };
+        const measure = () => setView({ cols: fit(el.clientWidth), rows: fit(el.clientHeight) });
         measure();
         const observer = new ResizeObserver(measure);
         observer.observe(el);

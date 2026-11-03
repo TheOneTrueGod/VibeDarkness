@@ -14,6 +14,7 @@ import { findEnemies, applyAIMovementToUnit, buildResolvedTargets, distance, ROU
 import { getPetDef } from '../../pet_defs/petDef';
 import { getAbility } from '../../../../abilities/AbilityRegistry';
 import { canUseAbilityNow, meetsTagRequirements } from '../../../../abilities/abilityUses';
+import { hasCastTimeline } from '../../../../abilities/abilityTimings';
 import type { AbilityStatic } from '../../../../abilities/Ability';
 import { petStateOf } from '../../components/petComponent';
 
@@ -34,6 +35,7 @@ function pickPetEngageAbility(
     for (const abilityId of unit.abilities) {
         const ability = getAbility(abilityId);
         if (!ability?.aiSettings) continue;
+        if (!hasCastTimeline(ability, unit)) continue;
         if (!canUseAbilityNow(unit, ability)) continue;
         if (!meetsTagRequirements(unit, ability)) continue;
         const { minRange, maxRange } = ability.aiSettings;

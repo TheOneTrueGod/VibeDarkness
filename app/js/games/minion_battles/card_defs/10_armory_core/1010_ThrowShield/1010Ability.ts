@@ -5,11 +5,13 @@
  * Single use. Does not cost Charge. The trail is thicker than a bullet's, narrows to a point,
  * and takes the theme secondary.
  * The card picture is the tipped buckler. Flight and the token use the upright one.
+ * In flight it leaves fading copies of itself that drift backward (`thrownWeapon` afterimage preset).
  */
 
 import { defineThrownWeapon } from '../../../abilities/archetypes/defineThrownWeapon';
 import shieldThrowSvg from '../shieldThrow.svg?raw';
 import type { SpriteProjectileConfig } from '../../../game/projectiles/projectile_defs/types';
+import { SPRITE_AFTERIMAGE_PRESETS } from '../../../game/projectiles/projectile_defs/spriteAfterimage';
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
@@ -41,6 +43,7 @@ const THROW_SHIELD_SPRITE: SpriteProjectileConfig = {
     },
     loop: true,
     animations: [{ type: 'rotation', mode: 'constant', degreesPerSecond: THROWN_WEAPON_SPIN_DEGREES_PER_SECOND }],
+    afterimage: SPRITE_AFTERIMAGE_PRESETS.thrownWeapon,
     trail: { effectType: 'BulletTrail' },
 };
 

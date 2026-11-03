@@ -2,6 +2,7 @@ import { Assets, AnimatedSprite, Container, Texture } from 'pixi.js';
 import type { IProjectileDef, SpriteFramesDef, SpriteProjectileConfig } from './types';
 import type { Projectile } from '../Projectile';
 import { stepTrailBlob, type TrailBlobState } from './directionalOrb';
+import { resolveSpriteRotation } from './spriteAfterimage';
 
 /** Per-visual blob bookkeeping (render-only, never serialized or synced). */
 interface BlobRuntime extends TrailBlobState {
@@ -132,19 +133,20 @@ function ensureSprite(container: Container, config: SpriteProjectileConfig): voi
 }
 
 function applyAnimations(visual: Container, proj: Projectile, config: SpriteProjectileConfig, gameTime: number): void {
-    visual.rotation = 0;
     visual.scale.set(1);
     visual.alpha = 1;
-    if (!config.animations) return;
-    for (const anim of config.animations) {
-        if (anim.type === 'rotation') {
-            if (anim.mode === 'velocity-facing') {
-                visual.rotation = Math.atan2(proj.velocityY, proj.velocityX) + Math.PI / 2;
-            } else if (anim.mode === 'constant') {
-                visual.rotation = (gameTime * anim.degreesPerSecond * Math.PI / 180) % (Math.PI * 2);
-            }
-        }
+    visual.rotation = resolveSpriteRotation(proj, config, gameTime);
+}
+
+/** First frame of a sprite whose textures are loaded (starts loading them otherwise). Used by sprite afterimages. */
+export function getLoadedSpriteTexture(sprite: SpriteFramesDef): Texture | null {
+    const cacheKey = getCacheKey(sprite);
+    const entry = textureCache.get(cacheKey);
+    if (!entry) {
+        void loadTextures(sprite, cacheKey);
+        return null;
     }
+    return Array.isArray(entry) ? (entry[0] ?? null) : null;
 }
 
 export const spriteProjectileDef: IProjectileDef = {

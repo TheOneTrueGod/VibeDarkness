@@ -9,16 +9,18 @@ const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
 const T = TerrainType.ThickGrass;
 const D = TerrainType.Dirt;
+const W = TerrainType.Water;
+const SW = TerrainType.ShallowWater;
 
 export const MAP_SEGMENT_50_51_SOUTH_GATE: TerrainType[][] = [
     [R, R, R, R, R, R, R, R, _, D, D, _, R, R, R, R, R, R, R, R, R, R],
-    [_, _, _, _, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R, R],
-    [_, _, _, _, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R, R],
-    [_, _, _, _, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R, R],
-    [_, _, _, _, _, _, _, _, _, D, D, _, _, _, _, R, R, R, R, R, R, R],
-    [_, _, T, T, _, _, _, _, D, D, D, _, _, T, T, _, R, R, R, R, R, R],
-    [_, _, T, T, T, _, _, D, D, D, _, _, _, T, T, _, R, R, R, R, R, R],
-    [_, _, _, T, T, _, _, D, D, _, _, _, _, _, _, _, _, R, R, R, R, R],
+    [SW, SW, SW, _, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R, R],
+    [W, W, SW, SW, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R, R],
+    [W, W, W, SW, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R, R],
+    [W, W, SW, SW, _, _, _, _, _, D, D, _, _, _, _, R, R, R, R, R, R, R],
+    [W, W, SW, T, _, _, _, _, D, D, D, _, _, T, T, _, R, R, R, R, R, R],
+    [W, SW, SW, T, T, _, _, D, D, D, _, _, _, T, T, _, R, R, R, R, R, R],
+    [SW, _, _, T, T, _, _, D, D, _, _, _, _, _, _, _, _, R, R, R, R, R],
     [_, _, _, _, _, _, _, D, D, _, _, _, _, _, T, T, T, R, R, R, R, R],
     [_, R, R, _, _, _, D, D, D, _, _, _, _, _, T, T, T, R, R, R, R, R],
     [_, R, R, _, _, D, D, D, D, D, _, _, _, _, _, _, T, R, R, R, R, R],
@@ -26,11 +28,11 @@ export const MAP_SEGMENT_50_51_SOUTH_GATE: TerrainType[][] = [
     [D, D, D, D, D, D, D, D, D, D, D, _, _, _, _, _, _, R, R, R, R, R],
     [D, D, D, D, D, _, _, _, _, D, D, _, _, _, _, _, _, R, R, R, R, R],
     [_, _, _, _, _, _, R, R, _, D, D, _, _, T, _, _, _, R, R, R, R, R],
-    [_, _, _, _, _, _, R, R, _, D, D, _, _, T, T, T, _, R, R, R, R, R],
-    [_, _, _, T, T, _, _, _, _, D, D, _, _, T, T, T, _, R, R, R, R, R],
-    [_, _, T, T, T, _, _, _, _, D, D, _, _, _, _, _, _, R, R, R, R, R],
-    [_, _, T, T, _, _, _, _, _, D, D, _, _, _, _, _, T, R, R, R, R, R],
-    [_, _, _, _, _, _, _, _, _, D, D, _, _, _, _, _, T, R, R, R, R, R],
+    [_, _, _, _, _, _, R, R, _, D, D, _, _, SW, SW, SW, SW, R, R, R, R, R],
+    [_, _, _, T, T, _, _, _, _, D, D, _, SW, SW, W, W, SW, R, R, R, R, R],
+    [_, _, T, T, T, _, _, _, _, D, D, _, SW, W, W, W, W, R, R, R, R, R],
+    [_, _, T, T, _, _, _, _, _, D, D, _, SW, SW, W, SW, W, R, R, R, R, R],
+    [_, _, _, _, _, _, _, _, _, D, D, _, _, SW, SW, SW, SW, R, R, R, R, R],
     [_, _, _, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _, R, R, R, R],
     [R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R, R],
 ];

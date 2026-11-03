@@ -16,11 +16,19 @@ interface QueueKey {
 
 interface QueueBucket {
     key: QueueKey;
-    entries: UserStateEntry[];
+    /** Entries pre-serialized to JSON so the batch's byte size is known before sending. */
+    entries: string[];
+    bytes: number;
     debounceTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const FLUSH_SIZE = 20;
+/**
+ * Flush once a batch passes this many bytes of JSON. Each entry carries a full serialized game state
+ * (hundreds of KB on big maps); PHP's json_decode of a 20-entry batch blows its 128MB memory limit
+ * and the request 500s. A single oversized entry is still sent on its own.
+ */
+const FLUSH_BYTES = 2 * 1024 * 1024;
 const DEBOUNCE_MS = 5_000;
 
 const buckets = new Map<string, QueueBucket>();
@@ -39,6 +47,7 @@ async function flush(bucket: QueueBucket): Promise<void> {
     }
     const { key, entries } = bucket;
     bucket.entries = [];
+    bucket.bytes = 0;
 
     const url = `${key.baseUrl}/api/lobbies/${key.lobbyId}/user-state/${key.userId}`;
     try {
@@ -46,7 +55,7 @@ async function flush(bucket: QueueBucket): Promise<void> {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ playerId: key.playerId, entries }),
+            body: `{"playerId":${JSON.stringify(key.playerId)},"entries":[${entries.join(',')}]}`,
         });
     } catch {
         // Silently swallow — user state logs are best-effort debug data.
@@ -73,12 +82,17 @@ export function enqueueUserState(
     const k = bucketKey(lobbyId, userId);
     let bucket = buckets.get(k);
     if (!bucket) {
-        bucket = { key: { lobbyId, userId, playerId, baseUrl }, entries: [], debounceTimer: null };
+        bucket = { key: { lobbyId, userId, playerId, baseUrl }, entries: [], bytes: 0, debounceTimer: null };
         buckets.set(k, bucket);
     }
-    bucket.entries.push(entry);
+    const encoded = JSON.stringify(entry);
+    if (bucket.entries.length > 0 && bucket.bytes + encoded.length > FLUSH_BYTES) {
+        void flush(bucket);
+    }
+    bucket.entries.push(encoded);
+    bucket.bytes += encoded.length;
 
-    if (bucket.entries.length >= FLUSH_SIZE) {
+    if (bucket.entries.length >= FLUSH_SIZE || bucket.bytes >= FLUSH_BYTES) {
         void flush(bucket);
     } else {
         scheduleDebounce(bucket);

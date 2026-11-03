@@ -8,6 +8,7 @@ import {
     EARTH_CORE_STONE_HEALTH,
 } from '../card_defs/05_earth_core/earthCoreConstants';
 
+import { isEffectBlockedOn } from './terrainEffects/terrainEffectDefs';
 import type { TeamId } from './teams';
 import type { Deployable, DeployableTag } from './deployables/Deployable';
 import type { DeployableProvider } from './deployables/DeployableRegistry';
@@ -184,6 +185,13 @@ export class TerrainLayerManager implements DeployableProvider {
         air: new Map(),
     };
 
+    /** Effective terrain lookup (bedrock + floor), wired by `TerrainManager.setTerrainLayers`. */
+    private terrainTypeAt: ((col: number, row: number) => TerrainType) | null = null;
+
+    setTerrainTypeResolver(resolver: ((col: number, row: number) => TerrainType) | null): void {
+        this.terrainTypeAt = resolver;
+    }
+
     private getCoverageMap(layer: TerrainLayerName): Map<string, Set<string>> | null {
         if (layer === 'ground') return this.coverage.ground;
         if (layer === 'air') return this.coverage.air;
@@ -247,7 +255,17 @@ export class TerrainLayerManager implements DeployableProvider {
      * (see effectTakesPrecedence).
      */
     add(record: TerrainEffectRecord): void {
-        const cells = rasterizeArea(record.area);
+        let cells = rasterizeArea(record.area);
+        // Effects with `blockedOn` terrain never claim those cells (e.g. thorns on rock or water).
+        const terrainTypeAt = this.terrainTypeAt;
+        if (terrainTypeAt && record.layer !== 'floor') {
+            const allowed = cells.filter(({ col, row }) => !isEffectBlockedOn(record.effectType, terrainTypeAt(col, row)));
+            if (allowed.length === 0) return;
+            if (allowed.length < cells.length) {
+                cells = allowed;
+                record.area = { type: 'cells', cells: allowed.map((c) => ({ ...c })) };
+            }
+        }
         const layerMap = this.getCellMap(record.layer);
         const coverageMap = this.getCoverageMap(record.layer);
         for (const { col, row } of cells) {
@@ -357,6 +375,14 @@ export class TerrainLayerManager implements DeployableProvider {
         return cleared;
     }
 
+    /**
+     * Wipe every ground/air effect whose def is `blockedOn` `terrainType` from the cell. Call after
+     * the cell's floor changes (rock raised, water appears).
+     */
+    clearBlockedEffects(col: number, row: number, terrainType: TerrainType): ClearedTerrainEffect[] {
+        return this.clearCells([{ col, row }], (record) => isEffectBlockedOn(record.effectType, terrainType));
+    }
+
     /** Remove one cell from a ground/air record, removing the whole record if it was its last cell. */
     private carveCell(record: TerrainEffectRecord, col: number, row: number): void {
         const remaining = rasterizeArea(record.area).filter((c) => c.col !== col || c.row !== row);
@@ -405,6 +431,16 @@ export class TerrainLayerManager implements DeployableProvider {
         for (const id of toRemove) this.remove(id);
     }
 
+    /**
+     * Push an effect's expiry out to `expiresAtGameTime` (never pulls it in; permanent effects stay
+     * permanent). Used to refresh a lingering effect instead of stacking a duplicate record.
+     */
+    extendExpiry(id: string, expiresAtGameTime: number): void {
+        const record = this.effectRegistry.get(id);
+        if (!record || record.expiresAtGameTime === undefined) return;
+        if (expiresAtGameTime > record.expiresAtGameTime) record.expiresAtGameTime = expiresAtGameTime;
+    }
+
     /** Mutate effect params in-place. Does not change cell ownership. */
     updateEffectParams(id: string, newParams: Partial<Record<string, unknown>>): void {
         const record = this.effectRegistry.get(id);
@@ -424,6 +460,11 @@ export class TerrainLayerManager implements DeployableProvider {
     getAirEffectAt(col: number, row: number): TerrainEffectRecord | null {
         const id = this.airCells.get(cellKey(col, row));
         return id !== undefined ? (this.effectRegistry.get(id) ?? null) : null;
+    }
+
+    /** The effect that owns the cell on a ground/air layer (`getGroundEffectAt` / `getAirEffectAt`). */
+    getEffectAt(layer: 'ground' | 'air', col: number, row: number): TerrainEffectRecord | null {
+        return layer === 'ground' ? this.getGroundEffectAt(col, row) : this.getAirEffectAt(col, row);
     }
 
     /**

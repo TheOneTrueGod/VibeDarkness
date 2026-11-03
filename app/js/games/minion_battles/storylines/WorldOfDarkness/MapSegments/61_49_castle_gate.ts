@@ -11,6 +11,7 @@
 
 import { TerrainType } from '../../../terrain/TerrainType';
 import type { MapSegmentNetwork } from '../../../terrain/networkSchema';
+import type { MapSegmentZone } from '../../../terrain/segmentSchema';
 
 const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
@@ -59,6 +60,14 @@ export const CASTLE_GATE = { col: 10, row: 10 } as const;
 export const GATE_YARD_WEST = { col: 4, row: 6 } as const;
 /** East gate yard (mirror of the west): guard/spawn spot. */
 export const GATE_YARD_EAST = { col: 17, row: 6 } as const;
+
+/** Outside the castle: the whole grass approach south of the moat (rows 15-21). */
+export const CASTLE_APPROACH_ZONE: MapSegmentZone = {
+    id: 'castle approach',
+    shape: 'box',
+    topLeft: { col: 0, row: 15 },
+    bottomRight: { col: 21, row: 21 },
+};
 
 /** Nodes either side of the gate, so network AI funnels through the chokepoint. Edge back to 61_50 declared here. */
 export const CASTLE_GATE_NETWORK: MapSegmentNetwork = {

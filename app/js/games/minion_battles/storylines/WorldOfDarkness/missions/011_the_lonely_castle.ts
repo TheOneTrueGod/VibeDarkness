@@ -1,14 +1,24 @@
 /**
- * The Lonely Castle — Chapter 3 opener. The party leaves the east cave (10_10 home slot) and follows
+ * The Lonely Castle — Chapter 3 opener. The party leaves the east cave (59_50 home slot) and follows
  * the road east through 60_50 and 61_50, then north to the castle gate (61_49) and courtyard (61_48).
  *
  * Objective chain, with the level events tied to it through objective gates:
+ * 0. Trigger `left_cave` — the first player unit onto the cave road gets the cave-exit ambush plus a
+ *    darkness wave around it, and starts the per-round darkness spawn (nothing spawns while the
+ *    party stays in the cave).
  * 1. `reach_bridge` — stand on the moat bridge. Until then, darkness spawns every round.
- * 2. `destroy_spawners` — revealed by (1). On (1), two swarm nests appear in the courtyard and a
- *    lighter darkness spawn takes over. Destroying both nests wins.
+ * 2. `destroy_spawners` — revealed by (1). On (1), two swarm nests appear in the courtyard, a
+ *    Thornbinder rises once behind the party on the approach south of the moat, and a
+ *    lighter darkness spawn takes over, rising outside the castle on the approach south of the moat.
+ *    Destroying both nests wins.
+ *
+ * Husks — the castle's former residents — are there from the start, still walking their old rounds
+ * in the gate yard and courtyard (`sentryPatrol` AI). They ignore the party until hurt or until
+ * someone comes close in plain sight, then wake every Husk nearby.
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
+import type { TriggerDef } from '../../../game/triggers/triggerTypes';
 import { ObjectiveType } from '../../objectiveTypes';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
 import { HOME_CAMPFIRE_LIGHT_AMOUNT, HOME_CAMPFIRE_LIGHT_RADIUS, HOME_CAMPFIRE_MAX_HP } from '../../homeBase';
@@ -23,21 +33,25 @@ import type {
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { ROUND_DURATION } from '../../../game/gameConstants';
 import { DarknessLevel } from '../../../game/darknessLevels';
-import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
+import { ENEMY_DARK_WOLF, ENEMY_HUSK, ENEMY_SWARMLING, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
 import { SLIME } from '../../../game/units/dark_animals/slime';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
 import { scatterPositionsInCircle } from '../../missionSpawnHelpers';
 import { WOD_CH3_MAP_X_COL0, WOD_CH3_MAP_Y_ROW0 } from '../chapter3Map';
 import { CRYSTAL_TILE_DEFAULTS } from '../MapSegments/50_50_crystal_cave';
-import { EAST_CAVE_SEGMENT_ID } from '../MapSegments/10_10_east_cave';
+import { EAST_CAVE_SEGMENT_ID } from '../MapSegments/59_50_east_cave';
 import {
-    CAVE_MOUTH_APRON,
     CAVE_ROAD_SEGMENT_ID,
     NORTH_OUTCROP,
     SOUTH_THICKET,
 } from '../MapSegments/60_50_cave_road';
 import { ROAD_BEND_SEGMENT_ID } from '../MapSegments/61_50_road_bend';
-import { CASTLE_GATE_SEGMENT_ID, MOAT_BRIDGE } from '../MapSegments/61_49_castle_gate';
+import {
+    CASTLE_APPROACH_ZONE,
+    CASTLE_GATE_SEGMENT_ID,
+    GATE_YARD_WEST,
+    MOAT_BRIDGE,
+} from '../MapSegments/61_49_castle_gate';
 import {
     CASTLE_COURTYARD_SEGMENT_ID,
     COURTYARD_NORTHEAST,
@@ -67,7 +81,6 @@ function cellCentre(cell: { col: number; row: number }): { x: number; y: number 
     return { x: cell.col * CELL_SIZE + CELL_SIZE / 2, y: cell.row * CELL_SIZE + CELL_SIZE / 2 };
 }
 
-const APRON = cellCentre(onMission(1, 2, CAVE_MOUTH_APRON));
 const OUTCROP = cellCentre(onMission(1, 2, NORTH_OUTCROP));
 const THICKET = cellCentre(onMission(1, 2, SOUTH_THICKET));
 /** The moat bridge POI and the tile east of it: the threshold the party has to reach. */
@@ -76,12 +89,12 @@ export const NORTHWEST_NEST_CELL = onMission(2, 0, COURTYARD_NORTHWEST);
 export const NORTHEAST_NEST_CELL = onMission(2, 0, COURTYARD_NORTHEAST);
 
 // --- Tuning --------------------------------------------------------------
-export const OPENING_APRON_WOLVES = 2;
-export const OPENING_APRON_SWARMLINGS = 2;
-export const OPENING_APRON_SLIMES = 1;
+/** The ambush that rises out of the darkness around the first unit to leave the cave. */
+export const CAVE_EXIT_AMBUSH_WOLVES = 2;
+export const CAVE_EXIT_AMBUSH_SWARMLINGS = 2;
+export const CAVE_EXIT_AMBUSH_SLIMES = 1;
 export const OPENING_THICKET_WOLVES = 2;
-/** Tiles around the apron / thicket POIs that the opening groups scatter across (kept off rock and water). */
-const APRON_SCATTER_RADIUS = 2;
+/** Tiles around the thicket POI that the opening wolves scatter across (kept off rock and water). */
 const THICKET_SCATTER_RADIUS = 1.2;
 /** One more wolf from the south thicket on each of these rounds. */
 export const THICKET_REINFORCEMENT_ROUNDS = [2, 3, 4] as const;
@@ -90,15 +103,44 @@ export const NEST_MAX_SWARMLINGS = 8;
 export const NEST_SPAWN_INTERVAL_SEC = ROUND_DURATION / 2;
 export const NEST_SPAWN_COUNT = 2;
 
+/** The cave road segment (layout slot 1,2): stepping onto it means the party has left the cave. */
+export const CAVE_ROAD_REGION = { col: SEGMENT_SIZE, row: SEGMENT_SIZE * 2, width: SEGMENT_SIZE, height: SEGMENT_SIZE } as const;
+/** Darkness wave on leaving the cave lands within this many tiles of the unit that left. */
+export const LEFT_CAVE_SPAWN_RADIUS_TILES = 8;
+export const TRIGGER_LEFT_CAVE = 'left_cave';
+
+/** Layout slots of the castle segments. */
+const GATE_SLOT = { tileCol: 2, tileRow: 1 } as const;
+const COURTYARD_SLOT = { tileCol: 2, tileRow: 0 } as const;
+
+/** A Husk's patrol: it spawns on `from` and paces back and forth to `to` (segment-local cells). */
+export interface HuskRoute {
+    slot: { tileCol: number; tileRow: number };
+    from: { col: number; row: number };
+    to: { col: number; row: number };
+}
+
+/** Where the castle's Husks walk their rounds. One Husk per route. */
+export const HUSK_ROUTES: readonly HuskRoute[] = [
+    // Gate yard: one paces across the inner mouth of the gate, one paces the west yard.
+    { slot: GATE_SLOT, from: { col: 6, row: 5 }, to: { col: 15, row: 5 } },
+    { slot: GATE_SLOT, from: { col: 2, row: 8 }, to: GATE_YARD_WEST },
+    // Courtyard: one down each aisle beside the fountain (starting at opposite ends), one along the keep wall.
+    { slot: COURTYARD_SLOT, from: { col: 7, row: 19 }, to: { col: 7, row: 4 } },
+    { slot: COURTYARD_SLOT, from: { col: 14, row: 4 }, to: { col: 14, row: 19 } },
+    { slot: COURTYARD_SLOT, from: { col: 4, row: 5 }, to: { col: 17, row: 5 } },
+];
+
 export const OBJECTIVE_REACH_BRIDGE = 'reach_bridge';
 export const OBJECTIVE_DESTROY_SPAWNERS = 'destroy_spawners';
 
-function darknessSpawn(template: EnemySpawnDef, count: number): SpawnWaveEntry {
+function darknessSpawn(template: EnemySpawnDef, count: number, spawnZoneId?: string): SpawnWaveEntry {
     return {
         characterId: template.characterId,
         name: template.name,
         spawnBehaviour: 'anywhere',
         inDarkness: true,
+        ...(spawnZoneId != null ? { spawnZoneId } : {}),
         spawnCount: count,
         unitAITreeId: template.unitAITreeId,
     };
@@ -134,6 +176,44 @@ function swarmNest(cell: { col: number; row: number }): EnemySpawnDef {
     };
 }
 
+/** Waits in the dark beyond the cave mouth; spawns when the party steps out. */
+function caveExitAmbush(): SpawnWaveEntry[] {
+    return [
+        darknessSpawn(ENEMY_DARK_WOLF, CAVE_EXIT_AMBUSH_WOLVES),
+        darknessSpawn(ENEMY_SWARMLING, CAVE_EXIT_AMBUSH_SWARMLINGS),
+        darknessSpawn(SLIME, CAVE_EXIT_AMBUSH_SLIMES),
+    ];
+}
+
+/** The per-round darkness wave while the party is on the road. */
+function roadDarknessWave(): SpawnWaveEntry[] {
+    return [
+        darknessSpawn(ENEMY_DARK_WOLF, 2),
+        darknessSpawn(ENEMY_SWARMLING, 1),
+        darknessSpawn(SLIME, 1),
+    ];
+}
+
+export const THE_LONELY_CASTLE_TRIGGERS: TriggerDef[] = [
+    {
+        id: TRIGGER_LEFT_CAVE,
+        events: [
+            {
+                type: 'unitEntersRegion',
+                region: { type: 'rect', ...CAVE_ROAD_REGION },
+                unit: { owner: 'anyPlayer' },
+            },
+        ],
+        actions: [
+            {
+                type: 'spawnWave',
+                spawns: [...caveExitAmbush(), ...roadDarknessWave()],
+                nearTriggeringUnit: { radiusTiles: LEFT_CAVE_SPAWN_RADIUS_TILES },
+            },
+        ],
+    },
+];
+
 export const THE_LONELY_CASTLE_LEVEL_EVENTS: LevelEvent[] = [
     // South thicket keeps feeding wolves for the opening rounds.
     ...THICKET_REINFORCEMENT_ROUNDS.map((atRound): LevelEvent => ({
@@ -141,32 +221,33 @@ export const THE_LONELY_CASTLE_LEVEL_EVENTS: LevelEvent[] = [
         trigger: { atRound },
         spawns: [thicketWolf()],
     })),
-    // Every round until the party reaches the bridge.
+    // Every round from leaving the cave until the party reaches the bridge.
     {
         type: 'continuousSpawn',
-        trigger: { intervalRounds: 1, startRound: 2 },
+        trigger: { intervalRounds: 1 },
+        afterTrigger: TRIGGER_LEFT_CAVE,
         untilObjective: OBJECTIVE_REACH_BRIDGE,
-        spawns: [
-            darknessSpawn(ENEMY_DARK_WOLF, 2),
-            darknessSpawn(ENEMY_SWARMLING, 1),
-            darknessSpawn(SLIME, 1),
-        ],
+        spawns: roadDarknessWave(),
     },
     // Reaching the bridge wakes the courtyard: two spawners, one in each northern corner.
+    // Once only, a Thornbinder rises behind the party, outside the castle south of the moat.
     {
         type: 'spawnWave',
         trigger: { atRound: 1 },
         afterObjective: OBJECTIVE_REACH_BRIDGE,
-        spawns: [],
+        spawns: [darknessSpawn(ENEMY_THORNBINDER, 1, CASTLE_APPROACH_ZONE.id)],
         extraEnemySpawns: [swarmNest(NORTHWEST_NEST_CELL), swarmNest(NORTHEAST_NEST_CELL)],
         emittedMessage: 'Something stirs in the courtyard beyond the gate.',
     },
-    // From then on, a lighter trickle out of the darkness.
+    // From then on, a lighter trickle out of the darkness outside the castle, south of the moat.
     {
         type: 'continuousSpawn',
         trigger: { intervalRounds: 1 },
         afterObjective: OBJECTIVE_REACH_BRIDGE,
-        spawns: [darknessSpawn(SLIME, 1), darknessSpawn(ENEMY_DARK_WOLF, 2)],
+        spawns: [
+            darknessSpawn(SLIME, 1, CASTLE_APPROACH_ZONE.id),
+            darknessSpawn(ENEMY_DARK_WOLF, 2, CASTLE_APPROACH_ZONE.id),
+        ],
     },
     {
         type: 'victoryCheck',
@@ -198,26 +279,25 @@ export const THE_LONELY_CASTLE_OBJECTIVES: BattleObjectiveDef[] = [
     },
 ];
 
+function castleHusks(): EnemySpawnDef[] {
+    return HUSK_ROUTES.map((route) => ({
+        ...ENEMY_HUSK,
+        position: cellCentre(onMission(route.slot.tileCol, route.slot.tileRow, route.from)),
+        unitAITreeId: 'sentryPatrol',
+        sentryPatrol: { waypoints: [cellCentre(onMission(route.slot.tileCol, route.slot.tileRow, route.to))] },
+    }));
+}
+
 function openingEnemies(engine: GameEngine): EnemySpawnDef[] {
-    const apron = scatterPositionsInCircle(
-        engine,
-        { ...APRON, radius: APRON_SCATTER_RADIUS },
-        OPENING_APRON_WOLVES + OPENING_APRON_SWARMLINGS + OPENING_APRON_SLIMES,
-    );
     const thicket = scatterPositionsInCircle(
         engine,
         { ...THICKET, radius: THICKET_SCATTER_RADIUS },
         OPENING_THICKET_WOLVES,
     );
-    const apronTemplates = [
-        ...Array<EnemySpawnDef>(OPENING_APRON_WOLVES).fill(ENEMY_DARK_WOLF),
-        ...Array<EnemySpawnDef>(OPENING_APRON_SWARMLINGS).fill(ENEMY_SWARMLING),
-        ...Array<EnemySpawnDef>(OPENING_APRON_SLIMES).fill(SLIME),
-    ];
     return [
-        ...apronTemplates.map((template, i) => ({ ...template, position: apron[i]! })),
         { ...ENEMY_THORNBINDER, position: OUTCROP },
         ...thicket.map((position) => ({ ...ENEMY_DARK_WOLF, position })),
+        ...castleHusks(),
     ];
 }
 
@@ -271,6 +351,7 @@ export class TheLonelyCastleMission extends BaseMissionDef {
     enemies: EnemySpawnDef[] = [];
     battleObjectives = THE_LONELY_CASTLE_OBJECTIVES;
     levelEvents: LevelEvent[] = THE_LONELY_CASTLE_LEVEL_EVENTS;
+    triggers: TriggerDef[] = THE_LONELY_CASTLE_TRIGGERS;
     specialTiles: SpecialTilePlacement[] = [];
 
     lightLevelEnabled = true;

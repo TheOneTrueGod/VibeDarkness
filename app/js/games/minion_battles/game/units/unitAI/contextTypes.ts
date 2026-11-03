@@ -19,6 +19,7 @@ import type { HuntAITreeContext } from './hunt/context';
 import type { PetAITreeContext } from './pet/context';
 import type { SwarmlingNetworkAITreeContext } from './swarmlingNetwork/context';
 import type { NetworkHuntAITreeContext } from './networkHunt/context';
+import type { SentryPatrolAITreeContext } from './sentryPatrol/context';
 
 /** Maps tree IDs to their typed context shape. Extend when adding a new tree. */
 export interface AITreeContextMap {
@@ -34,6 +35,7 @@ export interface AITreeContextMap {
     pet: PetAITreeContext;
     swarmlingNetwork: SwarmlingNetworkAITreeContext;
     networkHunt: NetworkHuntAITreeContext;
+    sentryPatrol: SentryPatrolAITreeContext;
 }
 
 export type AITreeId = keyof AITreeContextMap;

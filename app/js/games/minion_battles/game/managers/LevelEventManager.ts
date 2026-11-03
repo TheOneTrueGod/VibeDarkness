@@ -3,14 +3,11 @@
  * continuous spawns, victory/defeat checks, and related callbacks.
  */
 
-import { UnitTag } from '../units/unitTag';
 import type { EngineContext } from '../EngineContext';
-import { isTileInNearPositionArea } from '../../storylines/nearPositionArea';
 import type {
     LevelEvent,
     LevelEventSpawnWave,
     LevelEventVictoryCheck,
-    VictoryCondition,
     LevelEventContinuousSpawn,
     LevelEventProximitySpawn,
     LevelEventConvertSpecialTile,
@@ -22,6 +19,9 @@ import { getBaseSpawnDefs, resolveEnemySpawnStats } from '../units/unit_defs/uni
 import { spawnUnit } from '../units/spawning/spawnUnit';
 import { enemySpawnDefToSpawnDefinition, spawnWaveEntryToSpawnDefinition } from '../units/spawning/adapters';
 import { getEnemyHealthMultiplier } from '../../constants/enemyConstants';
+import { TriggerManager, type SerializedTriggerState, type TriggerActionHost } from '../triggers/TriggerManager';
+import type { TriggerDef } from '../triggers/triggerTypes';
+import { evaluateVictoryCondition } from '../triggers/missionConditions';
 
 /** Base spawn templates come from the unit defs (`UnitDefEntry.baseSpawn`). */
 const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = getBaseSpawnDefs();
@@ -51,9 +51,29 @@ export class LevelEventManager {
     private lastMissionResult: string | null = null;
 
     private ctx: EngineContext;
+    /** Mission triggers (event / condition / action); runs before level events each tick. */
+    readonly triggerManager: TriggerManager;
+    private readonly triggerHost: TriggerActionHost;
 
     constructor(ctx: EngineContext) {
         this.ctx = ctx;
+        this.triggerManager = new TriggerManager(ctx);
+        this.triggerHost = {
+            spawnWave: (spawns, extraEnemySpawns) => {
+                this.executeSpawnWaveSpawns(spawns);
+                this.executeEnemySpawnDefs(extraEnemySpawns);
+            },
+            emitMessage: (text, npcId) => this.emitMessage(text, npcId),
+            revealObjectives: (ids) => this.ctx.revealBattleObjectives(ids),
+        };
+    }
+
+    registerTriggers(triggers: TriggerDef[]): void {
+        this.triggerManager.registerTriggers(triggers);
+    }
+
+    setTriggers(triggers: TriggerDef[]): void {
+        this.triggerManager.setTriggers(triggers);
     }
 
     /** True when the game has ended (victory or defeat). */
@@ -110,15 +130,18 @@ export class LevelEventManager {
         this.onEmitMessage?.(text, npcId);
     }
 
-    /** Objective gates (`afterObjective` / `untilObjective`): false while the event must not run. */
+    /** Objective and trigger gates (`after*` / `until*`): false while the event must not run. */
     private isObjectiveGateOpen(evt: LevelEvent): boolean {
         if (evt.afterObjective && !this.ctx.isObjectiveCompleted(evt.afterObjective)) return false;
         if (evt.untilObjective && this.ctx.isObjectiveCompleted(evt.untilObjective)) return false;
+        if (evt.afterTrigger && !this.triggerManager.hasFired(evt.afterTrigger)) return false;
+        if (evt.untilTrigger && this.triggerManager.hasFired(evt.untilTrigger)) return false;
         return true;
     }
 
     processLevelEvents(): void {
         if (this.ctx.storyPauseActive) return;
+        this.triggerManager.process(this.triggerHost);
         for (let i = 0; i < this.levelEvents.length; i++) {
             const evt = this.levelEvents[i];
             if (!this.isObjectiveGateOpen(evt)) continue;
@@ -285,8 +308,8 @@ export class LevelEventManager {
         }
 
         let lastSpawned = this.continuousSpawnLastSpawnedAt[i];
-        if (lastSpawned === undefined && evt.afterObjective) {
-            // Gated: the first interval starts when the objective gate opens.
+        if (lastSpawned === undefined && (evt.afterObjective || evt.afterTrigger)) {
+            // Gated: the first interval starts when the objective / trigger gate opens.
             this.continuousSpawnLastSpawnedAt[i] = this.ctx.gameTime;
             return;
         }
@@ -361,7 +384,7 @@ export class LevelEventManager {
             if (evt.emittedMessage) this.emitMessage(evt.emittedMessage, evt.emittedByNpcId);
         }
 
-        const allPass = evt.conditions.every((cond) => this.evaluateVictoryCondition(cond));
+        const allPass = evt.conditions.every((cond) => evaluateVictoryCondition(this.ctx, cond));
         if (allPass) {
             this.victoryFired = true;
             this.victorious = true;
@@ -369,44 +392,6 @@ export class LevelEventManager {
             this.lastMissionResult = missionResult;
             this.onVictory?.(missionResult);
         }
-    }
-
-    private evaluateVictoryCondition(cond: VictoryCondition): boolean {
-        if (cond.type === 'eliminateAllEnemies') {
-            const hasEnemies = this.ctx.units.some(
-                (u) => u.isAlive() && u.teamId === 'enemy' && !u.tags.includes(UnitTag.Clone),
-            );
-            return !hasEnemies;
-        }
-        if (cond.type === 'allUnitsNearPosition') {
-            const alivePlayers = this.ctx.units.filter((u) => u.isPlayerControlled() && u.isAlive());
-            if (alivePlayers.length === 0) return false;
-            const grid = this.ctx.terrainManager?.grid;
-            if (!grid) return false;
-            return alivePlayers.every((u) => {
-                const { col: uc, row: ur } = grid.worldToGrid(u.x, u.y);
-                return isTileInNearPositionArea(cond, uc, ur);
-            });
-        }
-        if (cond.type === 'unitDead') {
-            const hasTargetAlive = this.ctx.units.some(
-                (u) => u.isAlive() && u.characterId === cond.unitCharacterId,
-            );
-            return !hasTargetAlive;
-        }
-        if (cond.type === 'atLeastRound') {
-            return this.ctx.roundNumber >= cond.round;
-        }
-        if (cond.type === 'objectiveCompleted') {
-            return this.ctx.isObjectiveCompleted(cond.objectiveId);
-        }
-        if (cond.type === 'aliveUnitCount') {
-            const count = this.ctx.units.filter(
-                (u) => u.isAlive() && u.characterId === cond.characterId,
-            ).length;
-            return count >= cond.minCount;
-        }
-        return false;
     }
 
     /** If all hero-team player units are dead, fire defeat once and pause. */
@@ -428,8 +413,10 @@ export class LevelEventManager {
         firedEventIndices: number[];
         victoryCheckFirstEmitDone: number[];
         continuousSpawnLastSpawnedAt: Record<string, number>;
+        triggerState: SerializedTriggerState;
     } {
         return {
+            triggerState: this.triggerManager.toJSON(),
             firedEventIndices: [...this.firedEventIndices],
             victoryCheckFirstEmitDone: [...this.victoryCheckFirstEmitDone],
             continuousSpawnLastSpawnedAt: Object.fromEntries(
@@ -442,7 +429,9 @@ export class LevelEventManager {
         firedEventIndices?: number[];
         victoryCheckFirstEmitDone?: number[];
         continuousSpawnLastSpawnedAt?: Record<string, number>;
+        triggerState?: SerializedTriggerState;
     }): void {
+        this.triggerManager.restoreFromJSON(data.triggerState);
         if (Array.isArray(data.firedEventIndices)) {
             this.firedEventIndices = new Set(data.firedEventIndices);
         }

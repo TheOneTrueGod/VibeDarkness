@@ -150,6 +150,11 @@
   "firedEventIndices": [],
   "victoryCheckFirstEmitDone": [],
   "continuousSpawnLastSpawnedAt": {},
+  "triggerState": {
+    "fireCounts": {},
+    "enabledOverrides": {},
+    "insideUnitIds": {}
+  },
   "playerResearchTreesByPlayer": {},
   "storyPauseActive": false,
   "storyPauseReason": null,

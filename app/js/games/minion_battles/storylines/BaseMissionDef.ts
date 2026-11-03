@@ -18,6 +18,7 @@ import type {
     PlayerControlDef,
 } from './types';
 import type { WorldModifierDef } from '../worldModifiers/types';
+import type { TriggerDef } from '../game/triggers/triggerTypes';
 import type { NinjutsuPoolConfig } from '../game/ninjutsu/ninjutsuConfig';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
@@ -256,6 +257,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     abstract worldHeight: number;
     /** Optional level events (spawn waves, victory checks, etc.). */
     levelEvents?: LevelEvent[];
+    /** Optional mission triggers: "when event, if conditions, do actions" (see `game/triggers/`). */
+    triggers?: TriggerDef[];
     /** Optional battle objectives (see MissionBattleConfig). */
     battleObjectives?: BattleObjectiveDef[];
     /** Optional world modifiers active for this mission (merged with builtins by BattleSession). */
@@ -543,6 +546,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         if (this.levelEvents && this.levelEvents.length > 0) {
             engine.registerLevelEvents(this.levelEvents);
         }
+        engine.registerTriggers(this.triggers ?? []);
 
         // NPC control: derive group→player assignments (sorted playerIds, first wins) and
         // register before enemies so addUnit assigns ownership on initial spawn.

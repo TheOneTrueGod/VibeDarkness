@@ -1,6 +1,6 @@
 /**
  * Thornbinder Arena — first fight after Core Awakening.
- * Layout: 10_10 east-mouth cave west of the 0_0 dirt circle. Dark crystals mark seven
+ * Layout: 59_50 east-mouth cave west of the 0_0 dirt circle. Dark crystals mark seven
  * ring spawns (west skipped so the cave mouth stays clear).
  */
 
@@ -27,7 +27,7 @@ import {
     EAST_CAVE_CAMPFIRE,
     EAST_CAVE_SEGMENT_ID,
     EAST_CAVE_SIZE,
-} from '../MapSegments/10_10_east_cave';
+} from '../MapSegments/59_50_east_cave';
 import {
     ARENA_RING_SPAWN_POINTS,
     BOSS_ARENA_SEGMENT_ID,
@@ -39,7 +39,7 @@ export const THORNBINDER_ARENA_LAYOUT: MissionMapLayout = [
     [{ kind: 'spawn' }, { kind: 'segment', id: BOSS_ARENA_SEGMENT_ID }],
 ];
 
-/** Arena sits east of the 10_10 home tile. */
+/** Arena sits east of the 59_50 home tile. */
 export const ARENA_ORIGIN_COL = EAST_CAVE_SIZE;
 export const ARENA_ORIGIN_ROW = 0;
 

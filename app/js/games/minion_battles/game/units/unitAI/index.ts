@@ -15,6 +15,7 @@ import { HUNT_AI_TREE } from './hunt/index';
 import { PET_AI_TREE } from './pet/index';
 import { SWARMLING_NETWORK_AI_TREE } from './swarmlingNetwork/index';
 import { NETWORK_HUNT_AI_TREE } from './networkHunt/index';
+import { SENTRY_PATROL_AI_TREE } from './sentryPatrol/index';
 
 export type { AIContext, AILightSource, UnitAITree, AINode, AIEdgeCondition, AINodeId } from './types';
 export { isNodeInTree } from './types';
@@ -68,6 +69,8 @@ export { SWARMLING_NETWORK_AI_TREE } from './swarmlingNetwork/index';
 export type { SwarmlingNetworkAITreeContext, SwarmlingNetworkNodeId } from './swarmlingNetwork/index';
 export { NETWORK_HUNT_AI_TREE } from './networkHunt/index';
 export type { NetworkHuntAITreeContext, NetworkHuntNodeId } from './networkHunt/index';
+export { SENTRY_PATROL_AI_TREE } from './sentryPatrol/index';
+export type { SentryPatrolAITreeContext, SentryPatrolNodeId } from './sentryPatrol/index';
 
 /** Registry: tree ID -> tree. */
 const TREE_REGISTRY: Record<string, UnitAITree> = {
@@ -83,6 +86,7 @@ const TREE_REGISTRY: Record<string, UnitAITree> = {
     pet: PET_AI_TREE,
     swarmlingNetwork: SWARMLING_NETWORK_AI_TREE,
     networkHunt: NETWORK_HUNT_AI_TREE,
+    sentryPatrol: SENTRY_PATROL_AI_TREE,
 };
 
 export function getUnitAITree(treeId: string): UnitAITree | null {

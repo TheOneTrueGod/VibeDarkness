@@ -238,3 +238,73 @@ describe('TerrainManager rock and gravel on water (water levels)', () => {
         expect(manager.getEffectiveTerrainType(2, 2)).toBe(TerrainType.Rock);
     });
 });
+
+describe('Thorns cannot exist on rock or water (TerrainEffectDef.blockedOn)', () => {
+    function setup(): { manager: TerrainManager; layers: TerrainLayerManager } {
+        const grid = TerrainGrid.createFilledTerrain(5, 3, CELL_SIZE, TerrainType.Grass);
+        grid.set(0, 1, TerrainType.Rock);
+        grid.set(1, 1, TerrainType.ShallowWater);
+        grid.set(2, 1, TerrainType.Water);
+        grid.set(3, 1, TerrainType.DeepWater);
+        const manager = new TerrainManager(grid);
+        const layers = new TerrainLayerManager();
+        manager.setTerrainLayers(layers);
+        return { manager, layers };
+    }
+
+    function addThorn(layers: TerrainLayerManager, effectType: string, id: string, col: number, row: number): void {
+        layers.add({ id, layer: 'ground', effectType, placedAtGameTime: 0, area: { type: 'cell', col, row }, params: {} });
+    }
+
+    it.each(['bramble_slow', 'dark_thorn'])('%s is not placed on rock or any water', (effectType) => {
+        const { layers } = setup();
+        for (let col = 0; col <= 4; col++) addThorn(layers, effectType, `t-${col}`, col, 1);
+
+        for (let col = 0; col <= 3; col++) expect(layers.getGroundEffectAt(col, 1)).toBeNull();
+        expect(layers.getGroundEffectAt(4, 1)?.id).toBe('t-4');
+        expect([...layers.allEffects.keys()]).toEqual(['t-4']);
+    });
+
+    it('a multi-cell thorn patch keeps only its open-ground cells', () => {
+        const { layers } = setup();
+        layers.add({
+            id: 'patch',
+            layer: 'ground',
+            effectType: 'dark_thorn',
+            placedAtGameTime: 0,
+            area: { type: 'cells', cells: [{ col: 3, row: 1 }, { col: 4, row: 1 }, { col: 4, row: 0 }] },
+            params: {},
+        });
+
+        expect(layers.getGroundEffectAt(3, 1)).toBeNull();
+        expect(layers.getGroundEffectAt(4, 1)?.id).toBe('patch');
+        expect(layers.getGroundEffectAt(4, 0)?.id).toBe('patch');
+    });
+
+    it('raising rock wipes dark thorns from the tile and reports them cleared', () => {
+        const { manager, layers } = setup();
+        addThorn(layers, 'dark_thorn', 'dark', 4, 0);
+        const emitter = vi.fn();
+        manager.setTerrainEffectsClearedEmitter(emitter);
+
+        manager.createOrMarkRock(4, 0);
+
+        expect(layers.getGroundEffectAt(4, 0)).toBeNull();
+        expect(layers.allEffects.has('dark')).toBe(false);
+        expect(emitter.mock.calls.flatMap((c) => c[0])).toEqual([
+            expect.objectContaining({ id: 'dark', col: 4, row: 0 }),
+        ]);
+    });
+
+    it('a floor change to water wipes thorns from the tile', () => {
+        const { manager, layers } = setup();
+        addThorn(layers, 'bramble_slow', 'bramble', 4, 2);
+        // Gravel on deep water raises it to Water; no other path creates water yet, so force a deep-water floor first.
+        layers.setFloorTile(4, 2, { terrainType: TerrainType.DeepWater });
+
+        manager.createRubble(4, 2);
+
+        expect(manager.getEffectiveTerrainType(4, 2)).toBe(TerrainType.Water);
+        expect(layers.getGroundEffectAt(4, 2)).toBeNull();
+    });
+});

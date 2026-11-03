@@ -139,6 +139,8 @@ export interface SerializedGameState {
     victoryCheckFirstEmitDone?: number[];
     /** For continuousSpawn: event index -> gameTime of last spawn (keys as strings in JSON). */
     continuousSpawnLastSpawnedAt?: Record<string, number>;
+    /** Mission trigger runtime state (fire counts, enable overrides, region occupancy). */
+    triggerState?: import('./triggers/TriggerManager').SerializedTriggerState;
     /** Player research trees available during battle logic (playerId -> treeId -> researched node ids). */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     /**

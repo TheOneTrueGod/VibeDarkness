@@ -8,6 +8,7 @@
 import type { TeamId } from '../game/teams';
 import type { AISettings } from '../game/units/Unit';
 import type { UnitTag } from '../game/units/unitTag';
+import type { SentryPatrolConfig } from '../game/units/unitAI/sentryPatrol/context';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { MissionMapLayout } from '../terrain/missionLayout';
 export type { MissionMapLayout };
@@ -30,6 +31,7 @@ import type { QuestSlotBank } from './questTypes';
 import type { UnlockItemTierReward } from './unlockItemTiers';
 import type { ObjectiveType } from './objectiveTypes';
 import type { EffectImageKey } from '../game/effectImages';
+import type { TriggerDef } from '../game/triggers/triggerTypes';
 
 /** Trigger for level events: at round, after round (checks start), or after seconds. */
 export type LevelEventTrigger =
@@ -102,6 +104,8 @@ export interface SpawnWaveEntry {
     lanterniteNestOwnerUnitId?: string;
     lanternPatrolFarWorld?: { x: number; y: number };
     lanternPatrolLeg?: 'toFar' | 'toNest';
+    /** Patrol route for `unitAITreeId: 'sentryPatrol'` units. */
+    sentryPatrol?: SentryPatrolConfig;
     /**
      * Config for `spawnBehaviour: 'closest'`.
      * Scans Chebyshev rings outward from the average position of living player units,
@@ -309,6 +313,13 @@ interface LevelEventBase {
     afterObjective?: string;
     /** Objective gate: the event stops (or never fires) once this battle objective completes. */
     untilObjective?: string;
+    /**
+     * Trigger gate: inactive until the mission trigger with this id has fired (see `game/triggers/`).
+     * Continuous spawns start their interval from the moment it fires, as with `afterObjective`.
+     */
+    afterTrigger?: string;
+    /** Trigger gate: the event stops (or never fires) once this mission trigger has fired. */
+    untilTrigger?: string;
 }
 
 /** Spawn wave: spawns enemies around map edges when trigger fires. */
@@ -457,6 +468,8 @@ export interface EnemySpawnDef {
     lanterniteNestOwnerUnitId?: string;
     lanternPatrolFarWorld?: { x: number; y: number };
     lanternPatrolLeg?: 'toFar' | 'toNest';
+    /** Patrol route for `unitAITreeId: 'sentryPatrol'` units. */
+    sentryPatrol?: SentryPatrolConfig;
     /** Assign a role for the lanterniteNetwork AI tree ('scout' heads to targetNestPoiId; 'defender' guards home nest). */
     lanterniteRole?: 'scout' | 'defender';
     /** POI id of the nest this scout is traveling to build. Requires lanterniteRole: 'scout'. */
@@ -549,6 +562,8 @@ export interface MissionBattleConfig {
     enemies: EnemySpawnDef[];
     /** Level events: spawn waves, victory checks, etc. */
     levelEvents?: LevelEvent[];
+    /** Mission triggers: "when event, if conditions, do actions" (see `game/triggers/`). */
+    triggers?: TriggerDef[];
     /** Optional battle objectives (ObjectivePanel); state is checkpointed. */
     battleObjectives?: BattleObjectiveDef[];
     /**

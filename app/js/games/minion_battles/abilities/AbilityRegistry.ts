@@ -64,6 +64,8 @@ import { LightEaterAbility } from '../card_defs/dark_animals/0018_LightEater/001
 import { PhantomDecoyAbility } from '../card_defs/dark_animals/0019_PhantomDecoy/0019Ability';
 import { DisplacerBoltAbility } from '../card_defs/dark_animals/0017_DisplacerBolt/0017Ability';
 import { FrenziedDisplacerBoltAbility } from '../card_defs/dark_animals/0020_FrenziedDisplacerBolt/0020Ability';
+import { HuskGraspAbility } from '../card_defs/11_enemy_husk/1101_HuskGrasp/1101Ability';
+import { MiasmaAbility } from '../card_defs/11_enemy_husk/1102_Miasma/1102Ability';
 import { DogBiteAbility } from '../card_defs/07_command_core/0701_DogBite/0701Ability';
 import { PounceAbility } from '../card_defs/07_command_core/0702_Pounce/0702Ability';
 import { PetAbility } from '../card_defs/07_command_core/0703_Pet/0703Ability';
@@ -179,6 +181,8 @@ register(DisplacerBoltAbility);
 register(FrenziedDisplacerBoltAbility);
 register(LightEaterAbility);
 register(PhantomDecoyAbility);
+register(HuskGraspAbility);
+register(MiasmaAbility);
 register(DogBiteAbility);
 register(PounceAbility);
 register(PetAbility);

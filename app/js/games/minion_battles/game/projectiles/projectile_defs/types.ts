@@ -40,6 +40,25 @@ export interface DirectionBlobDef {
     followRate: number;
 }
 
+/**
+ * Fading copies of the sprite left behind as the projectile flies. Each copy keeps the sprite's
+ * rotation at the moment it spawned, drifts backward (opposite the travel direction) and fades out.
+ * Emitted on wall time from the render tick, so copies keep spawning while the game is paused.
+ * Presets: `SPRITE_AFTERIMAGE_PRESETS` in `spriteAfterimage.ts`.
+ */
+export interface SpriteAfterimageDef {
+    /** Copies per wall second. */
+    ratePerSec: number;
+    /** Wall seconds each copy takes to fade out. */
+    durationSec: number;
+    /** Alpha of a fresh copy. */
+    initialAlpha: number;
+    /** Pixels each copy drifts backward over its life. */
+    driftPx: number;
+    /** Optional tint for the copies. */
+    tint?: number;
+}
+
 /** Plain-data config — serializable to JSON. Travels with the Projectile instance. */
 export interface SpriteProjectileConfig {
     sprite: SpriteFramesDef;
@@ -53,4 +72,6 @@ export interface SpriteProjectileConfig {
     loopInterval?: number;
     trail?: TrailDef;
     animations?: AnimationDef[];
+    /** Optional fading sprite copies left behind in flight. */
+    afterimage?: SpriteAfterimageDef;
 }

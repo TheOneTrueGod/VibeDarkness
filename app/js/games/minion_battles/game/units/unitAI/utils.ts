@@ -15,6 +15,7 @@ import { getAbilityTargets, canAffordAbility } from '../../../abilities/Ability'
 import { getSelectTargetDefsFromTimings, buildAiSelectTargets } from '../../../abilities/targeting';
 import { UnitTag, hasUnitTag } from '../unitTag';
 import { meetsTagRequirements } from '../../../abilities/abilityUses';
+import { hasCastTimeline } from '../../../abilities/abilityTimings';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { MIN_FOLLOW_RADIUS, ROUND_DURATION } from '../../gameConstants';
 
@@ -274,6 +275,7 @@ export function pickBestAbility(
     for (const abilityId of unit.abilities) {
         const ability = getAbility(abilityId);
         if (!ability) continue;
+        if (!hasCastTimeline(ability, unit)) continue;
 
         const ai = ability.aiSettings;
         if (ai?.maxUsesPerRound != null && context.getAbilityUsesThisRound) {

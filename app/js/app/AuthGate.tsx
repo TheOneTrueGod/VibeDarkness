@@ -6,7 +6,7 @@ import LoginScreen from '../components/LoginScreen';
 import AppTitleBar from '../components/AppTitleBar';
 import { LobbyClient } from '../LobbyClient';
 import type { AccountState } from '../types';
-import { campaignPathForTab } from '../components/ability-tests/campaignTabPaths';
+import { campaignPathForTab, playerCharactersPath } from '../components/ability-tests/campaignTabPaths';
 
 function getNextRedirect(): string {
     const params = new URLSearchParams(window.location.search);
@@ -57,5 +57,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 /** Default campaign home after login or unknown `/` path. */
 export function CampaignIndexRedirect() {
     const { isAdmin } = useCurrentUser();
-    return <Navigate to={isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission')} replace />;
+    const { user } = useUserData();
+    // Non-admins land on their Characters page, which opens the most recent character's Mission Map.
+    const to = isAdmin
+        ? campaignPathForTab('mission_select')
+        : user
+          ? playerCharactersPath(user.id)
+          : campaignPathForTab('join_mission');
+    return <Navigate to={to} replace />;
 }

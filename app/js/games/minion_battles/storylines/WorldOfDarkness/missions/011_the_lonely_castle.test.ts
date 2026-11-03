@@ -9,15 +9,20 @@ import { registerWorldOfDarknessSegments } from '../registerSegments';
 import { WorldOfDarknessStoryline } from '../WorldOfDarkness';
 import { CAMPSITE_3_MISSION_ID } from '../questMissions/campsite';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
+import { isTileInZone } from '../../../terrain/zones';
+import { CASTLE_APPROACH_ZONE } from '../MapSegments/61_49_castle_gate';
 import {
     BRIDGE_THRESHOLD,
+    CAVE_ROAD_REGION,
+    LEFT_CAVE_SPAWN_RADIUS_TILES,
+    TRIGGER_LEFT_CAVE,
     NORTHEAST_NEST_CELL,
     NORTHWEST_NEST_CELL,
     OBJECTIVE_DESTROY_SPAWNERS,
     OBJECTIVE_REACH_BRIDGE,
-    OPENING_APRON_SLIMES,
-    OPENING_APRON_SWARMLINGS,
-    OPENING_APRON_WOLVES,
+    CAVE_EXIT_AMBUSH_SLIMES,
+    CAVE_EXIT_AMBUSH_SWARMLINGS,
+    CAVE_EXIT_AMBUSH_WOLVES,
     OPENING_THICKET_WOLVES,
     THE_LONELY_CASTLE,
     THE_LONELY_CASTLE_MISSION_ID,
@@ -77,13 +82,13 @@ describe('The Lonely Castle (011)', () => {
         }
     });
 
-    it('starts with the apron group, the outcrop thornbinder and the thicket wolves, all on walkable ground', () => {
+    it('starts with the outcrop thornbinder and the thicket wolves (no cave-exit ambush yet), all on walkable ground', () => {
         const engine = initMission();
         const enemies = engine.units.filter((u) => u.teamId === 'enemy');
         const count = (id: string) => enemies.filter((u) => u.characterId === id).length;
-        expect(count('dark_wolf')).toBe(OPENING_APRON_WOLVES + OPENING_THICKET_WOLVES);
-        expect(count('swarmling')).toBe(OPENING_APRON_SWARMLINGS);
-        expect(count('slime')).toBe(OPENING_APRON_SLIMES);
+        expect(count('dark_wolf')).toBe(OPENING_THICKET_WOLVES);
+        expect(count('swarmling')).toBe(0);
+        expect(count('slime')).toBe(0);
         expect(count('thornbinder')).toBe(1);
         for (const u of enemies) {
             expect(engine.terrainManager!.isPassable(u.x, u.y)).toBe(true);
@@ -96,6 +101,44 @@ describe('The Lonely Castle (011)', () => {
         const tiles = engine.specialTiles;
         expect(tiles.filter((t) => t.defId === 'Crystal').length).toBeGreaterThan(0);
         expect(tiles.filter((t) => t.defId === 'Campfire')).toHaveLength(1);
+        engine.destroy();
+    });
+
+    it('holds the darkness spawn while the party stays in the cave; leaving onto the road spawns the ambush around them', () => {
+        const engine = initMission();
+        const ofType = (id: string) => engine.units.filter((u) => u.characterId === id && u.isAlive());
+        const slimes = () => ofType('slime');
+        let guard = 0;
+        // Past where the old round-2 darkness spawn began (gameTime 10s).
+        while (engine.gameTime < 15 && guard++ < 3000) step(engine, 1);
+        expect(engine.gameTime).toBeGreaterThanOrEqual(15);
+        expect(engine.state.levelEventManager.triggerManager.hasFired(TRIGGER_LEFT_CAVE)).toBe(false);
+        expect(slimes()).toHaveLength(0);
+        expect(ofType('swarmling')).toHaveLength(0);
+        const wolvesBefore = ofType('dark_wolf').length;
+
+        // Step the hero onto the cave road.
+        const player = engine.units.find((u) => u.isPlayerControlled())!;
+        const col = CAVE_ROAD_REGION.col + Math.floor(CAVE_ROAD_REGION.width / 2);
+        let road: { x: number; y: number } | null = null;
+        for (let row = CAVE_ROAD_REGION.row; row < CAVE_ROAD_REGION.row + CAVE_ROAD_REGION.height && !road; row++) {
+            const p = centre({ col, row });
+            if (engine.terrainManager!.isPassable(p.x, p.y)) road = p;
+        }
+        player.x = road!.x;
+        player.y = road!.y;
+        player.clearMovement();
+        step(engine, 2);
+
+        expect(engine.state.levelEventManager.triggerManager.hasFired(TRIGGER_LEFT_CAVE)).toBe(true);
+        // The cave-exit ambush plus the first road wave (2 wolves, 1 swarmling, 1 slime).
+        expect(slimes()).toHaveLength(CAVE_EXIT_AMBUSH_SLIMES + 1);
+        expect(ofType('swarmling')).toHaveLength(CAVE_EXIT_AMBUSH_SWARMLINGS + 1);
+        expect(ofType('dark_wolf').length - wolvesBefore).toBe(CAVE_EXIT_AMBUSH_WOLVES + 2);
+        for (const u of [...slimes(), ...ofType('swarmling')]) {
+            const dist = Math.hypot(u.x - road!.x, u.y - road!.y) / CELL_SIZE;
+            expect(dist).toBeLessThanOrEqual(LEFT_CAVE_SPAWN_RADIUS_TILES + 1);
+        }
         engine.destroy();
     });
 
@@ -131,6 +174,54 @@ describe('The Lonely Castle (011)', () => {
         while (!engine.state.levelEventManager.isTerminal && guard++ < 60) step(engine, 1);
         expect(engine.isObjectiveCompleted(OBJECTIVE_DESTROY_SPAWNERS)).toBe(true);
         expect(engine.state.levelEventManager.getTerminalOutcome()).toEqual({ kind: 'victory', missionResult: 'victory' });
+        engine.destroy();
+    });
+
+    it('after the bridge, one Thornbinder and the darkness wave rise outside the castle south of the moat', () => {
+        const engine = initMission();
+        const zone = THE_LONELY_CASTLE.composeMap()!.zones.find((z) => z.id === CASTLE_APPROACH_ZONE.id)!;
+        expect(zone).toBeDefined();
+        const openingIds = new Set(engine.units.map((u) => u.id));
+        const player = engine.units.find((u) => u.isPlayerControlled())!;
+        const bridge = centre(BRIDGE_THRESHOLD);
+        player.x = bridge.x;
+        player.y = bridge.y;
+        player.clearMovement();
+        let guard = 0;
+        while (!engine.isObjectiveCompleted(OBJECTIVE_REACH_BRIDGE) && guard++ < 30) step(engine, 1);
+        expect(engine.isObjectiveCompleted(OBJECTIVE_REACH_BRIDGE)).toBe(true);
+
+        // One Thornbinder rises behind the party, south of the moat.
+        step(engine, 2);
+        const newThornbinders = () =>
+            engine.units.filter((u) => u.characterId === 'thornbinder' && !openingIds.has(u.id));
+        expect(newThornbinders()).toHaveLength(1);
+        const rose = cellOf(newThornbinders()[0]!);
+        expect(isTileInZone(zone, rose.col, rose.row), `thornbinder at (${rose.col},${rose.row})`).toBe(true);
+
+        // The lone hero would be overrun; keep them standing so the battle runs on.
+        const stepAlive = () => {
+            player.hp = player.maxHp;
+            step(engine, 1);
+        };
+        // Let the round 2-4 thicket wolves land first so only this wave counts.
+        guard = 0;
+        while (engine.gameTime < 31 && guard++ < 3000) stepAlive();
+        const before = new Set(engine.units.map((u) => u.id));
+        const reachedAt = engine.gameTime;
+        guard = 0;
+        while (engine.gameTime < reachedAt + 12 && guard++ < 3000) stepAlive();
+        expect(engine.gameTime).toBeGreaterThanOrEqual(reachedAt + 12);
+        const fresh = engine.units.filter(
+            (u) => !before.has(u.id) && (u.characterId === 'dark_wolf' || u.characterId === 'slime'),
+        );
+        // Still only the one Thornbinder after more rounds: it spawns once, not every round.
+        expect(newThornbinders()).toHaveLength(1);
+        expect(fresh.length).toBeGreaterThan(0);
+        for (const u of fresh) {
+            const { col, row } = cellOf(u);
+            expect(isTileInZone(zone, col, row), `${u.characterId} at (${col},${row})`).toBe(true);
+        }
         engine.destroy();
     });
 });

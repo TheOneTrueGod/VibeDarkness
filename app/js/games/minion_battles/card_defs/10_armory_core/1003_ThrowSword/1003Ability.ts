@@ -4,11 +4,13 @@
  * where it stops. That token exists immediately; its resting picture stays hidden until the toss finishes.
  * Single use. Costs Charge. Echo: a copy is also thrown from each of the caster's dropped swords.
  * The card picture is the tipped blade. Flight and the token use the upright Charge Sword.
+ * In flight it leaves fading copies of itself that drift backward (`thrownWeapon` afterimage preset).
  */
 
 import { defineThrownWeapon } from '../../../abilities/archetypes/defineThrownWeapon';
 import chargeSwordThrowSvg from '../chargeSwordThrow.svg?raw';
 import type { SpriteProjectileConfig } from '../../../game/projectiles/projectile_defs/types';
+import { SPRITE_AFTERIMAGE_PRESETS } from '../../../game/projectiles/projectile_defs/spriteAfterimage';
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
@@ -39,6 +41,7 @@ const THROW_SWORD_SPRITE: SpriteProjectileConfig = {
     },
     loop: true,
     animations: [{ type: 'rotation', mode: 'constant', degreesPerSecond: THROWN_WEAPON_SPIN_DEGREES_PER_SECOND }],
+    afterimage: SPRITE_AFTERIMAGE_PRESETS.thrownWeapon,
 };
 
 const TOOLTIP_LINES = [

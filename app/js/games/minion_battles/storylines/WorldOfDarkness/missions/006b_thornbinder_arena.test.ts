@@ -45,7 +45,7 @@ import {
     EAST_CAVE_SEGMENT_ID,
     EAST_WALL_OPENING_ROW,
     EAST_WALL_OPENING_SIZE,
-} from '../MapSegments/10_10_east_cave';
+} from '../MapSegments/59_50_east_cave';
 import { HOME_CAMPFIRE_MAX_HP } from '../../homeBase';
 import { DarknessLevel } from '../../../game/darknessLevels';
 import type { LevelEventSpawnWave } from '../../types';
@@ -72,7 +72,7 @@ function initArena(seed: number): GameEngine {
 }
 
 describe('ThornbinderArenaMission', () => {
-    it('places the 10_10 home west of the arena', () => {
+    it('places the 59_50 home west of the arena', () => {
         const composed = THORNBINDER_ARENA.composeMap();
         expect(composed?.spawnPlacement).toMatchObject({
             id: EAST_CAVE_SEGMENT_ID,

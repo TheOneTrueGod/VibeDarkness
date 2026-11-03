@@ -32,7 +32,7 @@ import {
     HOME_PLAYER_SPAWN_OFFSETS,
 } from './MapSegments/50_50_crystal_cave';
 import {
-    MAP_SEGMENT_10_10_EAST_CAVE,
+    MAP_SEGMENT_59_50_EAST_CAVE,
     EAST_CAVE_SEGMENT_ID,
     EAST_CAVE_GRID_COL,
     EAST_CAVE_GRID_ROW,
@@ -40,7 +40,7 @@ import {
     EAST_CAVE_MOUTH,
     EAST_CAVE_CRYSTAL_POINTS,
     EAST_CAVE_NETWORK,
-} from './MapSegments/10_10_east_cave';
+} from './MapSegments/59_50_east_cave';
 import {
     MAP_SEGMENT_60_50_CAVE_ROAD,
     CAVE_ROAD_SEGMENT_ID,
@@ -73,6 +73,7 @@ import {
     GATE_YARD_WEST,
     GATE_YARD_EAST,
     CASTLE_GATE_NETWORK,
+    CASTLE_APPROACH_ZONE,
 } from './MapSegments/61_49_castle_gate';
 import {
     MAP_SEGMENT_61_48_CASTLE_COURTYARD,
@@ -251,7 +252,7 @@ export function registerWorldOfDarknessSegments(): void {
         ),
     );
 
-    // 10_10 East cave — home tile, mouth on the east wall; six crystal light spots (safe space)
+    // 59_50 East cave — home tile, mouth on the east wall; six crystal light spots (safe space)
     const eastCavePOIs: MapSegmentPOI[] = [
         {
             id: 'cave_campfire',
@@ -281,13 +282,13 @@ export function registerWorldOfDarknessSegments(): void {
             EAST_CAVE_SEGMENT_ID,
             EAST_CAVE_GRID_COL,
             EAST_CAVE_GRID_ROW,
-            MAP_SEGMENT_10_10_EAST_CAVE,
+            MAP_SEGMENT_59_50_EAST_CAVE,
             eastCavePOIs,
         ),
         network: EAST_CAVE_NETWORK,
     });
 
-    // 60_50 Cave Road — outside the 10_10 cave mouth (placed beside 10_10 by a layout composer)
+    // 60_50 Cave Road — outside the 59_50 cave mouth, its west neighbour
     const caveRoadPOIs: MapSegmentPOI[] = [
         { id: 'cave_mouth_apron',  label: 'Cave Mouth Apron',  col: CAVE_MOUTH_APRON.col,  row: CAVE_MOUTH_APRON.row,  type: 'generic' },
         { id: 'north_outcrop',     label: 'North Outcrop',     col: NORTH_OUTCROP.col,     row: NORTH_OUTCROP.row,     type: 'enemySpawn' },
@@ -319,7 +320,14 @@ export function registerWorldOfDarknessSegments(): void {
         { id: 'gate_yard_east', label: 'Gate Yard East', col: GATE_YARD_EAST.col, row: GATE_YARD_EAST.row, type: 'enemySpawn' },
     ];
     registerSegment({
-        ...tsTerrainToSegmentData(CASTLE_GATE_SEGMENT_ID, CASTLE_GATE_GRID_COL, CASTLE_GATE_GRID_ROW, MAP_SEGMENT_61_49_CASTLE_GATE, castleGatePOIs),
+        ...tsTerrainToSegmentData(
+            CASTLE_GATE_SEGMENT_ID,
+            CASTLE_GATE_GRID_COL,
+            CASTLE_GATE_GRID_ROW,
+            MAP_SEGMENT_61_49_CASTLE_GATE,
+            castleGatePOIs,
+            [CASTLE_APPROACH_ZONE],
+        ),
         network: CASTLE_GATE_NETWORK,
     });
 

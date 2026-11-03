@@ -11,6 +11,7 @@
 
 import type { TeamId } from '../../teams';
 import type { UnitTag } from '../unitTag';
+import type { SentryPatrolConfig } from '../unitAI/sentryPatrol/context';
 import type { AISettings, UnitCombatSettings } from '../unitTypes';
 import type {
     LanterniteNestMissionConfig,
@@ -81,7 +82,8 @@ export type SpawnAiHookup =
     | { kind: 'lanterniteNest'; nestConfig: LanterniteNestMissionConfig; homeNestPoiId?: string }
     | { kind: 'swarm'; orbitAngle?: number; nestOwnerUnitId?: string }
     | { kind: 'swarmNest'; nestConfig: SwarmNestMissionConfig; homeNestPoiId?: string }
-    | { kind: 'pet'; ownerUnitId: string; defId: string };
+    | { kind: 'pet'; ownerUnitId: string; defId: string }
+    | ({ kind: 'sentryPatrol' } & SentryPatrolConfig);
 
 export interface SpawnDefinition {
     // ---- what ----

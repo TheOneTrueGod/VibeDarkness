@@ -15,6 +15,8 @@ import { punchEffectDef, biteEffectDef, slashingSwordEffectDef, coneFlashEffectD
 import { bulletTrailEffectDef, slashTrailEffectDef } from './trailEffects';
 import { afterimageEffectDef, stackGhostEffectDef, nudgeArrowEffectDef } from './movementEffects';
 import { explosionEffectDef } from './explosionEffects';
+import { spriteAfterimageEffectDef } from './projectileAfterimageEffects';
+import { SPRITE_AFTERIMAGE_EFFECT_TYPE } from '../projectiles/projectile_defs/spriteAfterimage';
 import { lightConeBurstEffectDef, LIGHT_CONE_BURST_EFFECT_TYPE } from './lightConeEffects';
 import { chargeUpEffectDef } from './chargeEffects';
 import { casterChargeUpEffectDef, CASTER_CHARGE_UP_EFFECT_TYPE } from './casterChargeUpEffect';
@@ -78,6 +80,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     default: defaultEffectDef,
     Afterimage: afterimageEffectDef,
     StackGhost: stackGhostEffectDef,
+    [SPRITE_AFTERIMAGE_EFFECT_TYPE]: spriteAfterimageEffectDef,
     punch: punchEffectDef,
     ConeFlash: coneFlashEffectDef,
     Pulse: pulseEffectDef,

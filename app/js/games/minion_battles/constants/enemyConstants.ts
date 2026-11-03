@@ -99,6 +99,21 @@ export const ENEMY_THORNBINDER: EnemySpawnDef = {
     unitAITreeId: 'hunt',
 };
 
+/**
+ * Husk: slow, tough former castle resident. Grasp (1101) up close; Miasma (1102) leaves a gas
+ * cloud wherever it walks. Usually placed with `unitAITreeId: 'sentryPatrol'` and a
+ * `sentryPatrol` route so it walks its old rounds until disturbed.
+ */
+export const ENEMY_HUSK: EnemySpawnDef = {
+    characterId: 'husk',
+    name: 'Husk',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['1101', '1102'],
+    aiSettings: { minRange: 0, maxRange: 70 },
+    unitAITreeId: 'hunt',
+};
+
 /** Swarmling: fast small biter — two copies of Bite (0013) per round. */
 export const ENEMY_SWARMLING: EnemySpawnDef = {
     characterId: 'swarmling',

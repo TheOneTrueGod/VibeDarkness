@@ -44,6 +44,8 @@ export function enemySpawnDefToSpawnDefinition(e: EnemySpawnDef, ownerId = 'ai')
         aiHookup = { kind: 'lanterniteNest', nestConfig: e.lanterniteNest, homeNestPoiId: e.lanterniteNest.nestPoiId };
     } else if (e.characterId === SWARM_NEST_CHARACTER_ID && e.swarmNest != null) {
         aiHookup = { kind: 'swarmNest', nestConfig: e.swarmNest, homeNestPoiId: e.swarmNest.nestPoiId };
+    } else if (e.sentryPatrol != null) {
+        aiHookup = { kind: 'sentryPatrol', ...e.sentryPatrol };
     } else {
         aiHookup = buildLanternitePatrolHookup(e);
     }
@@ -120,7 +122,9 @@ export function spawnWaveEntryToSpawnDefinition(base: EnemySpawnDef, entry: Spaw
         controllable: entry.controllable ?? base.controllable,
         unitAITreeId: entry.unitAITreeId,
         placement: spawnBehaviourToPlacement(entry),
-        aiHookup: buildLanternitePatrolHookup(entry),
+        aiHookup: entry.sentryPatrol != null
+            ? { kind: 'sentryPatrol', ...entry.sentryPatrol }
+            : buildLanternitePatrolHookup(entry),
         count: Math.max(0, entry.spawnCount ?? 1),
     };
 }

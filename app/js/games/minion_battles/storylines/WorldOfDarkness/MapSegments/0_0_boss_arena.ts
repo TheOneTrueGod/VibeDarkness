@@ -5,7 +5,7 @@
  */
 
 import { TerrainType } from '../../../terrain/TerrainType';
-import { EAST_WALL_OPENING_ROW, EAST_WALL_OPENING_SIZE } from './10_10_east_cave';
+import { EAST_WALL_OPENING_ROW, EAST_WALL_OPENING_SIZE } from './59_50_east_cave';
 
 export const BOSS_ARENA_SEGMENT_ID = '0_0_boss_arena';
 export const BOSS_ARENA_GRID_COL = 0;
@@ -63,7 +63,7 @@ export function rightmostArenaRingSpawnPoints(count: number): { col: number; row
         .slice(0, count);
 }
 
-/** Interior cover; kept off the western approach so the 10_10 cave mouth stays clear. */
+/** Interior cover; kept off the western approach so the 59_50 cave mouth stays clear. */
 export const BOSS_ARENA_ROCKS = [
     { col: 8, row: 7 },
     { col: 9, row: 7 },

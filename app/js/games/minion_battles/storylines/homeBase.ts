@@ -11,9 +11,13 @@ import type { MissionResult } from '../../../types';
 /** Fallback home until a higher-priority rule matches. */
 export const DEFAULT_HOME_SEGMENT_ID = CRYSTAL_CAVE_SEGMENT_ID;
 
-/** Campfire light carried with the home tile on layout-composer missions. */
-export const HOME_CAMPFIRE_LIGHT_AMOUNT = 10;
-export const HOME_CAMPFIRE_LIGHT_RADIUS = 8;
+/**
+ * Campfire light carried with the home tile on layout-composer missions. Dim on purpose: the home
+ * cave stays lit while the light only just spills out of the cave mouth. Chapter 1 missions place
+ * their own (brighter) campfires and do not use these.
+ */
+export const HOME_CAMPFIRE_LIGHT_AMOUNT = 6;
+export const HOME_CAMPFIRE_LIGHT_RADIUS = 1;
 export const HOME_CAMPFIRE_MAX_HP = 5;
 
 export interface HomeResolveContext {

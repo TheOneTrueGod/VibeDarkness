@@ -17,7 +17,18 @@ export interface PassiveOnTickTrigger {
     intervalSec: number;
 }
 
-export type PassiveTrigger = PassiveOnTickTrigger;
+/**
+ * Fires each time the unit's position moves into a different grid cell (walking, being pushed,
+ * landing). Dispatched from the unit tick right after tile transitions resolve; never on spawn.
+ */
+export interface PassiveOnCellEnterTrigger {
+    type: 'onCellEnter';
+}
+
+export type PassiveTrigger = PassiveOnTickTrigger | PassiveOnCellEnterTrigger;
+
+/** Trigger types that fire from a unit event rather than the clock. */
+export type PassiveEventTriggerType = Exclude<PassiveTrigger['type'], 'onTick'>;
 
 // ---- Target filter ----
 
@@ -45,15 +56,33 @@ export interface PassiveAoeDamageEffect {
     pulseRadius?: number;
 }
 
-/** Convert up to `count` nearby tiles per trigger to the given terrain effect type. */
+/**
+ * Convert nearby tiles to the given terrain effect type. The candidate area is either a pixel
+ * circle around the caster (`range`) or a square of cells centred on the caster's cell
+ * (`cellRadius`: 1 = 3x3). Exactly one of the two should be set.
+ */
 export interface PassivePlaceTerrainEffect {
     type: 'place_terrain';
     /** TerrainEffectRecord effectType to place (e.g. 'bramble_slow'). */
     effectType: string;
+    /** Layer to place on. Default `'ground'`. */
+    layer?: 'ground' | 'air';
     /** Pixel radius around the caster to search for eligible cells. */
-    range: number;
-    /** How many tiles to convert per trigger. */
-    count: number;
+    range?: number;
+    /** Chebyshev cell radius around the caster's cell (0 = own cell, 1 = 3x3). Takes precedence over `range`. */
+    cellRadius?: number;
+    /** How many tiles to convert per trigger, nearest first. Omit to convert every eligible tile. */
+    count?: number;
+    /** Lifetime of each placed tile in seconds (world clock). Omit for permanent. */
+    durationSec?: number;
+    /**
+     * What to do with a cell that already holds this effect type on the same layer:
+     * `'skip'` (default) leaves it and picks another cell; `'refresh'` extends its expiry
+     * to this placement's expiry (never shortens it).
+     */
+    onExisting?: 'skip' | 'refresh';
+    /** When true, cells that units cannot walk on (walls, deep water) are never converted. */
+    skipImpassable?: boolean;
     /** If set, emits an AuraPulse visual of this radius when at least one tile is placed. */
     pulseRadius?: number;
 }

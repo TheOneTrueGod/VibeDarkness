@@ -19,7 +19,7 @@ Segments form one large, connected world. A mission picks a few segments out of 
 
 - **Size:** every segment is **22×22** tiles. Fill the whole grid.
 - **World neighbours:** segments whose `{col}_{row}` addresses are adjacent (`50_49` is north of `50_50`). They must line up.
-- **Layout neighbours:** a mission's layout composer (`mapLayout`) can place any two segments side by side, whatever their addresses (e.g. `10_10` beside `60_50`). When a brief says two segments connect, treat them as neighbours on that side even if their addresses are far apart.
+- **Layout neighbours:** a mission's layout composer (`mapLayout`) can place any two segments side by side, whatever their addresses (e.g. `59_50` beside `0_0`). When a brief says two segments connect, treat them as neighbours on that side even if their addresses are far apart.
 
 ## Permissions
 

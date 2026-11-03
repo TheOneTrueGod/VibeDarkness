@@ -274,9 +274,10 @@ describe('Armory Core', () => {
         expect(player.abilities).not.toContain(IMPROVISED_SWORD_ABILITY_ID);
         expect(player.abilityRuntime[swordItem.cardsToAdd[0]!]?.active).not.toBe(false);
         expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(2);
-        const toss = engine.state.effectManager.effects.filter(
+        const tosses = engine.state.effectManager.effects.filter(
             (effect) => effect.effectType === WEAPON_DISCARD_ARC_EFFECT_TYPE,
-        ).at(-1);
+        );
+        const toss = tosses[tosses.length - 1];
         expect(toss?.pauseBehaviour).toBe('continue');
         expect(toss?.active).toBe(true);
         const dropped = engine.state.fieldObjects.droppedWeapons[1]!;

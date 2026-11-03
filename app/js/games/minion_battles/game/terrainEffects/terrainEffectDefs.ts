@@ -7,12 +7,15 @@
  */
 
 import type { CreatureType } from '../units/unit_defs/unitDef';
+import { TerrainType } from '../../terrain/TerrainType';
 
-// Kept dependency-free at runtime on purpose (type-only imports above): `terrain/TerrainManager.ts`
+// Kept dependency-free at runtime on purpose (type-only imports above, plus the import-free
+// `TerrainType` enum): `terrain/TerrainManager.ts`
 // reaches this file through `terrainClearing.ts`, so it must not pull in unit defs / pixi.
 // `tileTransitions.ts` re-exports these.
 export const BRAMBLE_SLOW_EFFECT_TYPE = 'bramble_slow';
 export const DARK_THORN_EFFECT_TYPE = 'dark_thorn';
+export const MIASMA_EFFECT_TYPE = 'miasma';
 
 /** Which creature types a hazard hurts: only the listed types, or everyone except them. */
 export type CreatureFilter = { only: readonly CreatureType[] } | { except: readonly CreatureType[] };
@@ -39,6 +42,31 @@ export const DARK_THORN_ENTER_DAMAGE = THORN_ENTER_DAMAGE;
 /** Thornbinder `dark_thorn` land damage (2x shared thorn land). */
 export const DARK_THORN_LAND_DAMAGE = THORN_LAND_DAMAGE * 2;
 
+/**
+ * Lingering hazard: every `intervalSec` of world time, each matching unit standing in a cell the
+ * effect owns takes `damage`. Air effects hit grounded and airborne units alike; ground effects
+ * skip airborne units. See `terrainEffects/standingDamage.ts`.
+ */
+export interface StandingDamageDef {
+    hurts: CreatureFilter;
+    damage: number;
+    intervalSec: number;
+}
+
+/** Miasma (Husk gas): damage per pulse to non-darkness units standing in it. */
+export const MIASMA_DAMAGE = 1;
+/** Seconds between Miasma pulses. */
+export const MIASMA_INTERVAL_SEC = 1;
+
+/** Terrain a ground growth (thorns, brambles) cannot take root on: rock and every depth of water. */
+export const ROCK_AND_WATER_TERRAIN: readonly TerrainType[] = [
+    TerrainType.Rock,
+    TerrainType.Impassable,
+    TerrainType.ShallowWater,
+    TerrainType.Water,
+    TerrainType.DeepWater,
+];
+
 export interface TerrainEffectDef {
     effectType: string;
     layer: 'ground' | 'air';
@@ -46,6 +74,14 @@ export interface TerrainEffectDef {
     clearResistant?: boolean;
     /** Present on thorn-style hazards (enter / land damage, optionally consumed). */
     thorns?: ThornsDef;
+    /** Present on lingering hazards that hurt units standing inside them. */
+    standingDamage?: StandingDamageDef;
+    /**
+     * Effective terrain this effect cannot exist on. Cells of these types are skipped when the
+     * effect is placed, and the effect is wiped from a cell whose floor becomes one of them
+     * (`TerrainLayerManager.add` / `clearBlockedEffects`).
+     */
+    blockedOn?: readonly TerrainType[];
 }
 
 export const TERRAIN_EFFECT_DEFS: Readonly<Record<string, TerrainEffectDef>> = {
@@ -58,6 +94,7 @@ export const TERRAIN_EFFECT_DEFS: Readonly<Record<string, TerrainEffectDef>> = {
             landDamage: THORN_LAND_DAMAGE,
             consumeOnTrigger: true,
         },
+        blockedOn: ROCK_AND_WATER_TERRAIN,
     },
     [DARK_THORN_EFFECT_TYPE]: {
         effectType: DARK_THORN_EFFECT_TYPE,
@@ -68,6 +105,16 @@ export const TERRAIN_EFFECT_DEFS: Readonly<Record<string, TerrainEffectDef>> = {
             landDamage: DARK_THORN_LAND_DAMAGE,
             consumeOnTrigger: true,
         },
+        blockedOn: ROCK_AND_WATER_TERRAIN,
+    },
+    [MIASMA_EFFECT_TYPE]: {
+        effectType: MIASMA_EFFECT_TYPE,
+        layer: 'air',
+        standingDamage: {
+            hurts: { except: ['dark_creature'] },
+            damage: MIASMA_DAMAGE,
+            intervalSec: MIASMA_INTERVAL_SEC,
+        },
     },
 };
 
@@ -76,4 +123,9 @@ export function getTerrainEffectDef(effectType: string): TerrainEffectDef | unde
     return Object.prototype.hasOwnProperty.call(TERRAIN_EFFECT_DEFS, effectType)
         ? TERRAIN_EFFECT_DEFS[effectType]
         : undefined;
+}
+
+/** True when `effectType`'s def forbids it on `terrainType` (see `TerrainEffectDef.blockedOn`). */
+export function isEffectBlockedOn(effectType: string, terrainType: TerrainType): boolean {
+    return getTerrainEffectDef(effectType)?.blockedOn?.includes(terrainType) ?? false;
 }

@@ -66,6 +66,7 @@ export function serializeEngine(engine: GameEngine): SerializedGameState {
         firedEventIndices: levelEventData.firedEventIndices,
         victoryCheckFirstEmitDone: levelEventData.victoryCheckFirstEmitDone,
         continuousSpawnLastSpawnedAt: levelEventData.continuousSpawnLastSpawnedAt,
+        triggerState: levelEventData.triggerState,
         playerResearchTreesByPlayer: engine.state.researchManager.toJSON(),
         storyPauseActive: engine.storyPauseActive,
         storyPauseReason: engine.storyPauseReason,
@@ -145,6 +146,7 @@ export function deserializeEngine(
         firedEventIndices: data.firedEventIndices,
         victoryCheckFirstEmitDone: data.victoryCheckFirstEmitDone,
         continuousSpawnLastSpawnedAt: data.continuousSpawnLastSpawnedAt,
+        triggerState: data.triggerState,
     });
 
     engine.state.objectiveManager.importSnapshot(data.objectives);

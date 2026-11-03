@@ -17,7 +17,7 @@ import { getUnitTravelSpeedPx, tickUnitFrozenUpkeep } from '../units/unitMovemen
 import { collectAbilityBoundaryOffsets } from '../units/unitAbilityTick';
 import { resolvePendingFrozenHits } from '../units/unitDamage';
 import { isSinglePieceStep, planStepPieces } from '../time/stepPieces';
-import { processUnitPassives } from '../../abilities/passiveRunner';
+import { processUnitPassiveEvent, processUnitPassives } from '../../abilities/passiveRunner';
 import type { AIContext } from '../units/unitAI';
 import { createResourceFromId } from '../../resources/createResourceFromId';
 import { countNinjutsuEnemyUnits } from '../ninjutsu/NinjutsuManager';
@@ -26,6 +26,7 @@ import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unit
 import type { CellOccupancyManager } from './CellOccupancyManager';
 import { refreshActiveTargets } from '../../abilities/targetDowngrade';
 import { processUnitTileTransition } from '../terrainEffects/tileTransitions';
+import { tickStandingTerrainDamage } from '../terrainEffects/standingDamage';
 import {
     PERF_UNITS_ABILITIES,
     PERF_UNITS_AI,
@@ -266,7 +267,7 @@ export class UnitManager {
             unit.growAnimTimer = Math.max(0, unit.growAnimTimer - worldDt);
         }
         unit.tickMovement(pieceDt, engine, first ? { upkeepDt: worldDt } : { skipUpkeep: true });
-        processUnitTileTransition(unit, engine);
+        if (processUnitTileTransition(unit, engine)) processUnitPassiveEvent(unit, 'onCellEnter', engine);
         // Incremental map-network membership update — the unit "notifies" the manager of a
         // node change right after its position is finalized for this piece, instead of the
         // manager rescanning every participating unit every tick. See MapNetworkManager.updateUnitNode.
@@ -301,6 +302,7 @@ export class UnitManager {
             for (const unit of this.units) {
                 if (!unit.active) continue;
                 processUnitPassives(unit, dt, engine);
+                tickStandingTerrainDamage(unit, dt, engine);
             }
         });
         // Phase 1b: active ability tick (piece 0)

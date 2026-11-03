@@ -96,6 +96,7 @@ export class TerrainManager {
     /** Attach the TerrainLayerManager so floor tiles affect passability and rock queries. */
     setTerrainLayers(layers: TerrainLayerManager): void {
         this.terrainLayers = layers;
+        layers.setTerrainTypeResolver((col, row) => this.getEffectiveTerrainType(col, row));
         // Invalidate NavGrid since terrain layers have changed.
         if (this._nav) {
             this._nav.markAllDirty();
@@ -210,7 +211,7 @@ export class TerrainManager {
         // Rock dropped into water raises the ground (deep -> shallow, water/shallow -> gravel).
         const raised = raiseGround(previousEffective, GROUND_RAISE.rock);
         if (raised !== null) {
-            this.terrainLayers.setFloorTile(col, row, { terrainType: raised });
+            this.writeFloorTile(col, row, { terrainType: raised });
             this.scourGroundEffects(col, row);
             this.notifyNavChanged(col, row);
             return null;
@@ -221,7 +222,7 @@ export class TerrainManager {
                 terrainType: TerrainType.Rock,
                 destructible: { health: maxHealth, maxHealth, kind: 'rock' },
             };
-            this.terrainLayers.setFloorTile(col, row, tile);
+            this.writeFloorTile(col, row, tile);
             this.scourGroundEffects(col, row);
             return { ...tile, destructible: { ...tile.destructible! } };
         }
@@ -230,12 +231,23 @@ export class TerrainManager {
             terrainType: TerrainType.Rock,
             destructible: { health: maxHealth, maxHealth, kind: 'rock' },
         };
-        this.terrainLayers.setFloorTile(col, row, tile);
+        this.writeFloorTile(col, row, tile);
         this.scourGroundEffects(col, row);
 
         // Effective passability changed from passable to impassable.
         this.notifyNavChanged(col, row);
         return { ...tile, destructible: { ...tile.destructible! } };
+    }
+
+    /**
+     * Every floor write goes through here: sets the tile, then wipes ground effects that cannot exist
+     * on the new terrain (thorns under fresh rock or water; see `TerrainEffectDef.blockedOn`).
+     */
+    private writeFloorTile(col: number, row: number, tile: FloorTile): void {
+        if (!this.terrainLayers) return;
+        this.terrainLayers.setFloorTile(col, row, tile);
+        const cleared = this.terrainLayers.clearBlockedEffects(col, row, this.getEffectiveTerrainType(col, row));
+        if (cleared.length > 0) this.onTerrainEffectsCleared?.(cleared);
     }
 
     /** Rock rule: raising rock on a tile clears that tile's ground effects. */
@@ -286,7 +298,7 @@ export class TerrainManager {
             floor.destructible = undefined;
         }
 
-        this.terrainLayers.setFloorTile(col, row, floor);
+        this.writeFloorTile(col, row, floor);
 
         // Bump navEpoch only if effective passability changed (rock destroyed).
         const destroyed = nextTerrainType === TerrainType.Gravel;
@@ -385,7 +397,7 @@ export class TerrainManager {
             this.lastRockDamageSourceUnitId = sourceUnitId;
         }
 
-        this.terrainLayers.setFloorTile(col, row, { terrainType: TerrainType.Gravel });
+        this.writeFloorTile(col, row, { terrainType: TerrainType.Gravel });
 
         // Destroyed rock changes effective passability, so bump navEpoch and mark the cell dirty.
         this.notifyNavChanged(col, row);
@@ -416,7 +428,7 @@ export class TerrainManager {
         const raised = raiseGround(current, GROUND_RAISE.gravel);
         if (raised === null && (current === TerrainType.Gravel || !TERRAIN_PROPERTIES[current].passable)) return false;
 
-        this.terrainLayers.setFloorTile(col, row, { terrainType: raised ?? TerrainType.Gravel });
+        this.writeFloorTile(col, row, { terrainType: raised ?? TerrainType.Gravel });
         // The effective terrain type changed (movement cost, and the terrain sprite repaints on navEpoch).
         this.notifyNavChanged(col, row);
         return true;

@@ -36,6 +36,7 @@ import {
     ALPHA_WOLF_ENRAGE_THRESHOLD,
     ENEMY_BOAR,
     ENEMY_THORNBINDER,
+    ENEMY_HUSK,
     ENEMY_SWARMLING,
     ALLY_LANTERNITE,
 } from '../../../constants/enemyConstants';
@@ -114,7 +115,8 @@ export type EnemyUnitId =
     | 'lanternite'
     | 'lanternite_nest'
     | 'swarm_nest'
-    | 'dog';
+    | 'dog'
+    | 'husk';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
 /**
@@ -442,6 +444,23 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         perceptionRange: 250,
         creatureType: 'beast',
         uiDescription: 'Loyal hound — fights close to its master, biting enemies that stray too near.',
+    },
+    husk: {
+        bodyColor: 0x4a5236,
+        displayName: 'Husk',
+        sprite: UNIT_SPRITE_URLS.husk,
+        bestiary: { abilityIds: ['1101', '1102'] },
+        baseSpawn: ENEMY_HUSK,
+        characterSpriteKey: 'husk',
+        hp: 90,
+        speed: 40,
+        size: 'Large',
+        stamina: 1,
+        perceptionRange: 300,
+        creatureType: 'dark_creature',
+        onDeathVisualEffects: darkCreatureParticleBurstVFX(5),
+        uiDescription:
+            'Hollowed former resident of the castle — slow and hard to put down, it trails a cloud of choking miasma wherever it walks.',
     },
 };
 

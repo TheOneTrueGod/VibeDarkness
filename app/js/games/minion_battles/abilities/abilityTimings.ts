@@ -672,6 +672,18 @@ export function resolveAbilityTimingEntries(
 }
 
 /**
+ * Whether the ability has a cast timeline at all. Pure passives (e.g. `passive` auras/trails) ship
+ * empty `abilityTimings` and must never be queued as casts — the active-ability tick needs a duration.
+ */
+export function hasCastTimeline(
+    ability: AbilityTimingsResolvable,
+    caster?: unknown,
+    gameState?: unknown,
+): boolean {
+    return resolveAbilityTimingEntries(ability, caster, gameState).length > 0;
+}
+
+/**
  * Elapsed-time cutoff for "track the target until it fires" mechanics (see `trackTargetUntilLabel`
  * on `AbilityStatic`). Resolves to the `start` of the `abilityTimings` interval whose `id` matches
  * `trackTargetUntilLabel`; falls back to `prefireTime` when unset or the id isn't found.

@@ -27,6 +27,7 @@ import { applyPassiveBonusToBase } from '../../../../../researchTrees/passiveBon
 import { lanterniteStateOf } from '../components/lanterniteComponent';
 import { swarmStateOf } from '../components/swarmComponent';
 import { petStateOf } from '../components/petComponent';
+import { initTreeContext } from '../unitAI/contextTypes';
 
 /**
  * Narrow, structural context spawnUnit needs. `GameEngine` (which implements `EngineContext`)
@@ -553,6 +554,19 @@ function applyAiHookup(ctx: SpawnUnitContext, unit: Unit, hookup: SpawnAiHookup 
     if (!hookup || hookup.kind === 'none') return;
 
     switch (hookup.kind) {
+        case 'sentryPatrol': {
+            const waypoints = hookup.waypoints.map((p) => ({ x: p.x, y: p.y }));
+            if (hookup.startAtSpawn !== false) waypoints.unshift({ x: unit.x, y: unit.y });
+            unit.aiContext = {
+                ...initTreeContext('sentryPatrol', unit.aiContext),
+                aiState: undefined,
+                waypoints,
+                waypointIndex: 0,
+                noticeRangePx: hookup.noticeRangePx,
+                alertRadiusPx: hookup.alertRadiusPx,
+            };
+            return;
+        }
         case 'lanternite': {
             if (hookup.patrolFarWorld != null) lanterniteStateOf(unit).patrolFarWorld = { ...hookup.patrolFarWorld };
             if (hookup.patrolLeg != null) lanterniteStateOf(unit).patrolLeg = hookup.patrolLeg;

@@ -8,15 +8,19 @@
 import type { Unit } from '../units/Unit';
 import type { TerrainEffectRecord } from '../TerrainLayerManager';
 import { getCreatureType } from '../units/unit_defs/unitDef';
-import { getTerrainEffectDef, type ThornsDef } from './terrainEffectDefs';
+import { getTerrainEffectDef, type CreatureFilter, type ThornsDef } from './terrainEffectDefs';
 import type { TileTransitionEngine } from './tileTransitions';
+
+/** True when a terrain hazard's creature filter includes this unit. */
+export function unitMatchesCreatureFilter(filter: CreatureFilter, unit: Unit): boolean {
+    const creatureType = getCreatureType(unit.characterId);
+    if ('only' in filter) return creatureType !== undefined && filter.only.includes(creatureType);
+    return creatureType === undefined || !filter.except.includes(creatureType);
+}
 
 /** True when the thorns' creature filter includes this unit. */
 export function unitIsHurtByThorns(thorns: ThornsDef, unit: Unit): boolean {
-    const creatureType = getCreatureType(unit.characterId);
-    const { hurts } = thorns;
-    if ('only' in hurts) return creatureType !== undefined && hurts.only.includes(creatureType);
-    return creatureType === undefined || !hurts.except.includes(creatureType);
+    return unitMatchesCreatureFilter(thorns.hurts, unit);
 }
 
 /** @returns true if the thorns damaged the unit. */

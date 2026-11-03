@@ -21,6 +21,7 @@ import { Effect } from './effects/Effect';
 import type { TeamId } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { BattleObjectiveDef, LevelEvent, PlayerControlDef } from '../storylines/types';
+import type { TriggerDef } from './triggers/triggerTypes';
 import type { SpecialTile } from './specialTiles/SpecialTile';
 import { isTileDefendPoint } from './specialTiles/SpecialTile';
 import type { AIContext, AILightSource } from './units/unitAI';
@@ -89,6 +90,7 @@ import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from '
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
 import { BuffRenderEmitterSystem } from './effects/buffParticleAura';
+import { ProjectileAfterimageSystem } from './effects/projectileAfterimages';
 import { advanceUnitLocalClocks, collectUnitFocalRequests } from './time/actorClock';
 import {
     isITSPreviewComplete,
@@ -143,6 +145,7 @@ export class GameEngine implements EngineContext {
     private effectIdSeq = 0;
     /** Render-only buff visuals: particle auras and `Buff.renderEmit` (not serialized). */
     private readonly buffRenderEmitters = new BuffRenderEmitterSystem();
+    private readonly projectileAfterimages = new ProjectileAfterimageSystem();
 
     /**
      * Parallel order pause scheduled during a tick; committed in the **same** `fixedUpdate` after
@@ -535,6 +538,8 @@ export class GameEngine implements EngineContext {
 
     registerLevelEvents(events: LevelEvent[]): void { this.state.levelEventManager.registerLevelEvents(events); }
     setLevelEvents(events: LevelEvent[]): void { this.state.levelEventManager.setLevelEvents(events); }
+    registerTriggers(triggers: TriggerDef[]): void { this.state.levelEventManager.registerTriggers(triggers); }
+    setTriggers(triggers: TriggerDef[]): void { this.state.levelEventManager.setTriggers(triggers); }
     registerBattleObjectives(defs: BattleObjectiveDef[]): void {
         this.state.objectiveManager.setDefs(defs);
     }
@@ -908,6 +913,10 @@ export class GameEngine implements EngineContext {
                 fx.id = this.allocateEffectObjectId('fx');
                 this.state.effectManager.addEffect(fx);
             }, { gameTime: this.gameTime, halted });
+            this.projectileAfterimages.update(this.projectiles, realDt, (fx) => {
+                fx.id = this.allocateEffectObjectId('fx');
+                this.state.effectManager.addEffect(fx);
+            }, this.gameTime);
         });
     }
 

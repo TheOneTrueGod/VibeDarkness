@@ -132,6 +132,7 @@ export async function loadSession(
     if (mission.levelEvents && mission.levelEvents.length > 0) {
         engine.setLevelEvents(mission.levelEvents);
     }
+    engine.setTriggers(mission.triggers ?? []);
     // Install before initializeGameState so enemy (and player) spawns bake statBags.
     if (darknessStrength) {
         engine.setActiveDarknessStrengths(resolveActiveDarknessStrengths(darknessStrength));
@@ -247,6 +248,7 @@ export function loadSessionFromSnapshot(
     if (mission.levelEvents && mission.levelEvents.length > 0) {
         engine.setLevelEvents(mission.levelEvents);
     }
+    engine.setTriggers(mission.triggers ?? []);
     const snapshotPortraitIds = (raw.characterPortraitIds ?? raw.character_portrait_ids) as
         | Record<string, string>
         | undefined;
@@ -311,6 +313,7 @@ export function restoreSessionFromInMemorySnapshot(session: BattleSession, snaps
     if (mission.levelEvents && mission.levelEvents.length > 0) {
         engine.setLevelEvents(mission.levelEvents);
     }
+    engine.setTriggers(mission.triggers ?? []);
     finalizeEngine(session, engine);
     for (const key of preservedRemoteOrderKeys) {
         session.appliedRemoteOrderKeys.add(key);

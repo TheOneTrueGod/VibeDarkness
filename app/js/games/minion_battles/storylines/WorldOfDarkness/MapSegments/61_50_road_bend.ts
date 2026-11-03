@@ -3,7 +3,7 @@
  * and leaves the north edge at cols 10-11 toward the 61_49 castle gate.
  * Thickets and a few boulders give cover on both sides of the bend; a pond sits just south of the
  * bend (cols 8-14, rows 14-19), between the two southern thickets,
- * ringed with Shallow Water.
+ * ringed with Shallow Water, with small shallow shoals poking in from the north, east and south-west.
  * Painted with terrain/mapTools (fillRect, paintRoad, paintBezierRoad, ellipse).
  */
 
@@ -36,11 +36,11 @@ export const MAP_SEGMENT_61_50_ROAD_BEND: TerrainType[][] = [
     [D, D, D, D, D, D, D, D, D, D, _, _, _, _, _, _, _, _, _, _, _, _],
     [D, D, D, D, D, D, D, D, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, SW, SW, SW, _, _, _, _, T, _, _, _, _],
-    [_, _, _, _, _, _, _, _, SW, SW, W, W, W, SW, SW, T, T, T, T, T, _, _],
-    [_, _, _, _, _, _, _, SW, W, W, W, W, W, W, W, SW, T, R, R, T, T, _],
+    [_, _, _, _, _, _, _, _, SW, SW, W, SW, W, SW, SW, T, T, T, T, T, _, _],
+    [_, _, _, _, _, _, _, SW, W, W, W, SW, W, W, W, SW, T, R, R, T, T, _],
     [_, _, _, _, T, T, T, SW, W, W, W, W, W, W, W, SW, T, R, R, T, T, _],
-    [_, _, _, T, T, T, T, SW, W, W, W, W, W, W, W, SW, T, T, T, T, T, _],
-    [_, _, T, T, T, T, T, SW, W, W, W, W, W, W, W, SW, T, T, T, T, _, _],
+    [_, _, _, T, T, T, T, SW, W, W, W, W, W, SW, SW, SW, T, T, T, T, T, _],
+    [_, _, T, T, T, T, T, SW, SW, W, W, W, W, W, W, SW, T, T, T, T, _, _],
     [_, _, _, T, T, T, T, T, SW, SW, W, W, W, SW, SW, _, _, T, _, _, _, _],
     [_, _, _, _, T, T, T, _, _, _, SW, SW, SW, _, _, _, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],

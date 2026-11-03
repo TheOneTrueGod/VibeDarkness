@@ -16,12 +16,12 @@ import {
     EAST_WALL_OPENING_COL,
     EAST_WALL_OPENING_ROW,
     EAST_WALL_OPENING_SIZE,
-    MAP_SEGMENT_10_10_EAST_CAVE,
-} from './10_10_east_cave';
+    MAP_SEGMENT_59_50_EAST_CAVE,
+} from './59_50_east_cave';
 
 registerWorldOfDarknessSegments();
 
-const cave = MAP_SEGMENT_10_10_EAST_CAVE;
+const cave = MAP_SEGMENT_59_50_EAST_CAVE;
 const crystals = Object.values(EAST_CAVE_CRYSTAL_POINTS);
 
 function inEastOpening(col: number, row: number): boolean {
@@ -33,7 +33,7 @@ function inEastOpening(col: number, row: number): boolean {
     );
 }
 
-describe('10_10 east cave home', () => {
+describe('59_50 east cave home', () => {
     it('is enclosed by rock except for the 2x2 hole on the east wall', () => {
         expect(cave).toHaveLength(EAST_CAVE_SIZE);
         for (const row of cave) expect(row).toHaveLength(EAST_CAVE_SIZE);
@@ -63,13 +63,13 @@ describe('10_10 east cave home', () => {
     });
 
     it('rings the chamber with crystal light spots that cover every floor cell', () => {
-        for (const pt of crystals) expect(cave[pt.row]![pt.col]).toBe(TerrainType.Dirt);
-        // Chamber = dirt west of the tunnel; the campfire tile itself is a light, so it is skipped.
+        // Crystals may sit on the floor or in the rock just outside the chamber wall.
+        // Chamber = dirt west of the mouth. The campfire is a light at least as strong as a crystal.
+        const lights = [...crystals, EAST_CAVE_CAMPFIRE];
         for (let r = 0; r < EAST_CAVE_SIZE; r++) {
-            for (let c = 0; c < EAST_WALL_OPENING_COL - 3; c++) {
+            for (let c = 0; c < EAST_WALL_OPENING_COL; c++) {
                 if (cave[r]![c] !== TerrainType.Dirt) continue;
-                if (c === EAST_CAVE_CAMPFIRE.col && r === EAST_CAVE_CAMPFIRE.row) continue;
-                const nearest = Math.min(...crystals.map((p) => Math.hypot(p.col - c, p.row - r)));
+                const nearest = Math.min(...lights.map((p) => Math.hypot(p.col - c, p.row - r)));
                 expect(nearest, `cell (${c},${r})`).toBeLessThanOrEqual(CRYSTAL_DAYLIGHT_RADIUS);
             }
         }

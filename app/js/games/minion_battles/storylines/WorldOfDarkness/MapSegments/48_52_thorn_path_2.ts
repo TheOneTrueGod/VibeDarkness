@@ -9,6 +9,8 @@ const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
 const T = TerrainType.ThickGrass;
 const D = TerrainType.Dirt;
+const W = TerrainType.Water;
+const SW = TerrainType.ShallowWater;
 
 export const MAP_SEGMENT_48_52_THORN_PATH_2: TerrainType[][] = [
     [_,_,_,_,_,_,_,T,T,T,T,_,_,_,_,_,_,_,_,_,_,_],
@@ -27,12 +29,12 @@ export const MAP_SEGMENT_48_52_THORN_PATH_2: TerrainType[][] = [
     [_,_,_,_,_,_,R,R,R,R,_,_,D,D,D,_,_,_,_,_,_,_],
     [_,_,_,_,_,_,R,R,R,R,R,R,_,D,D,D,D,D,D,D,D,D],
     [_,_,_,_,_,_,R,R,R,R,R,R,R,_,D,D,D,D,D,D,D,D],
-    [_,T,T,T,T,_,_,R,R,R,R,R,R,_,_,_,_,_,_,_,_,_],
-    [_,T,T,T,T,T,_,_,_,_,R,R,R,_,_,_,T,T,T,T,_,_],
-    [_,T,T,T,T,T,_,_,_,_,_,_,_,_,_,T,T,T,T,T,_,_],
-    [_,_,T,T,T,T,_,_,_,_,_,_,_,_,_,T,T,T,T,T,_,_],
-    [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,T,T,T,T,T,_,_],
-    [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_],
+    [_,T,T,T,T,_,_,R,R,R,R,R,R,_,_,_,_,_,SW,SW,SW,SW],
+    [_,T,T,T,T,T,_,SW,SW,SW,R,R,R,_,_,_,T,SW,SW,W,SW,W],
+    [_,T,T,T,T,T,SW,SW,W,W,SW,SW,SW,_,_,T,SW,SW,W,W,W,W],
+    [_,_,T,T,T,SW,SW,W,W,W,W,W,SW,SW,_,T,SW,W,W,SW,W,W],
+    [_,_,_,_,_,SW,W,W,W,SW,W,W,W,SW,_,T,SW,SW,SW,SW,W,W],
+    [_,_,_,_,_,SW,SW,SW,SW,SW,SW,SW,SW,_,_,_,_,_,_,SW,SW,SW],
 ];
 
 export const NEST            = { col:  9, row:  8 } as const;

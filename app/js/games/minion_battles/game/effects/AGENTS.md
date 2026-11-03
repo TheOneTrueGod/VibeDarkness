@@ -71,6 +71,10 @@ Buff-driven visuals go through `BuffRenderEmitterSystem` (`buffParticleAura.ts`)
 - `Buff.particleAura` (def property): idle orbs / moving speed lines (preset `BUFF_PARTICLE_AURA_PRESETS.tempo`, used by `TimeDilationBuff`). "Moving" also counts a unit that still has a movement path, so a paused unit with a queued move keeps its speed lines.
 - `Buff.renderEmit(unit, ctx)`: free-form visual emission for the state a buff represents (Gravity Locus's field uses it). Derived from serialized buff state every frame, so it is reconnect-safe. Prefer this over emitting visuals from `onGameTick`, which goes blank at a pause plane.
 
+### Projectile afterimages
+
+`SpriteProjectileConfig.afterimage` (def data, presets in `SPRITE_AFTERIMAGE_PRESETS`) makes a sprite projectile shed fading copies of its sprite that drift backward. `ProjectileAfterimageSystem` (`projectileAfterimages.ts`) emits them from `GameEngine.doRenderTick` on wall time, so they keep spawning while halted; the `SpriteAfterimage` effect draws just under projectiles. Unit dash afterimages are different: `DashBehaviour.withAfterimages` spawns them on game ticks with `'hold'`.
+
 ### posSnapshot pattern
 
 `renderUpdate(realDt, posSnapshot)` receives a `Map<string, { x, y }>` of unit world positions snapshotted at render time. `ContinuousEmitter` factories use this to place particles at current unit positions without reading game state directly.

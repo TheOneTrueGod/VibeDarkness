@@ -102,8 +102,6 @@ const PUNCH_LUNGE_DISTANCE = 10;
 const DOUBLE_PUNCH_TARGET_1_LABEL = 'Target 1';
 const DOUBLE_PUNCH_TARGET_2_LABEL = 'Target 2';
 
-/** Matches `GameEngine` fixed timestep. */
-const FIXED_DT = 1 / 60;
 /** Matches `0801Ability` `PREFIRE_TIME`. */
 const LIGHT_BLAST_ID = '0801';
 const LIGHT_BLAST_PREFIRE = 0.4;

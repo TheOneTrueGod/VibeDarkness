@@ -110,9 +110,10 @@ export function onLand(cell: TileCell, unit: Unit, engine: TileTransitionEngine)
 /**
  * After movement for this tick: fire leave/enter/land against ground terrain effects.
  * First observation of a unit seeds state without firing events.
+ * @returns true when the unit moved into a different cell this call (grounded or airborne).
  */
-export function processUnitTileTransition(unit: Unit, engine: TileTransitionEngine): void {
-    if (!unit.active || !unit.isAlive()) return;
+export function processUnitTileTransition(unit: Unit, engine: TileTransitionEngine): boolean {
+    if (!unit.active || !unit.isAlive()) return false;
 
     const curr = cellOf(unit);
     const airborne = isUnitAirborne(unit);
@@ -120,7 +121,7 @@ export function processUnitTileTransition(unit: Unit, engine: TileTransitionEngi
 
     if (!prev) {
         unitTileState.set(unit.id, { col: curr.col, row: curr.row, airborne });
-        return;
+        return false;
     }
 
     const prevCell: TileCell = { col: prev.col, row: prev.row };
@@ -138,4 +139,5 @@ export function processUnitTileTransition(unit: Unit, engine: TileTransitionEngi
     }
 
     unitTileState.set(unit.id, { col: curr.col, row: curr.row, airborne });
+    return cellChanged;
 }

@@ -24,4 +24,13 @@ export const TERRAIN_EFFECT_VISUAL_DEFS: Record<string, TerrainEffectVisualDef> 
   <path d="M30,15 C32,12 34,13 32,16" stroke="#4ade80" stroke-width="1" fill="none"/>
 </svg>`,
     },
+    miasma: {
+        layer: 'air',
+        svgString: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20">
+  <ellipse cx="12" cy="12" rx="11" ry="6" fill="#6b7f3a" fill-opacity="0.35"/>
+  <ellipse cx="26" cy="9" rx="12" ry="7" fill="#556b2f" fill-opacity="0.35"/>
+  <ellipse cx="20" cy="14" rx="14" ry="5" fill="#4a3b5c" fill-opacity="0.3"/>
+  <path d="M6,11 C10,7 14,13 18,9 M22,12 C26,8 30,13 35,9" stroke="#a3b86c" stroke-opacity="0.5" stroke-width="1" fill="none" stroke-linecap="round"/>
+</svg>`,
+    },
 };

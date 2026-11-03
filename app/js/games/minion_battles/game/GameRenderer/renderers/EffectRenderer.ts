@@ -4,8 +4,11 @@ import type { Effect } from '../../effects/Effect';
 import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } from '../../effect_defs/index';
 import type { EffectImageKey } from '../../effectImages';
 import type { AssetRegistry } from '../AssetRegistry';
+import { SPRITE_AFTERIMAGE_EFFECT_TYPE } from '../../projectiles/projectile_defs/spriteAfterimage';
 
 const Z_EFFECTS = 12;
+/** Just under projectiles (11), so a projectile's own afterimages never draw over it. */
+const Z_UNDER_PROJECTILES = 10.5;
 /** Max on-screen diameter (px) for batched particles — prevents one-frame full-viewport wash. */
 const MAX_PARTICLE_PX = 28;
 
@@ -15,6 +18,7 @@ export class EffectRenderer {
     private particleContainer: ParticleContainer | null = null;
 
     private static readonly PARTICLE_EFFECT_TYPES = new Set(['ParticleImage']);
+    private static readonly UNDER_PROJECTILE_EFFECT_TYPES = new Set([SPRITE_AFTERIMAGE_EFFECT_TYPE]);
 
     constructor(
         private readonly gameContainer: Container,
@@ -54,7 +58,9 @@ export class EffectRenderer {
             let visual = this.effectVisuals.get(effect.id);
             if (!visual) {
                 visual = createEffectVisual(effect, context);
-                visual.zIndex = Z_EFFECTS;
+                visual.zIndex = EffectRenderer.UNDER_PROJECTILE_EFFECT_TYPES.has(effect.effectType)
+                    ? Z_UNDER_PROJECTILES
+                    : Z_EFFECTS;
                 this.effectVisuals.set(effect.id, visual);
                 this.gameContainer.addChild(visual);
             }
