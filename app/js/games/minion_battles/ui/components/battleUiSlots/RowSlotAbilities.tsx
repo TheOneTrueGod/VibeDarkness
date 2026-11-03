@@ -10,6 +10,7 @@ import type { AbilityStatic } from '../../../abilities/Ability';
 import type { Unit, UnitAbilityRuntimeState } from '../../../game/units/Unit';
 import { getAbilityDisabledReason } from '../abilityDisabledReason';
 import AbilitySlot from '../AbilitySlot';
+import { battleAbilityCardTestId } from '../../../../../testing/testIds';
 import AbilityTooltip from '../AbilityTooltip';
 import { getAbilityUseConfig, type RecoveryChargeType } from '../../../abilities/abilityUses';
 import { recoveryGlossaryEntries } from '../recoveryChargeDefinitions';
@@ -387,6 +388,8 @@ export default function RowSlotAbilities({
                 ref={(el) => {
                     cardRefs.current[card.abilityId] = el;
                 }}
+                data-testid={battleAbilityCardTestId(card.abilityId)}
+                data-disabled-reason={disabledReason ?? undefined}
             >
                 <AbilitySlot
                     ability={card.ability}

@@ -51,6 +51,10 @@ export const TestIds = {
     storyNext: 'story-next',
     storyChoicePrefix: 'story-choice-',
     battleWait: 'battle-wait',
+    battlePass: 'battle-pass',
+    battleAbilityCardPrefix: 'battle-ability-card-',
+    victoryPopover: 'victory-popover',
+    victoryPopoverContinue: 'victory-popover-continue',
     objectivesPopover: 'objectives-popover',
     objectivesPopoverStart: 'objectives-popover-start',
     lobbyLeave: 'lobby-leave',
@@ -79,6 +83,10 @@ export function missionMapNodeTestId(missionId) {
 
 export function missionMapQuestBankTestId(bankId) {
     return `${TestIds.missionMapQuestBankPrefix}${bankId}`;
+}
+
+export function battleAbilityCardTestId(abilityId) {
+    return `${TestIds.battleAbilityCardPrefix}${abilityId}`;
 }
 
 export function storyChoiceTestId(optionId) {

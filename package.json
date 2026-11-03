@@ -1,6 +1,6 @@
 {
   "name": "multiplayer-lobby",
-  "version": "1.4.20",
+  "version": "1.4.21",
   "description": "Multiplayer game lobby - frontend",
   "type": "module",
   "scripts": {
@@ -22,6 +22,7 @@
     "test:e2e:ui": "playwright test --ui",
     "account:create": "node scripts/create-account-playwright.mjs",
     "play:smoke": "node scripts/play-mission-smoke-playwright.mjs",
+    "playtest": "node scripts/playtest-multiplayer.mjs",
     "desyncDebug-getTick": "node scripts/desyncDebug-getTick.js",
     "desyncDebug-getFingerprints": "node scripts/desyncDebug-getFingerprints.js",
     "desyncDebug-getLobbyLog": "node scripts/desyncDebug-getLobbyLog.js",

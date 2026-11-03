@@ -46,6 +46,7 @@ import RewindOverlay from './battlePhase/RewindOverlay';
 import { computeAwaitingServerAfterSubmit, computeTurnIndicatorProps } from './battlePhase/turnIndicatorState';
 import { useBossHudPolling } from './battlePhase/useBossHudPolling';
 import { useBattleDebugBridge } from './battlePhase/useBattleDebugBridge';
+import { usePlaytestBridge } from './battlePhase/usePlaytestBridge';
 import { useInteractiveTargetingProgress } from './battlePhase/useInteractiveTargetingProgress';
 import { useBattleGhostPlans } from './battlePhase/useBattleGhostPlans';
 import { useBattleSyncNudges } from './battlePhase/useBattleSyncNudges';
@@ -448,6 +449,15 @@ export default function BattlePhase({
     const awaitingServerAfterSubmit = computeAwaitingServerAfterSubmit({
         itsCommitInFlight,
         orderSubmitFailed,
+    });
+    usePlaytestBridge({
+        sessionRef,
+        missionId,
+        playerId,
+        isHost,
+        canUseOrderUi,
+        interactiveTargetingState,
+        awaitingServerAfterSubmit,
     });
 
     const renderTurnIndicator = (sideControls: TurnIndicatorSideControls) => (

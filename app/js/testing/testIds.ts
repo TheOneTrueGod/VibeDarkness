@@ -93,6 +93,8 @@ export const TestIds = {
     battleWait: 'battle-wait',
     battleAbilityModeStrip: 'battle-ability-mode-strip',
     battlePass: 'battle-pass',
+    /** Hand card wrapper in the battle ability row; suffix is the shown ability id */
+    battleAbilityCardPrefix: 'battle-ability-card-',
     battleDetails: 'battle-details',
     lobbyLeave: 'lobby-leave',
     appLogout: 'app-logout',
@@ -141,6 +143,10 @@ export function missionMapChapterTestId(chapterId: string): string {
 
 export function missionMapQuestBankTestId(bankId: string): string {
     return `${TestIds.missionMapQuestBankPrefix}${bankId}`;
+}
+
+export function battleAbilityCardTestId(abilityId: string): string {
+    return `${TestIds.battleAbilityCardPrefix}${abilityId}`;
 }
 
 export function storyChoiceTestId(optionId: string): string {
