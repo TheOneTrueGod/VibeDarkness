@@ -322,9 +322,11 @@ export class BattleSession implements BattleSessionHandle {
     }
 
     /**
-     * Best-effort fetch of peer orders before ITS reset/replay/commit. No-op without a net adapter.
+     * Best-effort fetch of peer orders before ITS reset/replay/commit. No-op without a net adapter,
+     * and for a solo host: there are no peers, so the forced heartbeat would only add latency.
      */
     async refreshRemoteOrdersBeforeInteractiveTargetingAction(): Promise<void> {
+        if (this.isSoloHost()) return;
         await this.netAdapter?.refreshRemoteOrdersForTargetingPreview?.();
     }
 
