@@ -263,6 +263,20 @@ export class WorldModifierManager {
     // UI query
     // -----------------------------------------------------------------------
 
+    /**
+     * Product of `resourceGainMultipliers[resourceId]` across every active modifier (1 when none set one).
+     * The single read path for world-driven resource gain; resources call it from their own gain code.
+     */
+    getResourceGainMultiplier(resourceId: string, roundNumber: number): number {
+        let mult = 1;
+        for (const inst of this.instances.values()) {
+            const m = inst.def.resourceGainMultipliers?.[resourceId];
+            if (m === undefined || inst.disabled || !this.isModifierActive(inst.def, roundNumber)) continue;
+            mult *= m;
+        }
+        return mult;
+    }
+
     getActiveModifiersForUI(roundNumber: number): WorldModifierDef[] {
         const active: WorldModifierDef[] = [];
         for (const inst of this.instances.values()) {

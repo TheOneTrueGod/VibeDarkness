@@ -106,6 +106,10 @@ import { CreateShieldAbility_1008 } from '../card_defs/10_armory_core/1008_Creat
 import { ReleaseChargeAbility_1009 } from '../card_defs/10_armory_core/1009_ReleaseCharge/1009Ability';
 import { ThrowShieldAbility_1010 } from '../card_defs/10_armory_core/1010_ThrowShield/1010Ability';
 import { RepairPostAbility_1011 } from '../card_defs/10_armory_core/1011_RepairPost/1011Ability';
+import { ArcBoltAbility_1301 } from '../card_defs/13_storm_core/1301_ArcBolt/1301Ability';
+import { StaticStepAbility_1302 } from '../card_defs/13_storm_core/1302_StaticStep/1302Ability';
+import { ChainLightningAbility_1303 } from '../card_defs/13_storm_core/1303_ChainLightning/1303Ability';
+import { ThunderclapAbility_1304 } from '../card_defs/13_storm_core/1304_Thunderclap/1304Ability';
 import { registerArmoryContent } from '../card_defs/10_armory_core/register';
 import { WaitAbility } from './WaitAbility';
 
@@ -226,6 +230,10 @@ register(CreateShieldAbility_1008);
 register(ReleaseChargeAbility_1009);
 register(ThrowShieldAbility_1010);
 register(RepairPostAbility_1011);
+register(ArcBoltAbility_1301);
+register(StaticStepAbility_1302);
+register(ChainLightningAbility_1303);
+register(ThunderclapAbility_1304);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
 

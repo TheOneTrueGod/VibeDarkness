@@ -20,6 +20,7 @@ import { DamageLinkBuff, DAMAGE_LINK_BUFF_TYPE } from './DamageLinkBuff';
 import { HpDrainBuff, HP_DRAIN_BUFF_TYPE } from './HpDrainBuff';
 import { HIT_STOP_BUFF_TYPE } from './HitStopBuff';
 import { HitPauseBuff, HIT_STUN_BUFF_TYPE, hitStopBuffFromJSON } from './hitPause';
+import { MarkBuff, MARK_BUFF_TYPE } from './MarkBuff';
 
 type BuffDeserializer = (data: BuffSerialized) => Buff;
 
@@ -39,6 +40,7 @@ const registry: Record<string, BuffDeserializer> = {
     [HP_DRAIN_BUFF_TYPE]: HpDrainBuff.fromJSON as BuffDeserializer,
     [HIT_STOP_BUFF_TYPE]: hitStopBuffFromJSON as BuffDeserializer,
     [HIT_STUN_BUFF_TYPE]: HitPauseBuff.fromJSON as BuffDeserializer,
+    [MARK_BUFF_TYPE]: MarkBuff.fromSerialized as BuffDeserializer,
 };
 
 /** Deserialize a buff from JSON. Returns the buff instance or throws if type unknown. */

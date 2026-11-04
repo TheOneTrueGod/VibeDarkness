@@ -8,7 +8,11 @@ import type { TeamId } from '../teams';
 
 export type DeployableKind = 'lightSource' | 'terrainEffect' | 'specialTile' | 'droppedWeapon' | 'placedDeployable';
 
-export type DeployableTag = 'lightEmitter' | 'bramble' | 'droppedWeapon' | 'placedDeployable';
+/**
+ * `conductor`: metal on the ground that carries lightning (dropped weapons, placed deployables). Chain
+ * effects may relay through a conductor as a free hop (Storm Core: Chain Lightning).
+ */
+export type DeployableTag = 'lightEmitter' | 'bramble' | 'droppedWeapon' | 'placedDeployable' | 'conductor';
 
 export interface Deployable {
     id: string;

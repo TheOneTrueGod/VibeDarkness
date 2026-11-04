@@ -74,6 +74,7 @@ export const gravityTree: ResearchTreeDef = {
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.GravityCore },
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.LightCore, toItemId: CORE_ITEM_IDS.GravityCore },
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.ArmoryCore, toItemId: CORE_ITEM_IDS.GravityCore },
+                { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.StormCore, toItemId: CORE_ITEM_IDS.GravityCore },
                 { type: 'addCard', cardId: '0902' },
                 { type: 'addCard', cardId: '0904' },
                 { type: 'grantMissionStartResource', resourceId: 'gravity', amount: GRAVITY_CORE_MISSION_START_AMOUNT },

@@ -9,6 +9,12 @@ import type { Effect } from '../effects/Effect';
 import { ARC_SEGMENT_EFFECT_TYPE, arcSegmentEffectDef } from './arcSegmentEffects';
 import { GROUND_SLAM_EFFECT_TYPE, groundSlamEffectDef } from './groundSlamEffects';
 import { CHAIN_LINK_EFFECT_TYPE, chainLinkEffectDef } from './chainEffects';
+import {
+    LIGHTNING_BOLT_EFFECT_TYPE,
+    STORM_SPARK_EFFECT_TYPE,
+    lightningBoltEffectDef,
+    stormSparkEffectDef,
+} from './stormEffects';
 export type { IEffectDef, IEffectRenderContext } from './types';
 import type { IEffectDef, IEffectRenderContext } from './types';
 
@@ -131,6 +137,8 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     [ARC_SEGMENT_EFFECT_TYPE]: arcSegmentEffectDef,
     [GROUND_SLAM_EFFECT_TYPE]: groundSlamEffectDef,
     [CHAIN_LINK_EFFECT_TYPE]: chainLinkEffectDef,
+    [LIGHTNING_BOLT_EFFECT_TYPE]: lightningBoltEffectDef,
+    [STORM_SPARK_EFFECT_TYPE]: stormSparkEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

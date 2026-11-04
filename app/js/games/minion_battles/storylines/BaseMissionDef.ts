@@ -79,11 +79,8 @@ import { AbilityGroupId, formatGroupId } from '../card_defs/AbilityGroupId';
 import { getAbilityTagsForId } from '../abilities/Ability';
 import { expandAbilityIdsForResearchModifiers } from '../abilities/abilityModifierHelpers';
 import { Ammo } from '../resources/Ammo';
-import { Light } from '../resources/Light';
-import { Rock } from '../resources/Rock';
-import { Gravity } from '../resources/Gravity';
-import { Charge } from '../resources/Charge';
 import { Movement } from '../resources/Movement';
+import { createResourceFromId } from '../resources/createResourceFromId';
 import {
     prepareLanterniteNestForMissionStart,
     upsertNestLightSource,
@@ -106,11 +103,9 @@ function attachResourcesFromEquipment(equippedIds: string[], unit: Unit, eventBu
         for (const rid of getItemDef(itemId)?.resourcesToAdd ?? []) {
             if (seen.has(rid) || unit.getResource(rid)) continue;
             seen.add(rid);
-            if (rid === 'light') unit.attachResource(new Light(), eventBus);
-            if (rid === 'rock') unit.attachResource(new Rock(), eventBus);
-            if (rid === 'gravity') unit.attachResource(new Gravity(), eventBus);
-            if (rid === 'charge') unit.attachResource(new Charge(), eventBus);
-            // Extend here as more resource-granting items are added.
+            // Every serializable resource id has a factory, so new resource-granting items need no edit here.
+            const resource = createResourceFromId(rid);
+            if (resource) unit.attachResource(resource, eventBus);
         }
     }
 }

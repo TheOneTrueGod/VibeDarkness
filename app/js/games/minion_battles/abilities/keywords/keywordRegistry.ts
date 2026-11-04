@@ -4,6 +4,7 @@ import { BLEED_TICKS_PER_ROUND } from '../../game/dotTick';
 import { BRIGHT_DEFS, BRIGHT_ROUND_END_DECAY, spawnBrightLight, type EngineWithLight } from '../brightKeyword';
 import { devourLightKeyword } from './devourLightKeyword';
 import { rendKeyword } from './rendKeyword';
+import { CONDUCTIVE_MARK_DEF } from '../../buffs/marks/conductiveMark';
 import type { AbilityKeywordUse, KeywordDef, KeywordId, KeywordResolve } from './keywordTypes';
 
 const registry = new Map<KeywordId, KeywordDef>();
@@ -128,6 +129,12 @@ registerGlossaryTerm({
     title: 'Bleed',
     matches: ['bleed', 'bleeding'],
     description: `Deals {1} damage per {${BLEED_STACKS_PER_DAMAGE}} stacks every {1/${BLEED_TICKS_PER_ROUND}} round.`,
+});
+
+registerGlossaryTerm({
+    title: CONDUCTIVE_MARK_DEF.name,
+    matches: ['conductive'],
+    description: CONDUCTIVE_MARK_DEF.description,
 });
 
 registerGlossaryTerm({

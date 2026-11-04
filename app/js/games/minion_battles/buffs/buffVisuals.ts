@@ -16,6 +16,8 @@ import { SHIELD_BUFF_TYPE, ShieldBuff } from './ShieldBuff';
 import { TIME_DILATION_BUFF_TYPE } from './TimeDilationBuff';
 import { DAMAGE_LINK_BUFF_TYPE, type DamageLinkBuff } from './DamageLinkBuff';
 import { HP_DRAIN_BUFF_TYPE } from './HpDrainBuff';
+import { MARK_BUFF_TYPE, MarkBuff } from './MarkBuff';
+import { getMarkDef } from './marks/markDefs';
 import { drawSnakingTether, TETHER_STYLE_PRESETS } from './tetherVisual';
 import { type ShieldShimmerFilter, tryCreateShieldShimmerFilter } from '../game/ShieldShimmerFilter';
 import { GRAVITY_VIOLET } from '../game/effect_defs/aoeEffects';
@@ -147,6 +149,26 @@ const bleedBuffVisual: BuffVisualRenderer = (g, unit, buff, _ctx) => {
     }
 };
 
+/** Marks: one small diamond pip per stack above the unit, in the mark's colour. */
+const markBuffVisual: BuffVisualRenderer = (g, unit, buff, _ctx) => {
+    if (!(buff instanceof MarkBuff) || buff.stacks <= 0) return;
+    const def = getMarkDef(buff.markId);
+    if (!def) return;
+    const y = -unit.radius - 9;
+    const gap = 7;
+    const x0 = -((buff.stacks - 1) * gap) / 2;
+    for (let i = 0; i < buff.stacks; i++) {
+        const x = x0 + i * gap;
+        g.moveTo(x, y - 3.5);
+        g.lineTo(x + 2.5, y);
+        g.lineTo(x, y + 3.5);
+        g.lineTo(x - 2.5, y);
+        g.lineTo(x, y - 3.5);
+        g.fill({ color: def.pipColor, alpha: 0.95 });
+        g.stroke({ color: def.pipOutlineColor, width: 1, alpha: 0.9 });
+    }
+};
+
 /**
  * Damage link: snaking tether from the linked (protected) unit to the unit taking the redirected
  * share, flowing toward the latter. Drawn in the protected unit's local space.
@@ -263,6 +285,7 @@ export function getBuffVisualRenderer(buffType: string): BuffVisualRenderer {
 registerBuffVisual(STUNNED_BUFF_TYPE, stunnedBuffVisual);
 registerBuffVisual(STAGGERED_BUFF_TYPE, staggeredBuffVisual);
 registerBuffVisual(BLEED_BUFF_TYPE, bleedBuffVisual);
+registerBuffVisual(MARK_BUFF_TYPE, markBuffVisual);
 registerBuffVisual(EXPOSED_BUFF_TYPE, stunnedBuffVisual);
 registerBuffVisual(LIFTED_BUFF_TYPE, (g, unit, _buff, _ctx) => {
     const y = -unit.radius - 8;

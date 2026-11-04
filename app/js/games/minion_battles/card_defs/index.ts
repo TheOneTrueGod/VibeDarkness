@@ -93,6 +93,10 @@ import { CreateShieldCard } from './10_armory_core/1008_CreateShield/1008Ability
 import { ReleaseChargeCard } from './10_armory_core/1009_ReleaseCharge/1009Ability';
 import { ThrowShieldCard } from './10_armory_core/1010_ThrowShield/1010Ability';
 import { RepairPostCard } from './10_armory_core/1011_RepairPost/1011Ability';
+import { ArcBoltCard_1301 } from './13_storm_core/1301_ArcBolt/1301Ability';
+import { StaticStepCard_1302 } from './13_storm_core/1302_StaticStep/1302Ability';
+import { ChainLightningCard_1303 } from './13_storm_core/1303_ChainLightning/1303Ability';
+import { ThunderclapCard_1304 } from './13_storm_core/1304_Thunderclap/1304Ability';
 import { registerArmoryContent } from './10_armory_core/register';
 
 const cardDefs: CardDef[] = [
@@ -189,6 +193,10 @@ const cardDefs: CardDef[] = [
     ReleaseChargeCard,
     ThrowShieldCard,
     RepairPostCard,
+    ArcBoltCard_1301,
+    StaticStepCard_1302,
+    ChainLightningCard_1303,
+    ThunderclapCard_1304,
 ];
 
 // Group content the cards' abilities look up at cast time (idempotent; AbilityRegistry also calls it).

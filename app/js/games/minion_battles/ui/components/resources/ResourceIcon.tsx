@@ -27,6 +27,7 @@ import {
     Footprints,
     Shield,
     Swords,
+    CloudLightning,
     type LucideIcon,
 } from 'lucide-react';
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../../../resources/resourceDisplayDefs';
@@ -43,6 +44,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
     Footprints,
     Shield,
     Swords,
+    CloudLightning,
 };
 
 const RESOURCE_DEF_BY_ID = Object.fromEntries(

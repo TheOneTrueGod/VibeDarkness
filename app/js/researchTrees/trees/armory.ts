@@ -40,6 +40,7 @@ const CORE_SWAP_SOURCES = [
     CORE_ITEM_IDS.EarthCore,
     CORE_ITEM_IDS.CommandCore,
     CORE_ITEM_IDS.BloodMageCore,
+    CORE_ITEM_IDS.StormCore,
 ] as const;
 
 export const armoryTree: ResearchTreeDef = {

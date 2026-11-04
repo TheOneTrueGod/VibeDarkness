@@ -35,6 +35,7 @@ Optional fields:
 | `requiresObjectiveCompletedId` | Modifier stays inactive until the named objective is completed. |
 | `startsDisabled` | Instance begins disabled; enable later via manager API or `setWorldModifierDisabled` effect. |
 | `ambient` | Always-on effects stub (not implemented in v1; reserve the field for Rainy Storm follow-up). |
+| `resourceGainMultipliers` | `{ [resourceId]: mult }` while active; several modifiers multiply. Resources opt in by calling `WorldModifierManager.getResourceGainMultiplier(id, round)` in their gain code (Static does; Rainy Storm doubles it). |
 | `rules` | Map of `WorldEventType → WorldEventRule[]`. This is where behavior lives. |
 
 ### `overrideEffect` — per-effect-type stacking policy
@@ -165,7 +166,7 @@ Rain overlay stub + `on_round_start` counter for mid-battle add tests. Ambient r
 | `activeFromRound` | *(omitted)* | Round window start |
 | `startsDisabled` | *(omitted)* | Instance begins disabled when `true` |
 
-Includes `ambient: [{ type: 'rain_overlay' }]` and increments `storm_ticks` on each `on_round_start` while active.
+Includes `ambient: [{ type: 'rain_overlay' }]`, doubles Static gain (`resourceGainMultipliers`), and increments `storm_ticks` on each `on_round_start` while active.
 
 ---
 

@@ -59,6 +59,13 @@ export interface WorldModifierDef {
     ambient?: WorldAmbientEffect[];
 
     /**
+     * Multipliers on how fast unit resources build while this modifier is active, keyed by resource id
+     * (e.g. Rainy Storm doubles `static`). Resources opt in by reading
+     * `WorldModifierManager.getResourceGainMultiplier`; several active modifiers multiply together.
+     */
+    resourceGainMultipliers?: Readonly<Record<string, number>>;
+
+    /**
      * Per-effect-type stacking policy when multiple world modifier effects target the same position.
      * - 'stack'   (default for spawnLightSource): add new source alongside existing ones.
      * - 'replace': deactivate world-modifier-spawned sources at the same grid cell, then spawn new.

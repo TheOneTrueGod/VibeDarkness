@@ -1,5 +1,6 @@
 import { tryCcInterruptAbilities } from '../../crowdControl/ccInterrupt';
 import { applyBleedStack } from '../../buffs/bleedRuntime';
+import { applyMark } from '../../buffs/MarkBuff';
 import { getCastElapsed } from '../../game/time/actorClock';
 import { grantRecoveryChargeToRandomAbility, applyChargeSurgeToUnit, restoreAbilityUses } from '../abilityUses';
 import { getAbility } from '../AbilityRegistry';
@@ -320,6 +321,12 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
             const target = context.primaryTarget;
             if (!target) return;
             tryApplyHardCcStun(target, effect.duration, context.engine.gameTime, context.engine.roundNumber, context.engine.eventBus, effect.ccCharges ?? 1);
+            return;
+        }
+        case 'applyMarkToPrimaryTarget': {
+            const target = context.primaryTarget;
+            if (!target) return;
+            applyMark(target, effect.markId, effect.stacks, context.engine.gameTime, context.engine.roundNumber);
             return;
         }
         case 'applyBleedToPrimaryTarget': {

@@ -16,6 +16,7 @@ import {
 } from './weaponResearchCosts';
 import { bloodMageTree } from './trees/blood_mage';
 import { armoryTree } from './trees/armory';
+import { stormTree } from './trees/storm';
 import { commandCoreTree } from './trees/command_core';
 import { earthTree } from './trees/earth';
 import { gravityTree } from './trees/gravity';
@@ -32,6 +33,7 @@ const CORE_TREES_EXCEPT_LIGHT: ResearchTreeDef[] = RESEARCH_TREES.filter(
         gravityTree.id,
         bloodMageTree.id,
         armoryTree.id,
+        stormTree.id,
     ].includes(tree.id),
 );
 
@@ -122,6 +124,14 @@ describe('core tree campaign costs (except Light)', () => {
             const remaining = remainingAfterCoreFloors(node.cost, requireNodeTier(node));
             expect(remaining.attunement, node.id).toBeGreaterThanOrEqual(remaining.vigor);
             expect(remaining.attunement, node.id).toBeGreaterThanOrEqual(remaining.metal);
+        }
+    });
+
+    it('leans remaining Storm cost toward Vigor', () => {
+        for (const node of paidNodes(stormTree)) {
+            const remaining = remainingAfterCoreFloors(node.cost, requireNodeTier(node));
+            expect(remaining.vigor, node.id).toBeGreaterThanOrEqual(remaining.attunement);
+            expect(remaining.vigor, node.id).toBeGreaterThanOrEqual(remaining.metal);
         }
     });
 

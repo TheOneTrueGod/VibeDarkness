@@ -28,6 +28,7 @@ The registry lives on `GameState` and is reached via `GameEngine.findDeployables
 - Preview and cast code must call it with identical arguments so they agree on the target.
 - `subtype` narrows to one content type within a kind (a dropped weapon's token kind, a placed deployable's def id); `ownerUnitId` narrows to one unit's. Echo (`abilities/echo/`) uses both.
 - **Light emitter** means "deployable tagged `lightEmitter`"; the old `findDevourableLightSources` and `lightEmitters.ts` are removed.
+- **Conductor** means "deployable tagged `conductor`": metal on the ground (every dropped weapon and placed deployable from `FieldObjectManager`). Chain effects relay through conductors as free hops (`abilities/chainHops.ts`, used by Storm's Chain Lightning). Tag any new metal deployable `conductor`.
 
 ## Interaction
 

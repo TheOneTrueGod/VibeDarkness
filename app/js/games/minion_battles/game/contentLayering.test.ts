@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
  *   `game/GameRenderer/renderers/FloorTileRenderer.ts`, `resources/Resonance.ts`
  * - `09_gravity_core/gravityConstants`: `resources/Gravity.ts`
  */
-const FORBIDDEN_CONTENT_FOLDERS: readonly string[] = ['card_defs/10_armory_core'];
+const FORBIDDEN_CONTENT_FOLDERS: readonly string[] = ['card_defs/10_armory_core', 'card_defs/13_storm_core'];
 
 /** Path prefixes (as globbed below) that are content, not engine. */
 const EXEMPT_PREFIXES: readonly string[] = ['../../../researchTrees/trees/'];

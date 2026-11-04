@@ -15,6 +15,17 @@ export const ARMORY_THEME: AbilityTheme = {
     font: '#000000',
     shadeFactor: 0.55,
 };
+/**
+ * Storm: a bruised storm-cloud blue for mass (bodies, fills, research border) and an electric cyan for the
+ * event (bolts, sparks, trails, Static). Dark navy research text on the cyan fill.
+ */
+export const STORM_THEME: AbilityTheme = {
+    id: 'storm',
+    primary: '#3b5bdb',
+    secondary: '#a5f3fc',
+    font: '#0b1a3a',
+    shadeFactor: 0.5,
+};
 export const EARTH_THEME: AbilityTheme = { id: 'earth', primary: '#b45309' };
 export const LIGHT_THEME: AbilityTheme = { id: 'light', primary: '#eab308' };
 export const GRAVITY_THEME: AbilityTheme = { id: 'gravity', primary: '#a855f7' };
@@ -28,6 +39,7 @@ export const GENERIC_THEME: AbilityTheme = { id: 'generic', primary: '#7dd3fc' }
 export const ABILITY_THEMES: Readonly<Record<string, AbilityTheme>> = Object.fromEntries(
     [
         ARMORY_THEME,
+        STORM_THEME,
         EARTH_THEME,
         LIGHT_THEME,
         GRAVITY_THEME,
@@ -52,4 +64,5 @@ export const ABILITY_GROUP_THEMES: Readonly<Partial<Record<number, AbilityTheme>
     8: LIGHT_THEME, // AbilityGroupId.Light
     9: GRAVITY_THEME, // AbilityGroupId.Gravity
     10: ARMORY_THEME, // AbilityGroupId.Armory
+    13: STORM_THEME, // AbilityGroupId.Storm
 };

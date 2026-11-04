@@ -70,6 +70,7 @@ export const commandCoreTree: ResearchTreeDef = {
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.CommandCore },
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.ArmoryCore, toItemId: CORE_ITEM_IDS.CommandCore },
+                { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.StormCore, toItemId: CORE_ITEM_IDS.CommandCore },
                 { type: 'grantPet', petId: 'dog' },
                 { type: 'addCard', cardId: '0708' },
                 { type: 'addCard', cardId: '0709' },

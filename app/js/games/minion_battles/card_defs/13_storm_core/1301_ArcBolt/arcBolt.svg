@@ -1,0 +1,14 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="stormCardSky" cx="0.5" cy="0.4" r="0.65">
+      <stop offset="0%" stop-color="#3b5bdb"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#stormCardSky)"/>
+  <circle cx="32" cy="32" r="30" fill="none" stroke="#1e2e6e" stroke-width="2"/>
+  <path d="M10 46 L22 38 L19 33 L33 26 L30 21 L44 15" fill="none" stroke="#a5f3fc" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+  <path d="M10 46 L22 38 L19 33 L33 26 L30 21 L44 15" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="46" cy="14" r="7" fill="#a5f3fc"/>
+  <circle cx="46" cy="14" r="3.5" fill="#ffffff"/>
+</svg>

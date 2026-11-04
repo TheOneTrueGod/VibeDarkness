@@ -1,4 +1,8 @@
 import type { WorldModifierDef } from '../types';
+import { ResourceId } from '../../resources/resourceIds';
+
+/** Rainy Storm's multiplier on Static gain. */
+export const RAINY_STORM_STATIC_GAIN_MULT = 2;
 
 export interface RainyStormModifierOptions {
     id?: string;
@@ -22,11 +26,13 @@ export function rainyStormModifier(opts: RainyStormModifierOptions = {}): WorldM
     return {
         id,
         name,
-        description: 'Heavy rain blankets the battlefield.',
+        description: 'Heavy rain blankets the battlefield. Static builds twice as fast.',
         icon: RAINY_STORM_ICON,
         ...(activeFromRound !== undefined ? { activeFromRound } : {}),
         ...(startsDisabled !== undefined ? { startsDisabled } : {}),
         ambient: [{ type: 'rain_overlay' }],
+        // Wet ground carries charge: Storm Core's Static builds twice as fast while it rains.
+        resourceGainMultipliers: { [ResourceId.Static]: RAINY_STORM_STATIC_GAIN_MULT },
         rules: {
             on_round_start: [
                 {

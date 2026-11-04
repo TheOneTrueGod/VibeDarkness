@@ -10,6 +10,7 @@ import { bloodMageTree } from './trees/blood_mage';
 import { armoryTree } from './trees/armory';
 import { darknessUpgradesTree } from './trees/darkness_upgrades';
 import { weaponsTree } from './trees/weapons';
+import { stormTree } from './trees/storm';
 
 export const RESEARCH_TREES: ResearchTreeDef[] = [
     trainingTree,
@@ -20,6 +21,7 @@ export const RESEARCH_TREES: ResearchTreeDef[] = [
     gravityTree,
     bloodMageTree,
     armoryTree,
+    stormTree,
     darknessUpgradesTree,
     weaponsTree,
 ];

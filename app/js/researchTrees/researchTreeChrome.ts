@@ -8,6 +8,7 @@ import bloodMageIcon from './assets/tree-blood-mage.png';
 import gravityIcon from './assets/tree-gravity.png';
 import commandIcon from './assets/tree-command.png';
 import armoryIcon from './assets/tree-armory.png';
+import stormIcon from './assets/tree-storm.svg';
 
 export const RESEARCH_TREE_ICON_WEAPON = weaponIcon;
 export const RESEARCH_TREE_ICON_GENERIC = genericIcon;
@@ -17,6 +18,7 @@ export const RESEARCH_TREE_ICON_BLOOD_MAGE = bloodMageIcon;
 export const RESEARCH_TREE_ICON_GRAVITY = gravityIcon;
 export const RESEARCH_TREE_ICON_COMMAND = commandIcon;
 export const RESEARCH_TREE_ICON_ARMORY = armoryIcon;
+export const RESEARCH_TREE_ICON_STORM = stormIcon;
 
 /**
  * Border colours, read from each tree's theme (`games/minion_battles/themes/abilityThemes.ts`).
@@ -40,6 +42,8 @@ export const RESEARCH_TREE_COLOUR_DARKNESS = getThemeById('darkness').primary;
 export const RESEARCH_TREE_COLOUR_GENERIC = getThemeById('generic').primary;
 /** Blue-steel — Armory Core border. */
 export const RESEARCH_TREE_COLOUR_ARMORY = getThemeById('armory').primary;
+/** Storm blue — Storm Core border. */
+export const RESEARCH_TREE_COLOUR_STORM = getThemeById('storm').primary;
 
 export interface ResearchTreeChrome {
     colour: string;
