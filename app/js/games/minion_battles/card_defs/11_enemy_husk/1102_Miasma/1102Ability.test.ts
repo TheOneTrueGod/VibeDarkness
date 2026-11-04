@@ -1,6 +1,6 @@
 /**
- * Husk Miasma: stepping into a new cell exhales a 3x3 air cloud of miasma around the Husk
- * (the same path UnitManager runs: tile transition, then the onCellEnter passive dispatch).
+ * Husk Miasma: stepping into a new cell exhales one air cell of miasma — on the Husk's cell, or a
+ * random free neighbour when that cell is already gassed (the same path UnitManager runs: tile transition, then the onCellEnter passive dispatch).
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EventBus } from '../../../game/EventBus';
@@ -45,6 +45,7 @@ function makeEngine(units: Unit[]) {
         terrainManager: null,
         eventBus: new EventBus(),
         addEffect: () => {},
+        generateRandomInteger: (min: number) => min,
     } as unknown as EngineContext;
 }
 
@@ -68,22 +69,60 @@ describe('Husk Miasma (1102)', () => {
         expect(engine.terrainLayers.allEffects.size).toBe(0);
     });
 
-    it('exhales a 3x3 air cloud around its new cell', () => {
+    it('exhales a single air cell on its new cell', () => {
         const husk = makeHusk();
         const engine = makeEngine([husk]);
         step(husk, engine); // seed at (5,5)
         husk.x += CELL_SIZE; // into (6,5)
         step(husk, engine);
 
-        expect(engine.terrainLayers.allEffects.size).toBe(9);
+        expect(engine.terrainLayers.allEffects.size).toBe(1);
+        const rec = engine.terrainLayers.getAirEffectAt(6, 5);
+        expect(rec?.effectType).toBe(MIASMA_EFFECT_TYPE);
+        expect(rec?.ownerUnitId).toBe('husk1');
+        expect(rec?.expiresAtGameTime).toBe(3 + MIASMA_DURATION_SEC);
+    });
+
+    it('spills into a free adjacent cell when its own cell is already gassed', () => {
+        const husk = makeHusk();
+        const engine = makeEngine([husk]);
+        step(husk, engine); // seed at (5,5)
+        husk.x += CELL_SIZE; // (6,5): gas
+        step(husk, engine);
+        husk.x -= CELL_SIZE; // back to (5,5): gas
+        step(husk, engine);
+        husk.x += CELL_SIZE; // (6,5) again: already gassed -> one neighbour instead
+        step(husk, engine);
+
+        expect(engine.terrainLayers.allEffects.size).toBe(3);
+        const spilled = [...engine.terrainLayers.allEffects.values()].filter(
+            (r) => r.area.type === 'cell' && !(r.area.col === 5 && r.area.row === 5) && !(r.area.col === 6 && r.area.row === 5),
+        );
+        expect(spilled).toHaveLength(1);
+        const area = spilled[0].area as { col: number; row: number };
+        expect(Math.max(Math.abs(area.col - 6), Math.abs(area.row - 5))).toBe(1);
+    });
+
+    it('spawns nothing when its cell and every neighbour are gassed', () => {
+        const husk = makeHusk();
+        const engine = makeEngine([husk]);
         for (let row = 4; row <= 6; row++) {
             for (let col = 5; col <= 7; col++) {
-                const rec = engine.terrainLayers.getAirEffectAt(col, row);
-                expect(rec?.effectType).toBe(MIASMA_EFFECT_TYPE);
-                expect(rec?.ownerUnitId).toBe('husk1');
-                expect(rec?.expiresAtGameTime).toBe(3 + MIASMA_DURATION_SEC);
+                engine.terrainLayers.add({
+                    id: `pre-${col}-${row}`,
+                    layer: 'air',
+                    effectType: MIASMA_EFFECT_TYPE,
+                    placedAtGameTime: 0,
+                    expiresAtGameTime: 100,
+                    area: { type: 'cell', col, row },
+                    params: {},
+                });
             }
         }
+        step(husk, engine); // seed at (5,5)
+        husk.x += CELL_SIZE; // into (6,5)
+        step(husk, engine);
+        expect(engine.terrainLayers.allEffects.size).toBe(9);
     });
 });
 

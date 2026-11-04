@@ -1,7 +1,7 @@
 /*
- * Miasma — passive gas trail. Every time the Husk steps into a new cell it exhales a 3x3 cloud
- * of `miasma` on the air layer around itself, lasting about a round. Cells that already hold
- * miasma are refreshed rather than stacked. The cloud itself (damage, who it hurts) is defined
+ * Miasma — passive gas trail. Every time the Husk steps into a new cell it exhales one cell of
+ * `miasma` on the air layer, lasting about a round: on its own cell, or — when that cell already
+ * holds miasma — on a random adjacent cell that doesn't. With every neighbour gassed, nothing spawns. The cloud itself (damage, who it hurts) is defined
  * by the `miasma` terrain effect def; this ability only decides where and when it appears.
  */
 
@@ -19,8 +19,8 @@ export const MIASMA_ABILITY_ID = `${formatGroupId(AbilityGroupId.EnemyHusk)}02`;
 
 /** How long each exhaled cell lingers, in seconds (one round). */
 export const MIASMA_DURATION_SEC = ROUND_DURATION;
-/** Cloud half-width in cells around the Husk's own cell (1 = 3x3). */
-export const MIASMA_CELL_RADIUS = 1;
+/** Neighbourhood searched (Chebyshev cells) when the Husk's own cell already holds miasma. */
+export const MIASMA_SPILLOVER_CELL_RADIUS = 1;
 
 const miasmaPassive: PassiveDef = {
     trigger: { type: 'onCellEnter' },
@@ -29,9 +29,10 @@ const miasmaPassive: PassiveDef = {
             type: 'place_terrain',
             effectType: MIASMA_EFFECT_TYPE,
             layer: 'air',
-            cellRadius: MIASMA_CELL_RADIUS,
+            cellRadius: 0,
+            count: 1,
+            spillover: { cellRadius: MIASMA_SPILLOVER_CELL_RADIUS },
             durationSec: MIASMA_DURATION_SEC,
-            onExisting: 'refresh',
             skipImpassable: true,
         },
     ],
@@ -50,7 +51,7 @@ export const MiasmaAbility: AbilityStatic = {
 
     getTooltipText(): string[] {
         return [
-            `Passive: each step leaves a cloud of foul gas around the Husk for {${MIASMA_DURATION_SEC}s}. Anything but a darkness creature standing in it takes {${MIASMA_DAMAGE}} damage every {${MIASMA_INTERVAL_SEC}s}.`,
+            `Passive: each step leaves a cloud of foul gas behind the Husk for {${MIASMA_DURATION_SEC}s}. Anything but a darkness creature standing in it takes {${MIASMA_DAMAGE}} damage every {${MIASMA_INTERVAL_SEC}s}.`,
         ];
     },
 

@@ -75,20 +75,52 @@ function applyEffects(caster: Unit, effects: PassiveEffect[], engine: EngineCont
     }
 }
 
+/** Cells within `cellRadius` (Chebyshev) of the caster's cell, row-major. */
+function cellSquareAround(caster: Unit, cellRadius: number): Array<{ col: number; row: number }> {
+    const centerCol = Math.floor(caster.x / CELL_SIZE);
+    const centerRow = Math.floor(caster.y / CELL_SIZE);
+    const cells: Array<{ col: number; row: number }> = [];
+    for (let row = centerRow - cellRadius; row <= centerRow + cellRadius; row++) {
+        for (let col = centerCol - cellRadius; col <= centerCol + cellRadius; col++) {
+            cells.push({ col, row });
+        }
+    }
+    return cells;
+}
+
 /** Candidate cells for a place_terrain effect: a cell square around the caster, or a px circle. */
 function placeTerrainCandidates(caster: Unit, effect: PassivePlaceTerrainEffect): Array<{ col: number; row: number }> {
-    if (effect.cellRadius !== undefined) {
-        const centerCol = Math.floor(caster.x / CELL_SIZE);
-        const centerRow = Math.floor(caster.y / CELL_SIZE);
-        const cells: Array<{ col: number; row: number }> = [];
-        for (let row = centerRow - effect.cellRadius; row <= centerRow + effect.cellRadius; row++) {
-            for (let col = centerCol - effect.cellRadius; col <= centerCol + effect.cellRadius; col++) {
-                cells.push({ col, row });
-            }
-        }
-        return cells;
-    }
+    if (effect.cellRadius !== undefined) return cellSquareAround(caster, effect.cellRadius);
     return rasterizeArea({ type: 'circle', x: caster.x, y: caster.y, radiusPx: effect.range ?? 0 });
+}
+
+/**
+ * Spillover cells for a place_terrain effect: free cells in the spillover square that the main
+ * area did not already cover, in random order (engine RNG, so deterministic across clients).
+ */
+function pickSpilloverCells(
+    caster: Unit,
+    effect: PassivePlaceTerrainEffect,
+    engine: EngineContext,
+    layer: 'ground' | 'air',
+    mainArea: Array<{ col: number; row: number }>,
+    isUsable: (cell: { col: number; row: number }) => boolean,
+    needed: number,
+): Array<{ col: number; row: number }> {
+    if (!effect.spillover || needed <= 0) return [];
+    const covered = new Set(mainArea.map(({ col, row }) => `${col},${row}`));
+    const pool = cellSquareAround(caster, effect.spillover.cellRadius).filter(
+        (cell) =>
+            !covered.has(`${cell.col},${cell.row}`) &&
+            isUsable(cell) &&
+            engine.terrainLayers.getEffectAt(layer, cell.col, cell.row)?.effectType !== effect.effectType,
+    );
+    const picked: Array<{ col: number; row: number }> = [];
+    while (picked.length < needed && pool.length > 0) {
+        const index = engine.generateRandomInteger(0, pool.length - 1);
+        picked.push(pool.splice(index, 1)[0]);
+    }
+    return picked;
 }
 
 export function placeTerrain(caster: Unit, effect: PassivePlaceTerrainEffect, engine: EngineContext): void {
@@ -97,12 +129,12 @@ export function placeTerrain(caster: Unit, effect: PassivePlaceTerrainEffect, en
     const terrain = engine.terrainManager;
 
     // 1. Candidate cells around the caster, minus walls when asked.
-    const candidates = placeTerrainCandidates(caster, effect).filter(
-        ({ col, row }) =>
-            !effect.skipImpassable ||
-            !terrain ||
-            terrain.isPassable(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2),
-    );
+    const isUsable = ({ col, row }: { col: number; row: number }): boolean =>
+        !effect.skipImpassable ||
+        !terrain ||
+        terrain.isPassable(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2);
+    const mainArea = placeTerrainCandidates(caster, effect);
+    const candidates = mainArea.filter(isUsable);
 
     // 2. Cells already carrying this effect type are skipped, or refreshed and skipped.
     const eligible = candidates.filter(({ col, row }) => {
@@ -129,6 +161,10 @@ export function placeTerrain(caster: Unit, effect: PassivePlaceTerrainEffect, en
 
     // 4. Take the first `count` cells (all of them when count is omitted).
     const toPlace = effect.count !== undefined ? eligible.slice(0, effect.count) : eligible;
+
+    // 4b. Spillover: top up a short placement with random free cells around the main area.
+    const wanted = effect.count ?? 1;
+    toPlace.push(...pickSpilloverCells(caster, effect, engine, layer, mainArea, isUsable, wanted - toPlace.length));
 
     // 5. Place terrain on each selected cell. Ground thorns keep their legacy id prefix.
     const idPrefix = layer === 'ground' && expiresAtGameTime === undefined ? 'thorn' : effect.effectType;

@@ -1,6 +1,17 @@
 export interface TerrainEffectVisualDef {
     layer: 'ground' | 'air';
     svgString: string;
+    /**
+     * Ages the visual over a timed effect's lifetime (world clock, so it holds while paused):
+     * scale and alpha lerp from 1 at placement to these values at expiry. Permanent effects ignore it.
+     */
+    lifetimeFade?: { endScale: number; endAlpha: number };
+    /**
+     * Animate-out after the record is removed (expiry, clearing, ...). Runs on wall time, so it
+     * plays even while the battle is paused: scale and alpha lerp from wherever the visual was to
+     * these values over `durationSec`, then the visual is destroyed. Omit to vanish instantly.
+     */
+    exit?: { durationSec: number; endScale: number; endAlpha: number };
 }
 
 export const TERRAIN_EFFECT_VISUAL_DEFS: Record<string, TerrainEffectVisualDef> = {
@@ -32,5 +43,7 @@ export const TERRAIN_EFFECT_VISUAL_DEFS: Record<string, TerrainEffectVisualDef> 
   <ellipse cx="20" cy="14" rx="14" ry="5" fill="#4a3b5c" fill-opacity="0.3"/>
   <path d="M6,11 C10,7 14,13 18,9 M22,12 C26,8 30,13 35,9" stroke="#a3b86c" stroke-opacity="0.5" stroke-width="1" fill="none" stroke-linecap="round"/>
 </svg>`,
+        lifetimeFade: { endScale: 0.7, endAlpha: 0.7 },
+        exit: { durationSec: 0.25, endScale: 0.2, endAlpha: 0 },
     },
 };

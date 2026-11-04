@@ -311,7 +311,7 @@ export class GameRenderer {
 				const terrainEffectsVisible = isRenderLayerVisible('terrainEffects');
 				this.terrainEffectRenderer.setLayerVisible(terrainEffectsVisible);
 				if (terrainEffectsVisible) {
-					this.terrainEffectRenderer.render(engine);
+					this.terrainEffectRenderer.render(engine, realDt ?? 0);
 				}
 			});
 

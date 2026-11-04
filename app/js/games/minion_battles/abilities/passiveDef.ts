@@ -83,6 +83,13 @@ export interface PassivePlaceTerrainEffect {
     onExisting?: 'skip' | 'refresh';
     /** When true, cells that units cannot walk on (walls, deep water) are never converted. */
     skipImpassable?: boolean;
+    /**
+     * Fallback area used when the main area places fewer than `count` tiles (default count 1):
+     * the remainder goes on randomly chosen cells within this Chebyshev cell radius of the
+     * caster's cell (outside the main area) that hold no effect of this type. Existing cells
+     * here are never refreshed. With no eligible cell left, nothing more is placed.
+     */
+    spillover?: { cellRadius: number };
     /** If set, emits an AuraPulse visual of this radius when at least one tile is placed. */
     pulseRadius?: number;
 }
