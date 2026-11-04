@@ -42,6 +42,13 @@ export const BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS = 10_000;
 
 /** Non-host: engine paused for orders while local tick is behind heartbeat hostTick. */
 export const RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL = 'paused-behind-host-tail';
+/**
+ * Non-host polls spent paused behind the host tail at one engine tick before
+ * {@link RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL}. Polls after the first request `pastAppliedActions`
+ * (applied rows only), which usually deliver the missing order so the engine catches up without a
+ * reload (lobby E7F4B2). Engine progress restarts the count.
+ */
+export const BATTLE_NET_PAUSED_BEHIND_HOST_TAIL_GRACE_POLLS = 3;
 
 /** Pending-order rows included on automatic desync lobby traces (newest-at-or-after-tick first). */
 export const DESYNC_PENDING_ORDER_LOG_CAP = 16;

@@ -2,6 +2,7 @@ import type { LobbyClient } from '../../../../LobbyClient';
 import { logToLobbyLogBattleSync, logToLobbyLogForced } from '../../../../lobbyLog';
 import type { BattleNetContext } from './BattleNetContext';
 import {
+    BATTLE_NET_PAUSED_BEHIND_HOST_TAIL_GRACE_POLLS,
     BATTLE_NET_T1_WAITING_POLLS,
     BATTLE_NET_T2_RESYNC_POLLS,
     HOST_EQUAL_TICK_FINGERPRINT_MISMATCH_MESSAGE,
@@ -30,11 +31,19 @@ export class HeartbeatTerminalReconciler {
     private lastHostMismatchKey: string | null = null;
     private stuckPausePollStreak = 0;
     private lastStuckPauseLogKey: string | null = null;
+    /** Polls paused behind the host tail at {@link pausedBehindTailEngineTick} (non-host). */
+    private pausedBehindTailPolls = 0;
+    private pausedBehindTailEngineTick: number | null = null;
 
     constructor(private readonly ctx: BattleNetContext) {}
 
     private get sr() {
         return this.ctx.syncReconciler;
+    }
+
+    private resetPausedBehindTail(): void {
+        this.pausedBehindTailPolls = 0;
+        this.pausedBehindTailEngineTick = null;
     }
 
     /** Host + non-host — last completed matches server tail. */
@@ -158,6 +167,7 @@ export class HeartbeatTerminalReconciler {
             return;
         }
         if (engineTick >= hb.hostTick) {
+            this.resetPausedBehindTail();
             return;
         }
         if (this.ctx.session.isPausedForOrderSync()) {
@@ -167,10 +177,36 @@ export class HeartbeatTerminalReconciler {
                     // ITS preview has its own pause logic separate from order sync
                     break;
                 case 'canonical': {
-                    // Canonical timeline: if paused behind host, force full resync
+                    // Canonical timeline paused behind the host: an order for our batch has not reached
+                    // us. Later polls fetch applied rows for the gap (`includePastApplied`); resync only
+                    // if the engine still has not moved after the grace polls (CDC293, E7F4B2).
                     if (hb.hostFingerprint == null || hb.hostFingerprint === '') {
                         return;
                     }
+                    if (this.pausedBehindTailEngineTick !== engineTick) {
+                        this.pausedBehindTailEngineTick = engineTick;
+                        this.pausedBehindTailPolls = 0;
+                    }
+                    this.pausedBehindTailPolls += 1;
+                    if (this.pausedBehindTailPolls < BATTLE_NET_PAUSED_BEHIND_HOST_TAIL_GRACE_POLLS) {
+                        logToLobbyLogBattleSync({
+                            lobbyClient: this.ctx.api as unknown as LobbyClient,
+                            lobbyId: this.ctx.lobbyId,
+                            playerId: this.ctx.playerId,
+                            tick: engineTick,
+                            severity: 'info',
+                            gameId: this.ctx.gameId,
+                            message: 'paused behind host tail — waiting for applied orders before resync',
+                            context: {
+                                engineTick,
+                                hostTick: hb.hostTick,
+                                poll: this.pausedBehindTailPolls,
+                                gracePolls: BATTLE_NET_PAUSED_BEHIND_HOST_TAIL_GRACE_POLLS,
+                            },
+                        });
+                        return;
+                    }
+                    this.resetPausedBehindTail();
                     logToLobbyLogBattleSync({
                         lobbyClient: this.ctx.api as unknown as LobbyClient,
                         lobbyId: this.ctx.lobbyId,
@@ -192,6 +228,8 @@ export class HeartbeatTerminalReconciler {
                 default:
                     assertNever(kind);
             }
+        } else {
+            this.resetPausedBehindTail();
         }
         if (!materialChanged) {
             return;

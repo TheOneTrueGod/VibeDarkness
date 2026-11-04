@@ -204,24 +204,51 @@ final class BattleStorage
                 $pendingLinesRaw .= $line;
             }
 
-            /** @var list<string> $keptEncoded */
-            $keptEncoded = [];
-            /** @var list<string> $toAppendEncoded */
-            $toAppendEncoded = [];
+            /** @var list<array{raw:string,rec:?array<string,mixed>}> $lines */
+            $lines = [];
             foreach (explode("\n", trim($pendingLinesRaw, "\n")) as $rawLine) {
                 $rawLine = trim($rawLine);
                 if ($rawLine === '') {
                     continue;
                 }
                 $rec = json_decode($rawLine, true);
-                if (!is_array($rec)) {
+                $lines[] = ['raw' => $rawLine, 'rec' => is_array($rec) ? $rec : null];
+            }
+
+            // Keys (player, unit, batch) this merge finalizes. Their drafts leave pending with them: a
+            // unit gets no further orders for a batch once it ended its turn, and a stale draft left in
+            // pending would shadow the merged final order on every read (lobby E7F4B2).
+            /** @var array<string,true> $finalizedKeys */
+            $finalizedKeys = [];
+            foreach ($lines as $line) {
+                $rec = $line['rec'];
+                if ($rec !== null
+                    && self::isFinalizedOrderRecord($rec)
+                    && (int) ($rec['atTick'] ?? -1) === $batchAtTick
+                    && is_array($rec['order'] ?? null)
+                ) {
+                    $finalizedKeys[self::orderOverlayKey($rec)] = true;
+                }
+            }
+
+            /** @var list<string> $keptEncoded */
+            $keptEncoded = [];
+            /** @var list<string> $toAppendEncoded */
+            $toAppendEncoded = [];
+            foreach ($lines as $line) {
+                $rawLine = $line['raw'];
+                $rec = $line['rec'];
+                if ($rec === null) {
                     $keptEncoded[] = $rawLine;
 
                     continue;
                 }
                 $atTick = (int) ($rec['atTick'] ?? -1);
-                $finalized = !array_key_exists('finalized', $rec) || (bool) $rec['finalized'];
+                $finalized = self::isFinalizedOrderRecord($rec);
                 $order = $rec['order'] ?? null;
+                if (!$finalized && $atTick === $batchAtTick && isset($finalizedKeys[self::orderOverlayKey($rec)])) {
+                    continue;
+                }
                 if ($finalized && $atTick === $batchAtTick && is_array($order)) {
                     $rowHash = isset($rec['idHash']) && is_string($rec['idHash']) ? $rec['idHash'] : '';
                     if ($rowHash === '') {
@@ -449,32 +476,47 @@ final class BattleStorage
         return $items;
     }
 
+    /** Overlay identity of an order row: (atTick, playerId, unitId). */
+    private static function orderOverlayKey(array $rec): string
+    {
+        $order = $rec['order'] ?? null;
+        $unitId = is_array($order) && isset($order['unitId']) ? (string) $order['unitId'] : '';
+
+        return (int) ($rec['atTick'] ?? 0) . "\0" . (string) ($rec['playerId'] ?? '') . "\0" . $unitId;
+    }
+
+    /** Rows without the flag predate drafts and count as finalized (same default as {@see appendOrder}). */
+    private static function isFinalizedOrderRecord(array $rec): bool
+    {
+        return !array_key_exists('finalized', $rec) || (bool) $rec['finalized'];
+    }
+
     /**
-     * Client-side overlay: applied first, then pending overwrites same
-     * (playerId, unitId, atTick); higher file index breaks ties per source then pending wins over applied.
+     * Client-side overlay: one row per (playerId, unitId, atTick). A finalized row beats a draft from
+     * either file (a draft never follows its unit's finalized order in a batch, so a draft beside a
+     * finalized row is stale: lobby E7F4B2). Otherwise pending wins over applied, then the higher file
+     * index wins.
      *
      * @return list<array<string,mixed>>
      */
     private function dedupeOrderOverlay(array $indexedItems): array
     {
-        /** @var array<string, array{idx:int,priority:int,rec:array<string,mixed>}> $bestByKey */
+        /** @var array<string, array{idx:int,score:array{int,int},rec:array<string,mixed>}> $bestByKey */
         $bestByKey = [];
         foreach ($indexedItems as $e) {
             $rec = $e['rec'];
-            $tick = (int) ($rec['atTick'] ?? 0);
-            $order = $rec['order'] ?? null;
-            $unitId = is_array($order) && isset($order['unitId']) ? (string) $order['unitId'] : '';
-            $playerId = (string) ($rec['playerId'] ?? '');
-            $key = $tick . "\0" . $playerId . "\0" . $unitId;
-            $priority = ($e['source'] === 'pending') ? 2 : 1;
-            $score = [$priority, $e['idx']];
+            $key = self::orderOverlayKey($rec);
+            $score = [
+                self::isFinalizedOrderRecord($rec) ? 1 : 0,
+                ($e['source'] === 'pending') ? 2 : 1,
+            ];
             $prev = $bestByKey[$key] ?? null;
             if (
                 $prev === null
-                || $score[0] > $prev['priority']
-                || ($score[0] === $prev['priority'] && $score[1] > $prev['idx'])
+                || $score > $prev['score']
+                || ($score === $prev['score'] && $e['idx'] > $prev['idx'])
             ) {
-                $bestByKey[$key] = ['idx' => $e['idx'], 'priority' => $priority, 'rec' => $rec];
+                $bestByKey[$key] = ['idx' => $e['idx'], 'score' => $score, 'rec' => $rec];
             }
         }
         $deduped = array_values($bestByKey);

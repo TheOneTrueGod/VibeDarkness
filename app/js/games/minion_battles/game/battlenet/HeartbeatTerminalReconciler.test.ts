@@ -3,6 +3,7 @@ import type { LobbyClient } from '../../../../LobbyClient';
 import { flushLobbyLogBatchQueueForTests } from '../../../../lobbyLogBatchQueue';
 import { BattleEventBus } from './BattleEventBus';
 import {
+    BATTLE_NET_PAUSED_BEHIND_HOST_TAIL_GRACE_POLLS,
     BATTLE_NET_T2_RESYNC_POLLS,
     HOST_EQUAL_TICK_FINGERPRINT_MISMATCH_MESSAGE,
     RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL,
@@ -486,7 +487,25 @@ describe('HeartbeatTerminalReconciler.reconcileNonHostAheadOfHostTail: playahead
 });
 
 describe('HeartbeatTerminalReconciler.reconcileNonHostBehindHostTail', () => {
-    it('paused for orders while behind host tail forces full resync (CDC293)', () => {
+    it('paused for orders while behind host tail forces full resync after the grace polls (CDC293)', () => {
+        const { reconciler, requestResync } = makeHarness({
+            session: {
+                isPausedForOrderSync: () => true,
+                isInteractiveTargetingPreviewActive: () => false,
+            },
+        });
+        const behind = hb({ hostTick: 98, hostFingerprint: 'hostfp00000000', hostPaused: true });
+
+        for (let i = 1; i < BATTLE_NET_PAUSED_BEHIND_HOST_TAIL_GRACE_POLLS; i++) {
+            reconciler.reconcileNonHostBehindHostTail(96, behind, i === 1);
+            expect(requestResync).not.toHaveBeenCalled();
+        }
+        reconciler.reconcileNonHostBehindHostTail(96, behind, false);
+
+        expect(requestResync).toHaveBeenCalledWith(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
+    });
+
+    it('E7F4B2: the first poll behind the host tail does not resync (applied orders may still arrive)', () => {
         const { reconciler, requestResync } = makeHarness({
             session: {
                 isPausedForOrderSync: () => true,
@@ -495,12 +514,29 @@ describe('HeartbeatTerminalReconciler.reconcileNonHostBehindHostTail', () => {
         });
 
         reconciler.reconcileNonHostBehindHostTail(
-            96,
-            hb({ hostTick: 98, hostFingerprint: 'hostfp00000000', hostPaused: true }),
-            false,
+            1,
+            hb({ hostTick: 62, hostFingerprint: 'hostfp00000000', hostPaused: true }),
+            true,
         );
 
-        expect(requestResync).toHaveBeenCalledWith(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
+        expect(requestResync).not.toHaveBeenCalled();
+    });
+
+    it('engine progress restarts the grace count', () => {
+        const { reconciler, requestResync } = makeHarness({
+            session: {
+                isPausedForOrderSync: () => true,
+                isInteractiveTargetingPreviewActive: () => false,
+            },
+        });
+        const behind = hb({ hostTick: 98, hostFingerprint: 'hostfp00000000', hostPaused: true });
+
+        for (let i = 1; i < BATTLE_NET_PAUSED_BEHIND_HOST_TAIL_GRACE_POLLS; i++) {
+            reconciler.reconcileNonHostBehindHostTail(90, behind, false);
+        }
+        reconciler.reconcileNonHostBehindHostTail(95, behind, false);
+
+        expect(requestResync).not.toHaveBeenCalled();
     });
 
     it('behind host tail while simulating forward (not paused) allows catch-up without resync', () => {
