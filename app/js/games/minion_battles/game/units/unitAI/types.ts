@@ -44,6 +44,11 @@ export interface AIContext {
     WORLD_HEIGHT: number;
     hasLineOfSight(fromX: number, fromY: number, toX: number, toY: number): boolean;
     cancelActiveAbility(unitId: string, abilityId: string): void;
+    /**
+     * Ids of units this unit bumped into (crowd-spacing overlap) this tick. Optional — engines
+     * without crowd spacing (and most tests) omit it, meaning nobody ever bumps.
+     */
+    getBumpedUnitIds?(unitId: string): readonly string[];
     getAbilityUsesThisRound?(unitId: string, abilityId: string): number;
     /** Map POIs available for AI targeting (e.g. nest sites for swarmlings). Optional — not all engines provide this. */
     mapPOIs?: readonly MapSegmentPOI[];

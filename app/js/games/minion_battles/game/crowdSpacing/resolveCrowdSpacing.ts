@@ -26,6 +26,11 @@ export type ResolveCrowdSpacingPassArgs = {
     terrainManager?: TerrainManager | null;
     /** Bedrock / passability grid when no TerrainManager is available. */
     terrainGrid?: TerrainGrid | null;
+    /**
+     * Called once per overlapping (soft–soft or soft–anchor) pair, in deterministic id order,
+     * before any separation is applied. This is the "bump" signal other systems listen for.
+     */
+    onContact?: (a: Unit, b: Unit) => void;
 };
 
 type Vec2 = { x: number; y: number };
@@ -36,7 +41,7 @@ type Vec2 = { x: number; y: number };
  * Anchor–anchor: no-op. Soft deltas are terrain-clamped before apply; grid cells refreshed.
  */
 export function resolveCrowdSpacingPass(args: ResolveCrowdSpacingPassArgs): void {
-    const { units, grid, terrainManager, terrainGrid } = args;
+    const { units, grid, terrainManager, terrainGrid, onContact } = args;
 
     const byId = new Map<string, Unit>();
     for (const unit of units) {
@@ -93,6 +98,7 @@ export function resolveCrowdSpacingPass(args: ResolveCrowdSpacingPassArgs): void
             const radiusB = getCrowdSpacingRadius(b);
             const overlap = radiusA + radiusB - dist;
             if (overlap <= CROWD_SPACING_OVERLAP_EPSILON) continue;
+            onContact?.(a, b);
 
             if (roleA === 'soft' && roleB === 'soft') {
                 const wA = getCrowdSpacingWeight(a);

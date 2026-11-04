@@ -564,6 +564,7 @@ function applyAiHookup(ctx: SpawnUnitContext, unit: Unit, hookup: SpawnAiHookup 
                 waypointIndex: 0,
                 noticeRangePx: hookup.noticeRangePx,
                 alertRadiusPx: hookup.alertRadiusPx,
+                wakeOn: hookup.wakeOn,
             };
             return;
         }

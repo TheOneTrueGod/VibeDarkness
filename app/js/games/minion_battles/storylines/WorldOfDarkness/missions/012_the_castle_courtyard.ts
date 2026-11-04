@@ -9,7 +9,7 @@
  *
  * Husks — the castle's former residents — are there from the start, still walking their old rounds
  * in the gate yard and courtyard (`sentryPatrol` AI). They ignore the party until hurt or until
- * someone comes close in plain sight, then wake every Husk nearby.
+ * someone bumps into one, then wake every Husk nearby.
  */
 
 import type { GameEngine } from '../../../game/GameEngine';

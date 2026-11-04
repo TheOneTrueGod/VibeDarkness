@@ -8,7 +8,8 @@ import type { SentryPatrolNodeId } from './context';
 import { sentryPatrol_patrol } from './sentryPatrol_patrol';
 import { sentryPatrol_hostile } from './sentryPatrol_hostile';
 
-export type { SentryPatrolNodeId, SentryPatrolAITreeContext } from './context';
+export type { SentryPatrolNodeId, SentryPatrolAITreeContext, SentryWakeTrigger } from './context';
+export { DEFAULT_SENTRY_WAKE_ON } from './context';
 export { wakeSentries, isSleepingSentry, DEFAULT_SENTRY_ALERT_RADIUS_PX } from './sentryPatrolAlert';
 export { DEFAULT_SENTRY_NOTICE_RANGE_PX } from './sentryPatrol_patrol';
 

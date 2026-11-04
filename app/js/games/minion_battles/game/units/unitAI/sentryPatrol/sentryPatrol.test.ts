@@ -27,8 +27,9 @@ function sentry(id: string, x: number, y: number, waypoints: { x: number; y: num
         speed: 40,
         teamId: 'enemy',
         ownerId: 'ai',
-        characterId: 'husk',
-        name: 'Husk',
+        // Generic unit (no `sentryWakeOn`) so these tests exercise the tree's default triggers.
+        characterId: 'alpha_wolf',
+        name: 'Sentry',
         abilities: [],
         radius: 16,
         unitAITreeId: treeId,
@@ -59,7 +60,10 @@ function player(id: string, x: number, y: number): Unit {
     });
 }
 
-function makeContext(units: Unit[], opts: { gameTime?: number; los?: boolean } = {}): AIContext {
+function makeContext(
+    units: Unit[],
+    opts: { gameTime?: number; los?: boolean; bumps?: Record<string, string[]> } = {},
+): AIContext {
     const terrainManager = makeTerrain();
     return {
         gameTick: 100,
@@ -79,6 +83,7 @@ function makeContext(units: Unit[], opts: { gameTime?: number; los?: boolean } =
         hasLineOfSight: () => opts.los ?? true,
         cancelActiveAbility: () => {},
         getAbilityUsesThisRound: () => 0,
+        getBumpedUnitIds: (id) => opts.bumps?.[id] ?? [],
     };
 }
 
@@ -155,5 +160,66 @@ describe('sentryPatrol disturbance', () => {
         expect(near.aiContext.targetUnitId).toBe('h');
         expect(state(far)).toBeUndefined();
         expect(otherTree.aiContext.aiState).toBeUndefined();
+    });
+});
+
+describe('sentryPatrol wake triggers', () => {
+    const husk = (id: string, x: number, y: number) => {
+        const u = sentry(id, x, y);
+        u.characterId = 'husk';
+        return u;
+    };
+
+    it('a Husk ignores an enemy in plain sight right next to it', () => {
+        const s = husk('s1', 100, 100);
+        const hero = player('h', 140, 100);
+        runUnitAI(s, SENTRY_PATROL_AI_TREE, makeContext([s, hero]));
+        expect(state(s)).toBe('sentryPatrol_patrol');
+    });
+
+    it('a Husk wakes and targets the enemy that bumps into it', () => {
+        const s = husk('s1', 100, 100);
+        const near = husk('near', 200, 100);
+        const hero = player('h', 130, 100);
+        runUnitAI(s, SENTRY_PATROL_AI_TREE, makeContext([s, near, hero], { bumps: { s1: ['h'] } }));
+        expect(state(s)).toBe('sentryPatrol_hostile');
+        expect(s.aiContext.targetUnitId).toBe('h');
+        expect(state(near)).toBe('sentryPatrol_hostile');
+    });
+
+    it('a Husk is not woken by bumping into a fellow Husk', () => {
+        const s = husk('s1', 100, 100);
+        const other = husk('s2', 120, 100);
+        const hero = player('h', 1400, 1000);
+        runUnitAI(s, SENTRY_PATROL_AI_TREE, makeContext([s, other, hero], { bumps: { s1: ['s2'] } }));
+        expect(state(s)).toBe('sentryPatrol_patrol');
+    });
+
+    it('a Husk still wakes when hurt', () => {
+        const s = husk('s1', 100, 100);
+        const units = [s, player('h', 1400, 1000)];
+        runUnitAI(s, SENTRY_PATROL_AI_TREE, makeContext(units));
+        s.hp -= 5;
+        runUnitAI(s, SENTRY_PATROL_AI_TREE, makeContext(units, { gameTime: 0.5 }));
+        expect(state(s)).toBe('sentryPatrol_hostile');
+    });
+
+    it('a spawn-level wakeOn overrides the unit def', () => {
+        const s = husk('s1', 100, 100);
+        (s.aiContext as SentryPatrolAITreeContext).wakeOn = ['sight'];
+        const hero = player('h', 140, 100);
+        runUnitAI(s, SENTRY_PATROL_AI_TREE, makeContext([s, hero]));
+        expect(state(s)).toBe('sentryPatrol_hostile');
+    });
+
+    it('units without sentryWakeOn keep the default (sight wakes, bump does not)', () => {
+        const sees = sentry('s1', 100, 100);
+        runUnitAI(sees, SENTRY_PATROL_AI_TREE, makeContext([sees, player('h', 140, 100)]));
+        expect(state(sees)).toBe('sentryPatrol_hostile');
+
+        const bumped = sentry('s2', 100, 100);
+        const hero = player('h', 1400, 1000);
+        runUnitAI(bumped, SENTRY_PATROL_AI_TREE, makeContext([bumped, hero], { los: false, bumps: { s2: ['h'] } }));
+        expect(state(bumped)).toBe('sentryPatrol_patrol');
     });
 });

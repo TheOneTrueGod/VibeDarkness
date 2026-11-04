@@ -10,16 +10,40 @@ import { CrowdSpacingGrid } from './CrowdSpacingGrid';
 import { getCrowdSpacingRadius, getCrowdSpacingRole } from './crowdSpacingRoles';
 import { resolveCrowdSpacingPass } from './resolveCrowdSpacing';
 
+const NO_CONTACTS: readonly string[] = [];
+
 export class CrowdSpacingManager {
     readonly grid = new CrowdSpacingGrid();
+    private readonly recordContactBound = (a: Unit, b: Unit): void => this.recordContact(a, b);
 
     /** After clear / load, next sync does a full rebuild. */
     private needsRebuild = true;
+
+    /**
+     * Unit ids each unit was pressed against during this tick's resolve pass ("bumps"). Rebuilt
+     * every tick before AI runs, so it is deterministic without being serialized.
+     */
+    private contacts = new Map<string, string[]>();
 
     /** Drop grid state — call on prepareForNewGame / fromJSON. Never restore from JSON. */
     clear(): void {
         this.grid.clear();
         this.needsRebuild = true;
+        this.contacts.clear();
+    }
+
+    /** Ids of units `unitId` overlapped this tick (both directions; empty when none). */
+    getContacts(unitId: string): readonly string[] {
+        return this.contacts.get(unitId) ?? NO_CONTACTS;
+    }
+
+    private recordContact(a: Unit, b: Unit): void {
+        const listA = this.contacts.get(a.id);
+        if (listA) listA.push(b.id);
+        else this.contacts.set(a.id, [b.id]);
+        const listB = this.contacts.get(b.id);
+        if (listB) listB.push(a.id);
+        else this.contacts.set(b.id, [a.id]);
     }
 
     /**
@@ -27,6 +51,7 @@ export class CrowdSpacingManager {
      * Full rebuild when empty / flagged / cell-size policy changes; otherwise incremental.
      */
     tick(units: readonly Unit[], terrainManager: TerrainManager | null): void {
+        this.contacts.clear();
         const participants = this.collectParticipants(units);
         this.syncParticipants(participants);
         if (participants.length === 0) return;
@@ -34,6 +59,7 @@ export class CrowdSpacingManager {
             units: participants,
             grid: this.grid,
             terrainManager,
+            onContact: this.recordContactBound,
         });
     }
 

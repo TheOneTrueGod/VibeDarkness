@@ -25,6 +25,7 @@ import { PHASE_COMPONENT } from '../components/phaseComponent';
 import type { LightHateDef } from '../../lightHate';
 import { DarknessLevel } from '../../darknessLevels';
 import type { EnemySpawnDef } from '../../../storylines/types';
+import type { SentryWakeTrigger } from '../unitAI/sentryPatrol/context';
 import { UNIT_SPRITE_URLS } from './unitSprites';
 import { componentSpec, type UnitComponentSpec } from '../components/unitComponent';
 import { LANTERNITE_COMPONENT } from '../components/lanterniteComponent';
@@ -170,6 +171,8 @@ export interface UnitDefEntry {
     deathSequence?: DeathSequenceDef;
     /** Darkness vs natural beast; drives expectations for death/damage presentation and copy. */
     creatureType?: CreatureType;
+    /** What wakes this unit when it runs the `sentryPatrol` AI tree. Omit for the tree default (hurt + sight). */
+    sentryWakeOn?: readonly SentryWakeTrigger[];
     /** Short flavor text for battle UI (e.g. timeline hover). */
     uiDescription?: string;
     combatCc?: UnitCombatCcDef;
@@ -458,6 +461,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 300,
         creatureType: 'dark_creature',
+        // Oblivious on patrol: only being hurt or bumped into wakes a Husk.
+        sentryWakeOn: ['hurt', 'bump'],
         onDeathVisualEffects: darkCreatureParticleBurstVFX(5),
         uiDescription:
             'Hollowed former resident of the castle — slow and hard to put down, it trails a cloud of choking miasma wherever it walks.',
@@ -817,6 +822,11 @@ export function getUnitHuntsSinglePrey(characterId: string): boolean {
 export function getCreatureType(characterId: string): CreatureType | undefined {
     const def = UNIT_DEFS[characterId as UnitDefId];
     return def?.creatureType;
+}
+
+/** What wakes this unit when it runs the sentryPatrol tree; undefined = the tree's default. */
+export function getSentryWakeOn(characterId: string): readonly SentryWakeTrigger[] | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.sentryWakeOn;
 }
 
 /** Max unit objects of this type that can share one tile. undefined = exempt from occupancy system. */

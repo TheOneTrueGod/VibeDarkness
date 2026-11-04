@@ -1,14 +1,17 @@
 /**
  * sentryPatrol_patrol - Walk the waypoint loop, ignoring everything until disturbed.
  *
- * Disturbed = lost HP since the last tick, or an enemy came within `noticeRangePx` with line of
- * sight. Disturbance wakes this sentry and its nearby fellows (see sentryPatrolAlert.ts).
+ * Disturbed = any of the sentry's wake triggers (`SentryWakeTrigger`): lost HP since the last
+ * tick, an enemy within `noticeRangePx` with line of sight, or an enemy bumping into it. Which
+ * triggers apply comes from the spawn's `wakeOn`, else the unit def's `sentryWakeOn`, else
+ * `DEFAULT_SENTRY_WAKE_ON`. Disturbance wakes this sentry and its nearby fellows (see sentryPatrolAlert.ts).
  */
 
 import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import { distance, findEnemies, queueWaitAndEndTurn, ROUND_DURATION } from '../utils';
-import type { SentryPatrolAITreeContext, SentryPatrolNodeId } from './context';
+import { getSentryWakeOn } from '../../unit_defs/unitDef';
+import { DEFAULT_SENTRY_WAKE_ON, type SentryPatrolAITreeContext, type SentryPatrolNodeId } from './context';
 import { wakeSentries } from './sentryPatrolAlert';
 
 /** Default px within which a sentry notices an enemy it can see. */
@@ -36,10 +39,19 @@ function nearestEnemy(unit: Unit, enemies: Unit[]): Unit | undefined {
  * blame, or `undefined` when it is undisturbed.
  */
 function findDisturbance(unit: Unit, ctx: SentryPatrolAITreeContext, context: AIContext): Unit | null | undefined {
+    const wakeOn = ctx.wakeOn ?? getSentryWakeOn(unit.characterId) ?? DEFAULT_SENTRY_WAKE_ON;
     const wasHurt = ctx.lastSeenHp !== undefined && unit.hp < ctx.lastSeenHp;
     ctx.lastSeenHp = unit.hp;
     const enemies = findEnemies(unit, context.getUnits());
-    if (wasHurt) return nearestEnemy(unit, enemies) ?? null;
+    if (wasHurt && wakeOn.includes('hurt')) return nearestEnemy(unit, enemies) ?? null;
+
+    if (wakeOn.includes('bump')) {
+        const bumped = new Set(context.getBumpedUnitIds?.(unit.id) ?? []);
+        const bumper = nearestEnemy(unit, enemies.filter((e) => bumped.has(e.id)));
+        if (bumper) return bumper;
+    }
+
+    if (!wakeOn.includes('sight')) return undefined;
 
     const lastScan = ctx.lastScanTime ?? -Infinity;
     if (context.gameTime - lastScan < SCAN_INTERVAL_ROUNDS * ROUND_DURATION) return undefined;

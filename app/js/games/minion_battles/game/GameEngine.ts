@@ -1551,6 +1551,7 @@ export class GameEngine implements EngineContext {
             hasLineOfSight: (fromX, fromY, toX, toY) =>
                 this.terrainManager?.grid.hasLineOfSight(fromX, fromY, toX, toY) ?? false,
             cancelActiveAbility: (unitId, abilityId) => this.cancelActiveAbility(unitId, abilityId),
+            getBumpedUnitIds: (unitId) => this.crowdSpacingManager.getContacts(unitId),
             mapPOIs: this.mapPOIs,
             ninjutsuManager: this.state.ninjutsuManager ?? undefined,
             mapNetwork: this.state.mapNetworkManager,
