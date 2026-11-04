@@ -44,10 +44,11 @@ export class EffectRenderer {
         }
     }
 
-    render(effects: Effect[]): void {
+    render(effects: Effect[], getUnitPosition?: (unitId: string) => { x: number; y: number } | undefined): void {
         const context: IEffectRenderContext = {
             getEffectTexture: (imageKey: EffectImageKey) => this.assets.getEffectTexture(imageKey),
             getCharacterTexture: (characterId: string) => this.assets.getCharacterTexture(characterId),
+            ...(getUnitPosition ? { getUnitPosition } : {}),
         };
 
         for (const effect of effects) {

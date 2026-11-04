@@ -14,6 +14,9 @@ import { SwingStickCard } from './0103_SwingStick/0103Ability';
 import { LaserSwordCard } from './0105_LaserSword/0105Ability';
 import { DarkWolfBiteCard } from './dark_animals/0003_DarkWolfBite/0003Ability';
 import { HuskGraspCard } from './11_enemy_husk/1101_HuskGrasp/1101Ability';
+import { GaolersHookCard } from './12_enemy_warden/1201_GaolersHook/1201Ability';
+import { ExecutionSlamCard } from './12_enemy_warden/1202_ExecutionSlam/1202Ability';
+import { BulwarkCard } from './12_enemy_warden/1203_Bulwark/1203Ability';
 import { AlphaWolfClawCard } from './dark_animals/0004_AlphaWolfClaw/0004Ability';
 import { AlphaWolfSummonCard } from './dark_animals/0005_AlphaWolfSummon/0005Ability';
 import { BoarChargeCard } from './dark_animals/0006_BoarCharge/0006Ability';
@@ -107,6 +110,9 @@ const cardDefs: CardDef[] = [
     LaserSwordCard,
     DarkWolfBiteCard,
     HuskGraspCard,
+    GaolersHookCard,
+    ExecutionSlamCard,
+    BulwarkCard,
     AlphaWolfClawCard,
     AlphaWolfSummonCard,
     BoarChargeCard,

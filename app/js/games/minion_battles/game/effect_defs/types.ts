@@ -15,4 +15,9 @@ export interface IEffectRenderContext {
     getEffectTexture(imageKey: EffectImageKey): TextureType | null;
     /** Optional: for effects that mimic unit appearance (e.g. Afterimage). */
     getCharacterTexture?(characterId: string): TextureType | null;
+    /**
+     * Optional: live world position of a unit (undefined once it is gone), for effects that follow
+     * units (e.g. a chain between a thrower and its reeled victim). Read-only.
+     */
+    getUnitPosition?(unitId: string): { x: number; y: number } | undefined;
 }

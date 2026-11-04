@@ -135,6 +135,12 @@ export function computeForcedDisplacement(
             if (!passable(x, y)) { wallHit = true; break; }
             safeDistance = d;
         }
+        // The last partial step (desired is rarely a multiple of `step`): take it when its end is
+        // clear, else treat it as a wall hit so the search below finds the edge inside it.
+        if (!wallHit && safeDistance < desired) {
+            if (passable(startX + ux * desired, startY + uy * desired)) safeDistance = desired;
+            else wallHit = true;
+        }
     }
 
     if (wallHit && desired >= step) {

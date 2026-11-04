@@ -20,6 +20,7 @@ import lanterniteNest from '../../../assets/characters/lanternite_nest.svg';
 import curlingVines from '../../../assets/characters/curling_vines.svg';
 import dog from '../../../assets/characters/dog.png';
 import husk from '../../../assets/characters/husk.svg';
+import ironWarden from '../../../assets/characters/iron_warden.svg';
 
 export const UNIT_SPRITE_URLS = {
     slime,
@@ -35,6 +36,7 @@ export const UNIT_SPRITE_URLS = {
     curling_vines: curlingVines,
     dog,
     husk,
+    iron_warden: ironWarden,
 } as const;
 
 export type UnitSpriteKey = keyof typeof UNIT_SPRITE_URLS;

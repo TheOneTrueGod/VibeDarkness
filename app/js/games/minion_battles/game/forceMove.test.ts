@@ -37,6 +37,26 @@ describe('computeForcedDisplacement', () => {
         expect(distance).toBe(segmentLength);
     });
 
+    it('moves the full distance on open ground when it is not a multiple of the probe step', () => {
+        const terrainManager = makeGrassManager(20, 20);
+        // 7.8 px: one 4 px probe fits, the 3.8 px remainder must not be dropped.
+        const want = 7.8;
+        const { distance, dx } = computeForcedDisplacement(100, 100, 100 + want, 100, want, { terrainManager });
+        expect(distance).toBeCloseTo(want);
+        expect(dx).toBeCloseTo(want);
+    });
+
+    it('still stops at a wall inside the remainder past the last full probe step', () => {
+        const terrainManager = makeGrassManager(20, 20);
+        terrainManager.grid.set(3, 2, TerrainType.Rock);
+        // Start 5 px left of the rock tile's edge (x = 120); a 7.8 px push would end 2.8 px inside it.
+        const startX = 3 * CELL_SIZE - 5;
+        const y = 2.5 * CELL_SIZE;
+        const { distance } = computeForcedDisplacement(startX, y, startX + 7.8, y, 7.8, { terrainManager });
+        expect(distance).toBeGreaterThan(4);
+        expect(distance).toBeLessThanOrEqual(5 + 1e-6);
+    });
+
     it('stops before rock when the first coarse step would land inside the wall', () => {
         const terrainManager = makeGrassManager(8, 4);
         terrainManager.grid.set(3, 2, TerrainType.Rock);

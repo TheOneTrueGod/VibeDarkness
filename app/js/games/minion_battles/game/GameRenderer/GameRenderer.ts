@@ -355,7 +355,10 @@ export class GameRenderer {
 				const effectsVisible = isRenderLayerVisible('effects');
 				this.effectRenderer.setLayerVisible(effectsVisible);
 				if (effectsVisible) {
-					this.effectRenderer.render(engine.effects);
+					this.effectRenderer.render(engine.effects, (id) => {
+						const u = engine.getUnit(id);
+						return u && u.isAlive() ? { x: u.x, y: u.y } : undefined;
+					});
 				}
 			});
 

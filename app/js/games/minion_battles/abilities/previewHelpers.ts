@@ -942,6 +942,33 @@ export function drawEnemyConvexQuadHitboxTelegraph(
     gr.stroke({ color: color, width: 2, alpha: borderA });
 }
 
+/**
+ * Circular enemy telegraph (slams, stomps, ground bursts): a filled disc growing from the centre to
+ * the full blast radius, over a faint full-size disc whose rim follows the same border rules as
+ * {@link drawEnemyConeHitboxTelegraph}.
+ */
+export function drawEnemyCircleHitboxTelegraph(
+    gr: IAbilityPreviewGraphics,
+    centerX: number,
+    centerY: number,
+    radius: number,
+    elapsed: number,
+    prefireTime: number,
+    options?: { color?: number; holdFullRedUntilOffset?: number },
+): void {
+    const color = options?.color ?? 0xff0000;
+    const holdEnd = prefireTime + (options?.holdFullRedUntilOffset ?? 0);
+    const expandT = enemyHitboxTelegraphExpandT(elapsed, prefireTime);
+    const borderA = enemyHitboxTelegraphBorderAlpha(elapsed, prefireTime, holdEnd);
+    if (expandT > 0) {
+        gr.circle(centerX, centerY, radius * expandT);
+        gr.fill({ color, alpha: ENEMY_HITBOX_TELEGRAPH_EXPAND_FILL });
+    }
+    gr.circle(centerX, centerY, radius);
+    gr.fill({ color, alpha: 0.08 });
+    gr.stroke({ color, width: 2, alpha: borderA });
+}
+
 /** Options for createUnitTargetPreview. */
 export interface UnitTargetPreviewOptions {
     getMinRange: (caster: Unit) => number;

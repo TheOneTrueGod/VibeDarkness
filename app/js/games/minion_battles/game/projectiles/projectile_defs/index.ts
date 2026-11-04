@@ -9,6 +9,7 @@ import { spriteProjectileDef } from './spriteProjectileDef';
 import { bloodWaveDef } from './bloodWaveDef';
 import { rockSlideDef } from './rockSlideDef';
 import { foldedDeployableDef } from './foldedDeployableDef';
+import { tetheredHookDef, TETHERED_HOOK_PROJECTILE_TYPE } from './tetheredHookDef';
 import {
     DEPLOYABLE_DELIVERY_PROJECTILE_TYPE,
     LEGACY_TURRET_DELIVERY_PROJECTILE_TYPE,
@@ -24,6 +25,7 @@ const registry: Record<string, IProjectileDef> = {
     sprite_projectile: spriteProjectileDef,
     blood_wave: bloodWaveDef,
     rock_slide: rockSlideDef,
+    [TETHERED_HOOK_PROJECTILE_TYPE]: tetheredHookDef,
     [DEPLOYABLE_DELIVERY_PROJECTILE_TYPE]: foldedDeployableDef,
     [LEGACY_TURRET_DELIVERY_PROJECTILE_TYPE]: foldedDeployableDef,
 };

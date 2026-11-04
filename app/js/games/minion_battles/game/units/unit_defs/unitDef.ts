@@ -38,6 +38,8 @@ import {
     ENEMY_BOAR,
     ENEMY_THORNBINDER,
     ENEMY_HUSK,
+    ENEMY_IRON_WARDEN,
+    IRON_WARDEN_SHIELDBREAK_THRESHOLD,
     ENEMY_SWARMLING,
     ALLY_LANTERNITE,
 } from '../../../constants/enemyConstants';
@@ -117,7 +119,8 @@ export type EnemyUnitId =
     | 'lanternite_nest'
     | 'swarm_nest'
     | 'dog'
-    | 'husk';
+    | 'husk'
+    | 'iron_warden';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
 /**
@@ -466,6 +469,42 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         onDeathVisualEffects: darkCreatureParticleBurstVFX(5),
         uiDescription:
             'Hollowed former resident of the castle — slow and hard to put down, it trails a cloud of choking miasma wherever it walks.',
+    },
+    iron_warden: {
+        bodyColor: 0x3b3f46,
+        displayName: 'Iron Warden',
+        sprite: UNIT_SPRITE_URLS.iron_warden,
+        bestiary: { abilityIds: ['1201', '1202', '1203'] },
+        baseSpawn: ENEMY_IRON_WARDEN,
+        characterSpriteKey: 'iron_warden',
+        hp: 160,
+        speed: 48,
+        size: 'Large',
+        stamina: 2,
+        perceptionRange: 320,
+        creatureType: 'dark_creature',
+        // Plate and a planted stance: light shoves do nothing, and it stands its ground in a crowd.
+        combatCc: {
+            ccDurationResistPct: { ALL: 0.3 },
+            knockbackResistance: 1,
+        },
+        tags: [UnitTag.CrowdSpacingAnchor],
+        // Shieldbreak: below the threshold the cracked shield is cast off. No more Bulwark (so no more
+        // need to flank), but the Warden hooks and slams faster for the rest of the fight.
+        phases: [
+            {
+                id: 'shieldbreak',
+                label: 'Shieldbreak',
+                enterWhen: { kind: 'health_below_percent', threshold: IRON_WARDEN_SHIELDBREAK_THRESHOLD },
+                tags: { add: [UnitTag.Enraged] },
+                abilities: { remove: ['1203'] },
+                modifiers: { tempo: 1.3 },
+                transition: { kind: 'none', durationSeconds: 1.5, banner: 'The Warden casts off its shattered shield!' },
+            },
+        ],
+        onDeathVisualEffects: darkCreatureParticleBurstVFX(6),
+        uiDescription:
+            'Hollowed castle gaoler in plate. Hooks stragglers in with a chain, crushes them with its tower shield, and blocks everything from the front until the shield breaks.',
     },
 };
 

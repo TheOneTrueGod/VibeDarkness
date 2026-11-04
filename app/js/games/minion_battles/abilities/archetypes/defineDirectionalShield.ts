@@ -17,7 +17,9 @@
  *    (fill = primary, stroke = secondary); otherwise the shield helpers' own defaults.
  */
 
-import type { AbilityRecoveryRule, AbilityStatic } from '../Ability';
+import type { AbilityAISettings, AbilityRecoveryRule, AbilityStatic, AttackBlockedInfo } from '../Ability';
+import type { Unit } from '../../game/units/Unit';
+import { Effect } from '../../game/effects/Effect';
 import { AbilityPhase } from '../abilityTimings';
 import type { AbilityTimingInterval } from '../abilityTimings';
 import type { CastBehaviour } from '../castBehaviourTypes';
@@ -83,6 +85,15 @@ export interface DirectionalShieldConfig {
     // ---- AI ----
     minRange?: number;
     maxRange?: number;
+    /** Extra AI settings (priority, per-round cap, candidate scope, gates) merged over the range defaults. */
+    aiSettings?: Partial<AbilityAISettings>;
+
+    // ---- Juice ----
+    /**
+     * Visual payoff when the shield blocks a hit: a spark burst on the shield face toward the attack,
+     * plus optional floating text. Purely visual. Omitted = no block visual (historic behaviour).
+     */
+    blockImpact?: DirectionalShieldBlockImpact;
 
     // ---- Hooks ----
     /** Called when the cast starts, before the block window opens. */
@@ -96,6 +107,60 @@ export interface DirectionalShieldConfig {
     getTooltipText: (gameState?: unknown) => string[];
     /** Card flavour line; see `AbilityStatic.flavorText`. */
     flavorText?: string;
+}
+
+export interface DirectionalShieldBlockImpact {
+    sparkColor: number;
+    /** Floating text over the blocker (e.g. 'CLANG!'). */
+    text?: string;
+    textColor?: number;
+}
+
+/** `COLLISION_CLASH_EFFECT_TYPE` in `game/effect_defs/impactEffects.ts` (string here to keep pixi out of ability code). */
+const BLOCK_SPARK_EFFECT_TYPE = 'CollisionClash';
+const BLOCK_SPARK_DURATION_SEC = 0.35;
+const BLOCK_TEXT_DURATION_SEC = 0.8;
+
+/** Spark burst on the shield face toward the attack source, plus optional floating text. */
+function spawnBlockImpact(
+    engine: unknown,
+    defender: Unit,
+    attackInfo: AttackBlockedInfo,
+    impact: DirectionalShieldBlockImpact,
+    faceDistance: number,
+): void {
+    const eng = engine as { addEffect?: (effect: Effect) => void };
+    if (!eng.addEffect) return;
+    const sx = attackInfo.attackSourceX ?? defender.x + 1;
+    const sy = attackInfo.attackSourceY ?? defender.y;
+    const angle = Math.atan2(sy - defender.y, sx - defender.x);
+    const x = defender.x + Math.cos(angle) * faceDistance;
+    const y = defender.y + Math.sin(angle) * faceDistance;
+    eng.addEffect(new Effect({
+        x,
+        y,
+        duration: BLOCK_SPARK_DURATION_SEC,
+        effectType: BLOCK_SPARK_EFFECT_TYPE,
+        effectData: { color: impact.sparkColor },
+    }));
+    if (impact.text) {
+        eng.addEffect(new Effect({
+            x,
+            y: y - 10,
+            duration: BLOCK_TEXT_DURATION_SEC,
+            effectType: 'FloatingText',
+            effectData: {
+                text: impact.text,
+                color: impact.textColor ?? impact.sparkColor,
+                originX: x,
+                originY: y - 10,
+                dirX: Math.cos(angle) * 0.4,
+                dirY: -1,
+                flightPx: 30,
+                arcPx: 14,
+            },
+        }));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -170,7 +235,11 @@ export function defineDirectionalShield(config: DirectionalShieldConfig): Abilit
         recoveries: config.recoveries,
         prefireTime: duration,
         targets: [],
-        aiSettings: { minRange: config.minRange ?? 10, maxRange: config.maxRange ?? DIRECTIONAL_SHIELD_AIM_RANGE },
+        aiSettings: {
+            minRange: config.minRange ?? 10,
+            maxRange: config.maxRange ?? DIRECTIONAL_SHIELD_AIM_RANGE,
+            ...config.aiSettings,
+        },
         abilityTimings,
 
         getTooltipText: config.getTooltipText,
@@ -200,6 +269,15 @@ export function defineDirectionalShield(config: DirectionalShieldConfig): Abilit
         }),
 
         onAttackBlocked(): void {},
+
+        ...(config.blockImpact !== undefined
+            ? {
+                onBlockSuccess(engine: unknown, defender: Unit, attackInfo: AttackBlockedInfo): void {
+                    const impact = config.blockImpact!;
+                    spawnBlockImpact(engine, defender, attackInfo, impact, defender.radius + innerOffset + thicknessPx / 2);
+                },
+            }
+            : {}),
 
         ...(config.beginActiveCast !== undefined ? { beginActiveCast: config.beginActiveCast } : {}),
 

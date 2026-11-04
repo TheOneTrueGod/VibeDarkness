@@ -7,6 +7,7 @@
  * **09 = Gravity** skill tree (see `card_defs/09_gravity_core/` and `GravityCore.md`).
  * **10 = Armory** skill tree (see `card_defs/10_armory_core/AGENTS.md` and `ArmoryCore.md`).
  * **11 = Husk** enemy family (see `card_defs/11_enemy_husk/`).
+ * **12 = Iron Warden** enemy family (see `card_defs/12_enemy_warden/`).
  * **03 = Mage** is the Blood Mage tree (`card_defs/03_blood_mage/`, see its `AGENTS.md`).
  *
  * Convention for new groups (full rules in `card_defs/SKILL.md`, **Folder and id convention**): one group per
@@ -27,6 +28,7 @@ export enum AbilityGroupId {
     Gravity = 9,
     Armory = 10,
     EnemyHusk = 11,
+    EnemyWarden = 12,
 }
 
 export function formatGroupId(group: AbilityGroupId): string {

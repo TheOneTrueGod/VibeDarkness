@@ -26,7 +26,7 @@ import type {
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { ROUND_DURATION } from '../../../game/gameConstants';
 import { DarknessLevel } from '../../../game/darknessLevels';
-import { ENEMY_DARK_WOLF, ENEMY_HUSK, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
+import { ENEMY_DARK_WOLF, ENEMY_HUSK, ENEMY_IRON_WARDEN, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
 import { SLIME } from '../../../game/units/dark_animals/slime';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
 import { WOD_CH3_MAP_X_COL1, WOD_CH3_MAP_Y_ROW0 } from '../chapter3Map';
@@ -100,6 +100,15 @@ export const HUSK_ROUTES: readonly HuskRoute[] = [
     { slot: COURTYARD_SLOT, from: { col: 4, row: 5 }, to: { col: 17, row: 5 } },
 ];
 
+/** The Iron Warden's beat: out of the keep door and down to the fountain's north bank, and back. */
+export const WARDEN_ROUTE: HuskRoute = {
+    slot: COURTYARD_SLOT,
+    from: { col: 10, row: 3 },
+    to: { col: 11, row: 7 },
+};
+/** How close the party must come (with line of sight) before the Warden notices them. */
+export const WARDEN_NOTICE_RANGE_PX = 200;
+
 export const OBJECTIVE_DESTROY_SPAWNERS = 'destroy_spawners';
 
 function swarmNest(cell: { col: number; row: number }): EnemySpawnDef {
@@ -166,6 +175,19 @@ function castleHusks(): EnemySpawnDef[] {
     }));
 }
 
+function castleWarden(): EnemySpawnDef {
+    const { slot, from, to } = WARDEN_ROUTE;
+    return {
+        ...ENEMY_IRON_WARDEN,
+        position: cellCentre(onMission(slot.tileCol, slot.tileRow, from)),
+        unitAITreeId: 'sentryPatrol',
+        sentryPatrol: {
+            waypoints: [cellCentre(onMission(slot.tileCol, slot.tileRow, to))],
+            noticeRangePx: WARDEN_NOTICE_RANGE_PX,
+        },
+    };
+}
+
 export class TheCastleCourtyardMission extends BaseMissionDef {
     static readonly missionId = THE_CASTLE_COURTYARD_MISSION_ID;
     static readonly nameStr = 'The Castle Courtyard';
@@ -195,7 +217,12 @@ export class TheCastleCourtyardMission extends BaseMissionDef {
 
     override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
         // The nests are there from the start, so the kill objective never sees an empty courtyard.
-        this.enemies = [swarmNest(NORTHWEST_NEST_CELL), swarmNest(NORTHEAST_NEST_CELL), ...castleHusks()];
+        this.enemies = [
+            swarmNest(NORTHWEST_NEST_CELL),
+            swarmNest(NORTHEAST_NEST_CELL),
+            ...castleHusks(),
+            castleWarden(),
+        ];
         super.initializeGameState(engine, params);
     }
 }

@@ -19,8 +19,12 @@ import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import { triggerAbilityEventFromAttack, triggerAbilityEventFromProjectileExpiry } from '../../abilities/events';
 import {
     applyDirectionalKnockback,
+    DEFAULT_REEL_DURATION_SEC,
+    DEFAULT_REEL_MAX_DISTANCE_PX,
     knockbackCtxFromEngine,
     resolveHitKnockbackDirection,
+    resolveReelLanding,
+    tryApplyAimedKnockbackByTier,
     type KnockbackDirectionStrategy,
 } from '../../crowdControl/knockbackKeywords';
 import { TERRAIN_PROPERTIES, TerrainType } from '../../terrain/TerrainType';
@@ -901,6 +905,33 @@ export class Projectile extends GameObject {
     private applyHitKnockback(unit: Unit, engine: unknown): void {
         const knockback = this.hitPolicy.knockback;
         if (!knockback || !knockback.tier) return;
+        const kbCtx = knockbackCtxFromEngine(engine as {
+            gameTime: number;
+            roundNumber?: number;
+            eventBus: EventBus;
+            interruptUnitAndRefundAbilities?: (unit: Unit) => void;
+        });
+        const strategy = knockback.direction;
+        if (strategy.kind === 'reelToSource') {
+            const source = (engine as { getUnit?: (id: string) => Unit | undefined }).getUnit?.(this.sourceUnitId);
+            if (source?.isAlive()) {
+                const landing = resolveReelLanding(source, unit, strategy.standoffPx);
+                tryApplyAimedKnockbackByTier(
+                    unit,
+                    knockback.tier,
+                    landing,
+                    { unitId: this.sourceUnitId, abilityId: this.sourceAbilityId },
+                    kbCtx,
+                    {
+                        landingMinDistance: 0,
+                        landingMaxDistance: strategy.maxDistancePx ?? DEFAULT_REEL_MAX_DISTANCE_PX,
+                        distanceScale: 1,
+                        durationOverride: strategy.durationSec ?? DEFAULT_REEL_DURATION_SEC,
+                    },
+                );
+                return;
+            }
+        }
         const travelLen = Math.hypot(this.velocityX, this.velocityY) || 1;
         const direction = resolveHitKnockbackDirection(
             knockback.direction,
@@ -913,12 +944,7 @@ export class Projectile extends GameObject {
             knockback.tier,
             direction,
             { unitId: this.sourceUnitId, abilityId: this.sourceAbilityId },
-            knockbackCtxFromEngine(engine as {
-                gameTime: number;
-                roundNumber?: number;
-                eventBus: EventBus;
-                interruptUnitAndRefundAbilities?: (unit: Unit) => void;
-            }),
+            kbCtx,
         );
     }
 

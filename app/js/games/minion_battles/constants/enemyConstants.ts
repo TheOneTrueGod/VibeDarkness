@@ -114,6 +114,25 @@ export const ENEMY_HUSK: EnemySpawnDef = {
     unitAITreeId: 'hunt',
 };
 
+/**
+ * Iron Warden: hollowed castle gaoler in plate, an elite that takes a party to bring down. Gaoler's
+ * Hook (1201) drags a distant enemy in, Execution Slam (1202) crushes what is in front of it, and
+ * Bulwark (1203) blocks everything from the front while it advances. Usually placed with
+ * `unitAITreeId: 'sentryPatrol'` guarding a doorway; wakes on sight or when hurt.
+ */
+/** HP fraction at which the Iron Warden's shield breaks (Shieldbreak phase: loses Bulwark, speeds up). */
+export const IRON_WARDEN_SHIELDBREAK_THRESHOLD = 0.4;
+
+export const ENEMY_IRON_WARDEN: EnemySpawnDef = {
+    characterId: 'iron_warden',
+    name: 'Iron Warden',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['1201', '1202', '1203'],
+    aiSettings: { minRange: 0, maxRange: 90 },
+    unitAITreeId: 'hunt',
+};
+
 /** Swarmling: fast small biter — two copies of Bite (0013) per round. */
 export const ENEMY_SWARMLING: EnemySpawnDef = {
     characterId: 'swarmling',

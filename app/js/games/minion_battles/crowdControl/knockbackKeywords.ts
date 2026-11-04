@@ -223,7 +223,44 @@ export function applyDirectionalKnockback(
  */
 export type KnockbackDirectionStrategy =
     | { kind: 'travel' }
-    | { kind: 'sideOfTravel'; angleDeg: number };
+    | { kind: 'sideOfTravel'; angleDeg: number }
+    | ReelToSourceKnockback;
+
+/**
+ * Hook / harpoon / grapple: instead of being pushed, the victim is reeled back to the projectile's
+ * source unit, landing `standoffPx` short of it (measured from the source's centre, along the line
+ * to the victim). A reel is an aimed knockback (`tryApplyAimedKnockbackByTier`), so the tier still
+ * drives CC armour, resistance and flight time. Falls back to `travel` reversed when the source
+ * unit is gone.
+ */
+export interface ReelToSourceKnockback {
+    kind: 'reelToSource';
+    /** Gap (px, from the source's centre) the victim lands short of the source. */
+    standoffPx: number;
+    /** Longest reel (px). Victims further out are pulled this far. Default {@link DEFAULT_REEL_MAX_DISTANCE_PX}. */
+    maxDistancePx?: number;
+    /** Fixed reel flight time (seconds), so long and short reels arrive together. Default {@link DEFAULT_REEL_DURATION_SEC}. */
+    durationSec?: number;
+}
+
+export const DEFAULT_REEL_MAX_DISTANCE_PX = 400;
+export const DEFAULT_REEL_DURATION_SEC = 0.35;
+
+/**
+ * Where a reeled victim lands: `standoffPx` from `source` toward the victim. A victim already
+ * inside the standoff stays put (landing = its own position). Pure.
+ */
+export function resolveReelLanding(
+    source: { x: number; y: number },
+    victim: { x: number; y: number },
+    standoffPx: number,
+): { x: number; y: number } {
+    const dx = victim.x - source.x;
+    const dy = victim.y - source.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist <= standoffPx || dist < 1e-6) return { x: victim.x, y: victim.y };
+    return { x: source.x + (dx / dist) * standoffPx, y: source.y + (dy / dist) * standoffPx };
+}
 
 /**
  * Resolve a knockback direction (unit vector) for a victim hit by a projectile. Pure: no engine
@@ -241,6 +278,10 @@ export function resolveHitKnockbackDirection(
 ): { x: number; y: number } {
     if (strategy.kind === 'travel') {
         return { x: travelDir.x, y: travelDir.y };
+    }
+    if (strategy.kind === 'reelToSource') {
+        // Direction-only fallback (no source unit to aim at): back the way the projectile came.
+        return { x: -travelDir.x, y: -travelDir.y };
     }
     const perpX = -travelDir.y;
     const perpY = travelDir.x;

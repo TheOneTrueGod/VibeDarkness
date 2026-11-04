@@ -7,6 +7,8 @@ import { Container, Graphics } from 'pixi.js';
 import type { Effect } from '../effects/Effect';
 
 import { ARC_SEGMENT_EFFECT_TYPE, arcSegmentEffectDef } from './arcSegmentEffects';
+import { GROUND_SLAM_EFFECT_TYPE, groundSlamEffectDef } from './groundSlamEffects';
+import { CHAIN_LINK_EFFECT_TYPE, chainLinkEffectDef } from './chainEffects';
 export type { IEffectDef, IEffectRenderContext } from './types';
 import type { IEffectDef, IEffectRenderContext } from './types';
 
@@ -127,6 +129,8 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     [WEAPON_DISCARD_ARC_EFFECT_TYPE]: weaponDiscardArcEffectDef,
     [WEAPON_WHIRL_EFFECT_TYPE]: weaponWhirlEffectDef,
     [ARC_SEGMENT_EFFECT_TYPE]: arcSegmentEffectDef,
+    [GROUND_SLAM_EFFECT_TYPE]: groundSlamEffectDef,
+    [CHAIN_LINK_EFFECT_TYPE]: chainLinkEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */
