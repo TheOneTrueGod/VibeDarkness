@@ -6,6 +6,7 @@
  *   PLAYTEST_HEADED=1      show both browser windows
  *   PLAYTEST_MAX_MINUTES   per-mission battle budget (default 15)
  *   PLAYTEST_SOLO=1        host only (checks the bridge/autoplay without a second account)
+ *   --check-sandbox        only check that sandboxed Chromium can open a page (exit 0 ok, 2 blocked)
  *
  * Input is real UI input: canvas mouse clicks at screen points from the dev-only
  * `window.__minionBattlesPlaytest` bridge (usePlaytestBridge.ts), ability-card clicks and the Pass
@@ -487,7 +488,26 @@ async function playBattle(players, missionId) {
 
 // ---------------------------------------------------------------------------
 
+/** Agents run this first: inside an agent tool sandbox, Chromium's own OS sandbox cannot start. */
+async function checkSandbox() {
+    try {
+        const browser = await chromium.launch({ headless: true, chromiumSandbox: true });
+        await (await browser.newContext()).newPage();
+        await browser.close();
+        console.log('[playtest] sandbox check: OK (sandboxed Chromium can open pages)');
+        return 0;
+    } catch (err) {
+        const first = String(err?.message ?? err).split('\n')[0].trim();
+        console.log(`[playtest] sandbox check: BLOCKED (${first})`);
+        return 2;
+    }
+}
+
 async function main() {
+    if (process.argv.includes('--check-sandbox')) {
+        process.exitCode = await checkSandbox();
+        return;
+    }
     const missions = process.argv.slice(2).filter((a) => !a.startsWith('-'));
     if (missions.length === 0) missions.push(...DEFAULT_MISSIONS);
     const env = loadEnvFile(ENV_PATH);
@@ -497,7 +517,7 @@ async function main() {
     ];
     if (SOLO) creds.pop();
     if (creds.some(([u, pw]) => !u || !pw)) {
-        throw new Error('Need PLAYWRIGHT_USERNAME/_PASSWORD and PLAYWRIGHT_USERNAME_2/_PASSWORD_2 in .env.playwright.local (ask the user; do not create accounts).');
+        throw new Error('Need PLAYWRIGHT_USERNAME/_PASSWORD and PLAYWRIGHT_USERNAME_2/_PASSWORD_2 in .env.playwright.local (ask the user before creating an account).');
     }
     if (!(await httpOk(BASE_URL)) || !(await httpOk('http://localhost:8000/'))) {
         throw new Error('Vite :5173 and/or PHP :8000 not reachable. Start npm run dev and npm run php.');

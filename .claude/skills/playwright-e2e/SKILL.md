@@ -20,13 +20,14 @@ npm run test:e2e:smoke   # starter sandbox smoke
 npm run test:e2e         # all specs under e2e/
 npm run account:create   # create/login helper account
 npm run play:smoke       # login → host first mission → play to tick 100
+npm run playtest         # two-player mission playtest (see jp-playtest skill)
 ```
 
 Requires Chromium once: `npx playwright install chromium`. Stack: `npm run php` + `npm run dev` (or reuse running servers).
 
 ## Local login
 
-The debugging account is `.env.playwright.local` (`PLAYWRIGHT_USERNAME` / `PLAYWRIGHT_PASSWORD`). Use it to log in while debugging the local app, in the browser or in Playwright. Use no other account. Leave the password in that file. Root `AGENTS.md` ("Live app debugging") points here.
+The debugging account is `.env.playwright.local` (`PLAYWRIGHT_USERNAME` / `PLAYWRIGHT_PASSWORD`). Use it to log in while debugging the local app, in the browser or in Playwright. The only other account is the second **jp-playtest** player (`PLAYWRIGHT_USERNAME_2` / `PLAYWRIGHT_PASSWORD_2`, `LomithTwo`). Use no other account. Create or promote an account only when the user asks. Leave the password in that file. Root `AGENTS.md` ("Live app debugging") points here.
 
 ## Sandbox
 
@@ -45,6 +46,8 @@ Canonical ids: **`app/js/testing/testIds.ts`** (mirror for Node scripts: `script
 | `character-select-ready` | Lobby Ready |
 | `story-next` / `story-choice-{optionId}` | Pre-mission story |
 | `battle-wait` / `lobby-leave` | Battle Wait + Leave |
+| `battle-pass` / `battle-ability-card-{abilityId}` | Turn toolbar Pass + hand card (`data-disabled-reason`) |
+| `victory-popover` / `victory-popover-continue` | Mission victory |
 | `app-logout` | Campaign chrome Log out |
 | `music-player` / `music-player-play-pause` / `music-player-skip` / `music-player-readout` / `music-player-volume` / `music-player-mute` | Title-bar music transport |
 | `game-session` | Root with `data-game-phase` + `data-game-tick` |
