@@ -49,9 +49,31 @@ const ALLOWED_ORIGINS = new Set([
 
 const report = { startedAt: new Date().toISOString(), baseUrl: BASE_URL, missions: [], notes: [] };
 
+/** Live battle status line (frame counter); redrawn in place on a TTY, printed every few seconds otherwise. */
+const liveLine = { text: '', shown: false, lastPrintedAt: 0 };
+const LIVE_LINE_PLAIN_EVERY_MS = 5_000;
+
+function clearLiveLine() {
+    if (liveLine.shown && process.stdout.isTTY) process.stdout.write('\r\x1b[2K');
+    liveLine.shown = false;
+}
+
+function drawLiveLine(text) {
+    liveLine.text = text;
+    if (process.stdout.isTTY) {
+        process.stdout.write(`\r\x1b[2K${text}`);
+        liveLine.shown = true;
+    } else if (Date.now() - liveLine.lastPrintedAt >= LIVE_LINE_PLAIN_EVERY_MS) {
+        liveLine.lastPrintedAt = Date.now();
+        console.log(text);
+    }
+}
+
 function note(msg) {
     report.notes.push(`${new Date().toISOString()} ${msg}`);
+    clearLiveLine();
     console.log(`[playtest] ${msg}`);
+    if (liveLine.text && process.stdout.isTTY) drawLiveLine(liveLine.text);
 }
 
 function loadEnvFile(filePath) {
@@ -144,10 +166,19 @@ async function ensureCharacter(p) {
     const loading = page.getByTestId(TestIds.charactersLoading);
     await loading.waitFor({ state: 'hidden', timeout: 60_000 }).catch(() => undefined);
     const mapTab = page.getByTestId(TestIds.characterEditorMissionMapTab);
-    if (await mapTab.isVisible().catch(() => false)) return 'already-open';
     const card = page.locator(`[data-testid^="${TestIds.characterCardPrefix}"]`).first();
+    const create = page.getByTestId(TestIds.charactersCreate);
+    // The list can render a beat before a remembered character's editor opens over it.
+    await mapTab.or(card).or(create).first().waitFor({ state: 'visible', timeout: 30_000 });
+    if (await mapTab.isVisible().catch(() => false)) return 'already-open';
     if (await card.isVisible().catch(() => false)) {
-        await card.locator('button[aria-label^="Select character"]').click();
+        try {
+            await card.locator('button[aria-label^="Select character"]').click({ timeout: 5_000 });
+        } catch (err) {
+            // The editor opened over the list mid-click (playtest 2026-11-03: joiner timed out here).
+            if (await mapTab.isVisible().catch(() => false)) return 'already-open';
+            throw err;
+        }
         await mapTab.waitFor({ state: 'visible', timeout: 15_000 });
         return 'selected-existing';
     }
@@ -369,6 +400,7 @@ async function playerLoop(p, stopFlag) {
                 lastTickAt = Date.now();
             }
             p.stats.lastTick = snap.tick;
+            p.stats.myTurn = Boolean(snap.myWaiterUnitId);
             if (snap.myWaiterUnitId && snap.canUseOrderUi && !snap.itsActive) {
                 const how = await takeTurn(p, snap);
                 p.stats.turns[how] = (p.stats.turns[how] ?? 0) + 1;
@@ -385,16 +417,58 @@ async function playerLoop(p, stopFlag) {
     return 'stopped';
 }
 
+const FRAME_COUNTER_INTERVAL_MS = 500;
+
+/**
+ * Live frame counter: each player's engine tick (one fixed-step frame per tick) as the battle runs,
+ * with frames/s over the last second and a "your turn" marker. A rate of 0 outside a turn is a stall.
+ */
+function startFrameCounter(players, missionId) {
+    const t0 = Date.now();
+    /** label → recent [atMs, tick] samples (about one second's worth). */
+    const history = new Map(players.map((p) => [p.label, []]));
+    const id = setInterval(() => {
+        const now = Date.now();
+        const parts = players.map((p) => {
+            const tick = p.stats.lastTick;
+            const samples = history.get(p.label);
+            if (tick != null) samples.push([now, tick]);
+            while (samples.length > 1 && now - samples[0][0] > 1_000) samples.shift();
+            const [firstAt, firstTick] = samples[0] ?? [now, tick];
+            const rate = tick != null && now > firstAt ? Math.round(((tick - firstTick) * 1000) / (now - firstAt)) : 0;
+            const turn = p.stats.myTurn ? ' (turn)' : '';
+            return `${p.label} ${tick ?? '-'} @${rate}/s${turn}`;
+        });
+        const elapsed = Math.round((now - t0) / 1000);
+        drawLiveLine(`[playtest] ${missionId} ${elapsed}s | frames ${parts.join(' | ')}`);
+    }, FRAME_COUNTER_INTERVAL_MS);
+    return {
+        stop() {
+            clearInterval(id);
+            clearLiveLine();
+            liveLine.text = '';
+        },
+    };
+}
+
 async function playBattle(players, missionId) {
     const stopFlag = { stop: false };
     const timer = setTimeout(() => {
         stopFlag.stop = true;
     }, MAX_BATTLE_MS);
     for (const p of players) p.stats = { turns: {}, casts: {}, stalls: [], lastTick: null };
-    const outcomes = await Promise.all(players.map((p) => playerLoop(p, stopFlag).finally(() => {
+    const frameCounter = startFrameCounter(players, missionId);
+    let outcomes;
+    try {
+        outcomes = await Promise.all(players.map((p) => playerLoop(p, stopFlag).finally(() => {
+            stopFlag.stop = true;
+        })));
+    } finally {
+        // A live interval keeps Node running after main() returns (2026-11-03: hung after a failed battle).
+        clearTimeout(timer);
+        frameCounter.stop();
         stopFlag.stop = true;
-    })));
-    clearTimeout(timer);
+    }
     const result = { missionId, outcomes: {}, players: {} };
     for (const [i, p] of players.entries()) {
         const spans = await p.page.evaluate(() => globalThis.__minionBattlesPlaytest?.spinnerSpans() ?? []).catch(() => []);
