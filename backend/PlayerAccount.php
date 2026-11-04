@@ -157,6 +157,27 @@ class PlayerAccount
         );
     }
 
+    /**
+     * Record progress through one tutorial on a knowledge entry: `knowledge[key].tutorials[tutorialId]`.
+     * Grants the knowledge (with `acquiredAt`) when the account does not have it yet.
+     */
+    public function setTutorialProgress(string $key, string $tutorialId, int $step, bool $done): void
+    {
+        $k = trim($key);
+        $t = trim($tutorialId);
+        if ($k === '' || $t === '') {
+            return;
+        }
+        $existing = $this->knowledge[$k] ?? [];
+        $existing = is_array($existing) ? $existing : [];
+        $tutorials = $existing['tutorials'] ?? [];
+        $tutorials = is_array($tutorials) ? $tutorials : [];
+        $tutorials[$t] = ['step' => max(0, $step), 'done' => $done, 'updatedAt' => time()];
+        $existing['tutorials'] = $tutorials;
+        $existing['acquiredAt'] = (int) (($existing['acquiredAt'] ?? 0) ?: time());
+        $this->knowledge[$k] = $existing;
+    }
+
     public function removeKnowledge(string $key): void
     {
         $k = trim($key);

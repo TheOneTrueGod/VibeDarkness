@@ -245,6 +245,23 @@ export class LobbyClient {
         await this.request('/api/account/logout', { method: 'POST' });
     }
 
+    /**
+     * Record the signed-in player's progress through a tutorial on a tutorial knowledge key
+     * (`PLAYER_RECORDABLE_KNOWLEDGE_KEYS`). Returns the updated account.
+     */
+    async recordTutorialProgress(progress: {
+        key: string;
+        tutorialId: string;
+        step: number;
+        done: boolean;
+    }): Promise<AccountInfo | null> {
+        const data = await this.request('/api/account/tutorial-progress', {
+            method: 'POST',
+            body: JSON.stringify(progress),
+        });
+        return (data.user as AccountInfo | undefined) ?? null;
+    }
+
     async createCampaign(): Promise<import('./types').CampaignState> {
         const data = await this.request('/api/campaigns', { method: 'POST', body: JSON.stringify({}) });
         return data.campaign as import('./types').CampaignState;

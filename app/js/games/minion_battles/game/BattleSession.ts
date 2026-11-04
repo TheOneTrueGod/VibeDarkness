@@ -91,7 +91,9 @@ export type BattleSessionEvent =
     | { type: 'pause_state'; paused: boolean; waitingForOrders: WaitingForOrders | null }
     | { type: 'card_state'; engine: GameEngine }
     | { type: 'order_submit_failed'; unitId: string; abilityId: string }
-    | { type: 'sequential_targeting_rewind' };
+    | { type: 'sequential_targeting_rewind' }
+    /** The local player submitted an order from the battle UI (fired before it reaches BattleNet). */
+    | { type: 'local_order_submitted'; order: BattleOrder };
 
 export type BattleSessionListener = (event: BattleSessionEvent) => void;
 
@@ -714,6 +716,9 @@ export class BattleSession implements BattleSessionHandle {
      * delegates to InteractiveTargetingSession.begin() instead of submitting immediately.
      */
     async submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void> {
+        if (opts.canSubmitOrders) {
+            this.emit({ type: 'local_order_submitted', order });
+        }
         return submitPlayerOrderFor(this, order, opts);
     }
 

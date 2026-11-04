@@ -3,7 +3,7 @@
  * description. Unregistered keys render as the raw key with the `other` icon.
  */
 import React, { useRef, useState } from 'react';
-import { Cog, Flag, Gem, Sparkles, Swords, type LucideIcon } from 'lucide-react';
+import { Cog, Flag, Gem, GraduationCap, Sparkles, Swords, type LucideIcon } from 'lucide-react';
 import {
     accountKnowledgeDef,
     KNOWLEDGE_TYPE_DEFS,
@@ -17,6 +17,7 @@ export const KNOWLEDGE_TYPE_ICONS: Record<AccountKnowledgeType, LucideIcon> = {
     equipment: Swords,
     systems: Cog,
     progression: Flag,
+    tutorial: GraduationCap,
     other: Sparkles,
 };
 

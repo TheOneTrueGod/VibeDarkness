@@ -54,6 +54,13 @@ export class MinionBattlesApi {
         return this.lobbyClient.sendMessage(this.lobbyId, this._playerId, type, data);
     }
 
+    // -- Account -------------------------------------------------------------
+
+    /** Record the local player's progress through a tutorial (see `tutorials/AGENTS.md`). */
+    async recordTutorialProgress(progress: { key: string; tutorialId: string; step: number; done: boolean }): Promise<void> {
+        await this.lobbyClient.recordTutorialProgress(progress);
+    }
+
     // -- Character CRUD -----------------------------------------------------
 
     async getMyCharacters(): Promise<CampaignCharacterPayload[]> {

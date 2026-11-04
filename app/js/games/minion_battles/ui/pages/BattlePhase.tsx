@@ -65,6 +65,9 @@ import { useBattleSidebarPolling } from './battlePhase/useBattleSidebarPolling';
 import { useBattleHudPanelsPolling } from './battlePhase/useBattleHudPanelsPolling';
 import type { VictorySnapshot } from '../../storylines/victoryHealthConversion';
 import { useHudEffectCanvasBridge } from './battlePhase/useHudEffectCanvasBridge';
+import { useBattleTutorial } from './battlePhase/useBattleTutorial';
+import TutorialOverlay from '../components/tutorial/TutorialOverlay';
+import { useCurrentUser } from '../../../../user/useCurrentUser';
 import {
     createEmptyTargetingState,
     computeTargetingState,
@@ -130,6 +133,7 @@ export default function BattlePhase({
     const canSubmitOrders = true;
 
     const { setBattleBridge, adminMovePendingUnitId, setAdminMovePendingUnitId } = useDebugConsole();
+    const { knowledge: accountKnowledge, refetch: refetchUser } = useCurrentUser();
 
     const sessionRef = useRef<BattleSession | null>(null);
     const netRef = useRef<BattleNet | null>(null);
@@ -232,8 +236,12 @@ export default function BattlePhase({
         }
     }, [rewindOverlay]);
 
+    /** Tutorials hear every session event (local orders advance their steps); set once the hook below runs. */
+    const tutorialSessionEventRef = useRef<(ev: Parameters<typeof handleRoundSessionEvent>[0]) => void>(() => undefined);
     const handleSessionEvent = useCallback(
         (ev: Parameters<typeof handleRoundSessionEvent>[0], session: BattleSession) => {
+            tutorialSessionEventRef.current(ev);
+            if (ev.type === 'local_order_submitted') return;
             if (ev.type === 'sequential_targeting_rewind') {
                 // Capture peak ticks + ability span before restore — ITS/engine still at playahead here.
                 const ticks = getItsPlayaheadTicks();
@@ -378,6 +386,20 @@ export default function BattlePhase({
         myAbilityIds,
         battleInitPhase,
     });
+
+    const objectivesPhase = objectivesPresenter.state.phase;
+    const objectivesIntroSettled =
+        (MISSION_MAP[missionId]?.battleObjectives?.length ?? 0) === 0 ||
+        (objectivesPhase !== 'hidden' && objectivesPhase !== 'intro' && objectivesPhase !== 'docking');
+    const tutorial = useBattleTutorial({
+        api,
+        missionId,
+        engine: sessionRef.current?.getEngine() ?? null,
+        knowledge: accountKnowledge,
+        refetchUser,
+        ready: battleInitPhase === 'ready' && canUseOrderUi && objectivesIntroSettled,
+    });
+    tutorialSessionEventRef.current = tutorial.onSessionEvent;
 
     const showHostCatchupPopover =
         !isHost &&
@@ -649,6 +671,16 @@ export default function BattlePhase({
                 bottomRightCorner={abilityBarSlots.bottomRightCorner}
             />
             <HudEffectCanvas ref={hudEffectCanvasRef} engine={engine} />
+            {tutorial.active && (
+                <TutorialOverlay
+                    tutorial={tutorial.active}
+                    engine={engine}
+                    camera={camera}
+                    canvasAreaRef={battleCanvasAreaRef}
+                    onNext={tutorial.next}
+                    onSkip={tutorial.skip}
+                />
+            )}
             <ObjectivesPopover
                 state={objectivesPresenter.state}
                 onStart={objectivesPresenter.onStart}

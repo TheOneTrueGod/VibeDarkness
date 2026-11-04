@@ -58,8 +58,17 @@ export const KNOWLEDGE_COMPLETED_CHAPTER_1 = 'CompletedChapter1';
 /** Progression: Completed Chapter 2, granted by defeating the Displacer spirit. Nothing checks it yet. */
 export const KNOWLEDGE_COMPLETED_CHAPTER_2 = 'CompletedChapter2';
 
+/**
+ * Tutorial: Battle Basics. Carries the opening-battle tutorial (move away from the first wolf, then pick an
+ * attack and a movement target). The player's own client records it as they play the tutorial.
+ */
+export const KNOWLEDGE_TUTORIAL_BATTLE_BASICS = 'TutorialBattleBasics';
+
+/** Tutorial: Light. Carries the mission-2 tutorial on the dimming campfire and placing light with a torch. */
+export const KNOWLEDGE_TUTORIAL_LIGHT = 'TutorialLight';
+
 /** What a piece of knowledge is about; drives the pill icon and the admin grant filters. */
-export type AccountKnowledgeType = 'resource' | 'equipment' | 'systems' | 'progression' | 'other';
+export type AccountKnowledgeType = 'resource' | 'equipment' | 'systems' | 'progression' | 'tutorial' | 'other';
 
 export interface AccountKnowledgeTypeDef {
     /** Display label for the type. (Icons live in `components/KnowledgePill.tsx`, keeping this file plain TS.) */
@@ -71,6 +80,7 @@ export const KNOWLEDGE_TYPE_DEFS: Readonly<Record<AccountKnowledgeType, AccountK
     equipment: { label: 'Equipment' },
     systems: { label: 'Systems' },
     progression: { label: 'Progression' },
+    tutorial: { label: 'Tutorial' },
     other: { label: 'Other' },
 };
 
@@ -166,6 +176,20 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
         tier: 2,
         description: 'Granted by defeating the Displacer spirit. Nothing checks it yet.',
     },
+    {
+        key: KNOWLEDGE_TUTORIAL_BATTLE_BASICS,
+        label: 'Tutorial: Battle Basics',
+        type: 'tutorial',
+        tier: 1,
+        description: 'Recorded by the opening-battle tutorial: moving out of the way, then picking an attack and a move.',
+    },
+    {
+        key: KNOWLEDGE_TUTORIAL_LIGHT,
+        label: 'Tutorial: Light',
+        type: 'tutorial',
+        tier: 1,
+        description: 'Recorded by the mission-2 tutorial on the dimming campfire and placing light with a torch.',
+    },
 ];
 
 /** Registry entry for a knowledge key, if registered. */
@@ -188,4 +212,42 @@ export function hasAccountKnowledge(knowledge: AccountKnowledgeMap, key: string)
 /** Whether the Upgrades system is open to this player: admins always, others once they know it. */
 export function hasUpgradesSystem(knowledge: AccountKnowledgeMap, isAdmin: boolean): boolean {
     return isAdmin || hasAccountKnowledge(knowledge, KNOWLEDGE_SYSTEM_UPGRADES);
+}
+
+/**
+ * Knowledge keys a player's own client may record (tutorial progress). Every other key comes only from
+ * mission rewards or an admin. The server keeps the same list in `backend/TutorialKnowledge.php`.
+ */
+export const PLAYER_RECORDABLE_KNOWLEDGE_KEYS: readonly string[] = ACCOUNT_KNOWLEDGE.filter(
+    (k) => k.type === 'tutorial',
+).map((k) => k.key);
+
+/**
+ * Progress through one tutorial, stored under `knowledge[key].tutorials[tutorialId]`. One knowledge entry
+ * may carry several tutorials. No entry means the player has not started the tutorial.
+ */
+export interface TutorialProgress {
+    /** Index of the step the player is on. */
+    step: number;
+    /** Finished or skipped: never shown again. */
+    done: boolean;
+}
+
+/** Stored progress of `tutorialId` on knowledge `key`, or null when the player has not started it. */
+export function readTutorialProgress(
+    knowledge: AccountKnowledgeMap,
+    key: string,
+    tutorialId: string,
+): TutorialProgress | null {
+    const details = knowledge?.[key];
+    if (!details || typeof details !== 'object') return null;
+    const tutorials = (details as { tutorials?: unknown }).tutorials;
+    if (!tutorials || typeof tutorials !== 'object') return null;
+    const raw = (tutorials as Record<string, unknown>)[tutorialId];
+    if (!raw || typeof raw !== 'object') return null;
+    const { step, done } = raw as { step?: unknown; done?: unknown };
+    return {
+        step: typeof step === 'number' && Number.isFinite(step) && step >= 0 ? Math.floor(step) : 0,
+        done: done === true,
+    };
 }

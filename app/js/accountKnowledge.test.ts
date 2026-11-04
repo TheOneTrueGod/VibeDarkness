@@ -12,6 +12,8 @@ import {
     KNOWLEDGE_RESOURCE_POPULATION,
     KNOWLEDGE_TYPE_DEFS,
     KNOWLEDGE_SYSTEM_UPGRADES,
+    KNOWLEDGE_TUTORIAL_BATTLE_BASICS,
+    KNOWLEDGE_TUTORIAL_LIGHT,
 } from './accountKnowledge';
 
 describe('account knowledge registry', () => {
@@ -34,6 +36,8 @@ describe('account knowledge registry', () => {
             KNOWLEDGE_RESOURCE_ATTUNEMENT,
             KNOWLEDGE_RESOURCE_FOOD,
             KNOWLEDGE_COMPLETED_CHAPTER_1,
+            KNOWLEDGE_TUTORIAL_BATTLE_BASICS,
+            KNOWLEDGE_TUTORIAL_LIGHT,
         ];
         for (const k of ACCOUNT_KNOWLEDGE) {
             expect(k.tier, k.key).toBe(tierOne.includes(k.key) ? 1 : 2);

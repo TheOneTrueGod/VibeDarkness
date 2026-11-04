@@ -6,7 +6,15 @@ import { useCallback } from 'react';
  * Unlike `registerHudFlightTarget` (canvas-clipped Pixi HUD), anchors here are real DOM elements, so a
  * `position: fixed` overlay portaled to `document.body` can travel to them from anywhere on screen.
  */
-export type HudAnchorId = 'objectives';
+export type HudAnchorId =
+    | 'objectives'
+    /** A card in the local player's battle hand (see {@link abilityCardHudAnchorId}). */
+    | `abilityCard:${string}`;
+
+/** Anchor id of the local player's hand card for `abilityId`. */
+export function abilityCardHudAnchorId(abilityId: string): HudAnchorId {
+    return `abilityCard:${abilityId}`;
+}
 
 const anchors = new Map<HudAnchorId, HTMLElement>();
 

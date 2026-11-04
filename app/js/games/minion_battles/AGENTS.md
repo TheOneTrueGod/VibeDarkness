@@ -67,6 +67,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `hitboxes/` | Hitbox shapes for ability collision. |
 | `utils/` | Shared helpers. |
 | `worldModifiers/` | Battle-wide declarative rule system: defs, runtime manager, built-in handlers, serialization. See `worldModifiers/AGENTS.md`. |
+| `tutorials/` | Per-player battle tutorials carried by account knowledge: types and pure rules (content lives in `storylines/*/tutorials.ts`). See `tutorials/AGENTS.md`. |
 
 ## Architecture for the game state
 

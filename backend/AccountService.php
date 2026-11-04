@@ -229,6 +229,17 @@ class AccountService
         $this->storage->save($account);
     }
 
+    /** Record tutorial progress on a knowledge entry and persist. See PlayerAccount::setTutorialProgress. */
+    public function setTutorialProgressOnAccount(int $accountId, string $key, string $tutorialId, int $step, bool $done): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        $account->setTutorialProgress($key, $tutorialId, $step, $done);
+        $this->storage->save($account);
+    }
+
     public function removeKnowledgeFromAccount(int $accountId, string $key): void
     {
         $account = $this->storage->findById($accountId);

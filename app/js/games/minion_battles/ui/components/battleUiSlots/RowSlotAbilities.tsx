@@ -15,6 +15,7 @@ import AbilityTooltip from '../AbilityTooltip';
 import { getAbilityUseConfig, type RecoveryChargeType } from '../../../abilities/abilityUses';
 import { recoveryGlossaryEntries } from '../recoveryChargeDefinitions';
 import { getAbilityBarLayoutKey, splitAbilityRows } from '../../../abilities/abilityBarLayout';
+import { abilityCardHudAnchorId, registerHudAnchor, unregisterHudAnchor } from '../hudAnchors';
 import {
     ABILITY_CARD_LIFT_PADDING_Y_PX,
     BATTLE_BOTTOM_ROW_PADDING_Y_PX,
@@ -387,6 +388,9 @@ export default function RowSlotAbilities({
                 key={card.abilityId}
                 ref={(el) => {
                     cardRefs.current[card.abilityId] = el;
+                    // DOM anchor for screen overlays that point at this card (tutorials).
+                    if (el) registerHudAnchor(abilityCardHudAnchorId(card.abilityId), el);
+                    else unregisterHudAnchor(abilityCardHudAnchorId(card.abilityId));
                 }}
                 data-testid={battleAbilityCardTestId(card.abilityId)}
                 data-disabled-reason={disabledReason ?? undefined}

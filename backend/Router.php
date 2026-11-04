@@ -46,6 +46,7 @@ use App\Http\Handlers\ResearchCharacterNodeHandler;
 use App\Http\Handlers\GetAdminAccountDetailsHandler;
 use App\Http\Handlers\GrantAccountItemHandler;
 use App\Http\Handlers\GrantAccountKnowledgeHandler;
+use App\Http\Handlers\RecordTutorialProgressHandler;
 use App\Http\Handlers\GrantAccountResourceHandler;
 use App\Http\Handlers\GrantCampaignResourceHandler;
 use App\Http\Handlers\ResetCampaignResourcesHandler;
@@ -88,6 +89,7 @@ class Router
             ['POST', '#^/api/account/logout$#', LogoutHandler::class],
             ['GET', '#^/api/account/characters$#', ListCharactersHandler::class],
             ['POST', '#^/api/account/characters$#', CreateCharacterHandler::class],
+            ['POST', '#^/api/account/tutorial-progress$#', RecordTutorialProgressHandler::class],
             ['GET', '#^/api/admin/ci-status$#', GetCiStatusHandler::class],
             ['GET',    '#^/api/admin/lobbies$#',                                      ListAdminLobbiesHandler::class],
             ['DELETE', '#^/api/admin/lobbies/([A-Z0-9]+)$#',                          DeleteAdminLobbyHandler::class],

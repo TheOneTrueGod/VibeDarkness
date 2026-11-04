@@ -5,6 +5,7 @@ import type { Requirement } from './researchTrees/types';
 import { MISSION_MAP } from './games/minion_battles/storylines';
 import { QUEST_MAP } from './games/minion_battles/storylines/questRegistry';
 import { SLOT_KNOWLEDGE_REQUIREMENTS } from './games/minion_battles/character_defs/items/equipmentSlots';
+import { TUTORIALS } from './games/minion_battles/storylines/tutorialRegistry';
 
 const REGISTERED = new Set(ACCOUNT_KNOWLEDGE.map((k) => k.key));
 
@@ -28,6 +29,7 @@ function usedKnowledgeKeys(): { key: string; source: string }[] {
         for (const key of quest.completionRewards?.knowledgeKeys ?? []) used.push({ key, source: `quest ${id}` });
     }
     for (const req of SLOT_KNOWLEDGE_REQUIREMENTS) used.push({ key: req.knowledgeKey, source: `equipment slot ${req.type}` });
+    for (const tutorial of TUTORIALS) used.push({ key: tutorial.knowledgeKey, source: `tutorial ${tutorial.id}` });
     return used;
 }
 
