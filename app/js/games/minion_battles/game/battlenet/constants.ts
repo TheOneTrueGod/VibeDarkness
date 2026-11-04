@@ -92,6 +92,12 @@ export const BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS = 2;
 
 /** Max wait for a best-effort ITS reset/replay/commit order refresh (`BattleNet.pollOnce`). */
 export const ITS_PRE_ACTION_POLL_TIMEOUT_MS = 3000;
+/**
+ * The ITS pre-action refresh is skipped when every peer's WebRTC link has been unbroken since the
+ * start of a completed poll no older than this, with no peer nudge since (see `PeerLinkTracker`).
+ * The age cap bounds what a silently dead link (ICE is slow to report it) can hide.
+ */
+export const ITS_REFRESH_SKIP_MAX_POLL_AGE_MS = 2000;
 
 /** Host may locally play this many seconds ahead of the last acknowledged completed tick. */
 export const HOST_PLAYAHEAD_CAP_SEC = 10;

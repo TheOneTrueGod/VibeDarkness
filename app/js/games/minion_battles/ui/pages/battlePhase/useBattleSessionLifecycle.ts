@@ -9,6 +9,7 @@ import {
     type BattleNet,
     type BattleNetSyncTerminalStatus,
     type BattleSyncNudge,
+    type PeerLinkTracker,
 } from '../../../game/battlenet';
 import { runBattleBootstrap, type BattleInitPhase } from '../../../game/battleBootstrap';
 import type { BattleNetSyncWireResult } from './useBattleNetSyncState';
@@ -43,6 +44,8 @@ interface UseBattleSessionLifecycleParams {
     setNetSyncStatus: (status: BattleNetSyncTerminalStatus) => void;
     /** Peer fast path for "poll now" hints (see `useBattleSyncNudges`). Must be stable. */
     sendSyncNudge?: (nudge: BattleSyncNudge) => void;
+    /** Peer WebRTC link state (see `useBattleSyncNudges`). Must be stable. */
+    peerLinks?: PeerLinkTracker;
 }
 
 /** Mount-once BattleSession load + UI subscription; preserves Strict Mode abort teardown (T1/T7). */
@@ -65,6 +68,7 @@ export function useBattleSessionLifecycle({
     onSessionEventRef,
     setNetSyncStatus,
     sendSyncNudge,
+    peerLinks,
 }: UseBattleSessionLifecycleParams) {
     const [battleInitPhase, setBattleInitPhase] = useState<BattleInitPhase>('fetching_assets');
 
@@ -94,6 +98,7 @@ export function useBattleSessionLifecycle({
             gameId: api.getGameId(),
             playerId,
             sendSyncNudge,
+            peerLinks,
         });
         netRef.current = net;
         session.setNetAdapter(net);

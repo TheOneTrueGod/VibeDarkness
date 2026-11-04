@@ -38,6 +38,12 @@ export class PollLoop {
     waitingForHostUiPollStreak = 0;
     /** A peer nudge arrived while a poll was running; run one more poll when it finishes. */
     private nudgePollPending = false;
+    /** Peer nudges received so far (each one announces a server change). */
+    private peerNudgesReceived = 0;
+    /** {@link peerNudgesReceived} when the latest completed poll started: its GET saw those changes. */
+    private nudgesCoveredByPoll = 0;
+    /** Start time of the latest poll that ran to completion; null before the first. */
+    private lastCompletedPollStartedAtMs: number | null = null;
 
     constructor(
         private readonly ctx: BattleNetContext,
@@ -227,6 +233,37 @@ export class PollLoop {
         }
         const { pollOnce } = this.requireSiblings();
         void pollOnce({ pollSource: 'peer-nudge', bypassThrottle: true });
+    }
+
+    /** Counts a peer nudge toward {@link getNudgeCoverage}. */
+    notePeerNudge(): void {
+        this.peerNudgesReceived += 1;
+    }
+
+    /** Called when a poll takes the lock; hand the mark to {@link notePollCompleted} when it finishes. */
+    beginPollCoverage(nowMs: number = Date.now()): { nudges: number; startedAtMs: number } {
+        return { nudges: this.peerNudgesReceived, startedAtMs: nowMs };
+    }
+
+    /** The poll that took `mark` read the heartbeat and ran to completion. */
+    notePollCompleted(mark: { nudges: number; startedAtMs: number }): void {
+        if (this.lastCompletedPollStartedAtMs != null && mark.startedAtMs < this.lastCompletedPollStartedAtMs) {
+            return;
+        }
+        this.lastCompletedPollStartedAtMs = mark.startedAtMs;
+        this.nudgesCoveredByPoll = mark.nudges;
+    }
+
+    /**
+     * Whether the latest completed poll started after every nudge received so far, and when it
+     * started. Nudges a peer could not deliver are invisible here; pair with `PeerLinkTracker`.
+     */
+    getNudgeCoverage(): { allNudgesPolled: boolean; pollStartedAtMs: number | null } {
+        return {
+            allNudgesPolled:
+                this.lastCompletedPollStartedAtMs != null && this.nudgesCoveredByPoll === this.peerNudgesReceived,
+            pollStartedAtMs: this.lastCompletedPollStartedAtMs,
+        };
     }
 
     /** Called by `BattleNet.pollOnce` once `isPolling` clears; runs a coalesced nudge poll. */

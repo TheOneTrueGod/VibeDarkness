@@ -14,6 +14,8 @@ export {
     BATTLE_NET_MAX_DEFERRED_ORDERS,
     BATTLE_NET_DEFERRED_FORCE_FLUSH_POLLS,
 } from './BattleNet';
+export { PeerLinkTracker } from './PeerLinkTracker';
+export { BATTLE_SYNC_NUDGE_KINDS, type BattleSyncNudgeKind } from './types';
 
 export type {
     ApplyRemoteOrdersResult,

@@ -69,7 +69,12 @@ Poll interval: **`HEARTBEAT_POLL_INTERVAL_MS = 500`** (foreground).
 
 ### Peer sync nudges (WebRTC fast path)
 
-After the server accepts one of our orders (`order-appended`) or the host's `merge-applied` succeeds (`batch-merged`), `BattleNet` calls `sendSyncNudge`, which `useBattleSyncNudges` broadcasts over the WebRTC mesh as a `battle_sync_nudge` transient event. Receivers call `BattleNet.handlePeerSyncNudge` → `PollLoop.requestNudgePoll`: an immediate heartbeat poll (`pollSource: 'peer-nudge'`, bypasses the 500 ms throttle; nudges during a running poll coalesce into one follow-up poll). Nudges carry **no order data** — orders still come only from the server, so a lost or forged nudge costs at most one extra GET.
+After the server accepts one of our orders (`order-appended`), the host's `merge-applied` succeeds (`batch-merged`), or the host saves a pause checkpoint (`checkpoint-saved`, a new pause plane), `BattleNet` calls `sendSyncNudge`, which `useBattleSyncNudges` broadcasts over the WebRTC mesh as a `battle_sync_nudge` transient event. Receivers call `BattleNet.handlePeerSyncNudge` → `PollLoop.requestNudgePoll`: an immediate heartbeat poll (`pollSource: 'peer-nudge'`, bypasses the 500 ms throttle; nudges during a running poll coalesce into one follow-up poll). Nudges carry **no order data** — orders still come only from the server, so a lost or forged nudge costs at most one extra GET.
+
+
+**ITS pre-action refresh skip.** `useBattleSyncNudges` also feeds a `PeerLinkTracker` (how long each other player's data channel has been open without a break) into `createBattleNet({ peerLinks })`. `PollLoop` counts received nudges and records which ones the latest completed poll covered. `BattleNet.refreshRemoteOrdersForTargetingPreview` (the forced poll before an ITS commit / reset / replay) is skipped when every peer link has been unbroken since that poll started, no nudge arrived since, and the poll is at most `ITS_REFRESH_SKIP_MAX_POLL_AGE_MS` old. Peers nudge after every server change they cause, so that poll already saw the current server. Any doubt (link down, unpolled nudge, stale poll, no mesh) falls back to the forced poll.
+
+**ITS commit no longer waits on the server.** A rollback commit hands the order to `submitOrder` (which applies it locally before its first await) and reports landed / failed in the background, and the host's `merge-applied` after an accepted append runs in the background too. When rollback is certain up front, the rewind runs concurrently with the refresh poll.
 
 ## Checkpoint save
 

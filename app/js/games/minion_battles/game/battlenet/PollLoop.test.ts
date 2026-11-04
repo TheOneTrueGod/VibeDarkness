@@ -434,3 +434,32 @@ describe('PollLoop.requestNudgePoll', () => {
         expect(nudgeCalls(h)).toHaveLength(0);
     });
 });
+
+describe('PollLoop nudge coverage', () => {
+    it('reports nothing polled before the first completed poll', () => {
+        const h = makeHarness();
+        expect(h.loop.getNudgeCoverage()).toEqual({ allNudgesPolled: false, pollStartedAtMs: null });
+    });
+
+    it('a completed poll covers nudges received before it started, not during it', () => {
+        const h = makeHarness();
+        h.loop.notePeerNudge();
+        const mark = h.loop.beginPollCoverage(1000);
+        h.loop.notePeerNudge();
+        h.loop.notePollCompleted(mark);
+        expect(h.loop.getNudgeCoverage()).toEqual({ allNudgesPolled: false, pollStartedAtMs: 1000 });
+
+        h.loop.notePollCompleted(h.loop.beginPollCoverage(1500));
+        expect(h.loop.getNudgeCoverage()).toEqual({ allNudgesPolled: true, pollStartedAtMs: 1500 });
+    });
+
+    it('an older poll finishing late does not roll coverage back', () => {
+        const h = makeHarness();
+        const older = h.loop.beginPollCoverage(1000);
+        h.loop.notePeerNudge();
+        const newer = h.loop.beginPollCoverage(1200);
+        h.loop.notePollCompleted(newer);
+        h.loop.notePollCompleted(older);
+        expect(h.loop.getNudgeCoverage()).toEqual({ allNudgesPolled: true, pollStartedAtMs: 1200 });
+    });
+});

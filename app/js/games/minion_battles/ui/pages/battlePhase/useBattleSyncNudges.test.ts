@@ -8,6 +8,10 @@ describe('parseBattleSyncNudge', () => {
             atTick: 4,
         });
         expect(parseBattleSyncNudge({ kind: 'batch-merged', atTick: 9 })).toEqual({ kind: 'batch-merged', atTick: 9 });
+        expect(parseBattleSyncNudge({ kind: 'checkpoint-saved', atTick: 12 })).toEqual({
+            kind: 'checkpoint-saved',
+            atTick: 12,
+        });
     });
 
     it('rejects unknown kinds and bad ticks', () => {

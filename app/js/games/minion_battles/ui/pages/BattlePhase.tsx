@@ -133,7 +133,10 @@ export default function BattlePhase({
 
     const sessionRef = useRef<BattleSession | null>(null);
     const netRef = useRef<BattleNet | null>(null);
-    const sendSyncNudge = useBattleSyncNudges(netRef);
+    const { sendSyncNudge, peerLinks } = useBattleSyncNudges(
+        netRef,
+        Object.keys(players).filter((id) => id !== playerId),
+    );
     const hudEffectCanvasRef = useRef<HudEffectCanvasHandle | null>(null);
     const battleCanvasAreaRef = useRef<HTMLDivElement>(null);
     // One notice store per mount; useInteractiveTargetingProgress shows ended-early / missing-pick notices in it.
@@ -333,6 +336,7 @@ export default function BattlePhase({
         onSessionEventRef: handleSessionEventRef,
         setNetSyncStatus,
         sendSyncNudge,
+        peerLinks,
     });
 
     const objectivesPresenter = useObjectivesPresenter({

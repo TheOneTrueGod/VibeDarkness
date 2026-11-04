@@ -28,9 +28,11 @@ import {
 	BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS,
 	BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
 	ITS_PRE_ACTION_POLL_TIMEOUT_MS,
+	ITS_REFRESH_SKIP_MAX_POLL_AGE_MS,
 	BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS,
 	BATTLE_NET_MAX_DEFERRED_ORDERS,
 } from './constants';
+import type { PeerLinkTracker } from './PeerLinkTracker';
 import { isAppendAtTickAccepted, isHostPlayaheadOverCap, maxAllowedAppendTick } from './hostPersistWindow';
 import type {
 	ApplyRemoteOrdersResult,
@@ -110,6 +112,8 @@ export class BattleNet implements BattleNetContext {
 	private readonly pendingMergeTicks = new Set<number>();
 	/** Optional peer fast path (see {@link BattleNetArgs.sendSyncNudge}). */
 	private readonly sendSyncNudgeFn: ((nudge: BattleSyncNudge) => void) | null;
+	/** Optional peer WebRTC link state (see {@link BattleNetArgs.peerLinks}). */
+	private readonly peerLinks: PeerLinkTracker | null;
 
 	/** {@link BattleNetContext} requires the controllers as a public surface for siblings. */
 	get syncStatus(): SyncStatusController {
@@ -166,6 +170,7 @@ export class BattleNet implements BattleNetContext {
 		this.gameId = args.gameId;
 		this.playerId = args.playerId;
 		this.sendSyncNudgeFn = args.sendSyncNudge ?? null;
+		this.peerLinks = args.peerLinks ?? null;
 		this.heartbeatState.setHostTickChangeListener((prev, next) => this.logHostTailChange(prev, next));
 		this.heartbeatHttp = new HeartbeatHttp({
 			api: this.api,
@@ -197,6 +202,8 @@ export class BattleNet implements BattleNetContext {
 						orderBatchAtTick: info.orderBatchAtTick,
 					});
 				}
+				// New pause plane on the server: peers poll now (and know their next refresh may be skipped).
+				this.sendSyncNudge('checkpoint-saved', info.tick);
 				this.emitHostPersistBacklogState();
 			},
 		});
@@ -245,7 +252,27 @@ export class BattleNet implements BattleNetContext {
 			kind: nudge.kind,
 			atTick: nudge.atTick,
 		});
+		this.pollLoop.notePeerNudge();
 		this.pollLoop.requestNudgePoll();
+	}
+
+	/**
+	 * True when a forced pre-action poll cannot learn anything: every peer's link has been unbroken
+	 * since a recent completed poll started, and no peer has nudged since. Peers nudge after every
+	 * server change they cause, so that poll already saw the server as it is now.
+	 */
+	private canSkipTargetingPreviewRefresh(nowMs: number = Date.now()): boolean {
+		if (this.peerLinks == null || this.isRecovering) {
+			return false;
+		}
+		const { allNudgesPolled, pollStartedAtMs } = this.pollLoop.getNudgeCoverage();
+		if (!allNudgesPolled || pollStartedAtMs == null) {
+			return false;
+		}
+		if (nowMs - pollStartedAtMs > ITS_REFRESH_SKIP_MAX_POLL_AGE_MS) {
+			return false;
+		}
+		return this.peerLinks.allLinkedSince(pollStartedAtMs);
 	}
 
 	private sendSyncNudge(kind: BattleSyncNudge['kind'], atTick: number): void {
@@ -1040,6 +1067,14 @@ export class BattleNet implements BattleNetContext {
 	 * {@link ITS_PRE_ACTION_POLL_TIMEOUT_MS} even on network failure or concurrent poll.
 	 */
 	async refreshRemoteOrdersForTargetingPreview(): Promise<void> {
+		if (this.canSkipTargetingPreviewRefresh()) {
+			traceBattleHeartbeatLine('its-refresh skipped (peer links unbroken, no unpolled nudge)', {
+				traceInstanceId: this.heartbeatTraceInstanceId,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+			});
+			return;
+		}
 		const deadline = Date.now() + ITS_PRE_ACTION_POLL_TIMEOUT_MS;
 		const pollWaitSliceMs = 25;
 
@@ -1081,6 +1116,7 @@ export class BattleNet implements BattleNetContext {
 		}
 		this.isPolling = true;
 		const pollSeq = ++this.heartbeatPollSeq;
+		const nudgeCoverage = this.pollLoop.beginPollCoverage();
 		traceBattleHeartbeatLine('pollOnce begin', {
 			traceInstanceId: this.heartbeatTraceInstanceId,
 			pollSeq,
@@ -1316,6 +1352,7 @@ export class BattleNet implements BattleNetContext {
 				}
 			}
 
+			this.pollLoop.notePollCompleted(nudgeCoverage);
 			this.publishSyncDebugBridge(hb);
 			traceBattleHeartbeatLine('pollOnce complete', {
 				traceInstanceId: this.heartbeatTraceInstanceId,
@@ -1890,8 +1927,9 @@ export class BattleNet implements BattleNetContext {
 			this.emitHostCatchupWaitState();
 			if (this.isHost) {
 				this.hostUnackedAppends.delete(idHash);
-				await this.mergeAppliedOrdersForBatch(atTick);
-				await this.flushPendingHostMerges();
+				// Background: the local engine never waits on merge-applied, so neither does the caller
+				// (an ITS commit's spinner). Merge failures retry and resync inside SnapshotPersistence.
+				void this.mergeAfterHostAppend(atTick);
 			}
 			return true;
 		}
@@ -2038,6 +2076,16 @@ export class BattleNet implements BattleNetContext {
 			}
 		}
 		return this.deferredLocalOrders.some((row) => row.atTick === batchAtTick);
+	}
+
+	/** Host: merge the batch whose append was just accepted, then any merges that were waiting on it. */
+	private async mergeAfterHostAppend(atTick: number): Promise<void> {
+		try {
+			await this.mergeAppliedOrdersForBatch(atTick);
+			await this.flushPendingHostMerges();
+		} catch (err) {
+			console.error('[BattleNet] merge after host append failed', err);
+		}
 	}
 
 	private async flushPendingHostMerges(): Promise<void> {

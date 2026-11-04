@@ -79,6 +79,7 @@ export async function itsCommitImpl(
     const abilityId = its._abilityId;
     const unitId = its._unitId;
     const markSnapshot = its.mark;
+    const baseOrder = its.originalOrder;
 
     // atTick must be present in the mark snapshot.
     const markAtTick = markSnapshot.waitingForOrders?.atTick;
@@ -94,7 +95,22 @@ export async function itsCommitImpl(
     );
     if (!casterInSnapshot) return;
 
-    await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
+    const refresh = session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
+    // In-place ruled out now stays ruled out: the refresh can only add held remote rows. Rollback is
+    // then certain, so the rewind (and its crossfade) runs while the refresh is in flight. Commit
+    // inputs are read first, while the preview engine is still live.
+    const rollbackCertain = !its.wouldCommitInPlace(session);
+    const preRestoreInputs = rollbackCertain ? captureCommitInputs(its, session) : null;
+    if (rollbackCertain) {
+        // Start the restore after a microtask: commit can run inside an engine tick (terminal-outcome
+        // auto-commit), and the engine must not be replaced while that tick is still running.
+        const restore = Promise.resolve().then(() =>
+            itsRestoreToMark(its, session, { applyHeldRemoteOrders: false }),
+        );
+        await Promise.all([refresh, restore]);
+    } else {
+        await refresh;
+    }
 
     // Host may advance one batch while non-host preview freezes on gameTick+1 (lobby 8AF2AB).
     let atTick = markAtTick;
@@ -110,14 +126,15 @@ export async function itsCommitImpl(
 
     const batchSubmittable = session.isOrderBatchTickSubmittable(atTick);
     const expectedToAct = session.isLocalPlayerExpectedToAct();
-    const wouldInPlace = its.wouldCommitInPlace(session);
 
     // Mark batch may be stale if the host advanced during preview (lobby F6E500).
     if (!batchSubmittable || !expectedToAct) {
-        const logSnapshot = its._captureLogSnapshot(session);
-        const heldForAbort = [...its.heldRemoteOrders.values()];
-        its.heldRemoteOrders.clear();
-        await itsRestoreToMark(its, session, { applyHeldRemoteOrders: false });
+        const logSnapshot = preRestoreInputs?.logSnapshot ?? its._captureLogSnapshot(session);
+        const heldForAbort = takeHeldRemoteOrders(its);
+        if (!rollbackCertain) {
+            await itsRestoreToMark(its, session, { applyHeldRemoteOrders: false });
+            heldForAbort.push(...takeHeldRemoteOrders(its));
+        }
         session.applyHeldRemoteOrders(heldForAbort);
         its._clearActive(session);
         session.emitOrderSubmitFailed(unitId, abilityId);
@@ -130,56 +147,39 @@ export async function itsCommitImpl(
         return;
     }
 
-    const collected = { ...its.collectedTargets };
-    const selectLabels = [...its._selectLabels];
-    // The preview cast ended early (interrupt / fizzle / death): commit that timeline, listing
-    // the picks it never reached. Read before any rollback restore replaces the engine.
-    const endedEarlyEngine = session.getEngine();
-    const missingSelectLabels =
-        endedEarlyEngine != null && its.getPreviewCastEndedEarly(endedEarlyEngine) != null
-            ? selectLabels.filter((label) => !(label in collected))
-            : [];
-    const movementByLabel = Object.keys(its.collectedMovementByLabel).length > 0
-        ? { ...its.collectedMovementByLabel }
-        : undefined;
-    const positionalTargetsOverride =
-        selectLabels.length === 1 && its._orderPositionalTargets.length > 0
-            ? [...its._orderPositionalTargets]
-            : undefined;
-    const baseOrder = its.originalOrder;
-    const inPlace = wouldInPlace;
-    const heldRows = [...its.heldRemoteOrders.values()];
-    its.heldRemoteOrders.clear();
+    const inputs = preRestoreInputs ?? captureCommitInputs(its, session);
+    const heldRows = takeHeldRemoteOrders(its);
 
     // Always finalized: a conditional-cancel pause reached during preview is its own later
     // batch, so the follow-up never shares the mark batch (lobby E27AE2).
     const realOrder = buildFinalizedSequentialTargetingOrder(
-        selectLabels,
-        collected,
+        inputs.selectLabels,
+        inputs.collected,
         baseOrder,
-        movementByLabel,
-        positionalTargetsOverride,
-        { missingSelectLabels },
+        inputs.movementByLabel,
+        inputs.positionalTargetsOverride,
+        { missingSelectLabels: inputs.missingSelectLabels },
     );
 
-    if (inPlace) {
+    if (!rollbackCertain && its.wouldCommitInPlace(session)) {
         registerHeldPurePassDedupeKeys(session, heldRows);
         await itsCommitInPlace(its, session, {
             realOrder,
             atTick,
             unitId,
             abilityId,
-            logSnapshot: its._captureLogSnapshot(session),
+            logSnapshot: inputs.logSnapshot,
             actionSource,
         });
         return;
     }
 
-    const rollbackLogSnapshot = its._captureLogSnapshot(session);
-
     // --- Phase 2 (rollback): restore, wait for crossfade, clear, release, submit ---
 
-    await itsRestoreToMark(its, session, { applyHeldRemoteOrders: false });
+    if (!rollbackCertain) {
+        await itsRestoreToMark(its, session, { applyHeldRemoteOrders: false });
+        heldRows.push(...takeHeldRemoteOrders(its));
+    }
     its._clearActive(session);
 
     const engine = session.getEngine();
@@ -192,12 +192,30 @@ export async function itsCommitImpl(
 
     session.applyHeldRemoteOrders(heldRows);
 
-    const landed = await session.submitCommittedTargetingOrder(realOrder, atTick);
+    // BattleNet.submitOrder applies the order locally (optimistic / host apply-first) before its
+    // first await, so the turn is settled here. Server confirmation finishes in the background:
+    // the commit (and the turn spinner) does not wait for the POST or the host's merge.
+    const submitted = session.submitCommittedTargetingOrder(realOrder, atTick);
+    void submitted.then(
+        (landed) => reportRollbackSubmit(session, landed, { unitId, abilityId, atTick, actionSource }, inputs.logSnapshot),
+        (err: unknown) => {
+            console.error('[ITS] rollback commit submit failed', err);
+            reportRollbackSubmit(session, false, { unitId, abilityId, atTick, actionSource }, inputs.logSnapshot);
+        },
+    );
+}
 
-    // --- Phase 3: verify the order actually landed ---
+/** Phase 3 (background): report whether the rollback commit's order actually landed. */
+function reportRollbackSubmit(
+    session: BattleSession,
+    landed: boolean,
+    ctx: { unitId: string; abilityId: string; atTick: number; actionSource?: ItsActionSource },
+    logSnapshot: ItsLogSnapshot,
+): void {
+    const { unitId, abilityId, atTick, actionSource } = ctx;
     if (!landed) {
         session.emitOrderSubmitFailed(unitId, abilityId);
-        logItsPreviewEnded(session, rollbackLogSnapshot, 'rejected', 'submit_failed', {
+        logItsPreviewEnded(session, logSnapshot, 'rejected', 'submit_failed', {
             atTick,
             commitMode: 'rollback',
             actionSource: actionSource ?? null,
@@ -205,11 +223,53 @@ export async function itsCommitImpl(
         return;
     }
     session.getInteractionManager()?.clearNonconfirmedOrder();
-    logItsPreviewEnded(session, rollbackLogSnapshot, 'submitted', 'rollback', {
+    logItsPreviewEnded(session, logSnapshot, 'submitted', 'rollback', {
         atTick,
         commitMode: 'rollback',
         actionSource: actionSource ?? null,
     });
+}
+
+interface ItsCommitInputs {
+    collected: InteractiveTargetingSession['collectedTargets'];
+    selectLabels: string[];
+    missingSelectLabels: string[];
+    movementByLabel: InteractiveTargetingSession['collectedMovementByLabel'] | undefined;
+    positionalTargetsOverride: InteractiveTargetingSession['_orderPositionalTargets'] | undefined;
+    logSnapshot: ItsLogSnapshot;
+}
+
+/** Everything the finalized order needs from the preview. Read before any rollback restore. */
+function captureCommitInputs(its: InteractiveTargetingSession, session: BattleSession): ItsCommitInputs {
+    const collected = { ...its.collectedTargets };
+    const selectLabels = [...its._selectLabels];
+    // The preview cast ended early (interrupt / fizzle / death): commit that timeline, listing
+    // the picks it never reached.
+    const engine = session.getEngine();
+    const missingSelectLabels =
+        engine != null && its.getPreviewCastEndedEarly(engine) != null
+            ? selectLabels.filter((label) => !(label in collected))
+            : [];
+    return {
+        collected,
+        selectLabels,
+        missingSelectLabels,
+        movementByLabel: Object.keys(its.collectedMovementByLabel).length > 0
+            ? { ...its.collectedMovementByLabel }
+            : undefined,
+        positionalTargetsOverride:
+            selectLabels.length === 1 && its._orderPositionalTargets.length > 0
+                ? [...its._orderPositionalTargets]
+                : undefined,
+        logSnapshot: its._captureLogSnapshot(session),
+    };
+}
+
+/** Removes and returns the remote orders held during the preview. */
+function takeHeldRemoteOrders(its: InteractiveTargetingSession): HeldRemoteOrder[] {
+    const rows = [...its.heldRemoteOrders.values()];
+    its.heldRemoteOrders.clear();
+    return rows;
 }
 
 async function itsCommitInPlace(

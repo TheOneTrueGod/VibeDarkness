@@ -4283,3 +4283,45 @@ describe('ITS missing-pick resume (beginResume at a missing-pick pause)', () => 
         session.destroy();
     });
 });
+
+describe('ITS rollback commit latency', () => {
+    it('rewinds while the refresh is in flight and does not wait for the order POST', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, blastPixel } = fixture;
+
+        let releaseRefresh: () => void = () => {};
+        const refreshRemoteOrdersForTargetingPreview = vi.fn(
+            () => new Promise<void>((resolve) => {
+                releaseRefresh = resolve;
+            }),
+        );
+        // The server never answers: the commit must still finish once the order is handed off.
+        const submitOrder = vi.fn(() => new Promise<void>(() => {}));
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            refreshRemoteOrdersForTargetingPreview,
+            submitOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+
+        // Host with a second player: the preview assumed their pass, so rollback is certain.
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+        const its = session.interactiveTargeting;
+        const commit = its.commit(session);
+
+        await vi.waitFor(() => expect(restoreSpy).toHaveBeenCalledTimes(1));
+        expect(refreshRemoteOrdersForTargetingPreview).toHaveBeenCalledTimes(1);
+        expect(submitOrder).not.toHaveBeenCalled();
+        expect(its.isCommitInFlight).toBe(true);
+
+        releaseRefresh();
+        await commit;
+
+        expect(submitOrder).toHaveBeenCalledTimes(1);
+        expect(its.isActive).toBe(false);
+        expect(its.isCommitInFlight).toBe(false);
+
+        restoreSpy.mockRestore();
+        session.destroy();
+    });
+});

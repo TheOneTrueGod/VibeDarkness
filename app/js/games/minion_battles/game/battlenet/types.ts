@@ -2,6 +2,7 @@ import type { LobbyClient } from '../../../../LobbyClient';
 import type { BattleOrder, SerializedGameState, WaitingForOrders } from '../types';
 import type { SimTimeline } from '../interaction/simTimeline';
 import type { CanonicalToken } from './canonicalToken';
+import type { PeerLinkTracker } from './PeerLinkTracker';
 
 /**
  * Options for {@link BattleSessionHandle.loadFromSnapshot}. `ordersBakedThroughTick` is required so no caller can
@@ -358,13 +359,24 @@ export interface BattleNetArgs {
      * Only a wake-up hint: orders still come exclusively from the server.
      */
     sendSyncNudge?: (nudge: BattleSyncNudge) => void;
+    /**
+     * Optional WebRTC link state for the lobby's other players. With every link unbroken since our
+     * last completed poll and no nudge since, an ITS pre-action refresh poll is skipped.
+     */
+    peerLinks?: PeerLinkTracker;
 }
 
-/** Peer-to-peer "poll the server now" hint. Carries no order data. */
+/**
+ * Peer-to-peer "poll the server now" hint. Carries no order data. Sent after every server change a
+ * peer causes: an accepted order, a host merge, or a host pause checkpoint (new pause plane).
+ */
 export type BattleSyncNudge = {
-    kind: 'order-appended' | 'batch-merged';
+    kind: BattleSyncNudgeKind;
     atTick: number;
 };
+
+export const BATTLE_SYNC_NUDGE_KINDS = ['order-appended', 'batch-merged', 'checkpoint-saved'] as const;
+export type BattleSyncNudgeKind = (typeof BATTLE_SYNC_NUDGE_KINDS)[number];
 
 export type BattleNetPollOnceOptions = {
     /**

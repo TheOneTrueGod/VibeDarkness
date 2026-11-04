@@ -17,8 +17,10 @@ import {
     BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS,
     HOST_ANCHOR_RESYNC_MS,
     HOST_PLAYAHEAD_CAP_TICKS,
+    ITS_REFRESH_SKIP_MAX_POLL_AGE_MS,
     RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL,
 } from './constants';
+import { PeerLinkTracker } from './PeerLinkTracker';
 
 function makeOrder(id: string): BattleOrder {
     return {
@@ -4111,5 +4113,113 @@ describe('BattleNet peer sync nudges', () => {
         expect(spy).not.toHaveBeenCalled();
         net.handlePeerSyncNudge('p2', { kind: 'order-appended', atTick: 3 });
         expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('host sends checkpoint-saved after a pause snapshot is saved', async () => {
+        const sendSyncNudge = vi.fn();
+        const net = new BattleNet({
+            api: makeApi(),
+            session: makeSession(),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+            sendSyncNudge,
+        });
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+        await net.saveSnapshotOnPause(40, {} as SerializedGameState, token);
+        expect(sendSyncNudge).toHaveBeenCalledWith({ kind: 'checkpoint-saved', atTick: 40 });
+    });
+
+    it('host order submit does not wait for merge-applied', async () => {
+        let releaseMerge: () => void = () => {};
+        const mergeBattleAppliedOrders = vi.fn(
+            () => new Promise<{ success: boolean; merged: number }>((resolve) => {
+                releaseMerge = () => resolve({ success: true, merged: 1 });
+            }),
+        );
+        const net = new BattleNet({
+            api: makeApi({ mergeBattleAppliedOrders }),
+            session: makeSession(),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+        });
+        await net.submitOrder(makeOrder('a'), 1);
+        expect(mergeBattleAppliedOrders).toHaveBeenCalled();
+        releaseMerge();
+    });
+});
+
+describe('BattleNet ITS pre-action refresh skip (peer links)', () => {
+    const PEER = 'p2';
+
+    function makeNet(peerLinks?: PeerLinkTracker) {
+        const getBattleHeartbeat = vi.fn(async () => ({
+            hostTick: 20,
+            hostFingerprint: 'aaaaaaaaaaaaaaaa',
+            ordersTipTick: 20,
+            pausedAtTick: null,
+            expectingFromPlayerIds: null,
+            initialFingerprint: '0011223344556677',
+        }));
+        const net = new BattleNet({
+            api: makeApi({ getBattleHeartbeat }),
+            session: makeSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+            ...(peerLinks ? { peerLinks } : {}),
+        });
+        return { net, getBattleHeartbeat };
+    }
+
+    /** Link to {@link PEER} opened at time 0, before any poll. */
+    function linkedTracker(connected = true): PeerLinkTracker {
+        const tracker = new PeerLinkTracker(() => 0);
+        tracker.update([PEER], { [PEER]: connected });
+        return tracker;
+    }
+
+    it('skips the forced poll when every peer link predates a completed poll and no nudge came since', async () => {
+        const { net, getBattleHeartbeat } = makeNet(linkedTracker());
+        await net.pollOnce();
+        expect(getBattleHeartbeat).toHaveBeenCalledTimes(1);
+        await net.refreshRemoteOrdersForTargetingPreview();
+        expect(getBattleHeartbeat).toHaveBeenCalledTimes(1);
+    });
+
+    it('polls when a peer nudge arrived after the last completed poll started', async () => {
+        const { net, getBattleHeartbeat } = makeNet(linkedTracker());
+        await net.pollOnce();
+        net.handlePeerSyncNudge(PEER, { kind: 'order-appended', atTick: 21 });
+        await net.refreshRemoteOrdersForTargetingPreview();
+        expect(getBattleHeartbeat).toHaveBeenCalledTimes(2);
+    });
+
+    it('polls when a peer link is down', async () => {
+        const { net, getBattleHeartbeat } = makeNet(linkedTracker(false));
+        await net.pollOnce();
+        await net.refreshRemoteOrdersForTargetingPreview();
+        expect(getBattleHeartbeat).toHaveBeenCalledTimes(2);
+    });
+
+    it('polls when the last completed poll is too old', async () => {
+        const { net, getBattleHeartbeat } = makeNet(linkedTracker());
+        await net.pollOnce();
+        const now = Date.now();
+        const clock = vi.spyOn(Date, 'now').mockReturnValue(now + ITS_REFRESH_SKIP_MAX_POLL_AGE_MS + 1);
+        await net.refreshRemoteOrdersForTargetingPreview();
+        clock.mockRestore();
+        expect(getBattleHeartbeat).toHaveBeenCalledTimes(2);
+    });
+
+    it('polls without peer link state (mesh not wired)', async () => {
+        const { net, getBattleHeartbeat } = makeNet();
+        await net.pollOnce();
+        await net.refreshRemoteOrdersForTargetingPreview();
+        expect(getBattleHeartbeat).toHaveBeenCalledTimes(2);
     });
 });
