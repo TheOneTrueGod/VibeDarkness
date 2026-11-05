@@ -113,7 +113,7 @@ describe('resolveTooltipLine / formatTooltipLines', () => {
             { text: 'Up to ', role: 'static' },
             { text: '3', role: 'dynamic' },
             { text: '. ', role: 'static' },
-            { text: 'knockback 2', role: 'dynamic' },
+            { text: 'Knockback 2', role: 'dynamic' },
             { text: '. ', role: 'static' },
             { text: 'burst', role: 'dynamic' },
             { text: '.', role: 'static' },
@@ -138,7 +138,7 @@ describe('resolveTooltipLine / formatTooltipLines', () => {
             { text: '10', role: 'dynamic' },
             { text: '.', role: 'static' },
         ]);
-        expect(rows[1]).toEqual([{ text: 'knockback 2', role: 'dynamic' }]);
+        expect(rows[1]).toEqual([{ text: 'Knockback 2', role: 'dynamic' }]);
     });
 
     it('encodeTooltipSegmentsToLegacyLines wraps dynamic segments in {…}', () => {

@@ -7,12 +7,12 @@ import { resolveTooltipLine } from '../tooltipTokens';
 describe('keywordRegistry', () => {
     it('registers bright and knockback', () => {
         expect(getKeyword('bright')?.displayName).toBe('Bright');
-        expect(getKeyword('knockback')?.displayName).toBe('knockback');
+        expect(getKeyword('knockback')?.displayName).toBe('Knockback');
     });
 
     it('formats current tooltip strings', () => {
         expect(formatKeywordText('bright', 3)).toBe('Bright 3');
-        expect(formatKeywordText('knockback', 1)).toBe('knockback 1');
+        expect(formatKeywordText('knockback', 1)).toBe('Knockback 1');
         expect(formatKeywordLine({ keyword: 'bright', n: 3 })).toBe('{Bright 3}');
     });
 
@@ -26,7 +26,7 @@ describe('keywordRegistry', () => {
     it('shows a glossary card for a numbered use, and knockback and Stun have cards', () => {
         expect(keywordGlossaryEntries(['Bleed 3']).map((entry) => entry.title)).toEqual(['Bleed']);
         expect(keywordGlossaryEntries(['Stun 2']).map((entry) => entry.title)).toEqual(['Stun']);
-        expect(keywordGlossaryEntries(['knockback 3']).map((entry) => entry.title)).toEqual(['knockback 3']);
+        expect(keywordGlossaryEntries(['Knockback 3']).map((entry) => entry.title)).toEqual(['Knockback 3']);
         expect(keywordGlossaryEntries(['Bleeder'])).toEqual([]);
     });
 
@@ -49,7 +49,7 @@ describe('keywordRegistry', () => {
 
     it('knockback token binding delegates to registry output', () => {
         const segs = resolveTooltipLine('{{K}}', { K: { kind: 'knockback', tier: 1 } }, {});
-        expect(segs).toEqual([{ text: 'knockback 1', role: 'dynamic' }]);
+        expect(segs).toEqual([{ text: 'Knockback 1', role: 'dynamic' }]);
     });
     it('bright stamps the casting unit, ability and team onto the light it spawns', () => {
         const added: Array<{ ownerUnitId?: string; ownerAbilityId?: string; teamId?: string }> = [];

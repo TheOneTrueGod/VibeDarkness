@@ -62,7 +62,7 @@ const HOWL_SHOCKWAVE_EFFECT_TYPE = 'HowlShockwave';
 
 const TOOLTIP_LINES = [
     'Lift up to {{MAX_TARGETS}} enemies, then slam them for {{DAMAGE}} damage',
-    '{knockback 1}',
+    '{Knockback 1}',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {

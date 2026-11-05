@@ -227,7 +227,7 @@ describe('Burst getTooltipText (damage tokens)', () => {
         expect(lines.some((l) => l.includes('{10}'))).toBe(true);
         expect(lines.some((l) => l.includes('{12}'))).toBe(false);
         expect(lines.some((l) => l.includes(`{${BURST_MAX_TARGETS}}`))).toBe(true);
-        expect(lines.some((l) => l.includes(`{knockback ${BURST_KNOCKBACK_TIER}}`))).toBe(true);
+        expect(lines.some((l) => l.includes(`{Knockback ${BURST_KNOCKBACK_TIER}}`))).toBe(true);
         expect(lines.some((l) => l.includes(`{${BURST_HP_COST}}`))).toBe(true);
     });
 

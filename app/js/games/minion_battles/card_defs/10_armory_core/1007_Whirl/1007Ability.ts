@@ -89,7 +89,7 @@ const WHIRL_HITBOX = ringHitbox({
 
 const TOOLTIP_LINES = [
     'Deal {{DAMAGE}} damage to {{MAX_TARGETS}} adjacent enemies. The mace drops.',
-    `{knockback ${SWING_BAT_KNOCKBACK_TIER}}`,
+    `{Knockback ${SWING_BAT_KNOCKBACK_TIER}}`,
     `{Stun ${MACE_WHIRL_STUN_SECONDS}}`,
     formatEchoLine(ARMORY_MACE_ECHO),
 ];

@@ -116,20 +116,20 @@ registerKeyword({
 });
 
 /**
- * `{Bright X}`: a Bright whose magnitude the ability decides at cast time. One reminder card describes the
- * range in words instead of listing every Bright N.
+ * `{Bright X}`: a Bright whose magnitude the ability decides at cast time. One plain reminder card stands
+ * in for every Bright N it could make.
  */
 registerGlossaryTerm({
     title: 'Bright X',
     matches: ['bright x'],
-    description: `Creates {weak | medium | strong} light on the ground. It dims at the end of each round.`,
+    description: 'Creates a light on the ground. Dims over time.',
 });
 
 registerKeyword({
     id: 'knockback',
-    displayName: 'knockback',
-    formatTooltip: (n) => `knockback ${formatTooltipNumber(n)}`,
-    describe: () => 'Pushes the target away and interrupts it. Higher numbers push farther.',
+    displayName: 'Knockback',
+    formatTooltip: (n) => `Knockback ${formatTooltipNumber(n)}`,
+    describe: () => 'Pushes the target away and interrupts it.',
 });
 
 registerKeyword(devourLightKeyword);

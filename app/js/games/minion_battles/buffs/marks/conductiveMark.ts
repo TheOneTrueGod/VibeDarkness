@@ -24,7 +24,7 @@ export const CONDUCTIVE_MARK_DEF: MarkDef = {
     name: 'Conductive',
     maxStacks: CONDUCTIVE_MAX_STACKS,
     durationSeconds: CONDUCTIVE_DURATION_SECONDS,
-    description: `Charge clings to the target for {${CONDUCTIVE_DURATION_SECONDS}} seconds, up to {${CONDUCTIVE_MAX_STACKS}} stacks. Lightning that reaches it spends the stacks for extra damage.`,
+    description: 'Charge clings to the target. Abilities use conductive charge for bonus effects.',
     renderEmit(unit, ctx, state) {
         const theme = getThemeById('storm');
         const stacks = Math.max(0, Math.floor(state.stacks));

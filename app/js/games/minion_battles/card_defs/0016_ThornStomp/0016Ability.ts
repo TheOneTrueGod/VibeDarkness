@@ -178,7 +178,7 @@ export const ThornStompAbility: AbilityStatic = {
 
     getTooltipText(): string[] {
         return [
-            `Slam the ground beneath itself, dealing damage, {knockback ${KNOCKBACK_TIER}}, and leaving bramble that slows movement`,
+            `Slam the ground beneath itself, dealing damage, {Knockback ${KNOCKBACK_TIER}}, and leaving bramble that slows movement`,
             'Weakened by bright light (Light Hate)',
             'Only triggers when a foe gets too close',
         ];

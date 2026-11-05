@@ -192,7 +192,7 @@ export const ShieldOfLightAbility = defineAbility({
             const damage = mod.explosionDamageFlat ?? LIGHT_SHIELD_FLARE_DAMAGE;
             const knockbackTier = mod.knockbackTier ?? LIGHT_SHIELD_FLARE_KNOCKBACK_TIER;
             lines.push(`A burst of light deals {${damage}} damage to nearby darkness creatures.`);
-            lines.push(`{knockback ${knockbackTier}}`);
+            lines.push(`{Knockback ${knockbackTier}}`);
         }
         return lines;
     },

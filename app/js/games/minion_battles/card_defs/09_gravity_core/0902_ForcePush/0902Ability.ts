@@ -96,7 +96,7 @@ const PUNCH_IMPACT_AT = 0.35;
 const TOOLTIP_LINES = [
     'Fling an enemy. It deals {{ENEMY_DAMAGE}} damage to enemies it hits and takes {{FLUNG_DAMAGE}}',
     'Walls deal {{WALL_DAMAGE}} damage and stun it',
-    `{knockback ${FORCE_PUSH_KNOCKBACK_TIER}}`,
+    `{Knockback ${FORCE_PUSH_KNOCKBACK_TIER}}`,
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {

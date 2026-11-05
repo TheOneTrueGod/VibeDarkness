@@ -56,7 +56,7 @@ const SLASH_TRAIL_COLOR = ARMORY_SECONDARY_COLOR_NUM;
 const TOOLTIP_LINES = [
     'Deal {{DAMAGE}} damage to {{MAX_TARGETS}} enemies',
     `{Bleed ${SWING_SWORD_BLEED_STACKS}}`,
-    `{knockback ${SWING_SWORD_KNOCKBACK_TIER}}`,
+    `{Knockback ${SWING_SWORD_KNOCKBACK_TIER}}`,
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {

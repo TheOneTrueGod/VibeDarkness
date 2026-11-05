@@ -122,7 +122,7 @@ const clap = CastBehaviours.Instant((ctx) => {
 const TOOLTIP_LINES = [
     'Release a burst of Static, dealing {{DAMAGE}} damage to nearby enemies.',
     `Each {Conductive} enemy loses {1} stack, takes {{CHARGED}} damage instead and gives you {${THUNDERCLAP_STATIC_PER_CHARGE}} Static.`,
-    `{knockback ${THUNDERCLAP_KNOCKBACK_TIER}}`,
+    `{Knockback ${THUNDERCLAP_KNOCKBACK_TIER}}`,
     '{Bright X}',
     'The more stacks it spends, the brighter it is.',
 ] as const;

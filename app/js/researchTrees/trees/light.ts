@@ -287,7 +287,7 @@ export const lightTree: ResearchTreeDef = {
             id: LIGHT_NODE_BLINDING_FLARE,
             title: 'Blinding Flare',
             description:
-                `Shield of Light explodes around you, dealing {${LIGHT_SHIELD_FLARE_DAMAGE}} damage and {knockback ${LIGHT_SHIELD_FLARE_KNOCKBACK_TIER}} to nearby darkness creatures.`,
+                `Shield of Light explodes around you, dealing {${LIGHT_SHIELD_FLARE_DAMAGE}} damage and {Knockback ${LIGHT_SHIELD_FLARE_KNOCKBACK_TIER}} to nearby darkness creatures.`,
             flavorText: 'The shield does not only hold. It shoves the dark away.',
             order: 16,
             tier: LIGHT_SHIELD_FLARE_TIER,

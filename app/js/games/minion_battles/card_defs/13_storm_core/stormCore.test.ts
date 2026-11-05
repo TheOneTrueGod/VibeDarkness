@@ -469,7 +469,7 @@ describe('Thunderclap (1304)', () => {
         expect(lines).toContain('{Bright X}');
         expect(lines).not.toMatch(/Bright [0-9]/);
         expect(keywordGlossaryEntries(['Bright X'])).toEqual([
-            expect.objectContaining({ title: 'Bright X', description: expect.stringContaining('weak | medium | strong') }),
+            expect.objectContaining({ title: 'Bright X', description: 'Creates a light on the ground. Dims over time.' }),
         ]);
     });
 

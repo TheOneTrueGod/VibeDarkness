@@ -21,7 +21,7 @@ describe('Swing Stick getTooltipText (damage tokens)', () => {
         const lines = SwingStickAbility_0103.getTooltipText();
         expect(lines.some((l) => l.includes(`{${SWING_STICK_DAMAGE}}`))).toBe(true);
         expect(lines.some((l) => l.includes('{12}'))).toBe(false);
-        expect(lines.some((l) => l.includes('{knockback 1}'))).toBe(true);
+        expect(lines.some((l) => l.includes('{Knockback 1}'))).toBe(true);
     });
 
     it('Mighty mult 1.2 on base 10 shows dynamic {12}', () => {

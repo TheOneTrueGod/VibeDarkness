@@ -93,7 +93,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
     getTooltipText(): string[] {
         return [
             'Command the nearest pet to slam a bramble patch, dealing damage and leaving lanternite-style thorns that slow movement and damage shadow creatures.',
-            `{knockback ${BRAMBLE_PATCH_KNOCKBACK_TIER}}`,
+            `{Knockback ${BRAMBLE_PATCH_KNOCKBACK_TIER}}`,
         ];
     },
 

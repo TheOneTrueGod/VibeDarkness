@@ -80,7 +80,7 @@ const CAST_END = COMBO_POINT + COLLAPSE_COMBO_COOLDOWN;
 
 const TOOLTIP_LINES = [
     'Pull up to {{MAX_TARGETS}} enemies in front of you, dealing {{DAMAGE}} damage and staggering them',
-    '{knockback 3}',
+    '{Knockback 3}',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {

@@ -155,7 +155,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
 
     getTooltipText(): string[] {
         return [
-            `Slam the ground, dealing damage, {knockback ${KNOCKBACK_TIER}}, and leaving bramble that slows movement`,
+            `Slam the ground, dealing damage, {Knockback ${KNOCKBACK_TIER}}, and leaving bramble that slows movement`,
             'Weakened by bright light (Light Hate)',
         ];
     },

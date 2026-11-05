@@ -1,6 +1,6 @@
 # abilities/keywords/
 
-Reusable ability keywords: a keyword is a named definition (`id`, display name, tooltip text, optional cast-time `resolve`) that an ability attaches via `keywordUses` with an optional effect that runs only when the keyword triggers. This replaces hand-written `{Bright 3}` / `{knockback 1}` tooltip strings and ad-hoc cast logic.
+Reusable ability keywords: a keyword is a named definition (`id`, display name, tooltip text, optional cast-time `resolve`) that an ability attaches via `keywordUses` with an optional effect that runs only when the keyword triggers. This replaces hand-written `{Bright 3}` / `{Knockback 1}` tooltip strings and ad-hoc cast logic.
 
 ## Folder map
 

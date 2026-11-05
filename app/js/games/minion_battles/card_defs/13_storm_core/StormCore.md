@@ -69,5 +69,5 @@ Every Storm visual is a **jagged bolt with a white-hot core and a cyan glow** (`
 ## Where Storm diverges from common patterns
 
 - **A resource that is earned by moving.** It is computed from position deltas inside `Static.onTick`, not from events.
-- **`{Bright X}`.** Thunderclap's Bright magnitude is decided at cast time, so its tooltip shows the `Bright X` glossary term (weak / medium / strong) instead of listing each Bright N.
+- **`{Bright X}`.** Thunderclap's Bright magnitude is decided at cast time, so its tooltip shows the `Bright X` glossary term ("Creates a light on the ground. Dims over time.") instead of listing each Bright N.
 - **Copy**: player voice ("You learn to..."), talk about charge, hum, air before a storm, the sky. Keep it low tech: no "electricity", "voltage" or "ions".

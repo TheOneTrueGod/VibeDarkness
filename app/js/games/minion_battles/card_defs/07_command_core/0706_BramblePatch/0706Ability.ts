@@ -159,7 +159,7 @@ export const BramblePatchStrikeAbility_0706: AbilityStatic = defineAbility({
     getTooltipText(): string[] {
         return [
             'Slam the ground, dealing damage and leaving lanternite-style bramble that slows movement and damages shadow creatures.',
-            `{knockback ${BRAMBLE_PATCH_KNOCKBACK_TIER}}`,
+            `{Knockback ${BRAMBLE_PATCH_KNOCKBACK_TIER}}`,
         ];
     },
 

@@ -63,7 +63,7 @@ const CHARGE_MACE_PROFILE: MeleeAnimationProfile = {
 
 const TOOLTIP_LINES = [
     'Deal {{DAMAGE}} damage to {{MAX_TARGETS}} enemies',
-    `{knockback ${SWING_BAT_KNOCKBACK_TIER}}`,
+    `{Knockback ${SWING_BAT_KNOCKBACK_TIER}}`,
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
