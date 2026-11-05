@@ -165,6 +165,23 @@ export function drawClampedLine(
 }
 
 /**
+ * Draw a line from caster the full `range` toward target, whatever the target's distance. Pairs with
+ * `ProjectileLaunch().withTravelFullRange()`, whose projectile always flies its whole range.
+ */
+export function drawFullRangeLine(
+    gr: IAbilityPreviewGraphics,
+    caster: { x: number; y: number },
+    target: { x: number; y: number },
+    range: number,
+    stroke: { color: number; width: number; alpha?: number } = DEFAULT_LINE_STROKE,
+): void {
+    const { dirX, dirY } = clampToMaxRange(caster, target, range);
+    gr.moveTo(caster.x, caster.y);
+    gr.lineTo(caster.x + dirX * range, caster.y + dirY * range);
+    gr.stroke(stroke);
+}
+
+/**
  * Filled pill shape along a world segment — same cross-section as {@link ThickLineHitbox.renderTargetingPreview}
  * (`lineThickness` = full width perpendicular to the segment; matches thick-line hit checks).
  */

@@ -4,8 +4,8 @@
  * the moat bridge; the castle itself is the next mission (`012_the_castle_courtyard`).
  *
  * Objective chain, with the level events tied to it through objective gates:
- * 0. Trigger `left_cave` — the first player unit onto the cave road gets the cave-exit ambush plus a
- *    darkness wave around it, and starts the per-round darkness spawn (nothing spawns while the
+ * 0. Trigger `left_cave` — the first player unit onto the cave road raises the cave-exit ambush plus a
+ *    darkness wave scattered from the cave mouth to ~20 tiles east, and starts the per-round darkness spawn (nothing spawns while the
  *    party stays in the cave).
  * 1. `reach_bridge` — stand on the moat bridge. Until then, darkness spawns every round. Reaching it
  *    wins.
@@ -80,8 +80,16 @@ export const THICKET_REINFORCEMENT_ROUNDS = [2, 3, 4] as const;
 
 /** The cave road segment (layout slot 1,1): stepping onto it means the party has left the cave. */
 export const CAVE_ROAD_REGION = { col: SEGMENT_SIZE, row: SEGMENT_SIZE, width: SEGMENT_SIZE, height: SEGMENT_SIZE } as const;
-/** Darkness wave on leaving the cave lands within this many tiles of the unit that left. */
-export const LEFT_CAVE_SPAWN_RADIUS_TILES = 8;
+/**
+ * Darkness wave on leaving the cave scatters across the hillside from the cave mouth to about 20
+ * tiles east of it: a circle centred 10 tiles out on the road (cave road local col 10), radius 10.
+ * `inDarkness` keeps it out of the party's own light, so nothing rises right on top of them.
+ */
+export const LEFT_CAVE_SPAWN_RADIUS_TILES = 10;
+export const LEFT_CAVE_SPAWN_AREA = {
+    ...cellCentre(onMission(1, 1, { col: 10, row: 10 })),
+    radius: LEFT_CAVE_SPAWN_RADIUS_TILES,
+} as const;
 export const TRIGGER_LEFT_CAVE = 'left_cave';
 
 export const OBJECTIVE_REACH_BRIDGE = 'reach_bridge';
@@ -142,8 +150,10 @@ export const THE_LONELY_CASTLE_TRIGGERS: TriggerDef[] = [
         actions: [
             {
                 type: 'spawnWave',
-                spawns: [...caveExitAmbush(), ...roadDarknessWave()],
-                nearTriggeringUnit: { radiusTiles: LEFT_CAVE_SPAWN_RADIUS_TILES },
+                spawns: [...caveExitAmbush(), ...roadDarknessWave()].map((entry) => ({
+                    ...entry,
+                    spawnTarget: { ...LEFT_CAVE_SPAWN_AREA },
+                })),
             },
         ],
     },

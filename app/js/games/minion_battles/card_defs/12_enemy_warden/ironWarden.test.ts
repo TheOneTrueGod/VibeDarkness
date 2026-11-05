@@ -13,6 +13,7 @@ import { createUnitFromSpawnConfig } from '../../game/units';
 import type { Unit } from '../../game/units/Unit';
 import { executeUnitAbility } from '../../game/units/unitAbilityLifecycle';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { AbilityState } from '../../abilities/Ability';
 import { canAttackBeBlocked } from '../../abilities/blockingHelpers';
 import { pickBestAbility } from '../../game/units/unitAI/utils';
 import { resolveParallelOrderPause } from '../../testing/runner/SimulationRunner';
@@ -27,6 +28,7 @@ import {
     EXECUTION_SLAM_OFFSET_PX,
     EXECUTION_SLAM_RADIUS_PX,
     EXECUTION_SLAM_REACH_PX,
+    EXECUTION_SLAM_WINDUP_SEC,
     ExecutionSlamAbility_1202,
 } from './1202_ExecutionSlam/1202Ability';
 import { BULWARK_DURATION_SEC, BulwarkAbility_1203 } from './1203_Bulwark/1203Ability';
@@ -178,16 +180,11 @@ describe('Execution Slam (1202)', () => {
         engine.destroy();
     });
 
-    it('keeps the Warden planted through its recovery', () => {
-        const engine = setupEngine();
-        const warden = addWarden(engine);
-        addPlayer(engine, centre(GRID - 2));
-        const x0 = warden.x;
-        cast(engine, warden, EXECUTION_SLAM_ABILITY_ID, { x: warden.x + 100, y: warden.y });
-        warden.setMovement?.([{ col: WARDEN_COL + 4, row: ROW }]);
-        stepSeconds(engine, 2);
-        expect(Math.abs(warden.x - x0)).toBeLessThan(1);
-        engine.destroy();
+    it('keeps the Warden planted from wind-up through its recovery', () => {
+        const zeroSpeed = [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
+        expect(ExecutionSlamAbility_1202.getAbilityStates(0.1)).toEqual(zeroSpeed);
+        expect(ExecutionSlamAbility_1202.getAbilityStates(EXECUTION_SLAM_WINDUP_SEC + 1)).toEqual(zeroSpeed);
+        expect(ExecutionSlamAbility_1202.getAbilityStates(EXECUTION_SLAM_WINDUP_SEC + 2)).toEqual([]);
     });
 });
 

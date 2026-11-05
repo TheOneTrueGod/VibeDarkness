@@ -11,6 +11,7 @@ import { CAMPSITE_3_MISSION_ID } from '../questMissions/campsite';
 import {
     BRIDGE_THRESHOLD,
     CAVE_ROAD_REGION,
+    LEFT_CAVE_SPAWN_AREA,
     LEFT_CAVE_SPAWN_RADIUS_TILES,
     TRIGGER_LEFT_CAVE,
     OBJECTIVE_REACH_BRIDGE,
@@ -94,7 +95,7 @@ describe('The Lonely Castle (011)', () => {
         engine.destroy();
     });
 
-    it('holds the darkness spawn while the party stays in the cave; leaving onto the road spawns the ambush around them', () => {
+    it('holds the darkness spawn while the party stays in the cave; leaving onto the road scatters the ambush across the hillside east of the cave', () => {
         const engine = initMission();
         const ofType = (id: string) => engine.units.filter((u) => u.characterId === id && u.isAlive());
         const slimes = () => ofType('slime');
@@ -125,10 +126,17 @@ describe('The Lonely Castle (011)', () => {
         expect(slimes()).toHaveLength(CAVE_EXIT_AMBUSH_SLIMES + 1);
         expect(ofType('swarmling')).toHaveLength(CAVE_EXIT_AMBUSH_SWARMLINGS + 1);
         expect(ofType('dark_wolf').length - wolvesBefore).toBe(CAVE_EXIT_AMBUSH_WOLVES + 2);
-        for (const u of [...slimes(), ...ofType('swarmling')]) {
-            const dist = Math.hypot(u.x - road!.x, u.y - road!.y) / CELL_SIZE;
+        // Scattered across the hillside between the cave mouth and ~20 tiles east, not bunched up.
+        const caveMouthX = CAVE_ROAD_REGION.col * CELL_SIZE;
+        const exitWave = [...slimes(), ...ofType('swarmling')];
+        for (const u of exitWave) {
+            const dist = Math.hypot(u.x - LEFT_CAVE_SPAWN_AREA.x, u.y - LEFT_CAVE_SPAWN_AREA.y) / CELL_SIZE;
             expect(dist).toBeLessThanOrEqual(LEFT_CAVE_SPAWN_RADIUS_TILES + 1);
+            expect(u.x).toBeGreaterThanOrEqual(caveMouthX);
+            expect(u.x).toBeLessThanOrEqual(caveMouthX + 21 * CELL_SIZE);
         }
+        const xs = exitWave.map((u) => u.x / CELL_SIZE);
+        expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(4);
         engine.destroy();
     });
 

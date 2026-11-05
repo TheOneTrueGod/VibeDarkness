@@ -12,7 +12,7 @@ import { deactivateProjectileOnBlock } from '../../../abilities/effectHelpers';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import type { AbilityEventRuntimeContext } from '../../../abilities/events/AbilityEventRuntime';
 import { resolveMarkBounce } from '../../../abilities/markBounce';
-import { drawClampedLine } from '../../../abilities/previewHelpers';
+import { drawFullRangeLine } from '../../../abilities/previewHelpers';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import type { EngineContext } from '../../../game/EngineContext';
@@ -92,6 +92,8 @@ function arcBoltBounce(_params: Record<string, unknown> | undefined, ctx: unknow
 const arcBoltLaunch = CastBehaviours.ProjectileLaunch()
     .withSpeed(ARC_BOLT_SPEED)
     .withMaxRange(ARC_BOLT_RANGE)
+    // Flies its full range unless it hits something, wherever the cursor was when it was thrown.
+    .withTravelFullRange()
     .withRadius(ARC_BOLT_RADIUS)
     .withBaseDamage(ARC_BOLT_DAMAGE)
     .withProjectileType(ARC_BOLT_PROJECTILE_TYPE);
@@ -159,7 +161,7 @@ export const ArcBoltAbility_1301 = defineAbility({
     },
 
     renderTargetingPreviewSelectedTargets(gr, caster, _currentTargets, mouseWorld): void {
-        drawClampedLine(gr, caster, mouseWorld, ARC_BOLT_RANGE, { color: STORM_SECONDARY, width: 2, alpha: 0.75 });
+        drawFullRangeLine(gr, caster, mouseWorld, ARC_BOLT_RANGE, { color: STORM_SECONDARY, width: 2, alpha: 0.75 });
     },
 
     getTooltipText(gameState?: unknown): string[] {
