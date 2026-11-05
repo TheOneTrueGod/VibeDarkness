@@ -2,7 +2,7 @@ import type { ResourceDisplay } from './Resource';
 import { LIGHT_RESOURCE_COLOR, LIGHT_STARTING_MAX } from './Light';
 import { CHARGE_MAX, CHARGE_PER_ROUND, CHARGE_RESOURCE_COLOR } from './Charge';
 import { MOVEMENT_BASE_MAX } from './Movement';
-import { STATIC_MAX, STATIC_RESOURCE_COLOR } from './Static';
+import { STATIC_MAX, STATIC_PIP_CRACKLE_COLOR, STATIC_RESOURCE_COLOR } from './Static';
 
 /** All known resource types with their display metadata, ordered for the debug panel. */
 export const ALL_RESOURCE_DISPLAY_DEFS: Array<Omit<ResourceDisplay, 'current'>> = [
@@ -19,7 +19,7 @@ export const ALL_RESOURCE_DISPLAY_DEFS: Array<Omit<ResourceDisplay, 'current'>> 
     { id: 'super',       name: 'Super',       color: '#38bdf8', iconName: 'Zap',        max: 3 },
     { id: 'movement_points', name: 'Movement Points', color: '#22c55e', iconName: 'Footprints', max: MOVEMENT_BASE_MAX },
     { id: 'charge', name: 'Charge', color: CHARGE_RESOURCE_COLOR, iconName: 'Swords', max: CHARGE_MAX, perRoundGain: CHARGE_PER_ROUND, barStyle: 'pips' },
-    { id: 'static', name: 'Static', color: STATIC_RESOURCE_COLOR, iconName: 'CloudLightning', max: STATIC_MAX, barStyle: 'pips' },
+    { id: 'static', name: 'Static', color: STATIC_RESOURCE_COLOR, iconName: 'CloudLightning', max: STATIC_MAX, barStyle: 'pips', pipCrackleColor: STATIC_PIP_CRACKLE_COLOR },
 ];
 
 /** Convenience export for the handful of places that render a plain shield icon/overlay (not via ResourceIcon). */

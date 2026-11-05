@@ -1,10 +1,10 @@
 /**
  * Static Step - the caster becomes a streak of lightning for a moment, darting to a point and leaving
  * a crackling bolt stretched behind them. Enemies they pass through are zapped and left Conductive.
- * The dash is also how the Storm player tops up: Static is built by distance, and this covers a lot.
+ * It spends a Static, but the distance it covers builds most of that back.
  */
 
-import { AbilityEventType, type AbilityRecoveryRule } from '../../../abilities/Ability';
+import { AbilityEventType } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
@@ -24,16 +24,13 @@ import {
     STATIC_STEP_DURATION,
     STATIC_STEP_MAX_USES,
     STATIC_STEP_RECOVERY,
+    STATIC_STEP_STATIC_COST,
 } from '../stormConstants';
 import { spawnStormBolt, spawnStormSpark } from '../stormVfx';
 import STATIC_STEP_IMAGE from './staticStep.svg?raw';
 
 const CARD_ID = STATIC_STEP_ABILITY_ID;
 const RECOVERY_END = STATIC_STEP_DURATION + STATIC_STEP_RECOVERY;
-
-const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: STATIC_STEP_MAX_USES },
-];
 
 
 const TOOLTIP_LINES = [
@@ -49,10 +46,9 @@ export const StaticStepAbility_1302 = defineAbility({
     id: CARD_ID,
     name: 'Static Step',
     image: STATIC_STEP_IMAGE,
-    resourceCost: { resourceId: 'movement_points', amount: 1 },
+    resourceCost: { resourceId: 'static', amount: STATIC_STEP_STATIC_COST },
     rechargeTurns: 1,
     maxUses: STATIC_STEP_MAX_USES,
-    recoveries: RECOVERIES,
     prefireTime: STATIC_STEP_DURATION,
     aiSettings: { minRange: 0, maxRange: STATIC_STEP_DISTANCE },
     abilityTimings: [

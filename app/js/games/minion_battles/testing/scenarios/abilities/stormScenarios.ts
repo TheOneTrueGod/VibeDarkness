@@ -2,7 +2,7 @@
  * Storm Core (13xx) - one AbilityTest that plays the whole kit loop through the real order path:
  * Arc Bolt tags an enemy, Static Step darts through another (tagging it and building Static from the
  * distance), Chain Lightning leaps along the line (spending the tags, relaying through a dropped sword
- * to reach a far enemy), then Thunderclap dumps the rest of the Static.
+ * to reach a far enemy), then Thunderclap bursts around the caster and throws the step target back.
  *
  * One scenario covers all four cards because each one sets up the next; that interplay is the point.
  * Later casts are pre-queued in `buildEngine()` (see the ability-tests skill).
@@ -20,13 +20,12 @@ import {
 import { CORE_ITEM_IDS } from '../../../character_defs/items';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
-    STORM_NODE_CHAIN_LIGHTNING,
     STORM_NODE_CORE,
+    STORM_NODE_STATIC_STEP,
     STORM_NODE_THUNDERCLAP,
     STORM_TREE_ID,
 } from '../../../../../researchTrees/trees/storm';
 import { getMarkStacks } from '../../../buffs/MarkBuff';
-import { Movement } from '../../../resources/Movement';
 import {
     ARC_BOLT_ABILITY_ID,
     CHAIN_LIGHTNING_ABILITY_ID,
@@ -78,7 +77,7 @@ const CLAP_AT = CHAIN_AT + CHAIN_LIGHTNING_WINDUP + 0.05 + CHAIN_LIGHTNING_COOLD
 const CHECK_AT = CLAP_AT + THUNDERCLAP_WINDUP + 0.3;
 const KEEP_ALIVE_AT = CHECK_AT + 0.5;
 
-/** Static the scenario tops the player up to, so the Thunderclap has something to dump. */
+/** Static the scenario tops the player up to, so every Static cost in the loop can be paid. */
 const DEMO_STATIC = 6;
 
 function damageTaken(engine: GameEngine, unitId: string): number {
@@ -86,8 +85,20 @@ function damageTaken(engine: GameEngine, unitId: string): number {
     return unit ? unit.maxHp - unit.hp : 0;
 }
 
+interface KitProgress {
+    boltTagged: boolean;
+    stepTagged: boolean;
+    /** Static and the step target's x just before the clap. */
+    staticBeforeClap?: number;
+    stepDummyXBeforeClap?: number;
+}
+
 /** Hits recorded when each cast lands, so later casts (Chain spends tags) do not erase the evidence. */
-const progress = new WeakMap<GameEngine, { boltTagged: boolean; stepTagged: boolean }>();
+const progress = new WeakMap<GameEngine, KitProgress>();
+
+function staticOf(engine: GameEngine): number {
+    return engine.getLocalPlayerUnit()?.getResource('static')?.current ?? -1;
+}
 
 function kitProblem(engine: GameEngine): string | null {
     const p = progress.get(engine) ?? { boltTagged: false, stepTagged: false };
@@ -97,14 +108,17 @@ function kitProblem(engine: GameEngine): string | null {
         if (damageTaken(engine, id) <= 0) return `${id} took no damage`;
     }
     if (damageTaken(engine, FAR_DUMMY_ID) <= 0) return 'the bolt never relayed through the sword to the far enemy';
-    const statics = engine.getLocalPlayerUnit()?.getResource('static')?.current ?? -1;
-    if (statics !== 0) return `Thunderclap left ${statics} Static (want 0)`;
+    if (p.staticBeforeClap === undefined || staticOf(engine) >= p.staticBeforeClap) return 'Thunderclap spent no Static';
+    const stepDummyX = engine.getUnit(STEP_DUMMY_ID)?.x ?? 0;
+    if (p.stepDummyXBeforeClap === undefined || Math.abs(stepDummyX - p.stepDummyXBeforeClap) < 1) {
+        return 'Thunderclap did not throw the step target back';
+    }
     return null;
 }
 
 export const stormKitScenario: ScenarioDefinition = {
     id: 'storm_kit_cycle',
-    title: 'Storm: Arc Bolt and Static Step tag, Chain Lightning leaps (through a sword), Thunderclap dumps Static',
+    title: 'Storm: Arc Bolt and Static Step tag, Chain Lightning leaps (through a sword), Thunderclap bursts',
     category: 'ability',
     maxDurationMs: Math.ceil((KEEP_ALIVE_AT + 1) * 1000),
 
@@ -114,10 +128,8 @@ export const stormKitScenario: ScenarioDefinition = {
             playerId: P,
             world: PLAYER,
             equipment: [CORE_ITEM_IDS.StormCore],
-            researchTrees: { [STORM_TREE_ID]: [STORM_NODE_CORE, STORM_NODE_CHAIN_LIGHTNING, STORM_NODE_THUNDERCLAP] },
+            researchTrees: { [STORM_TREE_ID]: [STORM_NODE_CORE, STORM_NODE_STATIC_STEP, STORM_NODE_THUNDERCLAP] },
         });
-        // Missions give every player Movement Points (BaseMissionDef); the harness does not. Static Step spends one.
-        player.attachResource(new Movement(), engine.eventBus);
         player.getResource('static')!.current = DEMO_STATIC;
         for (const [id, at] of [
             [BOLT_DUMMY_ID, BOLT_DUMMY],
@@ -168,6 +180,10 @@ export const stormKitScenario: ScenarioDefinition = {
         const stepped = engine.getUnit(STEP_DUMMY_ID);
         if (bolt && getMarkStacks(bolt, CONDUCTIVE_MARK_ID) > 0) p.boltTagged = true;
         if (stepped && getMarkStacks(stepped, CONDUCTIVE_MARK_ID) > 0) p.stepTagged = true;
+        if (engine.gameTime < CLAP_AT) {
+            p.staticBeforeClap = staticOf(engine);
+            p.stepDummyXBeforeClap = stepped?.x;
+        }
         progress.set(engine, p);
         if (engine.gameTime < CHECK_AT) return false;
         return kitProblem(engine) === null;

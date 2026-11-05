@@ -3,7 +3,7 @@
  * up to the def's max and refreshes the duration. Consuming removes the mark and returns its stacks, so an
  * ability can scale a payoff by how marked the target was.
  *
- * One entry point per verb: `applyMark`, `getMarkStacks`, `consumeMark`. Abilities apply marks through the
+ * One entry point per verb: `applyMark`, `getMarkStacks`, `consumeMark` (all stacks), `spendMarkStacks` (some). Abilities apply marks through the
  * `applyMarkToPrimaryTarget` ability-event effect where they can, and call `applyMark` from behaviours
  * otherwise. Serialized as `{ _type: 'mark', markId, stacks }` plus the base buff fields.
  */
@@ -35,7 +35,7 @@ export class MarkBuff extends Buff {
     renderEmit(unit: Unit, ctx: BuffRenderEmitContext): void {
         const def = getMarkDef(this.markId);
         if (!def?.renderEmit) return;
-        this.renderState ??= { stacks: this.stacks, accum: 0, count: 0 };
+        this.renderState ??= { stacks: this.stacks, accum: 0, count: 0, elapsed: 0, slotReadyAt: [] };
         this.renderState.stacks = this.stacks;
         def.renderEmit(unit, ctx, this.renderState);
     }
@@ -101,4 +101,18 @@ export function consumeMark(unit: Pick<Unit, 'buffs'>, markId: string, gameTime?
     const stacks = getMarkStacks(unit, markId, gameTime);
     unit.buffs = unit.buffs.filter((b) => b !== mark);
     return stacks;
+}
+
+/**
+ * Spend up to `amount` stacks of `markId` (the mark is removed when none are left). Returns how many were
+ * spent, so callers can tell "had a charge to spend" from "unmarked".
+ */
+export function spendMarkStacks(unit: Pick<Unit, 'buffs'>, markId: string, amount: number, gameTime?: number): number {
+    const mark = findMark(unit, markId);
+    const have = getMarkStacks(unit, markId, gameTime);
+    if (!mark || have <= 0 || amount <= 0) return 0;
+    const spent = Math.min(have, amount);
+    mark.stacks = have - spent;
+    if (mark.stacks <= 0) unit.buffs = unit.buffs.filter((b) => b !== mark);
+    return spent;
 }

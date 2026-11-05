@@ -45,11 +45,19 @@ export {
 // ---------------------------------------------------------------------------
 
 export const ARC_BOLT_DAMAGE = 6;
-export const ARC_BOLT_MAX_USES = 2;
+export const ARC_BOLT_MAX_USES = 3;
 export const ARC_BOLT_CONDUCTIVE_STACKS = 1;
 /** Bolts are fast: half again as quick as a thrown rock. */
 export const ARC_BOLT_SPEED_MULT = 1.5;
 export const ARC_BOLT_RADIUS = 5;
+/** Max reach (px) of one leap down the Conductive ladder. */
+export const ARC_BOLT_BOUNCE_RANGE = 130;
+/** Extra damage a leap deals on top of the bolt's damage. */
+export const ARC_BOLT_BOUNCE_BONUS_DAMAGE = 4;
+/** Safety cap on leaps per bolt (Conductive's max stacks is the real limit: one leap per rung). */
+export const ARC_BOLT_MAX_BOUNCES = 8;
+/** Visual: seconds between successive bounces appearing. */
+export const ARC_BOLT_BOUNCE_DELAY = 0.05;
 
 // ---------------------------------------------------------------------------
 // 1302 Static Step
@@ -62,17 +70,19 @@ export const STATIC_STEP_DAMAGE = 3;
 export const STATIC_STEP_CONDUCTIVE_STACKS = 1;
 export const STATIC_STEP_MAX_USES = 2;
 export const STATIC_STEP_COLLISION_STEP = 4;
+export const STATIC_STEP_STATIC_COST = 1;
 
 // ---------------------------------------------------------------------------
 // 1303 Chain Lightning
 // ---------------------------------------------------------------------------
 
 export const CHAIN_LIGHTNING_STATIC_COST = 2;
+export const CHAIN_LIGHTNING_MAX_USES = 2;
 export const CHAIN_LIGHTNING_RANGE = 220;
 export const CHAIN_LIGHTNING_WINDUP = 0.35;
 export const CHAIN_LIGHTNING_COOLDOWN = 0.9;
 /** Extra enemies the bolt leaps to after the first (Forked Lightning adds more). */
-export const CHAIN_LIGHTNING_JUMPS = 3;
+export const CHAIN_LIGHTNING_JUMPS = 6;
 /** Max distance (px, centre to centre) of one leap between enemies or conductors. */
 export const CHAIN_LIGHTNING_JUMP_RANGE = 130;
 export const CHAIN_LIGHTNING_DAMAGE = 7;
@@ -91,15 +101,19 @@ export const FORKED_LIGHTNING_EXTRA_JUMPS = 2;
 // 1304 Thunderclap
 // ---------------------------------------------------------------------------
 
-/** Minimum Static to cast; every remaining Static is spent too. */
-export const THUNDERCLAP_MIN_STATIC = 2;
+export const THUNDERCLAP_STATIC_COST = 2;
 export const THUNDERCLAP_WINDUP = 0.45;
 export const THUNDERCLAP_COOLDOWN = 0.8;
 export const THUNDERCLAP_RADIUS = 95;
-export const THUNDERCLAP_BASE_DAMAGE = 4;
-export const THUNDERCLAP_DAMAGE_PER_STATIC = 3;
+export const THUNDERCLAP_DAMAGE = 6;
+/** Damage to an enemy the clap spent a Conductive stack from. */
+export const THUNDERCLAP_CHARGED_DAMAGE = 10;
+/** Conductive stacks spent from each enemy struck. */
+export const THUNDERCLAP_CONDUCTIVE_SPENT_PER_ENEMY = 1;
+/** Static returned to the caster per Conductive stack spent. */
+export const THUNDERCLAP_STATIC_PER_CHARGE = 1;
 export const THUNDERCLAP_KNOCKBACK_TIER = 1;
-export const THUNDERCLAP_CONDUCTIVE_STACKS = 1;
 export const THUNDERCLAP_MAX_TARGETS = 8;
-/** Static spent at or above this lights a Bright 2 instead of Bright 1. */
-export const THUNDERCLAP_BIG_FLASH_STATIC = 5;
+/** Bright magnitude by Conductive stacks spent: Bright 1 for none, 2 from this many, 3 from the next. */
+export const THUNDERCLAP_BRIGHT_2_CHARGES = 2;
+export const THUNDERCLAP_BRIGHT_3_CHARGES = 4;

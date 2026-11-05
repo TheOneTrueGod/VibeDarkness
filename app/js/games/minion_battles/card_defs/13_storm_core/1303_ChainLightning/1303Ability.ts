@@ -5,7 +5,6 @@
  * the bolt across gaps, so an Armory field or a Gravity pile-up turns one cast into a sweep.
  */
 
-import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
@@ -31,6 +30,7 @@ import {
     CHAIN_LIGHTNING_JUMP_RANGE,
     CHAIN_LIGHTNING_JUMPS,
     CHAIN_LIGHTNING_MAX_CONDUCTOR_RELAYS,
+    CHAIN_LIGHTNING_MAX_USES,
     CHAIN_LIGHTNING_RANGE,
     CHAIN_LIGHTNING_STAGGER_SECONDS,
     CHAIN_LIGHTNING_STATIC_COST,
@@ -46,10 +46,6 @@ import CHAIN_LIGHTNING_IMAGE from './chainLightning.svg?raw';
 const CARD_ID = CHAIN_LIGHTNING_ABILITY_ID;
 const ACTIVE_END = CHAIN_LIGHTNING_WINDUP + 0.05;
 const COOLDOWN_END = ACTIVE_END + CHAIN_LIGHTNING_COOLDOWN;
-
-const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-];
 
 const CHAIN_LIGHTNING_HITBOX = unitRangeHitbox(CHAIN_LIGHTNING_RANGE);
 
@@ -155,7 +151,6 @@ const strikeChain = CastBehaviours.Instant((ctx) => {
 const TOOLTIP_LINES = [
     'Strike an enemy with lightning that leaps to {{JUMPS}} more nearby enemies, dealing {{DAMAGE}} damage to each.',
     'It seeks out {Conductive} enemies first, spending their stacks for {{PER_STACK}} extra damage each and staggering them.',
-    'Your dropped weapons and turrets carry the bolt to enemies out of reach.',
 ] as const;
 
 export const ChainLightningAbility_1303 = defineAbility({
@@ -164,8 +159,7 @@ export const ChainLightningAbility_1303 = defineAbility({
     image: CHAIN_LIGHTNING_IMAGE,
     resourceCost: { resourceId: 'static', amount: CHAIN_LIGHTNING_STATIC_COST },
     rechargeTurns: 1,
-    maxUses: 1,
-    recoveries: RECOVERIES,
+    maxUses: CHAIN_LIGHTNING_MAX_USES,
     prefireTime: CHAIN_LIGHTNING_WINDUP,
     aiSettings: { minRange: 0, maxRange: CHAIN_LIGHTNING_RANGE },
     clearMovementOnComplete: true,

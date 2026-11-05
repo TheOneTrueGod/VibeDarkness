@@ -1,7 +1,8 @@
 /**
  * Conductive — the Storm Core's mark. Charge clinging to an enemy, waiting for a bolt to finish the
  * circuit. Applied by Arc Bolt, Static Step and Thunderclap; consumed by Chain Lightning for bonus
- * damage and a stagger. Visual: tiny arcs crawling over the marked body, faster with more stacks.
+ * damage and a stagger. Visual: one arc crawling over the marked body per stack, so the number of arcs
+ * alive at once is the stack count (no pips).
  */
 import { Effect } from '../../game/effects/Effect';
 import { LIGHTNING_BOLT_EFFECT_TYPE, stormHash01, stormSeedFromId } from '../../game/effect_defs/stormEffects';
@@ -13,53 +14,52 @@ export const CONDUCTIVE_MAX_STACKS = 3;
 /** World seconds a Conductive mark lasts after its last refresh. */
 export const CONDUCTIVE_DURATION_SECONDS = 8;
 
-/** Crawling arcs per wall second at 1 stack; each extra stack adds `CRAWL_RATE_PER_STACK`. */
-const CRAWL_BASE_RATE = 4;
-const CRAWL_RATE_PER_STACK = 3;
-const CRAWL_DURATION = 0.14;
-const MAX_CRAWLS_PER_FRAME = 3;
+/** Wall seconds each arc lives; its slot re-arcs as soon as it ends, so `stacks` arcs are always alive. */
+const ARC_LIFE = 0.24;
+/** Angular length (radians) of one arc around the body. */
+const ARC_SPAN = 1.1;
 
 export const CONDUCTIVE_MARK_DEF: MarkDef = {
     id: CONDUCTIVE_MARK_ID,
     name: 'Conductive',
     maxStacks: CONDUCTIVE_MAX_STACKS,
     durationSeconds: CONDUCTIVE_DURATION_SECONDS,
-    pipColor: getThemeById('storm').secondaryNum,
-    pipOutlineColor: getThemeById('storm').shadeNum,
     description: `Charge clings to the target for {${CONDUCTIVE_DURATION_SECONDS}} seconds, up to {${CONDUCTIVE_MAX_STACKS}} stacks. Lightning that reaches it spends the stacks for extra damage.`,
     renderEmit(unit, ctx, state) {
         const theme = getThemeById('storm');
-        state.accum += (CRAWL_BASE_RATE + CRAWL_RATE_PER_STACK * (state.stacks - 1)) * ctx.realDt;
+        const stacks = Math.max(0, Math.floor(state.stacks));
+        state.elapsed += ctx.realDt;
+        state.slotReadyAt.length = stacks;
         const seed = stormSeedFromId(unit.id);
-        let n = 0;
-        while (state.accum >= 1 && n < MAX_CRAWLS_PER_FRAME) {
-            state.accum -= 1;
-            n++;
+        for (let slot = 0; slot < stacks; slot++) {
+            if ((state.slotReadyAt[slot] ?? 0) > state.elapsed) continue;
+            state.slotReadyAt[slot] = state.elapsed + ARC_LIFE;
             state.count++;
-            // A short arc from one point on the body's edge to a nearby one, hopping over the unit.
-            const a0 = stormHash01(seed, state.count) * Math.PI * 2;
-            const a1 = a0 + (0.7 + stormHash01(seed, state.count, 1) * 1.1) * (stormHash01(seed, state.count, 2) < 0.5 ? -1 : 1);
-            const r = unit.radius * (0.85 + stormHash01(seed, state.count, 3) * 0.3);
+            // Each slot owns an equal share of the body's edge, so the arcs read as separate and countable.
+            const sector = (Math.PI * 2) / stacks;
+            const a0 = slot * sector + stormHash01(seed, state.count) * Math.max(0, sector - ARC_SPAN);
+            const a1 = a0 + Math.min(ARC_SPAN, sector * 0.9);
+            const r = unit.radius * (0.9 + stormHash01(seed, state.count, 1) * 0.2);
             const from = { x: unit.x + Math.cos(a0) * r, y: unit.y + Math.sin(a0) * r };
             const to = { x: unit.x + Math.cos(a1) * r, y: unit.y + Math.sin(a1) * r };
             ctx.emit(new Effect({
                 x: from.x,
                 y: from.y,
-                duration: CRAWL_DURATION,
+                duration: ARC_LIFE,
                 effectType: LIGHTNING_BOLT_EFFECT_TYPE,
                 pauseBehaviour: 'continue',
                 effectData: {
                     from,
                     to,
                     color: theme.secondaryNum,
-                    width: 1,
+                    width: 1.3,
                     forks: 0,
-                    jitter: 0.35,
-                    maxJitterPx: 5,
+                    jitter: 0.4,
+                    maxJitterPx: 6,
+                    fadeShare: 0.2,
                     seed: seed + state.count * 13,
                 },
             }));
         }
-        if (state.accum >= 1) state.accum %= 1;
     },
 };

@@ -153,7 +153,7 @@ const bleedBuffVisual: BuffVisualRenderer = (g, unit, buff, _ctx) => {
 const markBuffVisual: BuffVisualRenderer = (g, unit, buff, _ctx) => {
     if (!(buff instanceof MarkBuff) || buff.stacks <= 0) return;
     const def = getMarkDef(buff.markId);
-    if (!def) return;
+    if (def?.pipColor === undefined) return;
     const y = -unit.radius - 9;
     const gap = 7;
     const x0 = -((buff.stacks - 1) * gap) / 2;
@@ -165,7 +165,7 @@ const markBuffVisual: BuffVisualRenderer = (g, unit, buff, _ctx) => {
         g.lineTo(x - 2.5, y);
         g.lineTo(x, y - 3.5);
         g.fill({ color: def.pipColor, alpha: 0.95 });
-        g.stroke({ color: def.pipOutlineColor, width: 1, alpha: 0.9 });
+        g.stroke({ color: def.pipOutlineColor ?? def.pipColor, width: 1, alpha: 0.9 });
     }
 };
 

@@ -218,6 +218,11 @@ export interface TryDamageOrBlockParams {
      * side-effects. Set false for rare true-strike (unused by live cards).
      */
     respectIFrames?: boolean;
+    /**
+     * When true (default), a landed hit fires the attacking ability's ON_ATTACK_HIT rules. Set false for
+     * follow-up hits an ability's own hit handler deals (bounces, chains), so the handler does not re-enter.
+     */
+    fireAbilityEvents?: boolean;
 }
 
 export interface DamageOutcome {
@@ -267,6 +272,7 @@ export function tryDamageOrBlock(
         damage,
         attackType,
         respectIFrames = true,
+        fireAbilityEvents = true,
     } = params;
     if (respectIFrames && defender.hasIFrames(gameTime)) {
         return { hit: false, amountDealt: 0 };
@@ -304,6 +310,7 @@ export function tryDamageOrBlock(
         fireAttackBlockedHooks(engine, abilityId, defender, attackInfo);
         return { hit: false, amountDealt: 0 };
     }
+    if (!fireAbilityEvents) return { hit: true, amountDealt: modifiedDamage };
     triggerAbilityEventFromAttack({
         engine: engine as {
             gameTime: number;

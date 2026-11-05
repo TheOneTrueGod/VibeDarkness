@@ -24,6 +24,8 @@ export interface ResourceDisplay {
     perSecondGain?: number;
     /** How the default bar draws it. `pips`: one orb per point of max (small, whole-number pools). Default `bar`. */
     barStyle?: ResourceBarStyle;
+    /** `pips` bars only: CSS colour of a small lightning crackle animated over each filled orb (Static). */
+    pipCrackleColor?: string;
 }
 
 export type ResourceBarStyle = 'bar' | 'pips';
@@ -39,6 +41,8 @@ export abstract class Resource {
     abstract readonly iconName: string;
     /** See `ResourceDisplay.barStyle`. */
     readonly barStyle?: ResourceBarStyle;
+    /** See `ResourceDisplay.pipCrackleColor`. */
+    readonly pipCrackleColor?: string;
 
     /** Current value. */
     current: number;

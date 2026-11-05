@@ -3,8 +3,9 @@
  *
  * Every {@link STATIC_PX_PER_POINT} px the unit travels (walking, dashing, being knocked back, hasted)
  * builds one Static, up to {@link STATIC_MAX}. Standing still for {@link STATIC_GROUND_SECONDS} grounds
- * one Static out (and another every interval after). World modifiers can speed the build-up through
- * `resourceGainMultipliers` (Rainy Storm doubles it).
+ * one Static out (and another every interval after). It also recovers {@link STATIC_RECOVERY_PER_INTERVAL}
+ * every {@link STATIC_RECOVERY_SECONDS} (half a round) on its own. World modifiers can speed the travel
+ * build-up through `resourceGainMultipliers` (Rainy Storm doubles it).
  *
  * Travel is measured from the unit's own position each tick, so it is deterministic and needs no
  * movement hooks. Partial progress and the stillness timer are serialized with the resource.
@@ -16,6 +17,7 @@ import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
 import { ResourceId } from './resourceIds';
 import { getThemeById } from '../themes/abilityTheme';
+import { ROUND_DURATION } from '../game/gameConstants';
 
 /** Pips of Static the unit can hold. */
 export const STATIC_MAX = 6;
@@ -33,8 +35,15 @@ export const STATIC_STILL_EPSILON_PX = 0.05;
 /** Seconds of standing still before one Static grounds out (then again every this many seconds). */
 export const STATIC_GROUND_SECONDS = 2.5;
 
+/** Seconds between passive recoveries: half a round. */
+export const STATIC_RECOVERY_SECONDS = ROUND_DURATION / 2;
+/** Static recovered each {@link STATIC_RECOVERY_SECONDS}. */
+export const STATIC_RECOVERY_PER_INTERVAL = 1;
+
 /** Static is the storm's "event" colour: the theme secondary (electric cyan). */
 export const STATIC_RESOURCE_COLOR = getThemeById('storm').secondary;
+/** Yellow crackle animated over each filled Static orb. */
+export const STATIC_PIP_CRACKLE_COLOR = '#facc15';
 
 /** The slice of the engine Static reads. Optional so light test hosts can omit world modifiers. */
 type StaticEngine = Pick<EngineContext, 'roundNumber'> & Partial<Pick<EngineContext, 'worldModifierManager'>>;
@@ -45,11 +54,14 @@ export class Static extends Resource {
     readonly color = STATIC_RESOURCE_COLOR;
     readonly iconName = 'CloudLightning';
     readonly barStyle = 'pips';
+    readonly pipCrackleColor = STATIC_PIP_CRACKLE_COLOR;
 
     /** Px travelled toward the next Static. */
     progressPx = 0;
     /** Seconds the unit has stood still since it last moved (or last grounded out). */
     stillSeconds = 0;
+    /** Seconds toward the next passive recovery. */
+    recoverySeconds = 0;
     /** Position at the end of the last tick; null until the first tick after attach / restore. */
     private lastX: number | null = null;
     private lastY: number | null = null;
@@ -75,6 +87,12 @@ export class Static extends Resource {
         this.lastY = y;
         if (!unit.isAlive()) return;
 
+        this.recoverySeconds += dt;
+        while (this.recoverySeconds >= STATIC_RECOVERY_SECONDS) {
+            this.recoverySeconds -= STATIC_RECOVERY_SECONDS;
+            this.add(STATIC_RECOVERY_PER_INTERVAL);
+        }
+
         if (moved <= STATIC_STILL_EPSILON_PX) {
             this.stillSeconds += dt;
             if (this.stillSeconds >= STATIC_GROUND_SECONDS) {
@@ -97,6 +115,11 @@ export class Static extends Resource {
         if (this.current >= this.max) this.progressPx = 0;
     }
 
+    /** Tooltip: the passive recovery rate. */
+    get perSecondGain(): number {
+        return STATIC_RECOVERY_PER_INTERVAL / STATIC_RECOVERY_SECONDS;
+    }
+
     protected subscribe(_unit: Unit, _eventBus: EventBus): void {
         // Travel is measured in onTick.
     }
@@ -111,6 +134,7 @@ export class Static extends Resource {
             ...super.toJSON(),
             progressPx: this.progressPx,
             stillSeconds: this.stillSeconds,
+            recoverySeconds: this.recoverySeconds,
             lastX: this.lastX,
             lastY: this.lastY,
         };
@@ -120,6 +144,7 @@ export class Static extends Resource {
         super.restoreFromJSON(data);
         this.progressPx = typeof data.progressPx === 'number' ? data.progressPx : 0;
         this.stillSeconds = typeof data.stillSeconds === 'number' ? data.stillSeconds : 0;
+        this.recoverySeconds = typeof data.recoverySeconds === 'number' ? data.recoverySeconds : 0;
         this.lastX = typeof data.lastX === 'number' ? data.lastX : null;
         this.lastY = typeof data.lastY === 'number' ? data.lastY : null;
     }

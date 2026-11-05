@@ -1,39 +1,38 @@
 /**
- * Thunderclap - the caster dumps every bit of Static they carry in one deafening burst. Charge gathers
- * in a tightening ring, then a storm-blue shockwave and a fan of bolts throw nearby enemies back and
- * leave them Conductive. The more you ran to build Static, the harder it hits; the flash lights the
- * dark around you, so it doubles as a way to see what is coming.
+ * Thunderclap - the caster lets their charge go in one deafening burst. Charge gathers in a tightening
+ * ring, then a storm-blue shockwave and a fan of bolts throw nearby enemies back. Every Conductive enemy
+ * caught gives up a stack: it takes the heavier hit and its charge flows back to the caster as Static.
+ * The more of the field you marked, the brighter the flash that lights the dark around you.
  */
 
-import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import { spawnBrightLight, type EngineWithLight } from '../../../abilities/brightKeyword';
-import { getAbilityResourceCosts } from '../../../abilities/Ability';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import { createMovementPenaltyStates } from '../../../abilities/shieldHelpers';
-import { applyMark } from '../../../buffs/MarkBuff';
+import { spendMarkStacks } from '../../../buffs/MarkBuff';
 import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 import type { EngineContext } from '../../../game/EngineContext';
-import type { Unit } from '../../../game/units/Unit';
 import { CircleHitbox, ringHitbox } from '../../../hitboxes';
 import { type CardDef } from '../../types';
 import {
     CONDUCTIVE_MARK_ID,
     STORM_SECONDARY,
     THUNDERCLAP_ABILITY_ID,
-    THUNDERCLAP_BASE_DAMAGE,
-    THUNDERCLAP_BIG_FLASH_STATIC,
-    THUNDERCLAP_CONDUCTIVE_STACKS,
+    THUNDERCLAP_BRIGHT_2_CHARGES,
+    THUNDERCLAP_BRIGHT_3_CHARGES,
+    THUNDERCLAP_CHARGED_DAMAGE,
+    THUNDERCLAP_CONDUCTIVE_SPENT_PER_ENEMY,
     THUNDERCLAP_COOLDOWN,
-    THUNDERCLAP_DAMAGE_PER_STATIC,
+    THUNDERCLAP_DAMAGE,
     THUNDERCLAP_KNOCKBACK_TIER,
     THUNDERCLAP_MAX_TARGETS,
-    THUNDERCLAP_MIN_STATIC,
     THUNDERCLAP_RADIUS,
+    THUNDERCLAP_STATIC_COST,
+    THUNDERCLAP_STATIC_PER_CHARGE,
     THUNDERCLAP_WINDUP,
 } from '../stormConstants';
 import { spawnStormBolt, spawnStormRing, spawnStormSpark } from '../stormVfx';
@@ -60,34 +59,16 @@ const THUNDERCLAP_HITBOX = ringHitbox({
     },
 });
 
-const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-];
-
-
-/** Thunderclap's damage when `spentStatic` Static went into it. */
-export function getThunderclapDamage(spentStatic: number): number {
-    return THUNDERCLAP_BASE_DAMAGE + THUNDERCLAP_DAMAGE_PER_STATIC * spentStatic;
-}
-
-/**
- * Spend everything left in `resourceId` and return the total the cast used: the up-front cost (already
- * paid by the order) plus whatever was still in the pool.
- */
-function drainRemainingResource(caster: Unit, resourceId: string, paidUpFront: number): number {
-    const resource = caster.getResource(resourceId);
-    if (!resource) return paidUpFront;
-    const rest = Math.max(0, Math.floor(resource.current));
-    resource.spend(rest);
-    return paidUpFront + rest;
+/** Bright magnitude for a clap that spent `charges` Conductive stacks. */
+export function getThunderclapBrightness(charges: number): number {
+    if (charges >= THUNDERCLAP_BRIGHT_3_CHARGES) return 3;
+    if (charges >= THUNDERCLAP_BRIGHT_2_CHARGES) return 2;
+    return 1;
 }
 
 const clap = CastBehaviours.Instant((ctx) => {
     const eng = ctx.engine as EngineContext;
     const caster = ctx.caster;
-    const paid = getAbilityResourceCosts(ThunderclapAbility_1304, caster)[0]?.amount ?? THUNDERCLAP_MIN_STATIC;
-    const spent = drainRemainingResource(caster, 'static', paid);
-    const damage = getThunderclapDamage(spent);
 
     spawnStormRing(eng, caster, THUNDERCLAP_RADIUS, 'expand', 0.35);
     spawnStormSpark(eng, caster, { radius: caster.radius + 18, count: 10 });
@@ -106,7 +87,12 @@ const clap = CastBehaviours.Instant((ctx) => {
         .sort((a, b) => Math.hypot(a.x - caster.x, a.y - caster.y) - Math.hypot(b.x - caster.x, b.y - caster.y)
             || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
         .slice(0, THUNDERCLAP_MAX_TARGETS);
+    let charges = 0;
     for (const target of hits) {
+        // Spend the charge before the hit: it is what makes this strike the heavy one.
+        const spent = spendMarkStacks(target, CONDUCTIVE_MARK_ID, THUNDERCLAP_CONDUCTIVE_SPENT_PER_ENEMY, eng.gameTime);
+        charges += spent;
+        if (spent > 0) spawnStormBolt(eng, target, caster, { fromUnitId: target.id, toUnitId: caster.id, duration: 0.3, width: 1.6, forks: 1, delay: 0.05 });
         const outcome = tryDamageOrBlock(target, {
             engine: eng,
             gameTime: eng.gameTime,
@@ -115,16 +101,18 @@ const clap = CastBehaviours.Instant((ctx) => {
             attackerY: caster.y,
             attackerId: caster.id,
             abilityId: CARD_ID,
-            damage,
+            damage: spent > 0 ? THUNDERCLAP_CHARGED_DAMAGE : THUNDERCLAP_DAMAGE,
             attackType: 'melee',
         });
         if (!outcome.hit) continue;
-        applyMark(target, CONDUCTIVE_MARK_ID, THUNDERCLAP_CONDUCTIVE_STACKS, eng.gameTime, eng.roundNumber);
         tryApplyKnockbackByTier(target, THUNDERCLAP_KNOCKBACK_TIER, { unitId: caster.id, abilityId: CARD_ID }, caster.x, caster.y, eng);
     }
 
-    // The flash lights the dark: a Bright light where the clap went off, stronger for a big discharge.
-    spawnBrightLight(eng as unknown as EngineWithLight, caster.x, caster.y, spent >= THUNDERCLAP_BIG_FLASH_STATIC ? 2 : 1, STORM_SECONDARY, {
+    // The spent charge flows back to the caster as Static.
+    if (charges > 0) caster.getResource('static')?.add(charges * THUNDERCLAP_STATIC_PER_CHARGE);
+
+    // The flash lights the dark: a Bright light where the clap went off, stronger the more charge it spent.
+    spawnBrightLight(eng as unknown as EngineWithLight, caster.x, caster.y, getThunderclapBrightness(charges), STORM_SECONDARY, {
         unitId: caster.id,
         abilityId: CARD_ID,
         teamId: caster.teamId,
@@ -132,26 +120,25 @@ const clap = CastBehaviours.Instant((ctx) => {
 });
 
 const TOOLTIP_LINES = [
-    'Release all your Static in a burst, dealing {{BASE}} damage plus {{PER}} per Static to nearby enemies.',
-    `{Conductive ${THUNDERCLAP_CONDUCTIVE_STACKS}}`,
+    'Release a burst of Static, dealing {{DAMAGE}} damage to nearby enemies.',
+    `Each {Conductive} enemy loses {1} stack, takes {{CHARGED}} damage instead and gives you {${THUNDERCLAP_STATIC_PER_CHARGE}} Static.`,
     `{knockback ${THUNDERCLAP_KNOCKBACK_TIER}}`,
-    '{Bright 1}',
-    `Becomes {Bright 2} with {${THUNDERCLAP_BIG_FLASH_STATIC}} or more Static.`,
+    '{Bright X}',
+    'The more stacks it spends, the brighter it is.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
-    BASE: { kind: 'damage', base: THUNDERCLAP_BASE_DAMAGE },
-    PER: { kind: 'damage', base: THUNDERCLAP_DAMAGE_PER_STATIC },
+    DAMAGE: { kind: 'damage', base: THUNDERCLAP_DAMAGE },
+    CHARGED: { kind: 'damage', base: THUNDERCLAP_CHARGED_DAMAGE },
 };
 
 export const ThunderclapAbility_1304 = defineAbility({
     id: CARD_ID,
     name: 'Thunderclap',
     image: THUNDERCLAP_IMAGE,
-    resourceCost: { resourceId: 'static', amount: THUNDERCLAP_MIN_STATIC },
+    resourceCost: { resourceId: 'static', amount: THUNDERCLAP_STATIC_COST },
     rechargeTurns: 1,
     maxUses: 1,
-    recoveries: RECOVERIES,
     prefireTime: THUNDERCLAP_WINDUP,
     aiSettings: { minRange: 0, maxRange: THUNDERCLAP_RADIUS },
     clearMovementOnComplete: true,

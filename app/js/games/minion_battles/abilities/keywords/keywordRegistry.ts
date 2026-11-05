@@ -115,6 +115,16 @@ registerKeyword({
     },
 });
 
+/**
+ * `{Bright X}`: a Bright whose magnitude the ability decides at cast time. One reminder card describes the
+ * range in words instead of listing every Bright N.
+ */
+registerGlossaryTerm({
+    title: 'Bright X',
+    matches: ['bright x'],
+    description: `Creates {weak | medium | strong} light on the ground. It dims at the end of each round.`,
+});
+
 registerKeyword({
     id: 'knockback',
     displayName: 'knockback',

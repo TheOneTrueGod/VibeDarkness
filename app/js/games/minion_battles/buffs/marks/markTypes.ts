@@ -8,6 +8,10 @@ export interface MarkRenderState {
     accum: number;
     /** Emissions so far, for hash-based jitter. */
     count: number;
+    /** Wall seconds this visual has run (for per-slot timers). */
+    elapsed: number;
+    /** Per-slot wall time at which that slot may emit again (one slot per stack, for count-by-visual marks). */
+    slotReadyAt: number[];
 }
 
 /**
@@ -22,10 +26,13 @@ export interface MarkDef {
     maxStacks: number;
     /** World seconds the mark lasts after it was last applied or refreshed. */
     durationSeconds: number;
-    /** Colour of the stack pips drawn above the unit (`buffVisuals`). */
-    pipColor: number;
+    /**
+     * Colour of the stack pips drawn above the unit (`buffVisuals`). Omit when `renderEmit` already shows the
+     * stack count (e.g. Conductive keeps one live arc per stack).
+     */
+    pipColor?: number;
     /** Outline of the pips. */
-    pipOutlineColor: number;
+    pipOutlineColor?: number;
     /** Glossary reminder text (legacy-encoded) for `{Name}` / `{Name N}` in tooltips. */
     description: string;
     /** Optional render-time visual while the unit is marked (wall time; see `Buff.renderEmit`). */
