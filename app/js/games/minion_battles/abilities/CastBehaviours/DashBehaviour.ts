@@ -272,7 +272,7 @@ export class DashBehaviour implements CastBehaviour {
     private _processHitbox(ctx: CastBehaviourTickContext, payload: DashPayload): void {
         const { def, damage: damageOrFn, attackType, filter, maxTargets } = this._hitbox!;
         const hitRadius = def.shape === 'circle'
-            ? (def.range === 'caster' ? ctx.caster.radius : def.range)
+            ? (def.range === 'caster' ? ctx.caster.radius : def.range) * (def.rangeScale ?? 1)
             : ctx.caster.radius;
 
         const candidates: Unit[] = [];

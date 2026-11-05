@@ -26,6 +26,9 @@ export interface StormBoltOpts {
     forks?: number;
     fromUnitId?: string;
     toUnitId?: string;
+    fromOffset?: Point;
+    toOffset?: Point;
+    flickerHz?: number;
     jitter?: number;
     maxJitterPx?: number;
 }
@@ -40,6 +43,9 @@ export function spawnStormBolt(engine: EffectSink, from: Point, to: Point, opts:
         forks: opts.forks ?? 2,
         ...(opts.fromUnitId ? { fromUnitId: opts.fromUnitId } : {}),
         ...(opts.toUnitId ? { toUnitId: opts.toUnitId } : {}),
+        ...(opts.fromOffset ? { fromOffset: { ...opts.fromOffset } } : {}),
+        ...(opts.toOffset ? { toOffset: { ...opts.toOffset } } : {}),
+        ...(opts.flickerHz !== undefined ? { flickerHz: opts.flickerHz } : {}),
         ...(opts.jitter !== undefined ? { jitter: opts.jitter } : {}),
         ...(opts.maxJitterPx !== undefined ? { maxJitterPx: opts.maxJitterPx } : {}),
     };

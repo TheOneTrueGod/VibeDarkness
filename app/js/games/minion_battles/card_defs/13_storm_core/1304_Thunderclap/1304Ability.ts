@@ -1,7 +1,7 @@
 /**
  * Thunderclap - the caster lets their charge go in one deafening burst. Charge gathers in a tightening
  * ring, then a storm-blue shockwave and a fan of bolts throw nearby enemies back. Every Conductive enemy
- * caught gives up a stack: it takes the heavier hit and its charge flows back to the caster as Static.
+ * caught gives up a stack, and its charge flows back to the caster as Static.
  * The more of the field you marked, the brighter the flash that lights the dark around you.
  */
 
@@ -24,7 +24,6 @@ import {
     THUNDERCLAP_ABILITY_ID,
     THUNDERCLAP_BRIGHT_2_CHARGES,
     THUNDERCLAP_BRIGHT_3_CHARGES,
-    THUNDERCLAP_CHARGED_DAMAGE,
     THUNDERCLAP_CONDUCTIVE_SPENT_PER_ENEMY,
     THUNDERCLAP_COOLDOWN,
     THUNDERCLAP_DAMAGE,
@@ -89,7 +88,7 @@ const clap = CastBehaviours.Instant((ctx) => {
         .slice(0, THUNDERCLAP_MAX_TARGETS);
     let charges = 0;
     for (const target of hits) {
-        // Spend the charge before the hit: it is what makes this strike the heavy one.
+        // Draw the charge out as the clap lands; it flows back to the caster as Static.
         const spent = spendMarkStacks(target, CONDUCTIVE_MARK_ID, THUNDERCLAP_CONDUCTIVE_SPENT_PER_ENEMY, eng.gameTime);
         charges += spent;
         if (spent > 0) spawnStormBolt(eng, target, caster, { fromUnitId: target.id, toUnitId: caster.id, duration: 0.3, width: 1.6, forks: 1, delay: 0.05 });
@@ -101,7 +100,7 @@ const clap = CastBehaviours.Instant((ctx) => {
             attackerY: caster.y,
             attackerId: caster.id,
             abilityId: CARD_ID,
-            damage: spent > 0 ? THUNDERCLAP_CHARGED_DAMAGE : THUNDERCLAP_DAMAGE,
+            damage: THUNDERCLAP_DAMAGE,
             attackType: 'melee',
         });
         if (!outcome.hit) continue;
@@ -121,7 +120,7 @@ const clap = CastBehaviours.Instant((ctx) => {
 
 const TOOLTIP_LINES = [
     'Release a burst of Static, dealing {{DAMAGE}} damage to nearby enemies.',
-    `Each {Conductive} enemy loses {1} stack, takes {{CHARGED}} damage instead and gives you {${THUNDERCLAP_STATIC_PER_CHARGE}} Static.`,
+    `Each {Conductive} enemy loses {1} stack and gives you {${THUNDERCLAP_STATIC_PER_CHARGE}} Static.`,
     `{Knockback ${THUNDERCLAP_KNOCKBACK_TIER}}`,
     '{Bright X}',
     'The more stacks it spends, the brighter it is.',
@@ -129,7 +128,6 @@ const TOOLTIP_LINES = [
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: THUNDERCLAP_DAMAGE },
-    CHARGED: { kind: 'damage', base: THUNDERCLAP_CHARGED_DAMAGE },
 };
 
 export const ThunderclapAbility_1304 = defineAbility({

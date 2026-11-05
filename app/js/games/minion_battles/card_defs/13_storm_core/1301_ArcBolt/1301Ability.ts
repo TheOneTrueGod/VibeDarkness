@@ -28,7 +28,7 @@ import {
 import { type CardDef } from '../../types';
 import {
     ARC_BOLT_ABILITY_ID,
-    ARC_BOLT_BOUNCE_BONUS_DAMAGE,
+    ARC_BOLT_BOUNCE_DAMAGE,
     ARC_BOLT_BOUNCE_DELAY,
     ARC_BOLT_BOUNCE_RANGE,
     ARC_BOLT_CONDUCTIVE_STACKS,
@@ -49,7 +49,7 @@ export const ARC_BOLT_SPEED = THROW_PROJECTILE_SPEED * ARC_BOLT_SPEED_MULT;
 export const ARC_BOLT_PROFILE = QUICK_THROW_PROFILE;
 
 const ARC_BOLT_BOUNCE_EFFECT_ID = 'arcBoltConductiveBounce';
-export const ARC_BOLT_BOUNCE_DAMAGE = ARC_BOLT_DAMAGE + ARC_BOLT_BOUNCE_BONUS_DAMAGE;
+export { ARC_BOLT_BOUNCE_DAMAGE };
 
 /**
  * On a landed hit: arc down the Conductive ladder (N stacks to N - 1, ending on an unmarked enemy), then

@@ -12,6 +12,7 @@ import { createMovementTargetPreview } from '../../../abilities/previewHelpers';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import type { EngineContext } from '../../../game/EngineContext';
+import type { Unit } from '../../../game/units/Unit';
 import { nullHitbox } from '../../../hitboxes';
 import { type CardDef } from '../../types';
 import {
@@ -22,6 +23,8 @@ import {
     STATIC_STEP_DAMAGE,
     STATIC_STEP_DISTANCE,
     STATIC_STEP_DURATION,
+    STATIC_STEP_FIELD_ARCS,
+    STATIC_STEP_HIT_RADIUS_SCALE,
     STATIC_STEP_MAX_USES,
     STATIC_STEP_RECOVERY,
     STATIC_STEP_STATIC_COST,
@@ -32,6 +35,29 @@ import STATIC_STEP_IMAGE from './staticStep.svg?raw';
 const CARD_ID = STATIC_STEP_ABILITY_ID;
 const RECOVERY_END = STATIC_STEP_DURATION + STATIC_STEP_RECOVERY;
 
+
+/**
+ * Arcs riding the caster inside the touch circle for the whole step, so the area that zaps reads as a
+ * ball of lightning: each arc joins two points on the circle's edge, spaced evenly around it.
+ */
+function spawnStaticStepField(eng: EngineContext, caster: Unit): void {
+    const r = caster.radius * STATIC_STEP_HIT_RADIUS_SCALE;
+    for (let i = 0; i < STATIC_STEP_FIELD_ARCS; i++) {
+        const a0 = (i / STATIC_STEP_FIELD_ARCS) * Math.PI * 2;
+        const a1 = a0 + Math.PI * 0.85;
+        spawnStormBolt(eng, caster, caster, {
+            fromUnitId: caster.id,
+            toUnitId: caster.id,
+            fromOffset: { x: Math.cos(a0) * r, y: Math.sin(a0) * r },
+            toOffset: { x: Math.cos(a1) * r, y: Math.sin(a1) * r },
+            duration: STATIC_STEP_DURATION + 0.08,
+            width: 1.4,
+            forks: 1,
+            flickerHz: 30,
+            maxJitterPx: r * 0.35,
+        });
+    }
+}
 
 const TOOLTIP_LINES = [
     'Dart to a point as lightning, dealing {{DAMAGE}} damage to each enemy you pass through.',
@@ -73,6 +99,7 @@ export const StaticStepAbility_1302 = defineAbility({
                             width: 2.5,
                             forks: 3,
                         });
+                        spawnStaticStepField(eng, ctx.caster);
                     }),
                 },
                 {
@@ -83,7 +110,7 @@ export const StaticStepAbility_1302 = defineAbility({
                         .withCollisionStep(STATIC_STEP_COLLISION_STEP)
                         .withConstantSpeed()
                         .withAfterimages(true, 1)
-                        .addHitbox('caster', { shape: 'circle', range: 'caster' }, {
+                        .addHitbox('caster', { shape: 'circle', range: 'caster', rangeScale: STATIC_STEP_HIT_RADIUS_SCALE }, {
                             damage: STATIC_STEP_DAMAGE,
                             attackType: 'melee',
                             filter: 'enemy',

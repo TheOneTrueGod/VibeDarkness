@@ -12,10 +12,10 @@ Every Storm card refills all its uses at round start (no `recoveries`, the engin
 
 | Card | Ability | Research | Cost | Uses | Role |
 |------|---------|----------|------|------|------|
-| **1301** | **Arc Bolt** | Storm Core | free | 3 | Fast poke projectile (`arc_bolt`). Arcs down the Conductive ladder: from N stacks to a nearby enemy with N - 1, ending on an unmarked enemy; each leap deals +4. Spends nothing; the last enemy reached gets Conductive 1 |
-| **1303** | **Chain Lightning** | Storm Core | 2 Static | 2 | Unit-target bolt that leaps to 6 more enemies (Forked Lightning: +2), Conductive first; spends all Conductive for +4 damage per stack and a Stagger; relays through conductors (not in the tooltip) |
-| **1302** | **Static Step** | Static Step (tier 2) | 1 Static | 2 | Iframe dash; zaps and marks every enemy passed through. The distance builds most of the Static back |
-| **1304** | **Thunderclap** | Thunderclap (tier 2) | 2 Static | 1 | Ring burst: 6 damage, or 10 to an enemy it spends 1 Conductive from; each stack spent gives 1 Static back. Knockback 1, Bright X (1 / 2 / 3 at 0-1 / 2-3 / 4+ stacks spent) |
+| **1301** | **Arc Bolt** | Storm Core | free | 3 | Fast poke projectile (`arc_bolt`). Arcs down the Conductive ladder: from N stacks to a nearby enemy with N - 1, ending on an unmarked enemy. 6 damage, 4 per leap. Spends nothing; the last enemy reached gets Conductive 1 |
+| **1303** | **Chain Lightning** | Storm Core | 2 Static | 2 | Unit-target bolt: 6 damage, then leaps to 5 more enemies (Forked Lightning: +2), Conductive first; a Conductive enemy loses all its stacks, takes +2 (flat) and is staggered; relays through conductors (not in the tooltip) |
+| **1302** | **Static Step** | Static Step (tier 2) | 1 Static | 2 | Iframe dash; 1 damage and Conductive to every enemy passed through, in a touch circle with 50% more area than the body, filled with arcs that ride the caster. The distance builds most of the Static back |
+| **1304** | **Thunderclap** | Thunderclap (tier 2) | 2 Static | 1 | Ring burst: 4 damage to each enemy (no bonus for Conductive); spends 1 Conductive from each, and each stack spent gives 1 Static back. Knockback 1, Bright X (1 / 2 / 3 at 0-1 / 2-3 / 4+ stacks spent) |
 | — | **Forked Lightning** | tier 3, after the core | — | — | Chain Lightning reaches 2 more enemies (`hasResearchNode`, like Blood Splinters) |
 
 ## Mechanics

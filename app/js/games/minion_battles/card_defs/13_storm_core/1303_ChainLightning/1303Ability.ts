@@ -1,7 +1,7 @@
 /**
  * Chain Lightning - the Storm Core's payoff. The caster draws charge in, then lashes a bolt at one enemy
- * that leaps from body to body, seeking out Conductive enemies first. Each Conductive stack it drains
- * adds damage and staggers the target. Metal on the ground (your dropped weapons, your turrets) carries
+ * that leaps from body to body, seeking out Conductive enemies first. A Conductive enemy loses its stacks,
+ * takes a little extra damage and is staggered. Metal on the ground (your dropped weapons, your turrets) carries
  * the bolt across gaps, so an Armory field or a Gravity pile-up turns one cast into a sweep.
  */
 
@@ -24,8 +24,8 @@ import { STORM_NODE_FORKED_LIGHTNING, STORM_TREE_ID } from '../../../../../resea
 import {
     CHAIN_LIGHTNING_ABILITY_ID,
     CHAIN_LIGHTNING_COOLDOWN,
+    CHAIN_LIGHTNING_CONDUCTIVE_BONUS_DAMAGE,
     CHAIN_LIGHTNING_DAMAGE,
-    CHAIN_LIGHTNING_DAMAGE_PER_CONDUCTIVE,
     CHAIN_LIGHTNING_HOP_DELAY,
     CHAIN_LIGHTNING_JUMP_RANGE,
     CHAIN_LIGHTNING_JUMPS,
@@ -139,7 +139,7 @@ const strikeChain = CastBehaviours.Instant((ctx) => {
             attackerY: prev.y,
             attackerId: ctx.caster.id,
             abilityId: CARD_ID,
-            damage: CHAIN_LIGHTNING_DAMAGE + CHAIN_LIGHTNING_DAMAGE_PER_CONDUCTIVE * stacks,
+            damage: CHAIN_LIGHTNING_DAMAGE + (stacks > 0 ? CHAIN_LIGHTNING_CONDUCTIVE_BONUS_DAMAGE : 0),
             attackType: 'ranged' as 'melee' | 'charging',
         });
         if (stacks > 0 && outcome.hit) tryApplyStagger(target, CHAIN_LIGHTNING_STAGGER_SECONDS, eng);
@@ -149,8 +149,8 @@ const strikeChain = CastBehaviours.Instant((ctx) => {
 });
 
 const TOOLTIP_LINES = [
-    'Strike an enemy with lightning that leaps to {{JUMPS}} more nearby enemies, dealing {{DAMAGE}} damage to each.',
-    'It seeks out {Conductive} enemies first, spending their stacks for {{PER_STACK}} extra damage each and staggering them.',
+    'Strike an enemy for {{DAMAGE}} damage. The lightning leaps to {{JUMPS}} more enemies.',
+    '{Conductive} enemies are hit first, take {{BONUS}} extra damage and are staggered.',
 ] as const;
 
 export const ChainLightningAbility_1303 = defineAbility({
@@ -239,7 +239,7 @@ export const ChainLightningAbility_1303 = defineAbility({
         const bindings: TooltipTokenBindings = {
             JUMPS: { kind: 'plain', value: getChainLightningJumps(gameState as AbilityEngineContext | undefined, undefined) },
             DAMAGE: { kind: 'damage', base: CHAIN_LIGHTNING_DAMAGE },
-            PER_STACK: { kind: 'damage', base: CHAIN_LIGHTNING_DAMAGE_PER_CONDUCTIVE },
+            BONUS: { kind: 'damage', base: CHAIN_LIGHTNING_CONDUCTIVE_BONUS_DAMAGE },
         };
         return formatTooltipLegacyLines(TOOLTIP_LINES, bindings, resolveTooltipContext(gameState, { ability: { id: CARD_ID } }));
     },

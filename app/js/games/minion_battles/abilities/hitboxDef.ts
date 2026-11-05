@@ -6,7 +6,8 @@ import { clampToMaxRange } from './previewHelpers';
 import { filterCombatHitTargets } from './combatTargetFilter';
 
 export type HitboxDef =
-    | { shape: 'circle';    range: number | 'caster' }
+    /** `rangeScale` multiplies the resolved radius (e.g. 'caster' x 1.2 for a touch that reaches past the body). */
+    | { shape: 'circle';    range: number | 'caster'; rangeScale?: number }
     | { shape: 'meleeLine'; range: number; thickness: number }
     | { shape: 'cone';      range: number; halfAngle: number }
     | { shape: 'custom';    resolve: (caster: Unit, aimPoint: { x: number; y: number }, units: Unit[]) => Unit[] };
@@ -32,7 +33,7 @@ export function resolveHitbox(def: HitboxDef, ctx: ResolveHitboxContext): Unit[]
 
     switch (def.shape) {
         case 'circle': {
-            const radius = def.range === 'caster' ? caster.radius : def.range;
+            const radius = (def.range === 'caster' ? caster.radius : def.range) * (def.rangeScale ?? 1);
             units = CircleHitbox.getUnitsInHitbox(engine, caster, originX, originY, radius);
             break;
         }

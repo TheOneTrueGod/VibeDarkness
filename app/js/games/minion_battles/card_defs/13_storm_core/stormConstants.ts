@@ -44,6 +44,8 @@ export {
 // 1301 Arc Bolt
 // ---------------------------------------------------------------------------
 
+// Lightning damage is small and flat across the tree: 6 for a direct bolt or chain (+2 on Conductive), 4 for an arc or a burst,
+// 1 for a brush with the dash. The kit's strength is how many enemies it touches.
 export const ARC_BOLT_DAMAGE = 6;
 export const ARC_BOLT_MAX_USES = 3;
 export const ARC_BOLT_CONDUCTIVE_STACKS = 1;
@@ -52,8 +54,8 @@ export const ARC_BOLT_SPEED_MULT = 1.5;
 export const ARC_BOLT_RADIUS = 5;
 /** Max reach (px) of one leap down the Conductive ladder. */
 export const ARC_BOLT_BOUNCE_RANGE = 130;
-/** Extra damage a leap deals on top of the bolt's damage. */
-export const ARC_BOLT_BOUNCE_BONUS_DAMAGE = 4;
+/** Damage of each leap down the Conductive ladder. */
+export const ARC_BOLT_BOUNCE_DAMAGE = 4;
 /** Safety cap on leaps per bolt (Conductive's max stacks is the real limit: one leap per rung). */
 export const ARC_BOLT_MAX_BOUNCES = 8;
 /** Visual: seconds between successive bounces appearing. */
@@ -66,7 +68,13 @@ export const ARC_BOLT_BOUNCE_DELAY = 0.05;
 export const STATIC_STEP_DISTANCE = 150;
 export const STATIC_STEP_DURATION = 0.25;
 export const STATIC_STEP_RECOVERY = 0.2;
-export const STATIC_STEP_DAMAGE = 3;
+export const STATIC_STEP_DAMAGE = 1;
+/** The dash's touch circle covers this much more area than the caster's body. */
+export const STATIC_STEP_HIT_AREA_SCALE = 1.5;
+/** Radius multiplier for that area (area grows with the square of the radius). */
+export const STATIC_STEP_HIT_RADIUS_SCALE = Math.sqrt(STATIC_STEP_HIT_AREA_SCALE);
+/** Arcs crackling inside the touch circle while the caster streaks. */
+export const STATIC_STEP_FIELD_ARCS = 3;
 export const STATIC_STEP_CONDUCTIVE_STACKS = 1;
 export const STATIC_STEP_MAX_USES = 2;
 export const STATIC_STEP_COLLISION_STEP = 4;
@@ -82,12 +90,12 @@ export const CHAIN_LIGHTNING_RANGE = 220;
 export const CHAIN_LIGHTNING_WINDUP = 0.35;
 export const CHAIN_LIGHTNING_COOLDOWN = 0.9;
 /** Extra enemies the bolt leaps to after the first (Forked Lightning adds more). */
-export const CHAIN_LIGHTNING_JUMPS = 6;
+export const CHAIN_LIGHTNING_JUMPS = 5;
 /** Max distance (px, centre to centre) of one leap between enemies or conductors. */
 export const CHAIN_LIGHTNING_JUMP_RANGE = 130;
-export const CHAIN_LIGHTNING_DAMAGE = 7;
-/** Bonus damage per Conductive stack the bolt consumes. */
-export const CHAIN_LIGHTNING_DAMAGE_PER_CONDUCTIVE = 4;
+export const CHAIN_LIGHTNING_DAMAGE = 6;
+/** Flat bonus damage to a Conductive enemy (however many stacks it had). */
+export const CHAIN_LIGHTNING_CONDUCTIVE_BONUS_DAMAGE = 2;
 /** Stagger applied to an enemy the bolt drained Conductive from. */
 export const CHAIN_LIGHTNING_STAGGER_SECONDS = 0.5;
 /** Visual: seconds between successive leaps appearing. */
@@ -105,9 +113,7 @@ export const THUNDERCLAP_STATIC_COST = 2;
 export const THUNDERCLAP_WINDUP = 0.45;
 export const THUNDERCLAP_COOLDOWN = 0.8;
 export const THUNDERCLAP_RADIUS = 95;
-export const THUNDERCLAP_DAMAGE = 6;
-/** Damage to an enemy the clap spent a Conductive stack from. */
-export const THUNDERCLAP_CHARGED_DAMAGE = 10;
+export const THUNDERCLAP_DAMAGE = 4;
 /** Conductive stacks spent from each enemy struck. */
 export const THUNDERCLAP_CONDUCTIVE_SPENT_PER_ENEMY = 1;
 /** Static returned to the caster per Conductive stack spent. */

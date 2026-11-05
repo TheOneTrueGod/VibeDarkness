@@ -40,8 +40,8 @@ import {
     ARC_BOLT_DAMAGE,
     ARC_BOLT_MAX_USES,
     CHAIN_LIGHTNING_ABILITY_ID,
+    CHAIN_LIGHTNING_CONDUCTIVE_BONUS_DAMAGE,
     CHAIN_LIGHTNING_DAMAGE,
-    CHAIN_LIGHTNING_DAMAGE_PER_CONDUCTIVE,
     CHAIN_LIGHTNING_JUMPS,
     CHAIN_LIGHTNING_MAX_USES,
     CHAIN_LIGHTNING_STATIC_COST,
@@ -55,9 +55,10 @@ import {
     STATIC_STEP_ABILITY_ID,
     STATIC_STEP_DAMAGE,
     STATIC_STEP_DISTANCE,
+    STATIC_STEP_HIT_AREA_SCALE,
+    STATIC_STEP_HIT_RADIUS_SCALE,
     STATIC_STEP_STATIC_COST,
     THUNDERCLAP_ABILITY_ID,
-    THUNDERCLAP_CHARGED_DAMAGE,
     THUNDERCLAP_DAMAGE,
     THUNDERCLAP_RADIUS,
     THUNDERCLAP_STATIC_COST,
@@ -366,13 +367,33 @@ describe('Static Step (1302)', () => {
     });
 });
 
+describe('Static Step touch area', () => {
+    it('reaches 50% more area than the body and fills it with arcs that ride the caster', () => {
+        expect(STATIC_STEP_HIT_RADIUS_SCALE ** 2).toBeCloseTo(STATIC_STEP_HIT_AREA_SCALE);
+        const { engine, player } = stormBattle([STORM_NODE_CORE, STORM_NODE_STATIC_STEP]);
+        const dummy = placeTargetDummy(engine, { x: PLAYER.x + 80, y: PLAYER.y });
+        // Out of reach of a body-sized touch, inside the scaled one.
+        dummy.y = PLAYER.y + player.radius * (1 + STATIC_STEP_HIT_RADIUS_SCALE) / 2 + dummy.radius;
+        const hp = dummy.hp;
+        executeUnitAbility(player, StaticStepAbility_1302, [{ type: 'pixel', position: { x: PLAYER.x + 400, y: PLAYER.y } }], engine);
+        step(engine, FIXED_DT * 2);
+        const fieldArcs = engine.state.effectManager.effects.filter((e) => {
+            const d = e.effectData as { fromUnitId?: string; toUnitId?: string; fromOffset?: unknown } | undefined;
+            return e.effectType === LIGHTNING_BOLT_EFFECT_TYPE && d?.fromUnitId === player.id && d.toUnitId === player.id && d.fromOffset;
+        });
+        expect(fieldArcs.length).toBeGreaterThan(0);
+        step(engine, 0.5);
+        expect(hp - dummy.hp).toBe(STATIC_STEP_DAMAGE);
+    });
+});
+
 describe('Chain Lightning (1303)', () => {
     function lineOfDummies(engine: GameEngine, count: number, gap = 90): Unit[] {
         return Array.from({ length: count }, (_, i) =>
             placeTargetDummy(engine, { x: PLAYER.x + 120 + i * gap, y: PLAYER.y }, `dummy_${i}`));
     }
 
-    it('costs Static, leaps to more enemies and spends Conductive for bonus damage', () => {
+    it('costs Static, leaps to more enemies and spends Conductive for a flat bonus', () => {
         const { engine, player } = stormBattle();
         const dummies = lineOfDummies(engine, CHAIN_LIGHTNING_JUMPS + 2);
         applyMark(dummies[1]!, CONDUCTIVE_MARK_ID, 2, engine.gameTime, 1);
@@ -384,7 +405,9 @@ describe('Chain Lightning (1303)', () => {
         expect(staticOf(player).current).toBe(staticBefore - CHAIN_LIGHTNING_STATIC_COST);
         const dealt = dummies.map((d, i) => hp[i]! - d.hp);
         expect(dealt[0]).toBe(CHAIN_LIGHTNING_DAMAGE);
-        expect(dealt[1]).toBe(CHAIN_LIGHTNING_DAMAGE + 2 * CHAIN_LIGHTNING_DAMAGE_PER_CONDUCTIVE);
+        // Flat bonus, not per stack.
+        expect(dealt[1]).toBe(CHAIN_LIGHTNING_DAMAGE + CHAIN_LIGHTNING_CONDUCTIVE_BONUS_DAMAGE);
+        expect([CHAIN_LIGHTNING_DAMAGE, CHAIN_LIGHTNING_CONDUCTIVE_BONUS_DAMAGE, CHAIN_LIGHTNING_JUMPS]).toEqual([6, 2, 5]);
         expect(getMarkStacks(dummies[1]!, CONDUCTIVE_MARK_ID)).toBe(0);
         // First strike + JUMPS leaps; the last dummy is out of jumps.
         expect(dealt.filter((d) => d > 0)).toHaveLength(1 + CHAIN_LIGHTNING_JUMPS);
@@ -437,7 +460,7 @@ describe('Chain Lightning (1303)', () => {
 });
 
 describe('Thunderclap (1304)', () => {
-    it('spends one Conductive per enemy for heavier hits and Static back, knocks back and lights the dark', () => {
+    it('deals flat damage, spends one Conductive per enemy for Static back, knocks back and lights the dark', () => {
         const { engine, player } = stormBattle([STORM_NODE_CORE, STORM_NODE_THUNDERCLAP]);
         staticOf(player).current = 4;
         const plain = placeTargetDummy(engine, { x: PLAYER.x + THUNDERCLAP_RADIUS - 10, y: PLAYER.y }, 'plain');
@@ -453,7 +476,8 @@ describe('Thunderclap (1304)', () => {
         step(engine, ThunderclapAbility_1304.prefireTime! + 0.3);
 
         expect(hp.get(plain.id)! - plain.hp).toBe(THUNDERCLAP_DAMAGE);
-        expect(hp.get(marked.id)! - marked.hp).toBe(THUNDERCLAP_CHARGED_DAMAGE);
+        expect(hp.get(marked.id)! - marked.hp).toBe(THUNDERCLAP_DAMAGE);
+        expect(THUNDERCLAP_DAMAGE).toBe(4);
         expect(outside.hp).toBe(hp.get(outside.id));
         expect(getMarkStacks(marked, CONDUCTIVE_MARK_ID)).toBe(1);
         expect(getMarkStacks(plain, CONDUCTIVE_MARK_ID)).toBe(0);

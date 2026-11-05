@@ -28,6 +28,9 @@ export interface LightningBoltEffectData {
     /** When set (and the unit is still there), the bolt's ends follow these units. */
     fromUnitId?: string;
     toUnitId?: string;
+    /** Added to the resolved end (unit or point): a bolt that rides a unit at a fixed offset from it. */
+    fromOffset?: { x: number; y: number };
+    toOffset?: { x: number; y: number };
     /** Outer glow colour. */
     color?: number;
     /** Inner core colour. */
@@ -171,12 +174,11 @@ function resolveEnd(
     unitId: string | undefined,
     fallback: { x: number; y: number } | undefined,
     context: IEffectRenderContext,
+    offset?: { x: number; y: number },
 ): { x: number; y: number } | undefined {
-    if (unitId) {
-        const live = context.getUnitPosition?.(unitId);
-        if (live) return live;
-    }
-    return fallback;
+    const base = (unitId ? context.getUnitPosition?.(unitId) : undefined) ?? fallback;
+    if (!base || !offset) return base;
+    return { x: base.x + offset.x, y: base.y + offset.y };
 }
 
 function beforeDelay(effect: Effect): boolean {
@@ -192,8 +194,8 @@ export const lightningBoltEffectDef: IEffectDef = {
         g.clear();
         if (beforeDelay(effect)) return;
         const data = (effect.effectData ?? {}) as LightningBoltEffectData;
-        const from = resolveEnd(data.fromUnitId, data.from, context);
-        const to = resolveEnd(data.toUnitId, data.to, context);
+        const from = resolveEnd(data.fromUnitId, data.from, context, data.fromOffset);
+        const to = resolveEnd(data.toUnitId, data.to, context, data.toOffset);
         if (!from || !to) return;
         const p = effect.progress;
         const fadeShare = data.fadeShare ?? 0.5;
