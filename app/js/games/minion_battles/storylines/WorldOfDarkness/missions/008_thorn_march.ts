@@ -237,7 +237,7 @@ export class ThornMarchMission extends BaseMissionDef {
         {
             id: 'establish_all_nests',
             objectiveType: ObjectiveType.Protect,
-            label: 'Protect the lanternites as they build their network',
+            label: 'Protect the plant-creatures as they build their network',
             toComplete: { type: 'aliveUnitCount', characterId: LANTERNITE_NEST_CHARACTER_ID, minCount: 3 },
             onComplete: [{ type: 'revealObjective', id: 'hold_the_line' }],
             showObjectiveMarker: {

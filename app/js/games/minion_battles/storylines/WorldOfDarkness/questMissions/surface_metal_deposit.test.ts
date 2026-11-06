@@ -5,6 +5,8 @@ import {
     SEARCH_FOR_LOOSE_METALS_LABEL,
     SEARCH_FOR_LOOSE_METALS_OPTION_ID,
     REQUIRES_EARTH_CORE_LABEL,
+    REST_HUNGER_RECOVERY,
+    REST_LABEL,
     SURFACE_METAL_HARVEST_METAL,
     requiresItemLabel,
 } from './questMissionConstants';
@@ -13,6 +15,7 @@ import {
     SURFACE_METAL_DEPOSIT,
     SURFACE_METAL_OPTION_EXTRACT,
     SURFACE_METAL_OPTION_HARVEST,
+    SURFACE_METAL_OPTION_REST,
 } from './surface_metal_deposit';
 
 const baseParams = {
@@ -47,7 +50,17 @@ describe('Surface metal deposit choices', () => {
         expect(options!.map((o) => o.id)).toEqual([
             SURFACE_METAL_OPTION_HARVEST,
             SURFACE_METAL_OPTION_EXTRACT,
+            SURFACE_METAL_OPTION_REST,
         ]);
+    });
+
+    it('offers Rest, recovering 20 Hunger (food)', () => {
+        const options = SURFACE_METAL_DEPOSIT.getPostMissionChoiceOptions(baseParams);
+        const rest = options!.find((o) => o.id === SURFACE_METAL_OPTION_REST);
+        expect(REST_HUNGER_RECOVERY).toBe(20);
+        expect(rest?.label).toBe(REST_LABEL);
+        expect(rest?.disabledLabel).toBeUndefined();
+        expect(rest?.action).toEqual({ type: 'recover_hunger', amount: REST_HUNGER_RECOVERY });
     });
 
     it('enables Extract Metal when Earth Core is researched', () => {

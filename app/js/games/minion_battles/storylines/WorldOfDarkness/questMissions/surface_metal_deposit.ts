@@ -16,11 +16,13 @@ import {
     LOCATION_PLAINS_TAG,
     PLAINS_STORY_CHALLENGE_RATING,
     REQUIRES_EARTH_CORE_LABEL,
+    REST_OPTION_ID,
     SEARCH_FOR_LOOSE_METALS_OPTION_ID,
     SURFACE_METAL_EXTRACT_OTHERS_METAL,
     SURFACE_METAL_EXTRACT_SELF_METAL,
 } from './questMissionConstants';
 import { buildSearchForLooseMetalsOption } from './searchForLooseMetalsOption';
+import { buildRestOption } from './restOption';
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
@@ -30,6 +32,7 @@ export const SURFACE_METAL_DEPOSIT_MISSION_ID = 'surface_metal_deposit';
 export const SURFACE_METAL_CHOICE_ID = 'surface_metal_choice';
 export const SURFACE_METAL_OPTION_HARVEST = SEARCH_FOR_LOOSE_METALS_OPTION_ID;
 export const SURFACE_METAL_OPTION_EXTRACT = 'extract_metal';
+export const SURFACE_METAL_OPTION_REST = REST_OPTION_ID;
 
 function hasEarthCore(trees: Record<string, string[]> | undefined): boolean {
     return (trees?.[EARTH_TREE_ID] ?? []).includes(EARTH_NODE_EARTH_CORE);
@@ -53,6 +56,7 @@ function buildChoiceOptions(playerResearchTrees: Record<string, string[]> | unde
                 alsoGrantToOthers: { metal: SURFACE_METAL_EXTRACT_OTHERS_METAL },
             },
         },
+        buildRestOption(),
     ];
 }
 
@@ -78,7 +82,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 export class SurfaceMetalDepositMission extends BaseMissionDef {
     missionId = SURFACE_METAL_DEPOSIT_MISSION_ID;
     missionType = 'story' as const;
-    description = 'A surface seam of metal on the plains — harvest or extract.';
+    description = 'A surface seam of metal on the plains — harvest, extract, or rest.';
     campaignId = 'world_of_darkness';
     name = 'Surface metal deposit';
     worldWidth = CELL_SIZE;

@@ -34,6 +34,15 @@ export const FOUND_BERRIES_KEEP_VIGOR = 2;
 /** Found Berries — Eat the Berries recovers this much Hunger. */
 export const FOUND_BERRIES_EAT_HUNGER_RECOVERY = 10;
 
+/** Player-facing label for the shared "Rest" story choice. */
+export const REST_LABEL = 'Rest';
+
+/** Stable option id for the shared Rest story choice. */
+export const REST_OPTION_ID = 'rest';
+
+/** Rest — Hunger (food) recovered by the chooser. */
+export const REST_HUNGER_RECOVERY = 20;
+
 /** Search for loose metals — Campaign Reward (chooser). */
 export const SURFACE_METAL_HARVEST_METAL = 3;
 
