@@ -19,6 +19,8 @@ final class LobbyDebugService
     public const MAX_JSONL_RESULTS = 500;
     public const MAX_LOBBY_LOG_RESULTS = 200;
     public const DEFAULT_DESYNC_WINDOW = 20;
+    /** Larger lobby_log lines are stubbed in list responses (see iterateJsonl). */
+    public const DEFAULT_MAX_ENTRY_BYTES = 20000;
 
   private const SEVERITY_LEVELS = ['log', 'info', 'warn', 'error', 'critical'];
 
@@ -228,7 +230,7 @@ final class LobbyDebugService
         $severityFloor = $this->parseSeverityFloor($params['severity'] ?? null);
 
         $entries = [];
-        foreach ($this->readJsonl($path) as $obj) {
+        foreach ($this->iterateJsonl($path, $this->maxEntryBytes($params)) as $obj) {
             if (count($entries) >= self::MAX_LOBBY_LOG_RESULTS) {
                 break;
             }
@@ -319,7 +321,7 @@ final class LobbyDebugService
 
         $keywords = $this->stringList($params, 'keyword');
         $entries = [];
-        foreach ($this->readJsonl($path) as $obj) {
+        foreach ($this->iterateJsonl($path, $this->maxEntryBytes($params)) as $obj) {
             if (count($entries) >= self::MAX_JSONL_RESULTS) {
                 break;
             }
@@ -552,8 +554,20 @@ final class LobbyDebugService
             ];
         }
 
-        $allLogLines = $this->readJsonl($logPath);
-        $desyncEvents = array_values(array_filter($allLogLines, [$this, 'isDesyncEvent']));
+        // Stream with oversized lines stubbed: the full log can exceed memory_limit (lobby A45EBF).
+        $allLogLines = [];
+        $desyncEvents = [];
+        foreach ($this->iterateJsonl($logPath, $this->maxEntryBytes($params)) as $obj) {
+            $allLogLines[] = $obj;
+            if ($this->isDesyncEvent($obj)) {
+                $desyncEvents[] = $obj;
+            }
+        }
+        $maxEvents = $this->optionalInt($params, 'maxEvents') ?? 20;
+        $totalDesyncEvents = count($desyncEvents);
+        if ($maxEvents > 0 && $totalDesyncEvents > $maxEvents) {
+            $desyncEvents = array_slice($desyncEvents, 0, $maxEvents);
+        }
 
         if ($desyncEvents === []) {
             return [
@@ -613,6 +627,10 @@ final class LobbyDebugService
             'window' => $window,
             'events' => $bundles,
             'count' => count($bundles),
+            'totalDesyncEvents' => $totalDesyncEvents,
+            'hint' => $totalDesyncEvents > count($bundles)
+                ? "Showing the first {$maxEvents} of {$totalDesyncEvents} desync events; pass maxEvents (0 = all) or narrow with get_lobby_log."
+                : null,
         ];
     }
 
@@ -891,30 +909,68 @@ final class LobbyDebugService
      */
     private function readJsonl(string $path): array
     {
-        $out = [];
+        return iterator_to_array($this->iterateJsonl($path), false);
+    }
+
+    /**
+     * Stream a JSONL file one decoded line at a time. lobby_log.jsonl can reach 100+ MB (each
+     * desync recovery dumps a ~3 MB "recent tick history"), so never load it whole (lobby A45EBF).
+     *
+     * @param int|null $maxEntryBytes Lines longer than this are yielded as a stub (tick, message,
+     *        ids, `_truncatedBytes`) instead of the full object; null keeps every line whole.
+     * @return \Generator<int, array<string, mixed>>
+     */
+    private function iterateJsonl(string $path, ?int $maxEntryBytes = null): \Generator
+    {
         $fh = fopen($path, 'r');
         if ($fh === false) {
-            return [];
+            return;
         }
         try {
-            while (!feof($fh)) {
-                $line = fgets($fh);
-                if ($line === false) {
-                    break;
-                }
+            while (($line = fgets($fh)) !== false) {
                 $trimmed = trim($line);
                 if ($trimmed === '') {
                     continue;
                 }
                 $decoded = json_decode($trimmed, true);
-                if (is_array($decoded)) {
-                    $out[] = $decoded;
+                if (!is_array($decoded)) {
+                    continue;
                 }
+                $bytes = strlen($trimmed);
+                unset($line, $trimmed);
+                if ($maxEntryBytes !== null && $bytes > $maxEntryBytes) {
+                    $decoded = $this->stubOversizedEntry($decoded, $bytes);
+                }
+                yield $decoded;
             }
         } finally {
             fclose($fh);
         }
-        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $obj
+     * @return array<string, mixed>
+     */
+    private function stubOversizedEntry(array $obj, int $bytes): array
+    {
+        $stub = ['_truncatedBytes' => $bytes];
+        foreach (['playerId', 'severity', 'tick', 'message', 'logType', 'gameId', 'origin', 'ts'] as $key) {
+            if (array_key_exists($key, $obj)) {
+                $stub[$key] = $obj[$key];
+            }
+        }
+        $stub['_hint'] = 'Entry over maxEntryBytes; pass a larger maxEntryBytes (with a narrow from/to) for the full payload.';
+        return $stub;
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    private function maxEntryBytes(array $params): int
+    {
+        $v = $this->optionalInt($params, 'maxEntryBytes');
+        return $v !== null && $v > 0 ? $v : self::DEFAULT_MAX_ENTRY_BYTES;
     }
 
     /**
@@ -1062,7 +1118,7 @@ final class LobbyDebugService
     private function filterJsonlByTickRange(string $path, int $fromTick, int $toTick): array
     {
         $entries = [];
-        foreach ($this->readJsonl($path) as $obj) {
+        foreach ($this->iterateJsonl($path) as $obj) {
             if (count($entries) >= self::MAX_JSONL_RESULTS) {
                 break;
             }
@@ -1201,7 +1257,7 @@ final class LobbyDebugService
 
         $best = null;
         $bestDistance = PHP_INT_MAX;
-        foreach ($this->readJsonl($logPath) as $obj) {
+        foreach ($this->iterateJsonl($logPath) as $obj) {
             $tick = $this->extractTick($obj);
             if ($tick === null) {
                 continue;

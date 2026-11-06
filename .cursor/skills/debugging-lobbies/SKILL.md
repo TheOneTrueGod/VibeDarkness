@@ -96,3 +96,12 @@ For sync pipeline behaviour, see **game-sync-data-flow** skill (`BattleNet.ts`, 
 3. **Prefer root fixes** over symptom patches; call out tradeoffs explicitly.
 
 Lobby storage is **ephemeral** (lobby-scoped only). Do not mutate production storage unless the user agrees after tradeoffs.
+Lobby storage is **ephemeral** (lobby-scoped only). Do not mutate production storage unless the user agrees after tradeoffs.
+
+## Huge lobby logs
+
+Each desync recovery can write a ~3 MB `debug: recent tick history` line, so `lobby_log.jsonl` can pass 100 MB.
+`/lobby_debug` log methods stream the file and replace lines over `maxEntryBytes` (default 20000) with a stub
+(`_truncatedBytes`, tick, message). Raise `maxEntryBytes` with a narrow `from`/`to` to get a dump. `detect_desyncs`
+bundles the first `maxEvents` (default 20, 0 = all). `desyncDebug-desyncs` has the same `--max-events` and
+`--max-entry-bytes` flags. Expect 5–10 s per call on a 150 MB log.

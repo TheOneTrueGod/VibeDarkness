@@ -9,6 +9,8 @@
  * Options:
  *   --lobby    (required) Lobby code, e.g. A381D4
  *   --window   (optional) Ticks before/after each desync to include (default: 20)
+ *   --max-events       (optional) Bundle only the first N desync events (default: 20, 0 = all)
+ *   --max-entry-bytes  (optional) Print longer log lines as a one-line stub (default: 20000)
  *
  * Examples:
  *   npm run desyncDebug-desyncs -- --lobby A381D4
@@ -30,6 +32,10 @@ function getArg(flag) {
 
 const lobbyCode = getArg('--lobby');
 const window_   = parseInt(getArg('--window') ?? '20', 10);
+// Each desync recovery writes a ~3 MB "recent tick history" dump; printing those in full for
+// every nearby event produced gigabytes of output (lobby A45EBF). Stub long lines, cap events.
+const maxEvents = parseInt(getArg('--max-events') ?? '20', 10);
+const maxEntryBytes = parseInt(getArg('--max-entry-bytes') ?? '20000', 10);
 
 if (!lobbyCode) {
   console.error('Usage: npm run desyncDebug-desyncs -- --lobby <CODE> [--window <ticks>]');
@@ -53,9 +59,20 @@ function readJsonlSync(filePath) {
   for (const line of lines) {
     const t = line.trim();
     if (!t) continue;
-    try { out.push(JSON.parse(t)); } catch { /* skip malformed */ }
+    let obj;
+    try { obj = JSON.parse(t); } catch { continue; /* skip malformed */ }
+    out.push(t.length > maxEntryBytes ? stubOversized(obj, t.length) : obj);
   }
   return out;
+}
+
+/** Keep the identifying fields of an oversized log line (state dumps) and drop the payload. */
+function stubOversized(obj, bytes) {
+  const stub = { _truncatedBytes: bytes };
+  for (const k of ['playerId', 'severity', 'tick', 'message', 'logType', 'origin', 'ts']) {
+    if (k in obj) stub[k] = obj[k];
+  }
+  return stub;
 }
 
 function extractTick(obj) {
@@ -92,7 +109,8 @@ if (!fs.existsSync(logPath)) {
 
 // Collect all log lines first so we can do range queries
 const allLogLines = readJsonlSync(logPath);
-const desyncs = allLogLines.filter(isDesyncEvent);
+const allDesyncs = allLogLines.filter(isDesyncEvent);
+const desyncs = maxEvents > 0 ? allDesyncs.slice(0, maxEvents) : allDesyncs;
 
 if (desyncs.length === 0) {
   console.log(`\nLobby ${lobbyCode}: no fingerprint mismatch events found in lobby_log.jsonl`);
@@ -100,7 +118,11 @@ if (desyncs.length === 0) {
   process.exit(0);
 }
 
-console.log(`\nLobby ${lobbyCode} | ${desyncs.length} desync event(s) found | window=±${window_} ticks\n`);
+console.log(
+  `\nLobby ${lobbyCode} | ${allDesyncs.length} desync event(s) found | window=±${window_} ticks` +
+    (desyncs.length < allDesyncs.length ? ` | showing first ${desyncs.length} (--max-events 0 for all)` : '') +
+    '\n',
+);
 
 // Load fingerprints and orders once
 const fingerprints = readJsonlSync(path.join(lobbyDir, 'fingerprints.jsonl'));

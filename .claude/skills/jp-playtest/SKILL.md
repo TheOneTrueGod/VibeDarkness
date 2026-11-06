@@ -154,3 +154,15 @@ policy in the script; keep the bridge read-only.
   battle threw (fixed with `finally`). Lesson: client lobby-log `ts` is the batch-upload time; use
   `origin: "server"` rows for real timings. The 20s stall notes fired while players were still
   choosing/previewing their first turn, so they are noisy.
+- 2026-11-03 16:00 run (report `2026-11-03T16-00-13-036Z`, lobby A45EBF), analysed 2026-11-06:
+  the battle ran to tick 755 (~30 turns, both players casting), then hung for 13 minutes. Two
+  real sync bugs (see the notes for the evidence): (1) a genuine sim divergence at tick 77, the
+  host's re-sim after ITS `restoreToMark` 190→76 (wolf unit_3's lunge stops dead on the host
+  only); the joiner caught it at 107 and resynced. (2) The final hang: the joiner's finalized
+  756 order sat in `pending_orders` and the host never fetched it, because `ordersRecordCount`
+  went 24 → 23 (the 720 merge dropped a host draft) → 24 (joiner append), and the host gates
+  its fetch on `count > lastSeen`. The host has no stuck-pause fallback (the non-host does).
+  Tool lessons: 50 recoveries each logged a ~3 MB "recent tick history", making a 153 MB
+  lobby_log. That made `/lobby_debug` log methods 500 (PHP OOM), and made `desyncDebug-desyncs`
+  print gigabytes; both are fixed (streaming, oversized-line stubs, `maxEvents`). The script
+  kept writing a stall note every 20s for 13 minutes; it should stop after a few.
