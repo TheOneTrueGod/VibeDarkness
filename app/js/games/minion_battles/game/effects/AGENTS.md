@@ -131,7 +131,8 @@ GameEngine.fixedUpdate() (game tick, FIXED_DT = 1/60 s; pauses on regular pause 
 |---|---|---|
 | `RoundStartBannerEffect` | `round_start` (round > 1) | 2.0s |
 | `ScreenFlashEffect` | manual | 0.5s |
-| `TeamworkTextEffect` | teamwork bonus detected in BattlePhase | 1.1s |
+| `TeamworkTextEffect` | teamwork bonus detected in BattlePhase — currently hidden (`SHOW_TEAMWORK_BANNER = false`) | 1.1s |
+| `RewindingTextEffect` | ITS rollback; label per reason (`REWIND_BANNER_LABELS`: "Rewinding" / "Turn Committed") | 1.0s |
 | `ResourceFlightEffect` | manual | 0.8s |
 | `ResourceArrivalPulseEffect` | auto-spawned by layer when ResourceFlight completes | 0.4s |
 

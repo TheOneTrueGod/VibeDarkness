@@ -325,7 +325,7 @@ export class HudEffectLayer {
             case 'RoundStartBanner': return this.createRoundStartBanner(effect);
             case 'ScreenFlash': return new Graphics();
             case 'TeamworkText': return this.createTeamworkText();
-            case 'RewindingText': return this.createRewindingText();
+            case 'RewindingText': return this.createRewindingText(effect);
             case 'ResourceFlight': return this.createResourceFlight(effect);
             case 'ResourceArrivalPulse': return this.createResourceArrivalPulse(effect);
             case 'ResilientText': return this.createResilientText();
@@ -514,9 +514,10 @@ export class HudEffectLayer {
     // Same full-viewport HudEffectCanvas layer as Round Start; Y matches Teamwork
     // (over the TurnIndicator plaque).
 
-    private createRewindingText(): Container {
+    private createRewindingText(effect: HudEffect): Container {
+        const data = effect.effectData as { label?: string } | undefined;
         const t = new Text({
-            text: 'Rewinding',
+            text: data?.label ?? 'Rewinding',
             style: new TextStyle({
                 fontFamily: 'Arial, Helvetica, sans-serif',
                 fontSize: 36,

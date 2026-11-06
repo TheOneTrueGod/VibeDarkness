@@ -3,7 +3,7 @@ import type { RefObject } from 'react';
 import type { BattleSession, BattleSessionEvent } from '../../../game/BattleSession';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { OrderWaiter, WaitingForOrders } from '../../../game/types';
-import { TeamworkTextEffect } from '../../../game/effect_defs/hudEffects';
+import { SHOW_TEAMWORK_BANNER, TeamworkTextEffect } from '../../../game/effect_defs/hudEffects';
 import type { HudEffectCanvasHandle } from '../../components/HudEffectCanvas';
 
 interface UseBattleRoundStateParams {
@@ -37,7 +37,7 @@ export function useBattleRoundState({ playerId, hudEffectCanvasRef }: UseBattleR
             setIsPaused(true);
             setStoryPauseActive(engine.storyPauseActive);
 
-            if (info.teamworkCancelledOwnerIds?.includes(playerId)) {
+            if (SHOW_TEAMWORK_BANNER && info.teamworkCancelledOwnerIds?.includes(playerId)) {
                 hudEffectCanvasRef.current?.addHudEffect(new TeamworkTextEffect());
             }
 

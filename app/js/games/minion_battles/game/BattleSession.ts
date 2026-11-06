@@ -79,6 +79,13 @@ export interface BattleSessionLoadArgs {
     darknessUpgradeNodeIds?: string[];
 }
 
+/**
+ * Why the ITS preview is rolling back to its mark. `turn_committed`: the local player finished
+ * their turn and the preview is replaced by the committed order. `rollback`: every other restore
+ * (cancel, re-aim, stale batch).
+ */
+export type SequentialTargetingRewindReason = 'rollback' | 'turn_committed';
+
 export type BattleSessionEvent =
     | {
           type: 'waiting_for_orders';
@@ -91,7 +98,7 @@ export type BattleSessionEvent =
     | { type: 'pause_state'; paused: boolean; waitingForOrders: WaitingForOrders | null }
     | { type: 'card_state'; engine: GameEngine }
     | { type: 'order_submit_failed'; unitId: string; abilityId: string }
-    | { type: 'sequential_targeting_rewind' }
+    | { type: 'sequential_targeting_rewind'; reason: SequentialTargetingRewindReason }
     /** The local player submitted an order from the battle UI (fired before it reaches BattleNet). */
     | { type: 'local_order_submitted'; order: BattleOrder };
 
@@ -772,7 +779,7 @@ export class BattleSession implements BattleSessionHandle {
      * {@link deferRewindPresentationUntilNotified} synchronously in a listener, then
      * {@link notifyRewindPresentationComplete} after the crossfade.
      */
-    emitSequentialTargetingRewind(): Promise<void> {
+    emitSequentialTargetingRewind(reason: SequentialTargetingRewindReason = 'rollback'): Promise<void> {
         const prev = this.rewindPresentationResolve;
         this.rewindPresentationResolve = null;
         this.rewindPresentationDeferred = false;
@@ -780,7 +787,7 @@ export class BattleSession implements BattleSessionHandle {
 
         return new Promise((resolve) => {
             this.rewindPresentationResolve = resolve;
-            this.emit({ type: 'sequential_targeting_rewind' });
+            this.emit({ type: 'sequential_targeting_rewind', reason });
             if (!this.rewindPresentationDeferred) {
                 this.rewindPresentationResolve = null;
                 resolve();

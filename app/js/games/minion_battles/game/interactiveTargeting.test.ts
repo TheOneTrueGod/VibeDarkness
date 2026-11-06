@@ -1943,6 +1943,8 @@ describe('commit-time in-place decision (Step 1)', () => {
 
         expect(restoreSpy).toHaveBeenCalledTimes(1);
         expect(rewindEvents).toHaveLength(1);
+        // Finishing the turn rolls back the preview, but the banner reads "Turn Committed".
+        expect(rewindEvents[0]).toMatchObject({ reason: 'turn_committed' });
 
         unsubRewind();
         restoreSpy.mockRestore();
@@ -2782,8 +2784,10 @@ describe('Reset/Replay pre-restore refresh (Step 2)', () => {
             refreshRemoteOrdersForTargetingPreview: vi.fn().mockResolvedValue(undefined),
         } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
 
+        const rewindReasons: string[] = [];
         session.subscribe((ev) => {
             if (ev.type === 'sequential_targeting_rewind') {
+                rewindReasons.push(ev.reason);
                 session.deferRewindPresentationUntilNotified();
             }
         });
@@ -2804,6 +2808,8 @@ describe('Reset/Replay pre-restore refresh (Step 2)', () => {
             expect(eng!.waitingForOrders).not.toBeNull();
         });
         expect(applySpy).not.toHaveBeenCalled();
+        // Replay is a plain rollback, not a turn commit.
+        expect(rewindReasons).toEqual(['rollback']);
 
         session.notifyRewindPresentationComplete();
         await replayPromise;

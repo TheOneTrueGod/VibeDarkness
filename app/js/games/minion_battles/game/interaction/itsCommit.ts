@@ -1,7 +1,7 @@
 /** Commit and restore-to-mark paths for InteractiveTargetingSession (rollback + in-place). */
 
 import type { BattleOrder } from '../types';
-import type { BattleSession } from '../BattleSession';
+import type { BattleSession, SequentialTargetingRewindReason } from '../BattleSession';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { isPreviewCastConditionalCancelPaused } from './isITSPreviewComplete';
 import { type ItsActionSource, type ItsLogSnapshot, logItsPreviewEnded } from './itsLobbyLog';
@@ -19,12 +19,12 @@ import type { InteractiveTargetingSession } from './InteractiveTargetingSession'
 export async function itsRestoreToMark(
     its: InteractiveTargetingSession,
     session: BattleSession,
-    opts?: { applyHeldRemoteOrders?: boolean },
+    opts?: { applyHeldRemoteOrders?: boolean; reason?: SequentialTargetingRewindReason },
 ): Promise<void> {
     if (!its.mark) return;
     const diagFromEngineTick = session.getEngineTick();
     // Capture-frame signal for the DOM rewind overlay (must fire before engine teardown).
-    const presentationDone = session.emitSequentialTargetingRewind();
+    const presentationDone = session.emitSequentialTargetingRewind(opts?.reason ?? 'rollback');
     // Discard preview timeline if one is active (use owned previewRunId, not session's current timeline).
     if (its.previewRunId !== null) {
         const timeline = session.getTimeline();
@@ -105,7 +105,7 @@ export async function itsCommitImpl(
         // Start the restore after a microtask: commit can run inside an engine tick (terminal-outcome
         // auto-commit), and the engine must not be replaced while that tick is still running.
         const restore = Promise.resolve().then(() =>
-            itsRestoreToMark(its, session, { applyHeldRemoteOrders: false }),
+            itsRestoreToMark(its, session, { applyHeldRemoteOrders: false, reason: 'turn_committed' }),
         );
         await Promise.all([refresh, restore]);
     } else {
@@ -177,7 +177,7 @@ export async function itsCommitImpl(
     // --- Phase 2 (rollback): restore, wait for crossfade, clear, release, submit ---
 
     if (!rollbackCertain) {
-        await itsRestoreToMark(its, session, { applyHeldRemoteOrders: false });
+        await itsRestoreToMark(its, session, { applyHeldRemoteOrders: false, reason: 'turn_committed' });
         heldRows.push(...takeHeldRemoteOrders(its));
     }
     its._clearActive(session);

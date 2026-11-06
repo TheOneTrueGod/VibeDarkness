@@ -1,4 +1,5 @@
 import { HudEffect } from '../effects/HudEffect';
+import type { SequentialTargetingRewindReason } from '../BattleSession';
 
 // ─── RoundStartBanner ──────────────────────────────────────────────────────────
 // Centered banner: "Round N" + resource icons. Only shown from round 2+.
@@ -54,6 +55,12 @@ export class ScreenFlashEffect extends HudEffect {
 // Gold "Teamwork" text. Migrated from TurnIndicator.tsx CSS animation.
 // Bounce in over first 12%, then fade + drift up over remaining 88%.
 
+/**
+ * Whether the "Teamwork" banner plays when teamwork cancels a cooldown. Off for now: the
+ * mechanic still runs, it just happens without the banner.
+ */
+export const SHOW_TEAMWORK_BANNER = false;
+
 export class TeamworkTextEffect extends HudEffect {
     constructor() {
         super('TeamworkText', 1.1);
@@ -61,15 +68,25 @@ export class TeamworkTextEffect extends HudEffect {
 }
 
 // ─── RewindingText ────────────────────────────────────────────────────────────
-// "Rewinding" banner on HudEffectCanvas (same layer as Round Start / Teamwork),
-// centered over the TurnIndicator. Triggered on sequential-targeting rollback.
+// Banner on HudEffectCanvas (same layer as Round Start / Teamwork), centered over
+// the TurnIndicator. Triggered on sequential-targeting rollback; the label depends
+// on why the preview rolled back (see REWIND_BANNER_LABELS).
 
 /** Seconds — long enough to read during the DOM frame crossfade. */
 export const REWINDING_TEXT_DURATION_SEC = 1.0;
 
+/** Banner text per {@link SequentialTargetingRewindReason}. */
+export const REWIND_BANNER_LABELS: Record<SequentialTargetingRewindReason, string> = {
+    rollback: 'Rewinding',
+    turn_committed: 'Turn Committed',
+};
+
 export class RewindingTextEffect extends HudEffect {
-    constructor() {
+    declare effectData: { label: string };
+
+    constructor(reason: SequentialTargetingRewindReason = 'rollback') {
         super('RewindingText', REWINDING_TEXT_DURATION_SEC);
+        this.effectData = { label: REWIND_BANNER_LABELS[reason] };
     }
 }
 

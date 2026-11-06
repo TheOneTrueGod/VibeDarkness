@@ -616,7 +616,7 @@ export class InteractiveTargetingSession {
      */
     async _restoreToMark(
         session: BattleSession,
-        opts?: { applyHeldRemoteOrders?: boolean },
+        opts?: Parameters<typeof itsRestoreToMark>[2],
     ): Promise<void> {
         return itsRestoreToMark(this, session, opts);
     }

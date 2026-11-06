@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import type { BattleSession } from '../../../game/BattleSession';
+import type { BattleSession, SequentialTargetingRewindReason } from '../../../game/BattleSession';
 import { RewindingTextEffect } from '../../../game/effect_defs/hudEffects';
 import type { HudEffectCanvasHandle } from '../../components/HudEffectCanvas';
 
@@ -41,7 +41,7 @@ export function useRewindOverlay({ battleCanvasAreaRef, hudEffectCanvasRef }: Us
     }, []);
 
     const captureAndFade = useCallback(
-        (session: BattleSession) => {
+        (session: BattleSession, reason: SequentialTargetingRewindReason = 'rollback') => {
             const eng = session.getEngine();
             const cam = session.getCamera();
             const rend = session.getRenderer();
@@ -66,7 +66,7 @@ export function useRewindOverlay({ battleCanvasAreaRef, hudEffectCanvasRef }: Us
                 releasePresentationHold(pendingPresentationSessionRef.current);
             }
             pendingPresentationSessionRef.current = session;
-            hudEffectCanvasRef.current?.addHudEffect(new RewindingTextEffect());
+            hudEffectCanvasRef.current?.addHudEffect(new RewindingTextEffect(reason));
             setRewindOverlay({ frameUrl, token: Date.now() });
             setRewindOverlayOpaque(true);
             rewindFadeRafRef.current = requestAnimationFrame(() => {

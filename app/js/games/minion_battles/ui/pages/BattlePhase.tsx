@@ -268,7 +268,7 @@ export default function BattlePhase({
                 setPeerGhostPlansVisibleAfterRewind(true);
                 // Hold sim resume until the DOM crossfade finishes.
                 session.deferRewindPresentationUntilNotified();
-                captureAndFade(session);
+                captureAndFade(session, ev.reason);
                 return;
             }
             handleRoundSessionEvent(ev, session);
