@@ -35,7 +35,7 @@ Optional fields:
 | `requiresObjectiveCompletedId` | Modifier stays inactive until the named objective is completed. |
 | `startsDisabled` | Instance begins disabled; enable later via manager API or `setWorldModifierDisabled` effect. |
 | `ambient` | Always-on effects stub (not implemented in v1; reserve the field for Rainy Storm follow-up). |
-| `resourceGainMultipliers` | `{ [resourceId]: mult }` while active; several modifiers multiply. Resources opt in by calling `WorldModifierManager.getResourceGainMultiplier(id, round)` in their gain code (Static does; Rainy Storm doubles it). |
+| `resourceGainMultipliers` | `{ [resourceId]: mult }` while active; several modifiers multiply. Resources opt in by calling `WorldModifierManager.getResourceGainMultiplier(id, round)` in their gain code (Static scales its passive recovery; Rainy Storm doubles it). |
 | `rules` | Map of `WorldEventType → WorldEventRule[]`. This is where behavior lives. |
 
 ### `overrideEffect` — per-effect-type stacking policy

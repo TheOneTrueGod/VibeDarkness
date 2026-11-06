@@ -27,7 +27,7 @@ export enum AbilityPhase {
 
 /**
  * Modifier tags on a timing interval that refine how it behaves and displays.
- * - `'iframe'`      — invincibility frames (unit cannot be hit); renders green.
+ * - `'iframe'`      — invincibility frames (unit cannot be hit; `unitHasIFrames` reads the tag); renders green. Tooltips call it {Dodge}.
  * - `'juggernaut'`  — defensive stance (shield active); renders sky-blue.
  */
 export type AbilityTimingTag = 'iframe' | 'juggernaut';

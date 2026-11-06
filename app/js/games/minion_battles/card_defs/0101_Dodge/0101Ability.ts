@@ -66,7 +66,7 @@ export const DodgeAbility: AbilityStatic = {
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
-            'Avoid attacks while dodging towards a point',
+            'Avoid attacks while {Dodging} towards a point',
             'Restores {1} use of Punch',
         ];
     },

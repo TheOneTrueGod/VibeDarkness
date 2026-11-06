@@ -1,7 +1,7 @@
 /**
  * Static Step - the caster becomes a streak of lightning for a moment, darting to a point and leaving
  * a crackling bolt stretched behind them. Enemies they pass through are zapped and left Conductive.
- * It spends a Static, but the distance it covers builds most of that back.
+ * It spends a Static.
  */
 
 import { AbilityEventType } from '../../../abilities/Ability';
@@ -26,14 +26,12 @@ import {
     STATIC_STEP_FIELD_ARCS,
     STATIC_STEP_HIT_RADIUS_SCALE,
     STATIC_STEP_MAX_USES,
-    STATIC_STEP_RECOVERY,
     STATIC_STEP_STATIC_COST,
 } from '../stormConstants';
 import { spawnStormBolt, spawnStormSpark } from '../stormVfx';
 import STATIC_STEP_IMAGE from './staticStep.svg?raw';
 
 const CARD_ID = STATIC_STEP_ABILITY_ID;
-const RECOVERY_END = STATIC_STEP_DURATION + STATIC_STEP_RECOVERY;
 
 
 /**
@@ -60,7 +58,7 @@ function spawnStaticStepField(eng: EngineContext, caster: Unit): void {
 }
 
 const TOOLTIP_LINES = [
-    'Dart to a point as lightning, dealing {{DAMAGE}} damage to each enemy you pass through.',
+    '{Dodge} towards a point, sending static shocks to nearby enemies dealing {{DAMAGE}} damage.',
     `{Conductive ${STATIC_STEP_CONDUCTIVE_STACKS}}`,
 ] as const;
 
@@ -116,17 +114,9 @@ export const StaticStepAbility_1302 = defineAbility({
                             filter: 'enemy',
                         }),
                 },
-            ],
-        },
-        {
-            id: 'recover',
-            start: STATIC_STEP_DURATION,
-            end: RECOVERY_END,
-            abilityPhase: AbilityPhase.Cooldown,
-            timelineLabel: 'Recover',
-            castBehaviours: [
                 {
-                    timingStart: 'start',
+                    // Arrival flash in the dash's last frames: the ability ends with the dash, like Dodge.
+                    timingStart: '95%',
                     behaviour: CastBehaviours.Instant((ctx) => {
                         spawnStormSpark(ctx.engine as EngineContext, ctx.caster, { radius: ctx.caster.radius + 14, count: 8 });
                     }),

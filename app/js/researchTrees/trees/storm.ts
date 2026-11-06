@@ -16,7 +16,7 @@ export const STORM_NODE_STATIC_STEP = 'storm_static_step';
 export const STORM_NODE_THUNDERCLAP = 'storm_thunderclap';
 export const STORM_NODE_FORKED_LIGHTNING = 'storm_forked_lightning';
 
-// Storm leans its remaining cost toward Vigor: a kit about never standing still.
+// Storm leans its remaining cost toward Vigor: a fast, mobile kit.
 export const STORM_CORE_ATTUNEMENT_COST = 10;
 export const STORM_CORE_VIGOR_COST = 8;
 export const STORM_CORE_METAL_COST = 2;
@@ -56,7 +56,7 @@ export const stormTree: ResearchTreeDef = {
             id: STORM_NODE_CORE,
             title: 'Storm Core',
             description:
-                `You learn to gather charge as you move and throw it as lightning that leaps between enemies. Standing still lets it bleed away. Start each mission with {${STATIC_MISSION_START}} Static.`,
+                `You learn to gather charge and throw it as lightning that leaps between enemies. Start each mission with {${STATIC_MISSION_START}} Static.`,
             flavorText: 'The air before a storm hums. You learn to carry that hum with you.',
             order: 5,
             tier: 10,

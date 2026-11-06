@@ -163,6 +163,11 @@ export class Projectile extends GameObject {
     sourceAbilityId: string;
     maxDistance: number;
     distanceTraveled: number = 0;
+    /**
+     * Set by a move that reached `maxDistance`: the projectile sits exactly at the end of its range and
+     * expires once that step's collision check has run (`finishRangeExpiry`). Never outlives a step.
+     */
+    private reachedMaxDistance = false;
     radius: number = 5;
     /**
      * Hit-detection shape. 'circle' (default) collides via `radius` around the current point.
@@ -486,17 +491,37 @@ export class Projectile extends GameObject {
         for (let i = 0; i < pieces; i++) {
             if (!this.active) break;
             this.localTime += pieceDt;
-            this.update(pieceDt, ctx);
+            this.update(pieceDt, ctx, { deferRangeExpiry: true });
+            // The last step still collides: it ends exactly at max range, as far as the forecast line reaches.
             this.checkCollision(ctx.units, ctx.eventBus, ctx.gameTime, ctx);
         }
         if (!this.active) this.timeDebt = 0;
     }
 
-    update(dt: number, engine: unknown): void {
+    /**
+     * Move one step; a step that reaches max range stops exactly there and expires. `advance` passes
+     * `deferRangeExpiry` so that last step's collision check runs before the expiry (`finishRangeExpiry`).
+     */
+    update(dt: number, engine: unknown, opts?: { deferRangeExpiry?: boolean }): void {
+        this.move(dt, engine);
+        if (!opts?.deferRangeExpiry) this.finishRangeExpiry(engine);
+    }
+
+    /** Expire a projectile whose last move reached `maxDistance` (if nothing it hit already ended it). */
+    private finishRangeExpiry(engine: unknown): void {
+        if (!this.reachedMaxDistance) return;
+        this.reachedMaxDistance = false;
+        if (!this.active) return;
+        this.triggerExpireEffect(engine);
+        this.active = false;
+    }
+
+    private move(dt: number, engine: unknown): void {
         if (!this.active) return;
 
         if (this.heldBy) {
             this.updateHeld(dt, engine);
+            this.finishRangeExpiry(ctx);
             return;
         }
 
@@ -528,7 +553,17 @@ export class Projectile extends GameObject {
                 return;
             }
         }
-        this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, this.x, this.y, terrainManager);
+        const prevDistance = this.distanceTraveled;
+        const contribution = this.calculateDistanceContribution(prevX, prevY, this.x, this.y, terrainManager);
+        this.distanceTraveled += contribution;
+        if (this.distanceTraveled >= this.maxDistance) {
+            // Stop exactly at the end of range instead of overshooting it.
+            const share = contribution > 0 ? Math.max(0, Math.min(1, (this.maxDistance - prevDistance) / contribution)) : 1;
+            this.x = prevX + (this.x - prevX) * share;
+            this.y = prevY + (this.y - prevY) * share;
+            this.distanceTraveled = this.maxDistance;
+            this.reachedMaxDistance = true;
+        }
         this.clearTerrainAlongPath(prevX, prevY, engine);
 
         if (this.trailType === 'bullet' || this.spriteConfig?.trail) {
@@ -559,11 +594,6 @@ export class Projectile extends GameObject {
             }
         }
 
-        // Deactivate if max distance reached
-        if (this.distanceTraveled >= this.maxDistance) {
-            this.triggerExpireEffect(engine);
-            this.active = false;
-        }
     }
 
     /**

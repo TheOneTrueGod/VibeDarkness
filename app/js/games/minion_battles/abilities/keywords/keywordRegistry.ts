@@ -125,6 +125,16 @@ registerGlossaryTerm({
     description: 'Creates a light on the ground. Dims over time.',
 });
 
+/**
+ * `{Dodge}` / `{Dodging}`: the move is an iFrame dash. Abilities get it from an `'iframe'`-tagged timing
+ * interval (`unitHasIFrames`), so the copy and the rule share one name.
+ */
+registerGlossaryTerm({
+    title: 'Dodge',
+    matches: ['dodge', 'dodging'],
+    description: 'Attacks cannot hit you while you move.',
+});
+
 registerKeyword({
     id: 'knockback',
     displayName: 'Knockback',

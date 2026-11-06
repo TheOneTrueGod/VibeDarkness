@@ -34,7 +34,6 @@ import {
     CONDUCTIVE_MARK_ID,
     STATIC_STEP_ABILITY_ID,
     STATIC_STEP_DURATION,
-    STATIC_STEP_RECOVERY,
     THUNDERCLAP_ABILITY_ID,
     THUNDERCLAP_WINDUP,
 } from '../../../card_defs/13_storm_core/stormConstants';
@@ -72,7 +71,7 @@ const FAR_DUMMY = cellCentre(14, 3);
 const SWORD_TOKEN = cellCentre(11, 3);
 
 const STEP_AT = ARC_BOLT_PROFILE.cooldownEnd + ORDER_GAP;
-const CHAIN_AT = STEP_AT + STATIC_STEP_DURATION + STATIC_STEP_RECOVERY + ORDER_GAP;
+const CHAIN_AT = STEP_AT + STATIC_STEP_DURATION + ORDER_GAP;
 const CLAP_AT = CHAIN_AT + CHAIN_LIGHTNING_WINDUP + 0.05 + CHAIN_LIGHTNING_COOLDOWN + ORDER_GAP;
 const CHECK_AT = CLAP_AT + THUNDERCLAP_WINDUP + 0.3;
 const KEEP_ALIVE_AT = CHECK_AT + 0.5;
@@ -180,7 +179,8 @@ export const stormKitScenario: ScenarioDefinition = {
         const stepped = engine.getUnit(STEP_DUMMY_ID);
         if (bolt && getMarkStacks(bolt, CONDUCTIVE_MARK_ID) > 0) p.boltTagged = true;
         if (stepped && getMarkStacks(stepped, CONDUCTIVE_MARK_ID) > 0) p.stepTagged = true;
-        if (engine.gameTime < CLAP_AT) {
+        // A beat before the order tick: the clap pays its cost on that tick.
+        if (engine.gameTime < CLAP_AT - 0.1) {
             p.staticBeforeClap = staticOf(engine);
             p.stepDummyXBeforeClap = stepped?.x;
         }

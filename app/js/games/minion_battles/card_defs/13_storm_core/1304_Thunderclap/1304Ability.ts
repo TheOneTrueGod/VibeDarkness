@@ -1,8 +1,8 @@
 /**
  * Thunderclap - the caster lets their charge go in one deafening burst. Charge gathers in a tightening
- * ring, then a storm-blue shockwave and a fan of bolts throw nearby enemies back. Every Conductive enemy
- * caught gives up a stack, and its charge flows back to the caster as Static.
- * The more of the field you marked, the brighter the flash that lights the dark around you.
+ * ring, then a storm-blue shockwave and a fan of bolts throw nearby enemies back. A Conductive enemy
+ * caught takes the heavier hit and gives up a stack, which flows back to the caster as Static; any other
+ * enemy is left Conductive. The flash always lights the same Bright light around the caster.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
@@ -13,7 +13,7 @@ import { spawnBrightLight, type EngineWithLight } from '../../../abilities/brigh
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import { createMovementPenaltyStates } from '../../../abilities/shieldHelpers';
-import { spendMarkStacks } from '../../../buffs/MarkBuff';
+import { applyMark, spendMarkStacks } from '../../../buffs/MarkBuff';
 import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 import type { EngineContext } from '../../../game/EngineContext';
 import { CircleHitbox, ringHitbox } from '../../../hitboxes';
@@ -22,8 +22,9 @@ import {
     CONDUCTIVE_MARK_ID,
     STORM_SECONDARY,
     THUNDERCLAP_ABILITY_ID,
-    THUNDERCLAP_BRIGHT_2_CHARGES,
-    THUNDERCLAP_BRIGHT_3_CHARGES,
+    THUNDERCLAP_BRIGHT,
+    THUNDERCLAP_CONDUCTIVE_BONUS_DAMAGE,
+    THUNDERCLAP_CONDUCTIVE_STACKS,
     THUNDERCLAP_CONDUCTIVE_SPENT_PER_ENEMY,
     THUNDERCLAP_COOLDOWN,
     THUNDERCLAP_DAMAGE,
@@ -57,13 +58,6 @@ const THUNDERCLAP_HITBOX = ringHitbox({
         showCrosshair: false,
     },
 });
-
-/** Bright magnitude for a clap that spent `charges` Conductive stacks. */
-export function getThunderclapBrightness(charges: number): number {
-    if (charges >= THUNDERCLAP_BRIGHT_3_CHARGES) return 3;
-    if (charges >= THUNDERCLAP_BRIGHT_2_CHARGES) return 2;
-    return 1;
-}
 
 const clap = CastBehaviours.Instant((ctx) => {
     const eng = ctx.engine as EngineContext;
@@ -100,18 +94,20 @@ const clap = CastBehaviours.Instant((ctx) => {
             attackerY: caster.y,
             attackerId: caster.id,
             abilityId: CARD_ID,
-            damage: THUNDERCLAP_DAMAGE,
+            damage: THUNDERCLAP_DAMAGE + (spent > 0 ? THUNDERCLAP_CONDUCTIVE_BONUS_DAMAGE : 0),
             attackType: 'melee',
         });
         if (!outcome.hit) continue;
+        // An enemy that had no charge to give is left charged instead.
+        if (spent === 0) applyMark(target, CONDUCTIVE_MARK_ID, THUNDERCLAP_CONDUCTIVE_STACKS, eng.gameTime, eng.roundNumber);
         tryApplyKnockbackByTier(target, THUNDERCLAP_KNOCKBACK_TIER, { unitId: caster.id, abilityId: CARD_ID }, caster.x, caster.y, eng);
     }
 
     // The spent charge flows back to the caster as Static.
     if (charges > 0) caster.getResource('static')?.add(charges * THUNDERCLAP_STATIC_PER_CHARGE);
 
-    // The flash lights the dark: a Bright light where the clap went off, stronger the more charge it spent.
-    spawnBrightLight(eng as unknown as EngineWithLight, caster.x, caster.y, getThunderclapBrightness(charges), STORM_SECONDARY, {
+    // The flash lights the dark: a Bright light where the clap went off.
+    spawnBrightLight(eng as unknown as EngineWithLight, caster.x, caster.y, THUNDERCLAP_BRIGHT, STORM_SECONDARY, {
         unitId: caster.id,
         abilityId: CARD_ID,
         teamId: caster.teamId,
@@ -119,15 +115,15 @@ const clap = CastBehaviours.Instant((ctx) => {
 });
 
 const TOOLTIP_LINES = [
-    'Release a burst of Static, dealing {{DAMAGE}} damage to nearby enemies.',
-    `Each {Conductive} enemy loses {1} stack and gives you {${THUNDERCLAP_STATIC_PER_CHARGE}} Static.`,
+    'Deal {{DAMAGE}} damage to nearby enemies.',
+    `{Conductive} enemies take {{BONUS}} extra damage and give you {${THUNDERCLAP_STATIC_PER_CHARGE}} Static. Other enemies become {Conductive}.`,
     `{Knockback ${THUNDERCLAP_KNOCKBACK_TIER}}`,
-    '{Bright X}',
-    'The more stacks it spends, the brighter it is.',
+    `{Bright ${THUNDERCLAP_BRIGHT}}`,
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: THUNDERCLAP_DAMAGE },
+    BONUS: { kind: 'damage', base: THUNDERCLAP_CONDUCTIVE_BONUS_DAMAGE },
 };
 
 export const ThunderclapAbility_1304 = defineAbility({

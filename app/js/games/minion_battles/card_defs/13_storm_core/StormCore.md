@@ -4,7 +4,7 @@ All Storm cards use 4-digit ids starting with `13` (`AbilityGroupId.Storm`). Sha
 
 ## Player profile
 
-Storm is the **skirmisher** core: it rewards never standing still. Its resource is built by distance travelled and bleeds away when you plant your feet, so the kit plays as a loop of *move, tag, cash in*: dart around the fight tagging enemies Conductive, then spend the marks with a chain or a burst that pays off every tag at once. It is ranged-ish damage and setup, not control (that is Gravity) and not sustain (Light / Blood Mage).
+Storm is the **skirmisher** core. Its resource trickles in on its own; the burst of it comes from Thunderclap drawing charge back out of marked enemies. The kit plays as a loop of *move, tag, cash in*: dart around the fight tagging enemies Conductive, then spend the marks with a chain or a burst that pays off every tag at once. It is ranged-ish damage and setup, not control (that is Gravity) and not sustain (Light / Blood Mage).
 
 ## Ability spine
 
@@ -12,10 +12,10 @@ Every Storm card refills all its uses at round start (no `recoveries`, the engin
 
 | Card | Ability | Research | Cost | Uses | Role |
 |------|---------|----------|------|------|------|
-| **1301** | **Arc Bolt** | Storm Core | free | 3 | Fast poke projectile (`arc_bolt`). Arcs down the Conductive ladder: from N stacks to a nearby enemy with N - 1, ending on an unmarked enemy. 6 damage, 4 per leap. Spends nothing; the last enemy reached gets Conductive 1 |
-| **1303** | **Chain Lightning** | Storm Core | 2 Static | 2 | Unit-target bolt: 6 damage, then leaps to 5 more enemies (Forked Lightning: +2), Conductive first; a Conductive enemy loses all its stacks, takes +2 (flat) and is staggered; relays through conductors (not in the tooltip) |
-| **1302** | **Static Step** | Static Step (tier 2) | 1 Static | 2 | Iframe dash; 1 damage and Conductive to every enemy passed through, in a touch circle with 50% more area than the body, filled with arcs that ride the caster. The distance builds most of the Static back |
-| **1304** | **Thunderclap** | Thunderclap (tier 2) | 2 Static | 1 | Ring burst: 4 damage to each enemy (no bonus for Conductive); spends 1 Conductive from each, and each stack spent gives 1 Static back. Knockback 1, Bright X (1 / 2 / 3 at 0-1 / 2-3 / 4+ stacks spent) |
+| **1301** | **Arc Bolt** | Storm Core | free | 3 | Fast poke projectile (`arc_bolt`). From a Conductive enemy, always jumps **once**, least Conductive enemy first, then nearest (`stepDown: 'preferLower'`). 6 damage, 4 on the jump. Only an unmarked last enemy gains Conductive (`markOnlyUnmarked`). Spends nothing; the last enemy reached gets Conductive 1 |
+| **1303** | **Chain Lightning** | Storm Core | 2 Static | 2 | Unit-target bolt: 6 damage, hits 5 enemies: the target plus 4 leaps (Forked Lightning: +2, so 7), Conductive first; a Conductive enemy loses all its stacks, takes +2 (flat) and is staggered; relays through conductors (not in the tooltip) |
+| **1302** | **Static Step** | Static Step (tier 2) | 1 Static | 2 | {Dodge} dash (iFrames from its `'iframe'` interval); 1 damage and Conductive to every enemy passed through, in a touch circle 1.5x the body's radius, filled with arcs that ride the caster |
+| **1304** | **Thunderclap** | Thunderclap (tier 2) | 1 Static | 1 | Ring burst: 4 damage to each enemy, +4 to a Conductive one, which loses 1 stack and gives 1 Static back; enemies without Conductive gain 1. Knockback 1, Bright 1 (fixed) |
 | — | **Forked Lightning** | tier 3, after the core | — | — | Chain Lightning reaches 2 more enemies (`hasResearchNode`, like Blood Splinters) |
 
 ## Mechanics
@@ -23,12 +23,10 @@ Every Storm card refills all its uses at round start (no `recoveries`, the engin
 ### Static (`resources/Static.ts`, id `static`)
 
 - 0 to 6 pips (`barStyle: 'pips'`), electric cyan with a yellow crackle on filled orbs (`pipCrackleColor`, drawn by `PipResourceBar`), `CloudLightning` icon. Mission start: 2 (Storm Core node).
-- **Gain by travel**: each tick, the distance the unit moved is added to `progressPx`; every 120 px is one Static. Any motion counts: walking, dashes, being knocked back, haste (Ease Burdens doubles the rate for free). A tick that moves further than `STATIC_MAX_STEP_PX` is a teleport and builds nothing.
-- **Grounding**: 2.5 s standing still loses one Static (and resets progress), repeating while still.
-- **Passive recovery**: +1 Static every half round (`STATIC_RECOVERY_SECONDS`, 5 s), moving or not; shown as the +N/s tooltip (`perSecondGain`).
-- **Refund**: Thunderclap returns 1 Static per Conductive stack it spends.
-- **World modifiers**: `WorldModifierDef.resourceGainMultipliers` scales the gain (Rainy Storm doubles Static). Read through `WorldModifierManager.getResourceGainMultiplier`.
-- `progressPx`, `stillSeconds` and the last position are serialized with the resource.
+- **Passive recovery**: +1 Static every half round (`STATIC_RECOVERY_SECONDS`, 5 s); shown as the +N/s tooltip (`perSecondGain`). Moving or standing still changes nothing.
+- **Burst**: Thunderclap is the burst source, returning 1 Static per Conductive stack it draws out.
+- **World modifiers**: `WorldModifierDef.resourceGainMultipliers` scales the passive recovery (Rainy Storm doubles it). Read through `WorldModifierManager.getResourceGainMultiplier`.
+- `recoverySeconds` is serialized with the resource.
 
 ### Conductive (mark)
 
@@ -40,7 +38,7 @@ A mark (`buffs/MarkBuff.ts`, def in `buffs/marks/conductiveMark.ts`): stacking t
 
 ### Mark ladder (`abilities/markBounce.ts`)
 
-`resolveMarkBounce` is the engine rule behind Arc Bolt. Stack counts are rungs: from an enemy with N stacks the hit may leap to an unvisited enemy in reach with exactly N - 1 (nearest first), so Conductive 2 leaps to a Conductive 1, then to an unmarked enemy, and Conductive 1 leaps once. Nothing is spent. The last enemy reached gains the mark, so a finished ladder grows a rung at its foot. The content deals each leap (`onBounce`) with `tryDamageOrBlock(..., { fireAbilityEvents: false })` so the ON_ATTACK_HIT handler that started the chain does not re-enter.
+`resolveMarkBounce` is the engine rule behind Arc Bolt. Stack counts are rungs: from an enemy with N stacks the hit may leap to an unvisited, less-marked enemy in reach (nearest first), up to `maxBounces` times. `stepDown: 'nextRung'` (default) allows only N - 1; `'anyLower'` allows anything below N; `'preferLower'` allows any enemy, fewest stacks first. Arc Bolt uses `'preferLower'`, one leap and `markOnlyUnmarked`. Nothing is spent; the last enemy reached gains the mark (only if unmarked, with `markOnlyUnmarked`). The content deals each leap (`onBounce`) with `tryDamageOrBlock(..., { fireAbilityEvents: false })` so the ON_ATTACK_HIT handler that started the chain does not re-enter.
 
 ### Conductors
 
@@ -50,9 +48,8 @@ Deployables tagged `conductor` (all dropped weapons and placed deployables, i.e.
 
 - **Armory**: dropped weapon tokens and turrets carry Chain Lightning across gaps.
 - **Gravity**: Gravity Locus and Collapse pile enemies together, which is exactly what Arc Bolt bounces, Chain Lightning and Thunderclap want.
-- **Light / darkness**: Thunderclap leaves a Bright light, brighter the more charge it drew out.
-- **Time**: haste increases distance per second, so it increases Static per second, with no special code.
-- **World**: Rainy Storm doubles Static gain.
+- **Light / darkness**: Thunderclap always leaves a Bright 1 light.
+- **World**: Rainy Storm doubles Static's passive recovery.
 - **Crowd control**: Chain Lightning's payoff is a Stagger (`tryApplyStagger`), so bosses' CC armour applies as usual.
 
 ## Visual language (secondary `#a5f3fc`, primary `#3b5bdb`)
@@ -68,6 +65,6 @@ Every Storm visual is a **jagged bolt with a white-hot core and a cyan glow** (`
 
 ## Where Storm diverges from common patterns
 
-- **A resource that is earned by moving.** It is computed from position deltas inside `Static.onTick`, not from events.
-- **`{Bright X}`.** Thunderclap's Bright magnitude is decided at cast time, so its tooltip shows the `Bright X` glossary term ("Creates a light on the ground. Dims over time.") instead of listing each Bright N.
+- **A trickle resource with an ability-driven burst.** Static only refills on a timer; the burst comes from Thunderclap, not from a refill effect.
 - **Copy**: player voice ("You learn to..."), talk about charge, hum, air before a storm, the sky. Keep it low tech: no "electricity", "voltage" or "ions".
+- **Conductive stack use is never spelled out in tooltips.** The Conductive reminder already says "Abilities use conductive charge for bonus effects", so a card names only the bonus ("Conductive enemies take 4 extra damage and give you 1 Static"), not that stacks are lost.

@@ -28,11 +28,8 @@ export const STORM_CORE_WHITE = 0xffffff;
 
 // Static (resource) and Conductive (mark) live with their engine definitions; re-exported for the cards.
 export {
-    STATIC_GROUND_SECONDS,
     STATIC_MAX,
-    STATIC_MAX_STEP_PX,
     STATIC_MISSION_START,
-    STATIC_PX_PER_POINT,
 } from '../../resources/Static';
 export {
     CONDUCTIVE_DURATION_SECONDS,
@@ -56,8 +53,8 @@ export const ARC_BOLT_RADIUS = 5;
 export const ARC_BOLT_BOUNCE_RANGE = 130;
 /** Damage of each leap down the Conductive ladder. */
 export const ARC_BOLT_BOUNCE_DAMAGE = 4;
-/** Safety cap on leaps per bolt (Conductive's max stacks is the real limit: one leap per rung). */
-export const ARC_BOLT_MAX_BOUNCES = 8;
+/** Arc Bolt jumps at most once, to the least Conductive enemy in reach. */
+export const ARC_BOLT_MAX_BOUNCES = 1;
 /** Visual: seconds between successive bounces appearing. */
 export const ARC_BOLT_BOUNCE_DELAY = 0.05;
 
@@ -67,12 +64,9 @@ export const ARC_BOLT_BOUNCE_DELAY = 0.05;
 
 export const STATIC_STEP_DISTANCE = 150;
 export const STATIC_STEP_DURATION = 0.25;
-export const STATIC_STEP_RECOVERY = 0.2;
 export const STATIC_STEP_DAMAGE = 1;
-/** The dash's touch circle covers this much more area than the caster's body. */
-export const STATIC_STEP_HIT_AREA_SCALE = 1.5;
-/** Radius multiplier for that area (area grows with the square of the radius). */
-export const STATIC_STEP_HIT_RADIUS_SCALE = Math.sqrt(STATIC_STEP_HIT_AREA_SCALE);
+/** The dash's touch circle: this many times the caster's radius (50% larger than the body). */
+export const STATIC_STEP_HIT_RADIUS_SCALE = 1.5;
 /** Arcs crackling inside the touch circle while the caster streaks. */
 export const STATIC_STEP_FIELD_ARCS = 3;
 export const STATIC_STEP_CONDUCTIVE_STACKS = 1;
@@ -90,7 +84,7 @@ export const CHAIN_LIGHTNING_RANGE = 220;
 export const CHAIN_LIGHTNING_WINDUP = 0.35;
 export const CHAIN_LIGHTNING_COOLDOWN = 0.9;
 /** Extra enemies the bolt leaps to after the first (Forked Lightning adds more). */
-export const CHAIN_LIGHTNING_JUMPS = 5;
+export const CHAIN_LIGHTNING_JUMPS = 4;
 /** Max distance (px, centre to centre) of one leap between enemies or conductors. */
 export const CHAIN_LIGHTNING_JUMP_RANGE = 130;
 export const CHAIN_LIGHTNING_DAMAGE = 6;
@@ -109,17 +103,20 @@ export const FORKED_LIGHTNING_EXTRA_JUMPS = 2;
 // 1304 Thunderclap
 // ---------------------------------------------------------------------------
 
-export const THUNDERCLAP_STATIC_COST = 2;
+export const THUNDERCLAP_STATIC_COST = 1;
 export const THUNDERCLAP_WINDUP = 0.45;
 export const THUNDERCLAP_COOLDOWN = 0.8;
 export const THUNDERCLAP_RADIUS = 95;
 export const THUNDERCLAP_DAMAGE = 4;
+/** Extra damage to an enemy that was Conductive. */
+export const THUNDERCLAP_CONDUCTIVE_BONUS_DAMAGE = 4;
+/** Conductive applied to an enemy that had none. */
+export const THUNDERCLAP_CONDUCTIVE_STACKS = 1;
+/** Bright magnitude of the flash (always the same). */
+export const THUNDERCLAP_BRIGHT = 1;
 /** Conductive stacks spent from each enemy struck. */
 export const THUNDERCLAP_CONDUCTIVE_SPENT_PER_ENEMY = 1;
 /** Static returned to the caster per Conductive stack spent. */
 export const THUNDERCLAP_STATIC_PER_CHARGE = 1;
 export const THUNDERCLAP_KNOCKBACK_TIER = 1;
 export const THUNDERCLAP_MAX_TARGETS = 8;
-/** Bright magnitude by Conductive stacks spent: Bright 1 for none, 2 from this many, 3 from the next. */
-export const THUNDERCLAP_BRIGHT_2_CHARGES = 2;
-export const THUNDERCLAP_BRIGHT_3_CHARGES = 4;

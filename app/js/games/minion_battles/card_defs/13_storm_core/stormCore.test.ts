@@ -48,17 +48,16 @@ import {
     CONDUCTIVE_MARK_ID,
     CONDUCTIVE_MAX_STACKS,
     FORKED_LIGHTNING_EXTRA_JUMPS,
-    STATIC_GROUND_SECONDS,
     STATIC_MAX,
     STATIC_MISSION_START,
-    STATIC_PX_PER_POINT,
     STATIC_STEP_ABILITY_ID,
     STATIC_STEP_DAMAGE,
     STATIC_STEP_DISTANCE,
-    STATIC_STEP_HIT_AREA_SCALE,
+    STATIC_STEP_DURATION,
     STATIC_STEP_HIT_RADIUS_SCALE,
     STATIC_STEP_STATIC_COST,
     THUNDERCLAP_ABILITY_ID,
+    THUNDERCLAP_CONDUCTIVE_BONUS_DAMAGE,
     THUNDERCLAP_DAMAGE,
     THUNDERCLAP_RADIUS,
     THUNDERCLAP_STATIC_COST,
@@ -67,7 +66,7 @@ import {
 import { ArcBoltAbility_1301, ARC_BOLT_BOUNCE_DAMAGE, ARC_BOLT_PROFILE } from './1301_ArcBolt/1301Ability';
 import { StaticStepAbility_1302 } from './1302_StaticStep/1302Ability';
 import { ChainLightningAbility_1303 } from './1303_ChainLightning/1303Ability';
-import { getThunderclapBrightness, ThunderclapAbility_1304 } from './1304_Thunderclap/1304Ability';
+import { ThunderclapAbility_1304 } from './1304_Thunderclap/1304Ability';
 
 const PLAYER = { x: 200, y: 400 };
 
@@ -112,95 +111,64 @@ function mover(): { x: number; y: number; isAlive(): boolean } {
 describe('Static (resource)', () => {
     const engineStub = { roundNumber: 1 };
 
-    it('builds one Static per STATIC_PX_PER_POINT travelled, capped at max', () => {
+    function fidget(res: Static, unit: ReturnType<typeof mover>, ticks: number, engine: { roundNumber: number } = engineStub): void {
+        for (let i = 0; i < ticks; i++) res.track(unit, engine, FIXED_DT);
+    }
+
+    it('does not build Static from travel', () => {
         const res = new Static();
         const unit = mover();
-        res.trackTravel(unit, engineStub, FIXED_DT);
-        // Walk in 10px steps.
-        for (let i = 0; i < (STATIC_PX_PER_POINT * 2.5) / 10; i++) {
-            unit.x += 10;
-            res.trackTravel(unit, engineStub, FIXED_DT);
+        res.track(unit, engineStub, FIXED_DT);
+        // 2,000 px of walking in a second and a half: under one recovery interval.
+        for (let i = 0; i < 90; i++) {
+            unit.x += 22;
+            res.track(unit, engineStub, FIXED_DT);
         }
-        expect(res.current).toBe(2);
-        expect(res.progressPx).toBeCloseTo(STATIC_PX_PER_POINT / 2);
-        for (let i = 0; i < 1000; i++) {
-            unit.x += 10;
-            res.trackTravel(unit, engineStub, FIXED_DT);
-        }
-        expect(res.current).toBe(STATIC_MAX);
-        expect(res.progressPx).toBe(0);
+        expect(res.current).toBe(0);
     });
 
-    it('grounds out one Static per interval of standing still', () => {
+    it('recovers one Static every half round on its own, capped at max', () => {
+        const res = new Static();
+        const unit = mover();
+        res.track(unit, engineStub, FIXED_DT);
+        fidget(res, unit, Math.round(STATIC_RECOVERY_SECONDS / FIXED_DT) - 2);
+        expect(res.current).toBe(0);
+        fidget(res, unit, 3);
+        expect(res.current).toBe(STATIC_RECOVERY_PER_INTERVAL);
+        expect(res.perSecondGain).toBeCloseTo(STATIC_RECOVERY_PER_INTERVAL / STATIC_RECOVERY_SECONDS);
+        fidget(res, unit, Math.round((STATIC_RECOVERY_SECONDS * (STATIC_MAX + 2)) / FIXED_DT));
+        expect(res.current).toBe(STATIC_MAX);
+    });
+
+    it('does not drain while standing still', () => {
         const res = new Static();
         res.add(3);
         const unit = mover();
-        res.trackTravel(unit, engineStub, FIXED_DT);
-        const ticks = Math.ceil((STATIC_GROUND_SECONDS * 2) / FIXED_DT) + 1;
-        for (let i = 0; i < ticks; i++) res.trackTravel(unit, engineStub, FIXED_DT);
-        // Two grounded out; half a round also passed, which recovers one.
-        expect(STATIC_GROUND_SECONDS * 2).toBe(STATIC_RECOVERY_SECONDS);
-        expect(res.current).toBe(3 - 2 + STATIC_RECOVERY_PER_INTERVAL);
+        fidget(res, unit, Math.round((STATIC_RECOVERY_SECONDS - 0.5) / FIXED_DT));
+        expect(res.current).toBe(3);
     });
 
-    it('recovers one Static every half round on its own', () => {
-        const res = new Static();
-        const unit = mover();
-        res.trackTravel(unit, engineStub, FIXED_DT);
-        let x = 0;
-        // Shuffle a pixel back and forth: not still (no grounding), too little travel to build Static.
-        const tick = (): void => {
-            x = x === 0 ? 0.1 : 0;
-            unit.x = x;
-            res.trackTravel(unit, engineStub, FIXED_DT);
-        };
-        for (let i = 0; i < Math.round(STATIC_RECOVERY_SECONDS / FIXED_DT) - 2; i++) tick();
-        expect(res.current).toBe(0);
-        for (let i = 0; i < 3; i++) tick();
-        expect(res.current).toBe(STATIC_RECOVERY_PER_INTERVAL);
-        expect(res.perSecondGain).toBeCloseTo(STATIC_RECOVERY_PER_INTERVAL / STATIC_RECOVERY_SECONDS);
-        res.recoverySeconds = 1.5;
-        const restored = createResourceFromId('static') as Static;
-        restored.restoreFromJSON(res.toJSON());
-        expect(restored.recoverySeconds).toBe(1.5);
-    });
-
-    it('ignores teleports and snaps', () => {
-        const res = new Static();
-        const unit = mover();
-        res.trackTravel(unit, engineStub, FIXED_DT);
-        unit.x += 500;
-        res.trackTravel(unit, engineStub, FIXED_DT);
-        expect(res.current).toBe(0);
-        expect(res.progressPx).toBe(0);
-    });
-
-    it('builds faster under a world modifier that multiplies Static gain (Rainy Storm)', () => {
+    it('recovers faster under a world modifier that multiplies Static gain (Rainy Storm)', () => {
         const engine = buildTinyBattleEngine({ gridW: 10, gridH: 10, localPlayerId: TINY_BATTLE_PLAYER_ID });
         engine.state.worldModifierManager.install([rainyStormModifier()]);
         expect(engine.state.worldModifierManager.getResourceGainMultiplier('static', 1)).toBe(RAINY_STORM_STATIC_GAIN_MULT);
         expect(engine.state.worldModifierManager.getResourceGainMultiplier('gravity', 1)).toBe(1);
         const res = new Static();
         const unit = mover();
-        res.trackTravel(unit, engine, FIXED_DT);
-        for (let i = 0; i < STATIC_PX_PER_POINT / 10; i++) {
-            unit.x += 10;
-            res.trackTravel(unit, engine, FIXED_DT);
-        }
+        res.track(unit, engine, FIXED_DT);
+        fidget(res, unit, Math.round(STATIC_RECOVERY_SECONDS / FIXED_DT) + 2, engine);
         expect(res.current).toBe(RAINY_STORM_STATIC_GAIN_MULT);
     });
 
-    it('round-trips progress and the stillness timer', () => {
+    it('round-trips the recovery timer', () => {
         const res = new Static();
         res.add(2);
-        res.progressPx = 37;
-        res.stillSeconds = 1.25;
+        res.recoverySeconds = 1.5;
         const restored = createResourceFromId('static');
         expect(restored).toBeInstanceOf(Static);
         restored!.restoreFromJSON(res.toJSON());
         expect(restored!.current).toBe(2);
-        expect((restored as Static).progressPx).toBe(37);
-        expect((restored as Static).stillSeconds).toBe(1.25);
+        expect((restored as Static).recoverySeconds).toBe(1.5);
     });
 });
 
@@ -264,18 +232,18 @@ describe('Storm Core research and loadout', () => {
         expect(CHAIN_LIGHTNING_MAX_USES).toBe(2);
     });
 
-    it('builds Static by walking in a real battle and survives a checkpoint', () => {
+    it('keeps Static (and its timers) across a checkpoint in a real battle', () => {
         const { engine, player } = stormBattle();
         const before = staticOf(player).current;
         player.setMovement([{ col: 20, row: 10 }], undefined, engine.gameTick);
         step(engine, 1.5);
-        expect(player.x - PLAYER.x).toBeGreaterThan(STATIC_PX_PER_POINT);
-        expect(staticOf(player).current).toBeGreaterThan(before);
+        expect(player.x - PLAYER.x).toBeGreaterThan(100);
+        expect(staticOf(player).current).toBe(before);
 
         const restored = GameEngine.fromJSON(engine.toJSON(), TINY_BATTLE_PLAYER_ID, engine.terrainManager);
         const restoredStatic = restored.units.find((u) => u.id === player.id)!.getResource('static') as Static;
         expect(restoredStatic.current).toBe(staticOf(player).current);
-        expect(restoredStatic.progressPx).toBeCloseTo(staticOf(player).progressPx);
+        expect(restoredStatic.recoverySeconds).toBeCloseTo(staticOf(player).recoverySeconds);
     });
 });
 
@@ -297,18 +265,18 @@ describe('Arc Bolt (1301)', () => {
         expect(ArcBoltAbility_1301.resourceCost).toBeNull();
     });
 
-    it('arcs down the Conductive ladder without spending stacks, and marks the last enemy reached', () => {
+    it('jumps once to the least Conductive enemy in reach, nearest on ties, and marks it', () => {
         const { engine, player } = stormBattle();
         const top = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y }, 'top');
-        // Nearer than `rung1`, but a leap goes only one rung down: 2 -> 1, never 2 -> 2 or 2 -> 0.
-        const sameRung = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y + 60 }, 'same');
-        const plainNearTop = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y - 60 }, 'plainNearTop');
-        const rung1 = placeTargetDummy(engine, { x: PLAYER.x + 210, y: PLAYER.y }, 'rung1');
-        const foot = placeTargetDummy(engine, { x: PLAYER.x + 320, y: PLAYER.y }, 'foot');
+        const sameRung = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y + 50 }, 'same');
+        const rung1 = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y + 60 }, 'rung1');
+        // Farthest of the three, but unmarked: the least Conductive wins over distance.
+        const plain = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y - 100 }, 'plain');
+        const beyond = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y - 190 }, 'beyond');
         applyMark(top, CONDUCTIVE_MARK_ID, 2, engine.gameTime, 1);
         applyMark(sameRung, CONDUCTIVE_MARK_ID, 2, engine.gameTime, 1);
         applyMark(rung1, CONDUCTIVE_MARK_ID, 1, engine.gameTime, 1);
-        const all = [top, sameRung, plainNearTop, rung1, foot];
+        const all = [top, sameRung, rung1, plain, beyond];
         const hp = new Map(all.map((u) => [u.id, u.hp]));
 
         executeUnitAbility(player, ArcBoltAbility_1301, [{ type: 'pixel', position: { x: top.x, y: top.y } }], engine);
@@ -316,41 +284,45 @@ describe('Arc Bolt (1301)', () => {
 
         const dealt = (u: Unit): number => hp.get(u.id)! - u.hp;
         expect(dealt(top)).toBe(ARC_BOLT_DAMAGE);
-        expect(dealt(rung1)).toBe(ARC_BOLT_BOUNCE_DAMAGE);
-        expect(dealt(foot)).toBe(ARC_BOLT_BOUNCE_DAMAGE);
-        expect(dealt(sameRung)).toBe(0);
-        expect(dealt(plainNearTop)).toBe(0);
-        // Nothing spent; the foot of the ladder gains a rung.
+        expect(dealt(plain)).toBe(ARC_BOLT_BOUNCE_DAMAGE);
+        expect(dealt(sameRung) + dealt(rung1) + dealt(beyond)).toBe(0);
         expect(getMarkStacks(top, CONDUCTIVE_MARK_ID)).toBe(2);
-        expect(getMarkStacks(rung1, CONDUCTIVE_MARK_ID)).toBe(1);
-        expect(getMarkStacks(foot, CONDUCTIVE_MARK_ID)).toBe(1);
+        expect(getMarkStacks(plain, CONDUCTIVE_MARK_ID)).toBe(1);
+        expect(ArcBoltAbility_1301.getTooltipText!().join(' ')).toContain('preferring less conductive ones');
     });
 
-    it('a Conductive 1 target leaps once, to an unmarked enemy, never to a marked one', () => {
+    it('still jumps when only equally or more Conductive enemies are near, without adding to their stacks', () => {
         const { engine, player } = stormBattle();
         const first = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y }, 'first');
-        const marked = placeTargetDummy(engine, { x: PLAYER.x + 160, y: PLAYER.y }, 'marked');
-        const plain = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y + 90 }, 'plain');
-        const beyond = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y + 180 }, 'beyond');
+        const more = placeTargetDummy(engine, { x: PLAYER.x + 200, y: PLAYER.y }, 'more');
         applyMark(first, CONDUCTIVE_MARK_ID, 1, engine.gameTime, 1);
-        applyMark(marked, CONDUCTIVE_MARK_ID, 1, engine.gameTime, 1);
-        const hp = new Map([first, marked, plain, beyond].map((u) => [u.id, u.hp]));
+        applyMark(more, CONDUCTIVE_MARK_ID, 2, engine.gameTime, 1);
+        const hp = new Map([first, more].map((u) => [u.id, u.hp]));
 
         executeUnitAbility(player, ArcBoltAbility_1301, [{ type: 'pixel', position: { x: first.x, y: first.y } }], engine);
         for (let i = 0; i < 60; i++) step(engine, FIXED_DT);
 
-        const dealt = (u: Unit): number => hp.get(u.id)! - u.hp;
-        expect(dealt(first)).toBe(ARC_BOLT_DAMAGE);
-        expect(dealt(plain)).toBe(ARC_BOLT_BOUNCE_DAMAGE);
-        expect(dealt(marked)).toBe(0);
-        expect(dealt(beyond)).toBe(0);
+        expect(hp.get(more.id)! - more.hp).toBe(ARC_BOLT_BOUNCE_DAMAGE);
+        expect(getMarkStacks(more, CONDUCTIVE_MARK_ID)).toBe(2);
         expect(getMarkStacks(first, CONDUCTIVE_MARK_ID)).toBe(1);
-        expect(getMarkStacks(plain, CONDUCTIVE_MARK_ID)).toBe(1);
+    });
+
+    it('does not jump from an unmarked enemy; it marks it instead', () => {
+        const { engine, player } = stormBattle();
+        const first = placeTargetDummy(engine, { x: PLAYER.x + 100, y: PLAYER.y }, 'first');
+        const near = placeTargetDummy(engine, { x: PLAYER.x + 160, y: PLAYER.y }, 'near');
+        const hp = near.hp;
+
+        executeUnitAbility(player, ArcBoltAbility_1301, [{ type: 'pixel', position: { x: first.x, y: first.y } }], engine);
+        for (let i = 0; i < 60; i++) step(engine, FIXED_DT);
+
+        expect(near.hp).toBe(hp);
+        expect(getMarkStacks(first, CONDUCTIVE_MARK_ID)).toBe(1);
     });
 });
 
 describe('Static Step (1302)', () => {
-    it('darts, zaps enemies passed through, marks them, and builds Static from the distance', () => {
+    it('darts, zaps enemies passed through, marks them, and spends its Static', () => {
         const { engine, player } = stormBattle([STORM_NODE_CORE, STORM_NODE_STATIC_STEP]);
         const dummy = placeTargetDummy(engine, { x: PLAYER.x + 70, y: PLAYER.y });
         const hp = dummy.hp;
@@ -361,15 +333,41 @@ describe('Static Step (1302)', () => {
         expect(player.x - PLAYER.x).toBeCloseTo(STATIC_STEP_DISTANCE, -1);
         expect(hp - dummy.hp).toBe(STATIC_STEP_DAMAGE);
         expect(getMarkStacks(dummy, CONDUCTIVE_MARK_ID)).toBe(1);
-        expect(staticOf(player).current)
-            .toBe(staticBefore - STATIC_STEP_STATIC_COST + Math.floor(STATIC_STEP_DISTANCE / STATIC_PX_PER_POINT));
+        expect(staticOf(player).current).toBe(staticBefore - STATIC_STEP_STATIC_COST);
         expect(engine.state.effectManager.effects.some((e) => e.effectType === LIGHTNING_BOLT_EFFECT_TYPE)).toBe(true);
     });
 });
 
+describe('Static Step Dodge', () => {
+    it('has iFrames for the step (the Dodge keyword) and none after', () => {
+        const { engine, player } = stormBattle([STORM_NODE_CORE, STORM_NODE_STATIC_STEP]);
+        executeUnitAbility(player, StaticStepAbility_1302, [{ type: 'pixel', position: { x: PLAYER.x + 400, y: PLAYER.y } }], engine);
+        step(engine, FIXED_DT * 3);
+        expect(player.hasIFrames(engine.gameTime)).toBe(true);
+        step(engine, 0.6);
+        expect(player.hasIFrames(engine.gameTime)).toBe(false);
+        const text = StaticStepAbility_1302.getTooltipText!().join(' ');
+        expect(text).toContain('{Dodge} towards a point');
+        expect(keywordGlossaryEntries(['Dodge']).map((e) => e.title)).toEqual(['Dodge']);
+        expect(keywordGlossaryEntries(['Dodging']).map((e) => e.title)).toEqual(['Dodge']);
+    });
+});
+
+describe('Static Step ends with its dash', () => {
+    it('has no recovery phase: the cast finishes on the frame the dash does', () => {
+        const intervals = StaticStepAbility_1302.abilityTimings as { end: number }[];
+        expect(Math.max(...intervals.map((i) => i.end))).toBe(STATIC_STEP_DURATION);
+        const { engine, player } = stormBattle([STORM_NODE_CORE, STORM_NODE_STATIC_STEP]);
+        executeUnitAbility(player, StaticStepAbility_1302, [{ type: 'pixel', position: { x: PLAYER.x + 400, y: PLAYER.y } }], engine);
+        step(engine, STATIC_STEP_DURATION + FIXED_DT * 2);
+        expect(player.activeAbilities).toHaveLength(0);
+        expect(engine.state.effectManager.effects.filter((e) => e.effectType === STORM_SPARK_EFFECT_TYPE).length).toBeGreaterThanOrEqual(2);
+    });
+});
+
 describe('Static Step touch area', () => {
-    it('reaches 50% more area than the body and fills it with arcs that ride the caster', () => {
-        expect(STATIC_STEP_HIT_RADIUS_SCALE ** 2).toBeCloseTo(STATIC_STEP_HIT_AREA_SCALE);
+    it('reaches 1.5x the body radius and fills it with arcs that ride the caster', () => {
+        expect(STATIC_STEP_HIT_RADIUS_SCALE).toBe(1.5);
         const { engine, player } = stormBattle([STORM_NODE_CORE, STORM_NODE_STATIC_STEP]);
         const dummy = placeTargetDummy(engine, { x: PLAYER.x + 80, y: PLAYER.y });
         // Out of reach of a body-sized touch, inside the scaled one.
@@ -407,7 +405,7 @@ describe('Chain Lightning (1303)', () => {
         expect(dealt[0]).toBe(CHAIN_LIGHTNING_DAMAGE);
         // Flat bonus, not per stack.
         expect(dealt[1]).toBe(CHAIN_LIGHTNING_DAMAGE + CHAIN_LIGHTNING_CONDUCTIVE_BONUS_DAMAGE);
-        expect([CHAIN_LIGHTNING_DAMAGE, CHAIN_LIGHTNING_CONDUCTIVE_BONUS_DAMAGE, CHAIN_LIGHTNING_JUMPS]).toEqual([6, 2, 5]);
+        expect([CHAIN_LIGHTNING_DAMAGE, CHAIN_LIGHTNING_CONDUCTIVE_BONUS_DAMAGE, CHAIN_LIGHTNING_JUMPS]).toEqual([6, 2, 4]);
         expect(getMarkStacks(dummies[1]!, CONDUCTIVE_MARK_ID)).toBe(0);
         // First strike + JUMPS leaps; the last dummy is out of jumps.
         expect(dealt.filter((d) => d > 0)).toHaveLength(1 + CHAIN_LIGHTNING_JUMPS);
@@ -460,14 +458,13 @@ describe('Chain Lightning (1303)', () => {
 });
 
 describe('Thunderclap (1304)', () => {
-    it('deals flat damage, spends one Conductive per enemy for Static back, knocks back and lights the dark', () => {
+    it('costs 1 Static, hits Conductive enemies harder for Static back, marks the rest, knocks back and lights the dark', () => {
         const { engine, player } = stormBattle([STORM_NODE_CORE, STORM_NODE_THUNDERCLAP]);
         staticOf(player).current = 4;
         const plain = placeTargetDummy(engine, { x: PLAYER.x + THUNDERCLAP_RADIUS - 10, y: PLAYER.y }, 'plain');
         const marked = placeTargetDummy(engine, { x: PLAYER.x - THUNDERCLAP_RADIUS + 10, y: PLAYER.y }, 'marked');
         const outside = placeTargetDummy(engine, { x: PLAYER.x + THUNDERCLAP_RADIUS + 80, y: PLAYER.y }, 'outside');
         applyMark(marked, CONDUCTIVE_MARK_ID, 2, engine.gameTime, 1);
-        applyMark(outside, CONDUCTIVE_MARK_ID, 1, engine.gameTime, 1);
         const hp = new Map([plain, marked, outside].map((u) => [u.id, u.hp]));
         const startX = plain.x;
         const lightsBefore = engine.lightSources.length;
@@ -475,34 +472,31 @@ describe('Thunderclap (1304)', () => {
         executeUnitAbility(player, ThunderclapAbility_1304, [], engine);
         step(engine, ThunderclapAbility_1304.prefireTime! + 0.3);
 
+        expect(THUNDERCLAP_STATIC_COST).toBe(1);
         expect(hp.get(plain.id)! - plain.hp).toBe(THUNDERCLAP_DAMAGE);
-        expect(hp.get(marked.id)! - marked.hp).toBe(THUNDERCLAP_DAMAGE);
-        expect(THUNDERCLAP_DAMAGE).toBe(4);
+        expect(hp.get(marked.id)! - marked.hp).toBe(THUNDERCLAP_DAMAGE + THUNDERCLAP_CONDUCTIVE_BONUS_DAMAGE);
         expect(outside.hp).toBe(hp.get(outside.id));
         expect(getMarkStacks(marked, CONDUCTIVE_MARK_ID)).toBe(1);
-        expect(getMarkStacks(plain, CONDUCTIVE_MARK_ID)).toBe(0);
-        expect(getMarkStacks(outside, CONDUCTIVE_MARK_ID)).toBe(1);
+        expect(getMarkStacks(plain, CONDUCTIVE_MARK_ID)).toBe(1);
+        expect(getMarkStacks(outside, CONDUCTIVE_MARK_ID)).toBe(0);
         expect(staticOf(player).current).toBe(4 - THUNDERCLAP_STATIC_COST + THUNDERCLAP_STATIC_PER_CHARGE);
         expect(plain.x).toBeGreaterThan(startX);
         expect(engine.lightSources.length).toBe(lightsBefore + 1);
-        expect([0, 1, 2, 3, 4, 8].map(getThunderclapBrightness)).toEqual([1, 1, 2, 2, 3, 3]);
     });
 
-    it('shows a single Bright X reminder', () => {
-        const lines = ThunderclapAbility_1304.getTooltipText!().join(' ');
-        expect(lines).toContain('{Bright X}');
-        expect(lines).not.toMatch(/Bright [0-9]/);
-        expect(keywordGlossaryEntries(['Bright X'])).toEqual([
-            expect.objectContaining({ title: 'Bright X', description: 'Creates a light on the ground. Dims over time.' }),
-        ]);
+    it('shows a fixed Bright 1 in a short tooltip', () => {
+        const lines = ThunderclapAbility_1304.getTooltipText!();
+        expect(lines.join(' ')).toContain('{Bright 1}');
+        expect(lines.join(' ')).not.toContain('Bright X');
+        expect(lines.length).toBeLessThanOrEqual(4);
     });
 
     it('cannot be cast below its minimum Static', () => {
         const { engine, player } = stormBattle([STORM_NODE_CORE, STORM_NODE_THUNDERCLAP]);
-        staticOf(player).current = 1;
+        staticOf(player).current = 0;
         executeUnitAbility(player, ThunderclapAbility_1304, [], engine);
         expect(player.activeAbilities).toHaveLength(0);
-        expect(staticOf(player).current).toBe(1);
+        expect(staticOf(player).current).toBe(0);
     });
 });
 

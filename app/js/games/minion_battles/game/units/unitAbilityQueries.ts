@@ -44,7 +44,8 @@ export function getUnitEffectiveSpeed(unit: Unit, gameTime: number): number {
 }
 
 /**
- * Whether the unit currently has invincibility frames from any active ability.
+ * Whether the unit currently has invincibility frames from any active ability: inside a timing interval
+ * tagged `'iframe'` (the Dodge keyword), or an `AbilityState.IFRAMES` entry from `getAbilityStates`.
  * When true, projectiles should not deal damage to this unit.
  */
 export function unitHasIFrames(unit: Unit, gameTime: number): boolean {
@@ -53,6 +54,10 @@ export function unitHasIFrames(unit: Unit, gameTime: number): boolean {
         if (!ability) continue;
 
         const currentTime = localNow(unit, gameTime) - active.startTime;
+        const intervals = normalizeAbilityTimingsToIntervals(ability.abilityTimings);
+        if (intervals.some((it) => it.start <= currentTime && currentTime < it.end && it.tags?.includes('iframe'))) {
+            return true;
+        }
         const states =
             ability.getAbilityStatesForActive?.(currentTime, active) ??
             ability.getAbilityStates(currentTime);

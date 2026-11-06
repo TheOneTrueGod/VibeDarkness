@@ -7,13 +7,13 @@ describe('rend keyword', () => {
     });
 
     it('adds one glossary entry per Rend value shown in a tooltip', () => {
-        expect(keywordGlossaryEntries(['Rend 2', '5', 'Rend 2', 'Dodge 1'])).toEqual([
+        expect(keywordGlossaryEntries(['Rend 2', '5', 'Rend 2', 'Shimmer 1'])).toEqual([
             { title: 'Rend 2', description: 'Deals {2} damage to nearby bleeding enemies.' },
         ]);
     });
 
     it('has no glossary entry when no described keyword is shown', () => {
-        expect(keywordGlossaryEntries(['Dodge 1', '10'])).toEqual([]);
+        expect(keywordGlossaryEntries(['Shimmer 1', '10'])).toEqual([]);
     });
 
     it('adds a Bright glossary entry from the Bright defs', () => {

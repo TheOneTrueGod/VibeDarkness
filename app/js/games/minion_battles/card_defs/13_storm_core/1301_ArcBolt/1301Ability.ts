@@ -1,8 +1,8 @@
 /**
  * Arc Bolt - the Storm Core's free poke. A flick of the wrist throws a fast, crackling spark that
- * strikes the first enemy in its path. From a Conductive enemy the bolt arcs down the ladder of charge:
- * to a nearby enemy with one stack fewer, and on until it reaches an unmarked enemy, dealing extra damage
- * with each leap. The last enemy it reaches becomes Conductive. It costs no Static: tag between moves.
+ * strikes the first enemy in its path. From a Conductive enemy the bolt always jumps once, to the least
+ * Conductive enemy nearby. An unmarked enemy it ends on becomes Conductive; a marked one is left as it is.
+ * It costs no Static: tag between moves.
  */
 
 import { AbilityEventType, type AttackBlockedInfo } from '../../../abilities/Ability';
@@ -52,8 +52,8 @@ const ARC_BOLT_BOUNCE_EFFECT_ID = 'arcBoltConductiveBounce';
 export { ARC_BOLT_BOUNCE_DAMAGE };
 
 /**
- * On a landed hit: arc down the Conductive ladder (N stacks to N - 1, ending on an unmarked enemy), then
- * mark the last enemy reached. Custom because the leap's damage and bolt visual are Arc Bolt's own; the
+ * On a landed hit on a Conductive enemy: jump once to the least Conductive enemy nearby; then mark the last
+ * enemy reached if it is unmarked. Custom because the leap's damage and bolt visual are Arc Bolt's own; the
  * rule is `resolveMarkBounce`.
  */
 function arcBoltBounce(_params: Record<string, unknown> | undefined, ctx: unknown): void {
@@ -69,6 +69,8 @@ function arcBoltBounce(_params: Record<string, unknown> | undefined, ctx: unknow
         jumpRange: ARC_BOLT_BOUNCE_RANGE,
         applyStacks: ARC_BOLT_CONDUCTIVE_STACKS,
         maxBounces: ARC_BOLT_MAX_BOUNCES,
+        stepDown: 'preferLower',
+        markOnlyUnmarked: true,
         onBounce(from, to, index) {
             const delay = index * ARC_BOLT_BOUNCE_DELAY;
             spawnStormBolt(eng, from, to, { fromUnitId: from.id, toUnitId: to.id, delay, duration: 0.26, width: 2, forks: 1 });
@@ -99,9 +101,9 @@ const arcBoltLaunch = CastBehaviours.ProjectileLaunch()
     .withProjectileType(ARC_BOLT_PROJECTILE_TYPE);
 
 const TOOLTIP_LINES = [
-    'Throw a crackling bolt, dealing {{DAMAGE}} damage to the first enemy hit.',
-    'If the enemy is {Conductive}, the bolt leaps to a nearby enemy with {1} fewer stack for {{BOUNCE}} damage, and on down until it reaches an enemy that is not {Conductive}.',
-    'The last enemy it reaches becomes {Conductive}.',
+    'Throw a bolt for {{DAMAGE}} damage.',
+    'If the enemy is {Conductive}, it jumps to a nearby enemy for {{BOUNCE}} damage, preferring less conductive ones.',
+    'The last enemy hit becomes {Conductive} if it was not already.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -145,7 +147,7 @@ export const ArcBoltAbility_1301 = defineAbility({
                 effects: [{
                     type: 'custom',
                     effectId: ARC_BOLT_BOUNCE_EFFECT_ID,
-                    comment: 'Arc down the Conductive ladder (resolveMarkBounce), then mark the last enemy reached.',
+                    comment: 'Jump once, least Conductive first (resolveMarkBounce), then mark the last enemy if unmarked.',
                 }],
             },
         ],
