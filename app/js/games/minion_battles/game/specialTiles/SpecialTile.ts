@@ -50,6 +50,19 @@ export interface SpecialTile {
     colorFilter?: { color: number; alpha: number; filterRadius: number };
 }
 
+/**
+ * Fill defaults that `specialTileFromJSON` would fill, so a freshly built tile and the same tile after a
+ * checkpoint round-trip serialize identically (otherwise peers that restored diverge in `user_state`).
+ * Copies `emitsLight` rather than mutating it, since callers often pass shared mission-def objects.
+ */
+export function normalizeSpecialTile(tile: SpecialTile): SpecialTile {
+    const light = tile.emitsLight;
+    if (light && light.lightType === undefined) {
+        tile.emitsLight = { ...light, lightType: resolveLightType(light.lightType) };
+    }
+    return tile;
+}
+
 export function specialTileToJSON(t: SpecialTile): Record<string, unknown> {
     const out: Record<string, unknown> = { id: t.id, defId: t.defId, col: t.col, row: t.row, hp: t.hp, maxHp: t.maxHp };
     if (t.defendPoint !== undefined) out.defendPoint = t.defendPoint;
