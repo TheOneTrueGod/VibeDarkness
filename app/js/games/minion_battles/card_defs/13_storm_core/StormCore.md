@@ -14,7 +14,7 @@ Every Storm card refills all its uses at round start (no `recoveries`, the engin
 |------|---------|----------|------|------|------|
 | **1301** | **Arc Bolt** | Storm Core | free | 3 | Fast poke projectile (`arc_bolt`). From a Conductive enemy, always jumps **once**, least Conductive enemy first, then nearest (`stepDown: 'preferLower'`). 6 damage, 4 on the jump. Only an unmarked last enemy gains Conductive (`markOnlyUnmarked`). Spends nothing; the last enemy reached gets Conductive 1 |
 | **1303** | **Chain Lightning** | Storm Core | 2 Static | 2 | Unit-target bolt: 6 damage, hits 5 enemies: the target plus 4 leaps (Forked Lightning: +2, so 7), Conductive first; a Conductive enemy loses all its stacks, takes +2 (flat) and is staggered; relays through conductors (not in the tooltip) |
-| **1302** | **Static Step** | Static Step (tier 2) | 1 Static | 2 | {Dodge} dash (iFrames from its `'iframe'` interval); 1 damage and Conductive to every enemy passed through, in a touch circle 1.5x the body's radius, filled with arcs that ride the caster |
+| **1302** | **Static Step** | Static Step (tier 2) | 1 Static + 1 Movement Point | 2 | {Dodge} dash (iFrames from its `'iframe'` interval); 1 damage and Conductive to every enemy passed through, in a touch circle 1.5x the body's radius, filled with arcs that ride the caster |
 | **1304** | **Thunderclap** | Thunderclap (tier 2) | 1 Static | 1 | Ring burst: 4 damage to each enemy, +4 to a Conductive one, which loses 1 stack and gives 1 Static back; enemies without Conductive gain 1. Knockback 1, Bright 1 (fixed) |
 | — | **Forked Lightning** | tier 3, after the core | — | — | Chain Lightning reaches 2 more enemies (`hasResearchNode`, like Blood Splinters) |
 

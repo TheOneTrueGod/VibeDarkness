@@ -26,6 +26,7 @@ import {
     STORM_TREE_ID,
 } from '../../../../../researchTrees/trees/storm';
 import { getMarkStacks } from '../../../buffs/MarkBuff';
+import { Movement } from '../../../resources/Movement';
 import {
     ARC_BOLT_ABILITY_ID,
     CHAIN_LIGHTNING_ABILITY_ID,
@@ -129,6 +130,8 @@ export const stormKitScenario: ScenarioDefinition = {
             equipment: [CORE_ITEM_IDS.StormCore],
             researchTrees: { [STORM_TREE_ID]: [STORM_NODE_CORE, STORM_NODE_STATIC_STEP, STORM_NODE_THUNDERCLAP] },
         });
+        // Missions give every player Movement Points (BaseMissionDef); the harness does not. Static Step spends one.
+        player.attachResource(new Movement(), engine.eventBus);
         player.getResource('static')!.current = DEMO_STATIC;
         for (const [id, at] of [
             [BOLT_DUMMY_ID, BOLT_DUMMY],

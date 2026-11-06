@@ -23,6 +23,8 @@ import {
 import { RESEARCH_TREE_ICON_STORM, resolveResearchTreeChrome } from '../../../../researchTrees/researchTreeChrome';
 import { listTier10RootCoreCandidates } from '../../storylines/WorldOfDarkness/missions/006_core_awakening';
 import { Static, STATIC_RECOVERY_PER_INTERVAL, STATIC_RECOVERY_SECONDS } from '../../resources/Static';
+import { Movement } from '../../resources/Movement';
+import { getAbilityResourceCosts } from '../../abilities/Ability';
 import { createResourceFromId } from '../../resources/createResourceFromId';
 import { applyMark, consumeMark, getMarkStacks, MarkBuff, spendMarkStacks } from '../../buffs/MarkBuff';
 import { buffFromJSON } from '../../buffs/buffRegistry';
@@ -55,6 +57,7 @@ import {
     STATIC_STEP_DISTANCE,
     STATIC_STEP_DURATION,
     STATIC_STEP_HIT_RADIUS_SCALE,
+    STATIC_STEP_MOVEMENT_COST,
     STATIC_STEP_STATIC_COST,
     THUNDERCLAP_ABILITY_ID,
     THUNDERCLAP_CONDUCTIVE_BONUS_DAMAGE,
@@ -88,6 +91,8 @@ function stormBattle(nodes: string[] = [STORM_NODE_CORE]): { engine: GameEngine;
         equipment: [CORE_ITEM_IDS.StormCore],
         researchTrees: { [STORM_TREE_ID]: nodes },
     });
+    // Every mission player carries Movement Points (BaseMissionDef); the harness does not attach them.
+    player.attachResource(new Movement(), engine.eventBus);
     engine.waitingForOrders = null;
     engine.isPaused = false;
     return { engine, player };
@@ -322,18 +327,24 @@ describe('Arc Bolt (1301)', () => {
 });
 
 describe('Static Step (1302)', () => {
-    it('darts, zaps enemies passed through, marks them, and spends its Static', () => {
+    it('darts, zaps enemies passed through, marks them, and spends a Static and a Movement Point', () => {
         const { engine, player } = stormBattle([STORM_NODE_CORE, STORM_NODE_STATIC_STEP]);
         const dummy = placeTargetDummy(engine, { x: PLAYER.x + 70, y: PLAYER.y });
         const hp = dummy.hp;
         const staticBefore = staticOf(player).current;
-        expect(StaticStepAbility_1302.resourceCost).toEqual({ resourceId: 'static', amount: STATIC_STEP_STATIC_COST });
+        expect(getAbilityResourceCosts(StaticStepAbility_1302)).toEqual([
+            { resourceId: 'static', amount: STATIC_STEP_STATIC_COST },
+            { resourceId: 'movement_points', amount: STATIC_STEP_MOVEMENT_COST },
+        ]);
+        const movementBefore = player.getResource('movement_points')!.current;
         executeUnitAbility(player, StaticStepAbility_1302, [{ type: 'pixel', position: { x: PLAYER.x + 400, y: PLAYER.y } }], engine);
+        // Both costs are paid on cast. (Checked before ticking: the harness's first tick starts round 1, which refills Movement Points.)
+        expect(staticOf(player).current).toBe(staticBefore - STATIC_STEP_STATIC_COST);
+        expect(player.getResource('movement_points')!.current).toBe(movementBefore - STATIC_STEP_MOVEMENT_COST);
         step(engine, 0.5);
         expect(player.x - PLAYER.x).toBeCloseTo(STATIC_STEP_DISTANCE, -1);
         expect(hp - dummy.hp).toBe(STATIC_STEP_DAMAGE);
         expect(getMarkStacks(dummy, CONDUCTIVE_MARK_ID)).toBe(1);
-        expect(staticOf(player).current).toBe(staticBefore - STATIC_STEP_STATIC_COST);
         expect(engine.state.effectManager.effects.some((e) => e.effectType === LIGHTNING_BOLT_EFFECT_TYPE)).toBe(true);
     });
 });

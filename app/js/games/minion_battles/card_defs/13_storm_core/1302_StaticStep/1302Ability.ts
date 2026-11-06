@@ -1,7 +1,7 @@
 /**
  * Static Step - the caster becomes a streak of lightning for a moment, darting to a point and leaving
  * a crackling bolt stretched behind them. Enemies they pass through are zapped and left Conductive.
- * It spends a Static.
+ * It spends a Static and a Movement Point.
  */
 
 import { AbilityEventType } from '../../../abilities/Ability';
@@ -26,6 +26,7 @@ import {
     STATIC_STEP_FIELD_ARCS,
     STATIC_STEP_HIT_RADIUS_SCALE,
     STATIC_STEP_MAX_USES,
+    STATIC_STEP_MOVEMENT_COST,
     STATIC_STEP_STATIC_COST,
 } from '../stormConstants';
 import { spawnStormBolt, spawnStormSpark } from '../stormVfx';
@@ -71,6 +72,10 @@ export const StaticStepAbility_1302 = defineAbility({
     name: 'Static Step',
     image: STATIC_STEP_IMAGE,
     resourceCost: { resourceId: 'static', amount: STATIC_STEP_STATIC_COST },
+    resourceCosts: [
+        { resourceId: 'static', amount: STATIC_STEP_STATIC_COST },
+        { resourceId: 'movement_points', amount: STATIC_STEP_MOVEMENT_COST },
+    ],
     rechargeTurns: 1,
     maxUses: STATIC_STEP_MAX_USES,
     prefireTime: STATIC_STEP_DURATION,

@@ -73,6 +73,7 @@ export const STATIC_STEP_CONDUCTIVE_STACKS = 1;
 export const STATIC_STEP_MAX_USES = 2;
 export const STATIC_STEP_COLLISION_STEP = 4;
 export const STATIC_STEP_STATIC_COST = 1;
+export const STATIC_STEP_MOVEMENT_COST = 1;
 
 // ---------------------------------------------------------------------------
 // 1303 Chain Lightning
