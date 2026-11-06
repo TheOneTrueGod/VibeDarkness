@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { Unit } from '../../units/Unit';
 import { UnitTag } from '../../units/unitTag';
 import { UNIT_SIZE_MAP } from '../../units/unit_defs/unitConstants';
-import { getUnitCrowdMassOverride } from '../../units/unit_defs/unitDef';
+import { PLAYER_CHARACTER_ID, getUnitCrowdMassOverride } from '../../units/unit_defs/unitDef';
 import { getCrowdMass, getCrowdSizeTier } from './crowdMass';
 import {
     CROWD_MASS_BOSS_MULTIPLIER,
     CROWD_MASS_BY_SIZE,
+    CROWD_MASS_PLAYER_SIZE_TIER_BONUS,
     crowdMassForRadius,
     nearestUnitSizeForRadius,
+    shiftUnitSizeTier,
 } from './massConstants';
 
 const OVERRIDE_MASS = 7;
@@ -81,5 +83,22 @@ describe('getCrowdMass', () => {
         expect(getCrowdMass(unit)).toBe(OVERRIDE_MASS);
         unit.tags = [UnitTag.Boss];
         expect(getCrowdMass(unit)).toBe(OVERRIDE_MASS * CROWD_MASS_BOSS_MULTIPLIER);
+    });
+
+    it("a player's own character weighs as one size larger; their summons do not", () => {
+        expect(CROWD_MASS_PLAYER_SIZE_TIER_BONUS).toBe(1);
+        const player = makeUnit(PLAYER_CHARACTER_ID, UNIT_SIZE_MAP.Medium);
+        player.ownerId = 'p1';
+        expect(getCrowdMass(player)).toBe(CROWD_MASS_BY_SIZE.Large);
+
+        const summon = makeUnit('dark_wolf', UNIT_SIZE_MAP.Medium);
+        summon.ownerId = 'p1';
+        expect(getCrowdMass(summon)).toBe(CROWD_MASS_BY_SIZE.Medium);
+    });
+
+    it('size-tier shifts clamp at the ends of the scale', () => {
+        expect(shiftUnitSizeTier('Medium', 1)).toBe('Large');
+        expect(shiftUnitSizeTier('Colossal', 1)).toBe('Colossal');
+        expect(shiftUnitSizeTier('Minuscule', -1)).toBe('Minuscule');
     });
 });

@@ -15,7 +15,6 @@
  */
 
 import type { Unit } from '../../units/Unit';
-import { PLAYER_CHARACTER_ID } from '../../units/unit_defs/unitDef';
 import { areAllies } from '../../teams';
 import {
     PERF_CROWD_SPACING_MASS_CLAMP,
@@ -31,7 +30,7 @@ import {
     indexCrowdSpacingParticipants,
 } from '../shared/enumerateOverlaps';
 import { isCrowdSpacingExempt } from '../shared/crowdSpacingParticipation';
-import { getCrowdMass } from './crowdMass';
+import { getCrowdMass, isOwnPlayerCharacter } from './crowdMass';
 import { isCrowdBraced } from './crowdBracing';
 import {
     CROWD_MASS_ENEMY_RESISTANCE,
@@ -41,13 +40,7 @@ import {
 
 const VERBOSE = { level: 'verbose' } as const;
 
-/**
- * A player's own character (not a summon / pet / NPC they control). Other units with the same
- * `ownerId` yield to it in CrowdSpacing.
- */
-export function isOwnPlayerCharacter(unit: Unit): boolean {
-    return unit.characterId === PLAYER_CHARACTER_ID && unit.isPlayerControlled();
-}
+export { isOwnPlayerCharacter };
 
 /**
  * Max distance CrowdSpacing may move `unit` this tick before residuals:

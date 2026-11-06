@@ -246,13 +246,14 @@ describe('MassResolver', () => {
         expect(player.x - playerStartX).toBeLessThanOrEqual(getCrowdPushBudget(player, DT) + FLOAT_EPS);
     });
 
-    it('players are not anchors: a player and an equal enemy split the overlap', () => {
+    it('players are not anchors, but weigh one size up: a same-size enemy moves twice as far', () => {
         const player = makePlayer('a_p1', 0, 0);
         const enemy = makeUnit('b_e', 20, 0);
         resolveOnce([player, enemy]);
         expect(player.x).toBeLessThan(0);
         expect(enemy.x).toBeGreaterThan(20);
-        expect(Math.abs(player.x)).toBeCloseTo(enemy.x - 20, 5);
+        // Medium player has Large mass (2) vs the Medium enemy (1): inverse-mass split is 1:2.
+        expect(enemy.x - 20).toBeCloseTo(2 * Math.abs(player.x), 5);
     });
 
     it('a summon yields fully to its owner', () => {

@@ -22,6 +22,12 @@ export const CROWD_MASS_BY_SIZE: Record<UnitSize, number> = {
     Colossal: 8,
 };
 
+/**
+ * Size tiers added to a player's own character when looking up its mass (1 = weighs as one size
+ * larger: a Medium player has Large mass). Makes players steadier and better at shoving.
+ */
+export const CROWD_MASS_PLAYER_SIZE_TIER_BONUS = 1;
+
 /** Mass multiplier for units tagged `UnitTag.Boss`. */
 export const CROWD_MASS_BOSS_MULTIPLIER = 3;
 
@@ -54,6 +60,12 @@ export function nearestUnitSizeForRadius(radius: number): UnitSize {
         }
     }
     return best;
+}
+
+/** `tier` moved `steps` sizes up (negative = down), clamped to Minuscule..Colossal. */
+export function shiftUnitSizeTier(tier: UnitSize, steps: number): UnitSize {
+    const index = SIZE_TIERS.indexOf(tier) + Math.trunc(steps);
+    return SIZE_TIERS[Math.max(0, Math.min(SIZE_TIERS.length - 1, index))];
 }
 
 /** Fallback mass for a unit with no size tier: the mass of the tier nearest its radius. */
