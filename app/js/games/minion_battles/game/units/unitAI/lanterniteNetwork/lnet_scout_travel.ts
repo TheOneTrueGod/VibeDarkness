@@ -1,12 +1,11 @@
 /**
  * Scout travel: pathfind toward target nest POI; opportunistically attack enemies en route.
- * On arrival, begin construction timer and transition to lnet_scout_construct.
+ * On arrival, begin construction timer (see scoutConstruction.ts) and transition to lnet_scout_construct.
  */
 
 import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import {
-    distance,
     findEnemies,
     getEnemiesInPerceptionAndLOS,
     tryQueueAbilityOrder,
@@ -14,30 +13,10 @@ import {
 } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './context';
-import { lanterniteStateOf, peekLanterniteState } from '../../components/lanterniteComponent';
+import { lanterniteStateOf } from '../../components/lanterniteComponent';
+import { getScoutStandPosition, tryBeginScoutConstruction } from './scoutConstruction';
 
-const ARRIVAL_PX = 36;
 const ATTACK_COOLDOWN_SEC = 1;
-const DEFAULT_CONSTRUCTION_SEC = 10;
-
-/**
- * Distance (px) from the nest build site where the scout stands while constructing.
- * Using a slight offset so the scout doesn't overlap the future nest sprite.
- */
-const CONSTRUCTION_STAND_RADIUS = 56;
-
-/**
- * Distance (px) from the build site within which a hostile presence (e.g. a rival
- * `swarm_nest` and its swarmlings) contests the spot and blocks construction.
- */
-const CONTEST_RADIUS_PX = 160;
-
-/** True if a hostile unit is within the contest radius of the build site. */
-function isNestSiteContested(unit: Unit, siteX: number, siteY: number, context: AIContext): boolean {
-    return findEnemies(unit, context.getUnits()).some(
-        (e) => distance(siteX, siteY, e.x, e.y) <= CONTEST_RADIUS_PX,
-    );
-}
 
 export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = {
     nodeId: 'lnet_scout_travel',
@@ -53,51 +32,21 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
                 return;
             }
 
-            // Compute the stand position: offset from the build site at the scout's assigned angle.
-            // Each scout has a unique angle (set at spawn) so multiple scouts from the same nest
-            // encircle the build site rather than piling on top of each other.
-            const angle = lanterniteStateOf(unit).constructionAngle ?? 0;
-            const standX = far.x + Math.cos(angle) * CONSTRUCTION_STAND_RADIUS;
-            const standY = far.y + Math.sin(angle) * CONSTRUCTION_STAND_RADIUS;
+            const stand = getScoutStandPosition(unit);
+            if (!stand) {
+                queueWaitAndEndTurn(unit, context);
+                return;
+            }
 
-            // Begin construction if arrived at stand position — but only if the site isn't
-            // contested by a hostile presence (e.g. a rival swarm_nest). While contested, no
-            // build progress is made or animated; the opportunistic-attack check below still
-            // fires, so the scout fights for the spot instead of building on top of the enemy.
-            if (
-                distance(unit.x, unit.y, standX, standY) < ARRIVAL_PX &&
-                !isNestSiteContested(unit, far.x, far.y, context)
-            ) {
-                // If another scout is already building at this same POI, join its build instead
-                // of starting a fresh timer — processLanterniteNests accelerates the shared
-                // completion time based on how many scouts are contributing, and only one of us
-                // will spawn the actual nest once it's done.
-                const targetPoiId = lanterniteStateOf(unit).targetNestPoiId;
-                const existingBuilder = targetPoiId
-                    ? context
-                          .getUnits()
-                          .find(
-                              (u) =>
-                                  u.id !== unit.id &&
-                                  u.isAlive() &&
-                                  peekLanterniteState(u)?.targetNestPoiId === targetPoiId &&
-                                  peekLanterniteState(u)?.constructionCompleteAtGameTime != null,
-                          )
-                    : undefined;
-                if (existingBuilder) {
-                    lanterniteStateOf(unit).constructionCompleteAtGameTime =
-                        lanterniteStateOf(existingBuilder).constructionCompleteAtGameTime;
-                } else {
-                    const constructionSec =
-                        lanterniteStateOf(unit).nestConfig?.scoutConstructionSec ?? DEFAULT_CONSTRUCTION_SEC;
-                    lanterniteStateOf(unit).constructionCompleteAtGameTime = context.gameTime + constructionSec;
-                }
+            // Normally already started by processLanterniteNests on the arrival tick; this covers
+            // AI-only harnesses and the first turn after spawning on the spot.
+            if (tryBeginScoutConstruction(unit, context.getUnits(), context.gameTime)) {
                 queueWaitAndEndTurn(unit, context);
                 return;
             }
 
             // Pathfind toward stand position (not directly on top of the build site)
-            context.nav.moveToPoint(unit, standX, standY);
+            context.nav.moveToPoint(unit, stand.x, stand.y);
 
             // Opportunistic attack (do not chase; just fire if eligible and enemy in range)
             if (context.gameTime >= lanterniteStateOf(unit).attackReadyAtGameTime) {

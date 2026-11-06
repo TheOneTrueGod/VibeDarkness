@@ -73,7 +73,7 @@ export type SpawnAiHookup =
           /** Networked lanternite. */
           role?: 'scout' | 'defender';
           targetNestPoiId?: string;
-          /** Scout only — lnet_scout_travel.ts reads nestConfig.scoutConstructionSec. */
+          /** Scout only — scoutConstruction.ts reads nestConfig.scoutConstructionSec. */
           nestConfig?: LanterniteNestMissionConfig;
           constructionAngle?: number;
           attackReadyAtGameTime?: number;

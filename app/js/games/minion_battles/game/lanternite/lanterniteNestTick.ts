@@ -24,6 +24,7 @@ import { Effect } from '../effects/Effect';
 import { spawnUnit } from '../units/spawning/spawnUnit';
 import type { SpawnAiHookup } from '../units/spawning/spawnDefinition';
 import type { LanterniteNetworkAITreeContext } from '../units/unitAI/lanterniteNetwork/context';
+import { tryBeginScoutConstruction } from '../units/unitAI/lanterniteNetwork/scoutConstruction';
 import {
     isLanterniteCreature,
     isLanterniteNest,
@@ -185,9 +186,17 @@ export function processLanterniteNests(params: {
 }): void {
     const spawnCtx = buildNestSpawnContext(params);
 
+    // --- Construction start: a travelling scout starts building on the tick it arrives, rather
+    // than standing idle until its next AI turn ends its wait.
+    for (const unit of params.units) {
+        if (!unit.isAlive() || peekLanterniteState(unit)?.role !== 'scout') continue;
+        if ((unit.aiContext as LanterniteNetworkAITreeContext | undefined)?.aiState !== 'lnet_scout_travel') continue;
+        tryBeginScoutConstruction(unit, params.units, params.gameTime);
+    }
+
     // --- Shared construction: scouts building at the same POI pool their effort, so N scouts
     // at one site finish N times faster than a lone scout. Each additional scout beyond the
-    // first pulls the group's (already-synced, see lnet_scout_travel.ts's join logic) shared
+    // first pulls the group's (already-synced, see scoutConstruction.ts's join logic) shared
     // completion time closer by one extra `dt` this tick.
     poolSharedConstruction({
         units: params.units,

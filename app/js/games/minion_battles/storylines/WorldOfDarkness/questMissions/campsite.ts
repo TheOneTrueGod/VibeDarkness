@@ -90,6 +90,8 @@ export class CampsiteMission extends BaseMissionDef {
     createTerrain = createTerrain;
     postMissionStory = POST_MISSION_STORY;
     skipBattle = true;
+    /** A campsite is only an upgrade screen: there is no loadout to prepare. */
+    skipPrepareScreen = true;
     lightLevelEnabled = false;
     ninjutsuPools = { shadow: NINJUTSU_DISABLED };
 }

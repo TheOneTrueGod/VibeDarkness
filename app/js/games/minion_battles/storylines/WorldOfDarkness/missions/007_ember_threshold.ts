@@ -212,7 +212,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 		{
 			id: 'find_second_nest',
 			objectiveType: ObjectiveType.Protect,
-			label: 'Follow the lanternites',
+			label: 'Follow the glowing creatures',
 			revealedInitially: false,
 			toComplete: { type: 'aliveUnitCount', characterId: 'lanternite_nest', minCount: 2 },
 			onComplete: [{ type: 'revealObjective', id: 'survive_1_round' }],

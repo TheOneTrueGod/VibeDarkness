@@ -614,6 +614,12 @@ export interface MissionBattleConfig {
      * Host advances directly into post_mission_story (when present).
      */
     skipBattle?: boolean;
+    /**
+     * If true, the Prepare screen readies each player automatically as soon as they have a
+     * character, so the lobby moves straight on (e.g. campsites: nothing to prepare, the
+     * upgrades come in the post-mission story).
+     */
+    skipPrepareScreen?: boolean;
     /** Optional in-battle story segments (types only; no runtime yet). */
     inBattleStories?: InBattleStoryDef[];
     /** If true, apply global and source-based light level (darkness overlay, enemy visibility). Default true. */

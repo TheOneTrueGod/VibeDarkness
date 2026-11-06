@@ -18,7 +18,7 @@ import { peekLanterniteState } from '../units/components/lanterniteComponent';
  *
  * Only the lanternite network's *own* claims exclude a node — a rival faction holding it (e.g. a
  * `swarm_nest`) does not. Scouts are meant to march on a contested site and fight for it
- * (`isNestSiteContested` in `lnet_scout_travel.ts` holds construction until the site is clear),
+ * (`isNestSiteContested` in `scoutConstruction.ts` holds construction until the site is clear),
  * mirroring the swarm side's `findUnclaimedNetworkNode`. This deliberately does not use
  * `mapNetwork.getOwnerCharacterId`: that reports a rival-held node as "owned" (blocking expansion
  * forever) and a lanternite nest surrounded by its defenders as "contested" (unclaimed).

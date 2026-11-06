@@ -354,22 +354,30 @@ export default function CharacterSelectPhase({
         />
     ) : undefined;
 
-    // Single-player Continue into the next mission: send Ready automatically once the loadout allows it.
+    // Send Ready automatically once the loadout allows it: on a single-player Continue into the next
+    // mission, or for every player on a mission that skips the Prepare screen (e.g. campsites).
     const footerAbilityReady = !hasSelectedCharacterLoadout || prepAbilityReady;
     const footerModifiersBlockReason = hasSelectedCharacterLoadout ? modifiers.blockReason : null;
+    const skipPrepareScreen = missionDef?.skipPrepareScreen === true;
+    /** Guards against re-sending Ready if the player un-readies on a skip-Prepare mission. */
+    const skipPrepareReadySentRef = useRef(false);
     useEffect(() => {
-        if (!isLobbyMarkedForAutoReady(lobbyId)) return;
-        if (Object.keys(players).length > 1) {
+        const handoffAutoReady = isLobbyMarkedForAutoReady(lobbyId);
+        if (handoffAutoReady && Object.keys(players).length > 1) {
             clearAutoReadyLobby();
-            return;
+            if (!skipPrepareScreen) return;
         }
-        if (!mySelection || effectivelyReady || setReadyLoading || charactersLoading) return;
+        const wantsAutoReady = skipPrepareScreen ? !skipPrepareReadySentRef.current : handoffAutoReady;
+        if (!wantsAutoReady) return;
+        if (!mySelection) return;
+        if (effectivelyReady || setReadyLoading || charactersLoading) return;
         if (!footerAbilityReady || footerModifiersBlockReason != null) return;
-        clearAutoReadyLobby();
+        if (handoffAutoReady) clearAutoReadyLobby();
+        skipPrepareReadySentRef.current = true;
         void phase.handleSetReady();
     }, [
         lobbyId, players, mySelection, effectivelyReady, setReadyLoading, charactersLoading,
-        footerAbilityReady, footerModifiersBlockReason, phase,
+        footerAbilityReady, footerModifiersBlockReason, phase, skipPrepareScreen,
     ]);
 
     const footerProps = {

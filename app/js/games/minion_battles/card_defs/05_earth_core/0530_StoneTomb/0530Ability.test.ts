@@ -33,6 +33,11 @@ import { TerrainLayerManager } from '../../../game/TerrainLayerManager';
 import { resolveParallelOrderPause } from '../../../testing/runner/SimulationRunner';
 import { earthCoreStoneTombScenario } from '../../../testing/scenarios/abilities/earthCoreScenarios';
 import { HIT_STUN_BUFF_TYPE } from '../../../buffs/hitPause';
+import { getAbilityTagsForId } from '../../../abilities/Ability';
+import { Rock } from '../../../resources/Rock';
+import { hasConditionalCancelFollowUp } from '../../../game/units/unitAbilityQueries';
+import { ENTOMB_WALL_CONDITIONAL_CANCEL } from '../../../abilities/entombed/entombedWallCancel';
+import { buildTinyBattleEngine, placePlayerAndDummy } from '../../../testing/harness/buildTinyBattleEngine';
 
 const CELL = 40;
 const center = (col: number, row: number) => ({ x: col * CELL + CELL / 2, y: row * CELL + CELL / 2 });
@@ -355,5 +360,29 @@ describe('Stone Tomb (0530)', () => {
         const { engine, createOrMarkRock } = setup([caster]);
         enterInterval('stage1', engine, caster, target(5, 0));
         expect(createOrMarkRock).toHaveBeenCalledWith(5, 12 - STONE_TOMB_MAX_TILE_OFFSET);
+    });
+});
+
+describe('Stone Tomb while entombed', () => {
+    it('is not an Entombed (usable in walls) ability', () => {
+        expect(getAbilityTagsForId('0530')).not.toContain('Entombed');
+    });
+
+    it('is not offered at the in-wall (Entombed) conditional-cancel pause', () => {
+        const engine = buildTinyBattleEngine({ gridW: 10, gridH: 10, localPlayerId: 'p1', grass: true });
+        const { player } = placePlayerAndDummy(engine, {
+            playerId: 'p1',
+            playerWorld: center(4, 5),
+            dummyWorld: center(8, 5),
+            abilities: ['0530'],
+        });
+        const rock = new Rock();
+        player.attachResource(rock, engine.eventBus);
+        rock.add(STONE_TOMB_ROCK_COST);
+        const paused = { abilityId: '0534', startTime: engine.gameTime, targets: [] };
+        expect(
+            hasConditionalCancelFollowUp(player, paused, ENTOMB_WALL_CONDITIONAL_CANCEL.abilityTagFilter, engine),
+        ).toBe(false);
+        engine.destroy();
     });
 });

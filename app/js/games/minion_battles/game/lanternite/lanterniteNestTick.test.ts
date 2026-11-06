@@ -9,6 +9,7 @@ import type { NetworkNode } from '../managers/mapNetwork/types';
 import { lnet_guard } from '../units/unitAI/lanterniteNetwork/lnet_guard';
 import { lnet_chase } from '../units/unitAI/lanterniteNetwork/lnet_chase';
 import { lanterniteStateOf } from '../units/components/lanterniteComponent';
+import { getScoutStandPosition } from '../units/unitAI/lanterniteNetwork/scoutConstruction';
 
 /**
  * Networked lanternite expansion — regression coverage for quest_thorn_march (lobby A74362): the
@@ -159,5 +160,21 @@ describe('processLanterniteNests — networked expansion', () => {
         lanterniteStateOf(defender).patrolFarWorld = { x: NEXT.x, y: NEXT.y };
         expect(toScout(lnet_guard.edges).evaluate(defender, aiContext)).toBe(true);
         expect(toScout(lnet_chase.edges).evaluate(defender, aiContext)).toBe(true);
+    });
+
+    it('a travelling scout starts building on the tick it reaches its stand position', () => {
+        const nest = spawnNest(ctx, HOME);
+        for (let t = 0; t <= 20; t++) step(t);
+        const scout = scoutsOf(nest)[0]!;
+        (scout.aiContext as { aiState?: string }).aiState = 'lnet_scout_travel';
+        expect(lanterniteStateOf(scout).constructionCompleteAtGameTime).toBeNull();
+
+        // Arrive mid-wait: no AI turn runs, only the per-tick nest pass.
+        const stand = getScoutStandPosition(scout)!;
+        scout.x = stand.x + 10;
+        scout.y = stand.y;
+        step(20.25);
+
+        expect(lanterniteStateOf(scout).constructionCompleteAtGameTime).toBe(20.25 + 12);
     });
 });

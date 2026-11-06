@@ -324,7 +324,7 @@ export const StoneTomb: AbilityStatic = defineAbility({
     id: ABILITY_ID,
     name: 'Stone Tomb',
     image: STONE_TOMB_IMAGE,
-    tags: ['Entombed'],
+    // Not `Entombed`: that tag means "usable in walls", and Stone Tomb must not be cast from inside rock.
     resourceCost: { resourceId: 'rock', amount: STONE_TOMB_ROCK_COST },
     rechargeTurns: STONE_TOMB_RECHARGE_TURNS,
     maxUses: STONE_TOMB_MAX_USES,
