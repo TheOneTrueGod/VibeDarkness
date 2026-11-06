@@ -99,7 +99,7 @@ function makeHarness(units: Unit[]): Harness {
         terrainLayers: new Proxy({}, { get: (_target, key) => (key === 'getGroundMovementMultiplier' ? () => 1 : () => undefined) }),
         cellOccupancyManager: null,
         pathfindingManager: { tick: () => {} },
-        crowdSpacingManager: { tick: () => {} },
+        crowdSpacingManager: { beginTick: () => {}, tick: () => {} },
         mapNetworkManager: { updateUnitNode: () => {} },
         getUnit: (id: string) => units.find((unit) => unit.id === id),
         generateRandomInteger: () => 0,

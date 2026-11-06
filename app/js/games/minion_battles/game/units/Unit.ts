@@ -36,6 +36,7 @@ import {
     getUnitCombatCcDef,
     getUnitComponentSpecs,
     getUnitTerrainCrushDamage,
+    getUnitCrowdMassOverride,
     PLAYER_CHARACTER_ID,
     resolvePlayerUnitRadius,
 } from './unit_defs/unitDef';
@@ -286,6 +287,11 @@ export class Unit extends GameObject {
     /** One-time damage when a structure shatters rock raised on its tile (see unitWallUnstick). Def-sourced. */
     get terrainCrushDamage(): number {
         return getUnitTerrainCrushDamage(this.characterId);
+    }
+
+    /** Def `crowdMass` override for the CrowdSpacing mass resolver (undefined = size-tier mass). Def-sourced. */
+    get crowdMassOverride(): number | undefined {
+        return getUnitCrowdMassOverride(this.characterId);
     }
 
     ccArmour: UnitCcArmourState = createCcArmourState();

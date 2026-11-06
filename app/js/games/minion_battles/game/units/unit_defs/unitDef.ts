@@ -219,6 +219,11 @@ export interface UnitDefEntry {
      */
     terrainCrushDamage?: number;
     /**
+     * CrowdSpacing mass override (mass resolver only). Absent = mass from the unit's size tier
+     * (`CROWD_MASS_BY_SIZE`). The `Boss` multiplier still applies on top. See `game/crowdSpacing/mass/crowdMass.ts`.
+     */
+    crowdMass?: number;
+    /**
      * Display-only wiggle radius (px). When set, the renderer eases the unit's sprite around a
      * random point within this radius. Purely local presentation: never touches engine state.
      */
@@ -948,6 +953,16 @@ export const DEFAULT_STRUCTURE_TERRAIN_CRUSH_DAMAGE = 10;
 /** Per-character `terrainCrushDamage`, falling back to `DEFAULT_STRUCTURE_TERRAIN_CRUSH_DAMAGE`. */
 export function getUnitTerrainCrushDamage(characterId: string): number {
     return UNIT_DEFS[characterId as UnitDefId]?.terrainCrushDamage ?? DEFAULT_STRUCTURE_TERRAIN_CRUSH_DAMAGE;
+}
+
+/** Per-character `crowdMass` override (undefined = derive from size tier). */
+export function getUnitCrowdMassOverride(characterId: string): number | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.crowdMass;
+}
+
+/** Per-character `size` tier (undefined when the def sets none). */
+export function getUnitDefSize(characterId: string): UnitSize | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.size;
 }
 
 /** Static per-characterId tags (e.g. `UnitTag.Structure`). Defaults to `[]`. */

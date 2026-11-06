@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { Unit } from '../units/Unit';
-import { UnitTag, isUnitTag, parseUnitTagsFromJSON } from '../units/unitTag';
-import { LiftedBuff } from '../../buffs/LiftedBuff';
+import { Unit } from '../../units/Unit';
+import { UnitTag, isUnitTag, parseUnitTagsFromJSON } from '../../units/unitTag';
+import { LiftedBuff } from '../../../buffs/LiftedBuff';
 import {
     CROWD_SPACING_FALLBACK_CELL_SIZE,
     CROWD_SPACING_OVERLAP_EPSILON,
     CROWD_SPACING_PASSES_PER_TICK,
     CROWD_SPACING_PLAYER_RADIUS_PADDING,
     crowdSpacingCellSizeFromMaxRadius,
-} from './crowdSpacingConstants';
+} from '../crowdSpacingConstants';
 import {
     getCrowdSpacingRadius,
     getCrowdSpacingRole,
     getCrowdSpacingWeight,
-} from './crowdSpacingRoles';
-import { CELL_SIZE } from '../../terrain/TerrainGrid';
+} from './legacyRoles';
+import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 
 const TEST_RADIUS = 18;
 const KNOCKBACK_AIR_TIME = 0.5;

@@ -1,5 +1,7 @@
 /**
  * AbilityTest: CrowdSpacing pack separation vs anchors (player + CrowdSpacingAnchor tag).
+ * **Legacy resolver only:** players as anchors is legacy behaviour, so the scenario pins
+ * `LegacyResolver` (mass-mode behaviour lives in `crowdSpacingMass.ts`).
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -15,6 +17,7 @@ import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses'
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import { CROWD_SPACING_OVERLAP_EPSILON } from '../../../game/crowdSpacing/crowdSpacingConstants';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { LegacyResolver } from '../../../game/crowdSpacing/legacy/LegacyResolver';
 
 const P = TINY_BATTLE_PLAYER_ID;
 
@@ -141,7 +144,7 @@ function softsMovedAwayFromAnchors(engine: GameEngine): boolean {
  */
 export const crowdSpacingPackAndAnchorsScenario: ScenarioDefinition = {
     id: 'crowd_spacing_pack_and_anchors',
-    title: 'CrowdSpacing: soft pack spreads; player + tagged anchors hold',
+    title: 'CrowdSpacing (legacy): soft pack spreads; player + tagged anchors hold',
     category: 'general',
     generalSection: 'Movement',
     maxDurationMs: 3000,
@@ -153,6 +156,8 @@ export const crowdSpacingPackAndAnchorsScenario: ScenarioDefinition = {
             localPlayerId: P,
             grass: true,
         });
+        // Players-as-anchors is legacy behaviour; pin the resolver so the CROWD_SPACING_MODE default doesn't matter.
+        engine.crowdSpacingManager.setResolver(new LegacyResolver());
 
         const player = spawnTinyPlayerUnit(engine, {
             playerId: P,

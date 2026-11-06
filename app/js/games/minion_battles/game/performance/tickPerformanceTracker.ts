@@ -272,6 +272,11 @@ export const PERF_UNITS_OCCUPANCY = 'occupancy' as const;
 export const PERF_UNITS_PATHFINDING = 'pathfinding' as const;
 export const PERF_UNITS_MOVEMENT = 'movement' as const;
 export const PERF_UNITS_CROWD_SPACING = 'crowdSpacing' as const;
+/** Relative to {@link PERF_UNITS_CROWD_SPACING} — mass resolver resolve and its (verbose) phases. */
+export const PERF_CROWD_SPACING_MASS_RESOLVE = 'massResolve' as const;
+export const PERF_CROWD_SPACING_MASS_PAIRS = 'pairs' as const;
+export const PERF_CROWD_SPACING_MASS_CLAMP = 'clamp' as const;
+export const PERF_CROWD_SPACING_MASS_RESIDUAL = 'residual' as const;
 export const PERF_UNITS_AI = 'ai' as const;
 export const PERF_UNITS_NINJUTSU = 'ninjutsu' as const;
 export const PERF_UNITS_TARGETS = 'targets' as const;

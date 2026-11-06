@@ -514,6 +514,13 @@ export interface AbilityStatic {
     readonly clearMovementOnComplete?: boolean;
 
     /**
+     * CrowdSpacing mass resolver: while this ability is in an `AbilityPhase.Windup` interval the caster is
+     * braced (acts as a wall, never pushed). Default `true`; set `false` for windups that should still be
+     * jostled. See `game/crowdSpacing/mass/crowdBracing.ts`.
+     */
+    readonly crowdBraceDuringWindup?: boolean;
+
+    /**
      * How an interrupt (stun, knockback, wall-unstick) treats this cast. Applied by
      * `interruptUnitAbilities` in `game/units/unitAbilityLifecycle.ts`.
      * Omitted fields use `DEFAULT_ABILITY_INTERRUPT_POLICY` (see `resolveAbilityInterruptPolicy`).

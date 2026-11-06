@@ -298,6 +298,8 @@ export class UnitManager {
             if (unit.pendingFrozenHits.length > 0) resolvePendingFrozenHits(unit, engine.eventBus);
         }
         const plans = this.planUnitSteps(engine);
+        // Pre-movement snapshot so CrowdSpacing can tell who walked into whom this tick (runtime-only).
+        engine.crowdSpacingManager.beginTick(this.units);
         // Phase 1a: passive ability tick (all alive units, no cast required) — world clock
         tickPerformanceTracker.measure([PERF_UNITS_PASSIVES], () => {
             for (const unit of this.units) {
@@ -369,7 +371,7 @@ export class UnitManager {
         });
         // Phase 2c: CrowdSpacing — soft radius pack after positions settle for the tick
         tickPerformanceTracker.measure([PERF_UNITS_CROWD_SPACING], () => {
-            engine.crowdSpacingManager.tick(this.units, engine.terrainManager);
+            engine.crowdSpacingManager.tick(this.units, engine.terrainManager, dt, engine.gameTime);
         });
         // Phase 3: AI decisions (all positions settled). Once per tick; frozen units do not think.
         tickPerformanceTracker.measure([PERF_UNITS_AI], () => {

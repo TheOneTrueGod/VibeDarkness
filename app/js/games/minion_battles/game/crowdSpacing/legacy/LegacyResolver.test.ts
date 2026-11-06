@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { Unit } from '../units/Unit';
-import { UnitTag } from '../units/unitTag';
-import { TerrainGrid, CELL_SIZE } from '../../terrain/TerrainGrid';
-import { TerrainManager } from '../../terrain/TerrainManager';
-import { TerrainType } from '../../terrain/TerrainType';
-import { TerrainLayerManager } from '../TerrainLayerManager';
-import { CROWD_SPACING_OVERLAP_EPSILON, CROWD_SPACING_PLAYER_RADIUS_PADDING } from './crowdSpacingConstants';
-import { CrowdSpacingGrid } from './CrowdSpacingGrid';
-import { getCrowdSpacingRadius } from './crowdSpacingRoles';
-import { resolveCrowdSpacingPass } from './resolveCrowdSpacing';
+import { Unit } from '../../units/Unit';
+import { UnitTag } from '../../units/unitTag';
+import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { TerrainManager } from '../../../terrain/TerrainManager';
+import { TerrainType } from '../../../terrain/TerrainType';
+import { TerrainLayerManager } from '../../TerrainLayerManager';
+import { CROWD_SPACING_OVERLAP_EPSILON, CROWD_SPACING_PLAYER_RADIUS_PADDING } from '../crowdSpacingConstants';
+import { CrowdSpacingGrid } from '../shared/CrowdSpacingGrid';
+import { getCrowdSpacingRadius } from './legacyRoles';
+import { resolveCrowdSpacingPass } from './LegacyResolver';
 
 const SMALL_RADIUS = 20;
 const LARGE_RADIUS = 40;

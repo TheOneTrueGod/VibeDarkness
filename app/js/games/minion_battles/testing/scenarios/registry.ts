@@ -14,6 +14,7 @@ import {
 } from './general/pathfinding';
 import { MOVEMENT_SHOWCASE_SCENARIOS } from './general/movementShowcase';
 import { crowdSpacingPackAndAnchorsScenario } from './general/crowdSpacing';
+import { CROWD_MASS_SCENARIOS } from './general/crowdSpacingMass';
 import { swingSwordAppliesBleedScenario } from './general/buffs';
 import {
     bossStunMechanicsScenario,
@@ -169,6 +170,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     dodgeIFrameProtectionScenario,
     dodgeIFrameVsThornbinderScenario,
     crowdSpacingPackAndAnchorsScenario,
+    ...CROWD_MASS_SCENARIOS,
     swingSwordAppliesBleedScenario,
     punchStrongScenario,
     punchDoubleScenario,

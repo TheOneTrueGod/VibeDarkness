@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     CROWD_SPACING_FALLBACK_CELL_SIZE,
     crowdSpacingCellSizeFromMaxRadius,
-} from './crowdSpacingConstants';
+} from '../crowdSpacingConstants';
 import { CrowdSpacingGrid, type CrowdSpacingParticipant } from './CrowdSpacingGrid';
 
 const SMALL_RADIUS = 10;

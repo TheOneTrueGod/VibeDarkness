@@ -6,7 +6,7 @@
 import {
     CROWD_SPACING_FALLBACK_CELL_SIZE,
     crowdSpacingCellSizeFromMaxRadius,
-} from './crowdSpacingConstants';
+} from '../crowdSpacingConstants';
 
 /** Minimal pose needed to place a participant in the grid. */
 export type CrowdSpacingParticipant = {
