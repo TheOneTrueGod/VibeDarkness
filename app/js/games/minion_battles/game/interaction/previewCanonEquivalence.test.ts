@@ -644,3 +644,71 @@ describe('preview/canon execution equivalence — all registered abilities (Step
         );
     }
 });
+
+describe('preview/canon equivalence — host in-place commit of a t=0 dash (playtest 0003, lobby DA8A43)', () => {
+    const DODGE_ID = '0101';
+
+    // DA8A43 tick 259: the host dodged at its own position while crowd spacing was pushing it. The
+    // in-place-committed preview had the unit drift 3 ticks before the dash claimed its movement;
+    // every other client replayed the wire order from the mark and never drifted, so they formed
+    // the next order pause 4 ticks earlier (285 vs 289) and fell into a full resync.
+    it('Dodge at the caster position with an overlapping neighbour: in-place commit matches a canonical replay', async () => {
+        const session = await mountSoloSession(true);
+        const engine = session.getEngine()!;
+        const caster = engine.getLocalPlayerUnit()!;
+        caster.abilities = [DODGE_ID];
+        initializeAbilityRuntimeForUnit(caster);
+        ensureAbilityResourcesForCaster(caster, { id: DODGE_ID }, engine);
+        const neighbour = createTargetDummyAtWorld(engine, caster.x + 6, caster.y + 4, { id: 'peq_dodge_neighbour', hp: 500 });
+        initializeAbilityRuntimeForUnit(neighbour);
+        engine.addUnit(neighbour, 'initialGameSpawn');
+
+        expect(stepUntil(engine, () => engine.waitingForOrders != null, 400)).toBe(true);
+        const casterId = caster.id;
+        const ownPixel = { x: caster.x, y: caster.y };
+        const baseOrder: BattleOrder = { unitId: casterId, abilityId: DODGE_ID, targets: [], endTurn: true };
+
+        const mark = engine.toJSON();
+        mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
+
+        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder,
+            saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
+            queueFingerprint: vi.fn(),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        const its = session.interactiveTargeting;
+        expect(its.begin(baseOrder, session)).toBe(true);
+        expect(stepUntil(engine, () => engine.waitingForTargetInput?.label === 'Dodge direction', 300)).toBe(true);
+        its.resolveTarget('Dodge direction', { type: 'pixel', position: ownPixel }, session);
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), 300)).toBe(true);
+
+        await its.commit(session);
+
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        const finalized = persistCommittedOrder.mock.calls[0]![0] as BattleOrder;
+        const engineB = session.getEngine()!;
+        engineB.stop();
+        expect(stepUntil(engineB, () => engineB.waitingForOrders != null, 600)).toBe(true);
+
+        const sessionA = new BattleSession({
+            api: makeApiStub(),
+            missionId: 'dark_awakening',
+            playerId: SOLO_PLAYER_ID,
+            isHost: false,
+        });
+        sessionA.restoreFromInMemorySnapshot(mark);
+        const engineA = sessionA.getEngine()!;
+        engineA.stop();
+        engineA.state.orderMgr.applyOrder(finalized);
+        expect(stepUntil(engineA, () => engineA.waitingForOrders != null, 600)).toBe(true);
+
+        assertPreviewCanonEquivalence(engineA, engineB);
+        expect(engineB.getUnit(casterId)!.x).toBe(engineA.getUnit(casterId)!.x);
+        expect(engineB.getUnit(casterId)!.y).toBe(engineA.getUnit(casterId)!.y);
+
+        engineA.destroy();
+        engineB.destroy();
+    });
+});

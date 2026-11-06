@@ -3,6 +3,7 @@ import type { LobbyClient } from '../../LobbyClient';
 import RecentLobbiesList, { type RecentLobbyInfo } from '../RecentLobbiesList';
 import { recentLobbyInfoFromActiveEntry } from '../recentLobbyInfo';
 import PanelLayout from './PanelLayout';
+import { TestIds } from '../../testing/testIds';
 
 interface JoinMissionPanelProps {
     lobbyClient: LobbyClient;
@@ -44,6 +45,7 @@ export default function JoinMissionPanel({ lobbyClient, onJoinLobby }: JoinMissi
                     <input
                         type="text"
                         className="w-full px-4 py-3 border border-border-custom rounded bg-surface-light text-white text-base focus:outline-none focus:border-primary placeholder:text-muted mb-3"
+                        data-testid={TestIds.joinLobbyCodeInput}
                         placeholder="Enter lobby code"
                         maxLength={6}
                         value={lobbyCode}
@@ -52,6 +54,7 @@ export default function JoinMissionPanel({ lobbyClient, onJoinLobby }: JoinMissi
                     />
                     <button
                         className="px-6 py-3 bg-surface-light text-white font-semibold text-base rounded border border-border-custom hover:bg-border-custom transition-colors"
+                        data-testid={TestIds.joinLobbyByCode}
                         onClick={() => void handleJoinByCode()}
                     >
                         Join by Code

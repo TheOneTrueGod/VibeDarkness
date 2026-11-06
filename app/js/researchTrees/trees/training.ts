@@ -12,6 +12,10 @@ export const TRAINING_NODE_SNEAKY_PUNCH = 'sneaky_punch';
 export const TRAINING_NODE_CHARGING_PUNCH = 'charging_punch';
 export const TRAINING_NODE_HEALTHY = 'healthy';
 export const TRAINING_NODE_MIGHTY = 'mighty';
+/** Disabled admin-only playtest node (see the node's comment). */
+export const TRAINING_NODE_PLAYTEST_VITALITY = 'playtest_vitality';
+export const TRAINING_PLAYTEST_VITALITY_MAX_HEALTH_ADD = 1000;
+export const TRAINING_PLAYTEST_VITALITY_REGEN_PER_ROUND = 100;
 
 /** Max levels / max bonus for Healthy passive (maxHealth add). */
 export const TRAINING_HEALTHY_LEVELS = 5;
@@ -172,6 +176,27 @@ export const trainingTree: ResearchTreeDef = {
             levels: TRAINING_MIGHTY_LEVELS,
             passiveBonus: {
                 [PassiveStatKey.AllDamage]: { mult: TRAINING_MIGHTY_ALL_DAMAGE_MULT },
+            },
+        },
+        {
+            // Playtest tool: lets the autoplay driver survive long co-op runs while testing sync.
+            // Disabled, so only admins see it and grant it (Shift+click, or on disk as an Admin source).
+            id: TRAINING_NODE_PLAYTEST_VITALITY,
+            title: 'Playtest Vitality',
+            description: `+{${TRAINING_PLAYTEST_VITALITY_MAX_HEALTH_ADD}} Max Health. Heal {${TRAINING_PLAYTEST_VITALITY_REGEN_PER_ROUND}} Health at the start of each round.`,
+            flavorText: 'A testing aid, not a reward.',
+            order: 900,
+            tier: 99,
+            position: { x: 240, y: 580 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: [],
+            requirements: [],
+            cost: {},
+            effects: [],
+            disabled: true,
+            passiveBonus: {
+                [PassiveStatKey.MaxHealth]: { add: TRAINING_PLAYTEST_VITALITY_MAX_HEALTH_ADD },
+                [PassiveStatKey.HealthRegenPerRound]: { add: TRAINING_PLAYTEST_VITALITY_REGEN_PER_ROUND },
             },
         },
     ],

@@ -1,5 +1,6 @@
 /** Defeat modal shown after a lost battle (Retry Mission / Abandon Quest / Leave). */
 import React from 'react';
+import { TestIds } from '../../../../testing/testIds';
 import type { QuestLobbyFields } from '../../storylines';
 import {
     abandonQuestAndLeave,
@@ -17,7 +18,7 @@ interface DefeatModalProps {
 
 export default function DefeatModal({ questLobbyFields, isHost, selectedMissionId, modalCtx }: DefeatModalProps) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" data-testid={TestIds.defeatModal}>
             <div className="bg-surface-light border border-border-custom rounded-lg shadow-xl p-10 mx-4 text-center min-h-[35vh] w-[min(90%, 28rem)] flex flex-col justify-center">
                 <h2 className="text-2xl font-bold text-danger mb-2">Defeat!</h2>
                 <p className="text-muted mb-6">You have succumbed to the darkness</p>

@@ -14,6 +14,7 @@ import type { UnitAIContext } from './unitAI/contextTypes';
 import { applyUnitComponentsFromJSON } from './components/unitComponent';
 import { applyCcArmourStateFromJSON } from '../../crowdControl/ccArmourState';
 import { hoverFlightFromJSON } from './hoverFlight';
+import { deserializeCastBehaviourPayloads, deserializeSetupFiredBehaviourKeys } from './castBehaviourStateSerialization';
 import type { PendingFrozenHit } from './unitDamage';
 import type { HeldConjuredWeaponState } from '../conjuredWeapons/registry';
 import { readActorAnimation } from '../animation/actorAnimation';
@@ -169,7 +170,12 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         ...(a.movementByLabel !== undefined
             ? { movementByLabel: JSON.parse(JSON.stringify(a.movementByLabel)) as typeof a.movementByLabel }
             : {}),
+        castBehaviourPayloads: deserializeCastBehaviourPayloads((a as { castBehaviourPayloads?: unknown }).castBehaviourPayloads),
+        setupFiredBehaviourKeys: deserializeSetupFiredBehaviourKeys((a as { setupFiredBehaviourKeys?: unknown }).setupFiredBehaviourKeys),
     }));
+    // `activeCastBehaviours` is runtime-only; the first tick after restore rebuilds the records of
+    // sustained behaviours that were mid-window (rehydrateSustainedCastBehaviours).
+    unit.castBehavioursNeedRehydrate = unit.activeAbilities.length > 0;
     unit.abilityNote = data.abilityNote != null
         ? JSON.parse(JSON.stringify(data.abilityNote)) as AbilityNote
         : null;

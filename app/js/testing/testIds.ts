@@ -45,6 +45,9 @@ export const TestIds = {
     campaignDataCampaignSelect: 'campaign-data-campaign-select',
     campaignDataDarknessStrengthTab: 'campaign-data-tab-darkness-strength',
     missionHost: 'mission-host',
+    /** Join Mission tab: lobby code input + Join by Code button */
+    joinLobbyCodeInput: 'join-lobby-code-input',
+    joinLobbyByCode: 'join-lobby-by-code',
     missionMapNodePrefix: 'mission-map-node-',
     /** Chapter button on the Mission Map toolbar — suffix with chapter id */
     missionMapChapterPrefix: 'mission-map-chapter-',
@@ -119,6 +122,8 @@ export const TestIds = {
 
     /** Centred victory popover (objectives, Hunger to HP, rewards) */
     victoryPopover: 'victory-popover',
+    /** Defeat modal root (Retry Mission / Abandon Quest / Leave). */
+    defeatModal: 'defeat-modal',
     /** Continue / Finish Quest button in the victory popover */
     victoryPopoverContinue: 'victory-popover-continue',
 } as const;

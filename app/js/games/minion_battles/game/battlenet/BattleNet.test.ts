@@ -4314,3 +4314,21 @@ describe('BattleNet ITS pre-action refresh skip (peer links)', () => {
         expect(getBattleHeartbeat).toHaveBeenCalledTimes(2);
     });
 });
+
+describe('BattleNet fingerprint queue epoch (playtest 0003, lobby DA8A43)', () => {
+    it('host queues a fingerprint whose token matches the session timeline epoch after an ITS epoch bump', async () => {
+        const { mintCanonicalToken } = await import('./canonicalToken');
+        const net = new BattleNet({
+            api: makeApi(),
+            session: makeSession({
+                getTimeline: () => ({ kind: 'canonical', engineEpoch: 3 }),
+            } as Partial<BattleSessionHandle>),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        net.queueFingerprint(10, 'ffffffffffffffff', false, undefined, mintCanonicalToken(3));
+        expect(net.fingerprintBatcher.getPendingCount()).toBe(1);
+    });
+});

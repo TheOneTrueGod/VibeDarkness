@@ -185,6 +185,9 @@ export class BattleNet implements BattleNetContext {
 			lobbyId: this.lobbyId,
 			gameId: this.gameId,
 			playerId: this.playerId,
+			// Without this the batcher compared every token to epoch 0, so after the first ITS
+			// restore bumped the epoch the host dropped every running-tick fingerprint (lobby DA8A43).
+			getCurrentEngineEpoch: () => this.session.getTimeline?.()?.engineEpoch ?? 0,
 		});
 		this.snapshotPersistence = new SnapshotPersistence({
 			api: this.api,

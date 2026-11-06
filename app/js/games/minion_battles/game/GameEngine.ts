@@ -102,6 +102,11 @@ import {
 
 import { FIXED_DT, ROUND_DURATION } from './gameConstants';
 import type { StartTimeStopSpec, TimeManager, TimeStop } from './time/TimeManager';
+import { startLoopClock, type StopLoopClock } from './loopClock';
+
+/** Beat of the rAF stall clock, and how long rAF may be silent before the clock steps the loop. */
+const LOOP_STALL_CLOCK_MS = 50;
+const LOOP_STALL_MS = 250;
 export { FIXED_DT };
 
 /** Save a checkpoint to the server every this many game ticks. */
@@ -135,6 +140,11 @@ export class GameEngine implements EngineContext {
     private lastTimestamp = 0;
     private animFrameId = 0;
     private running = false;
+    /** Wall time (performance.now) of the last `loop` run, from rAF or the stall clock. */
+    private lastLoopWallMs = 0;
+    /** True while rAF has gone quiet and the stall clock is stepping the loop (see `loopClock.ts`). */
+    private rafStalled = false;
+    private stopLoopClock: StopLoopClock | null = null;
 
     /** Monotonic id suffix for new GameObjects created while this engine is authoritative. */
     /** @internal read by `engineSerialization.ts`. */
@@ -848,7 +858,34 @@ export class GameEngine implements EngineContext {
         this.running = true;
         this.accumulator = 0;
         this.lastTimestamp = performance.now();
-        this.animFrameId = requestAnimationFrame((ts) => this.loop(ts));
+        this.lastLoopWallMs = this.lastTimestamp;
+        this.rafStalled = false;
+        this.requestLoopFrame();
+        this.stopLoopClock?.();
+        this.stopLoopClock = startLoopClock(LOOP_STALL_CLOCK_MS, () => this.onLoopClock());
+    }
+
+    /** Keep exactly one animation frame pending; the stall clock may run `loop` between frames. */
+    private requestLoopFrame(): void {
+        if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
+        this.animFrameId = requestAnimationFrame((ts) => {
+            this.animFrameId = 0;
+            this.rafStalled = false;
+            this.loop(ts);
+        });
+    }
+
+    /**
+     * Hidden pages stop or throttle rAF. Once no loop has run for `LOOP_STALL_MS`, step the loop
+     * from the stall clock on every beat until a real animation frame arrives again. The fixed-step
+     * accumulator makes the simulation identical either way; only the render cadence differs.
+     */
+    private onLoopClock(): void {
+        if (!this.running) return;
+        const now = performance.now();
+        if (!this.rafStalled && now - this.lastLoopWallMs < LOOP_STALL_MS) return;
+        this.rafStalled = true;
+        this.loop(now);
     }
 
     /** Clear deferred pause and wall-clock catch-up so a loaded battle does not burst-simulate on first paint. */
@@ -859,6 +896,8 @@ export class GameEngine implements EngineContext {
 
     stop(): void {
         this.running = false;
+        this.stopLoopClock?.();
+        this.stopLoopClock = null;
         if (this.animFrameId) {
             cancelAnimationFrame(this.animFrameId);
             this.animFrameId = 0;
@@ -1020,8 +1059,9 @@ export class GameEngine implements EngineContext {
     private loop(timestamp: number): void {
         if (!this.running) return;
 
-        const frameTime = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
+        const frameTime = Math.max(0, Math.min((timestamp - this.lastTimestamp) / 1000, 0.1));
         this.lastTimestamp = timestamp;
+        this.lastLoopWallMs = performance.now();
 
         // Advance purely visual effects every render frame regardless of game pause.
         this.doRenderTick(frameTime);
@@ -1061,7 +1101,7 @@ export class GameEngine implements EngineContext {
             this.onStateChanged?.();
         }
 
-        this.animFrameId = requestAnimationFrame((ts) => this.loop(ts));
+        this.requestLoopFrame();
     }
 
     /** @internal used by `engineEventWiring.ts`. */

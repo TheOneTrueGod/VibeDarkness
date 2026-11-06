@@ -7,8 +7,10 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './app.css';
 import { registerWorldOfDarknessSegments } from './games/minion_battles/storylines/WorldOfDarkness/registerSegments';
+import { installAgentConsole } from './testing/agentConsole';
 
 registerWorldOfDarknessSegments();
+installAgentConsole();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

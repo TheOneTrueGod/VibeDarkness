@@ -376,6 +376,12 @@ export class Unit extends GameObject {
     /** Active sustained CastBehaviours for this unit's casts. Keyed by `${intervalId}_${behaviourIdx}`. Runtime-only. */
     activeCastBehaviours: Map<string, ActiveCastBehaviourRecord> = new Map();
 
+    /**
+     * Set by `unitFromJSON`: the next cast tick rebuilds `activeCastBehaviours` for sustained behaviours
+     * that were mid-window when the snapshot was taken. Runtime-only.
+     */
+    castBehavioursNeedRehydrate = false;
+
     constructor(config: UnitConfig) {
         super(config.id ?? generateGameObjectId('unit'), config.x, config.y);
         this.hp = config.hp;
@@ -569,6 +575,10 @@ export class Unit extends GameObject {
             MOVEMENT_BASE_RECOVERY_PER_ROUND,
             this.passiveBonuses?.[PassiveStatKey.MovementRegenPerRound],
         );
+    }
+    /** HP healed at round start from passives (`PassiveStatKey.HealthRegenPerRound`); 0 by default. */
+    getHealthRegenPerRound(): number {
+        return Math.max(0, applyPassiveBonusToBase(0, this.passiveBonuses?.[PassiveStatKey.HealthRegenPerRound]));
     }
     /** Total slow stacks reducing movement recovery this round (terrain + spell effects). */
     getMovementSlowStacks(engine: EngineContext): number {

@@ -3,9 +3,16 @@
  * Two-player playtest: host + joiner in two Playwright contexts play campaign missions end to end.
  *
  * Usage: npm run playtest -- [missionId ...]      (default: dark_awakening towards_the_light)
+ *        npm run playtest -- quest:<bankId>/<questDefId>/<missionCount>
+ *          starts the quest from its Mission Map bank node, then follows each victory's
+ *          Continue into the next quest lobby (one lobby per quest mission)
  *   PLAYTEST_HEADED=1      show both browser windows
  *   PLAYTEST_MAX_MINUTES   per-mission battle budget (default 15)
  *   PLAYTEST_SOLO=1        host only (checks the bridge/autoplay without a second account)
+ *   PLAYTEST_ACCOUNTS=session   log in as the session-testing accounts (SESSION_TEST_USERNAME_A/_B)
+ *                               instead of PLAYWRIGHT_USERNAME/_2; A hosts
+ *   PLAYTEST_LOBBY=CODE    rejoin an existing lobby for the first mission instead of hosting one
+ *   PLAYTEST_SKIP_ABILITIES=0537,...   abilities the autoplay never casts (prompts it can't answer)
  *   --check-sandbox        only check that sandboxed Chromium can open a page (exit 0 ok, 2 blocked)
  *
  * Input is real UI input: canvas mouse clicks at screen points from the dev-only
@@ -27,6 +34,7 @@ import {
     battleAbilityCardTestId,
     campaignTabTestId,
     missionMapNodeTestId,
+    missionMapQuestBankTestId,
 } from './testIds.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -35,6 +43,16 @@ const ENV_PATH = path.join(rootDir, '.env.playwright.local');
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173';
 const HEADED = process.env.PLAYTEST_HEADED === '1';
 const SOLO = process.env.PLAYTEST_SOLO === '1';
+const ACCOUNTS = process.env.PLAYTEST_ACCOUNTS ?? 'playwright';
+const REJOIN_LOBBY = process.env.PLAYTEST_LOBBY ?? null;
+/** Rock Slide's first pick is a rock tile, which the enemy-clicking autoplay can't answer. */
+const DEFAULT_SKIP_ABILITIES = ['0537'];
+const SKIP_ABILITIES = (process.env.PLAYTEST_SKIP_ABILITIES ?? DEFAULT_SKIP_ABILITIES.join(','))
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+/** Console lines (any level) worth surfacing as multiplayer sync events. */
+const SYNC_LINE_RE = /desync|resync|mismatch|recover|reload|rollback|fingerprint|stuck|softlock/i;
 const MAX_BATTLE_MS = Number(process.env.PLAYTEST_MAX_MINUTES ?? 15) * 60_000;
 const DEFAULT_MISSIONS = ['dark_awakening', 'towards_the_light'];
 const STAMP = new Date().toISOString().replace(/[:.]/g, '-');
@@ -132,9 +150,14 @@ async function newPlayer(browser, label, username, password) {
         isAllowedUrl(route.request().url()) ? route.continue() : route.abort('blockedbyclient'),
     );
     const page = await context.newPage();
-    const p = { label, username, password, context, page, consoleErrors: [] };
+    const p = { label, username, password, context, page, consoleErrors: [], syncEvents: [] };
     page.on('console', (msg) => {
-        if (msg.type() === 'error') p.consoleErrors.push(msg.text().slice(0, 400));
+        const text = msg.text();
+        if (msg.type() === 'error') p.consoleErrors.push(text.slice(0, 400));
+        if (SYNC_LINE_RE.test(text) && p.syncEvents.length < 200) {
+            p.syncEvents.push(`${new Date().toISOString()} [${msg.type()}] ${text.slice(0, 300)}`);
+            if (msg.type() === 'error' || msg.type() === 'warning') note(`${label} sync: ${text.slice(0, 160)}`);
+        }
     });
     page.on('pageerror', (err) => p.consoleErrors.push(`pageerror: ${String(err).slice(0, 400)}`));
     return p;
@@ -199,6 +222,46 @@ async function hostMission(p, missionId) {
     await page.getByTestId(TestIds.missionHost).click();
     await page.waitForURL(/\/lobby\/[A-Za-z0-9]+/, { timeout: 30_000 });
     return page.url().match(/\/lobby\/([A-Za-z0-9]+)/)[1];
+}
+
+/** Mission Map quest bank node → Start quest. Leaves the host in the quest's first lobby. */
+async function hostQuest(p, bankId, questDefId) {
+    const { page } = p;
+    await page.getByTestId(TestIds.characterEditorMissionMapTab).click();
+    const node = page.getByTestId(missionMapQuestBankTestId(bankId));
+    await node.waitFor({ state: 'visible', timeout: 20_000 });
+    await node.click();
+    await page.getByTestId(`${TestIds.questStartPrefix}${questDefId}`).click();
+    await page.waitForURL(/\/lobby\/[A-Za-z0-9]+/, { timeout: 30_000 });
+    return page.url().match(/\/lobby\/([A-Za-z0-9]+)/)[1];
+}
+
+/** Wait until the page sits in a lobby other than `previousLobby`; returns its code or null. */
+async function waitForNextLobby(p, previousLobby, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const code = p.page.url().match(/\/lobby\/([A-Za-z0-9]+)/)?.[1] ?? null;
+        if (code && code !== previousLobby) return code;
+        await sleep(500);
+    }
+    return null;
+}
+
+/** Expand `quest:<bankId>/<questDefId>/<count>` into one entry per quest mission. */
+function expandMissionArgs(args) {
+    const out = [];
+    for (const arg of args) {
+        const m = /^quest:([^/]+)\/([^/]+)\/(\d+)$/.exec(arg);
+        if (!m) {
+            out.push({ label: arg, missionId: arg });
+            continue;
+        }
+        const [, bankId, questDefId, count] = m;
+        for (let k = 0; k < Number(count); k++) {
+            out.push({ label: `${questDefId}#${k + 1}`, quest: { bankId, questDefId, index: k } });
+        }
+    }
+    return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -303,8 +366,10 @@ async function driveIts(p, targetUnitId) {
         }
         await sleep(250);
     }
-    note(`${p.label}: ITS still active after 30 steps; pressing Undo`);
+    const prompt = (await readSnapshot(page))?.waitingForTargetInput;
+    note(`${p.label}: ITS still active after 30 steps${prompt ? ` (prompt "${prompt.label}" for ${prompt.abilityId})` : ''}; pressing Undo`);
     await page.getByRole('button', { name: 'Undo' }).click().catch(() => undefined);
+    await sleep(300);
     return false;
 }
 
@@ -313,6 +378,9 @@ async function tryAttack(p, snap, me, enemy) {
     const { page } = p;
     const d = dist(me, enemy);
     for (const ab of snap.myAbilities) {
+        // Abilities whose target prompt the driver can't answer by clicking an enemy (e.g. a "Rock"
+        // pick) are skipped for the rest of the battle instead of retried every turn.
+        if (p.skipAbilities?.has(ab.id)) continue;
         const maxRange = ab.aiSettings?.maxRange ?? 120;
         if (d > maxRange + enemy.radius) continue;
         const card = page.getByTestId(battleAbilityCardTestId(ab.id));
@@ -329,9 +397,13 @@ async function tryAttack(p, snap, me, enemy) {
         await sleep(250);
         const after = await readSnapshot(page);
         if (after?.itsActive) {
-            await driveIts(p, enemy.id);
-            p.stats.casts[ab.id] = (p.stats.casts[ab.id] ?? 0) + 1;
-            return true;
+            if (await driveIts(p, enemy.id)) {
+                p.stats.casts[ab.id] = (p.stats.casts[ab.id] ?? 0) + 1;
+                return true;
+            }
+            p.skipAbilities.add(ab.id);
+            note(`${p.label}: skipping ${ab.id} for the rest of the battle (its target prompt was not answerable)`);
+            continue;
         }
         const spans = await page.evaluate(() => globalThis.__minionBattlesPlaytest?.spinnerSpans().length ?? 0);
         if (spans > pendingBefore || after?.myWaiterUnitId !== me.id) {
@@ -374,51 +446,71 @@ async function takeTurn(p, snap) {
 
 async function battleOutcome(page) {
     if (await page.getByTestId(TestIds.victoryPopover).isVisible().catch(() => false)) return 'victory';
-    if (await page.getByText(/defeat|you have fallen|mission failed/i).first().isVisible().catch(() => false)) return 'defeat';
+    // Test id, not text: objectives like "Defeat the Displacer Spirit" matched /defeat/ (run 2026-11-06T18-31).
+    if (await page.getByTestId(TestIds.defeatModal).isVisible().catch(() => false)) return 'defeat';
     return null;
 }
 
 async function playerLoop(p, stopFlag) {
     const { page } = p;
-    let lastTick = null;
-    let lastTickAt = Date.now();
+    const tickState = { lastTick: null, lastTickAt: Date.now() };
     while (!stopFlag.stop) {
-        const outcome = await battleOutcome(page);
-        if (outcome) return outcome;
-        const start = page.getByTestId(TestIds.objectivesPopoverStart);
-        if (await start.isVisible().catch(() => false)) {
-            await start.click().catch(() => undefined);
-            continue;
+        try {
+            const outcome = await playerLoopStep(p, tickState);
+            if (outcome) return outcome;
+        } catch (err) {
+            // A page reload (app recovery, Vite HMR) destroys the evaluate context mid-step.
+            // Wait for the battle to come back instead of failing the whole run.
+            const msg = String(err?.message ?? err).split(/\r?\n/)[0];
+            note(`${p.label}: step failed (${msg.slice(0, 120)}); waiting for the page`);
+            p.stats.reloads = (p.stats.reloads ?? 0) + 1;
+            await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+            await sleep(2000);
         }
-        const snap = await readSnapshot(page);
-        if (snap) {
-            if (snap.tick !== lastTick) {
-                lastTick = snap.tick;
-                lastTickAt = Date.now();
-            } else if (Date.now() - lastTickAt > 20_000 && !snap.myWaiterUnitId) {
-                p.stats.stalls.push({ tick: snap.tick, at: new Date().toISOString(), shot: await shot(p, `stall-${snap.tick}`) });
-                note(`${p.label}: tick stuck at ${snap.tick} for 20s while not our turn`);
-                lastTickAt = Date.now();
-            }
-            p.stats.lastTick = snap.tick;
-            p.stats.myTurn = Boolean(snap.myWaiterUnitId);
-            if (snap.myWaiterUnitId && snap.canUseOrderUi && !snap.itsActive) {
-                const how = await takeTurn(p, snap);
-                p.stats.turns[how] = (p.stats.turns[how] ?? 0) + 1;
-                await sleep(200);
-                continue;
-            }
-            if (snap.itsActive) {
-                await driveIts(p, null);
-                continue;
-            }
-        }
-        await sleep(250);
     }
     return 'stopped';
 }
 
+/** One autoplay step; returns the battle outcome once there is one, else null. */
+async function playerLoopStep(p, tickState) {
+    const { page } = p;
+    const outcome = await battleOutcome(page);
+    if (outcome) return outcome;
+    const start = page.getByTestId(TestIds.objectivesPopoverStart);
+    if (await start.isVisible().catch(() => false)) {
+        await start.click().catch(() => undefined);
+        return null;
+    }
+    const snap = await readSnapshot(page);
+    if (snap) {
+        if (snap.tick !== tickState.lastTick) {
+            tickState.lastTick = snap.tick;
+            tickState.lastTickAt = Date.now();
+        } else if (Date.now() - tickState.lastTickAt > 20_000 && !snap.myWaiterUnitId) {
+            p.stats.stalls.push({ tick: snap.tick, at: new Date().toISOString(), shot: await shot(p, `stall-${snap.tick}`) });
+            note(`${p.label}: tick stuck at ${snap.tick} for 20s while not our turn`);
+            tickState.lastTickAt = Date.now();
+        }
+        p.stats.lastTick = snap.tick;
+        p.stats.myTurn = Boolean(snap.myWaiterUnitId);
+        if (snap.myWaiterUnitId && snap.canUseOrderUi && !snap.itsActive) {
+            const how = await takeTurn(p, snap);
+            p.stats.turns[how] = (p.stats.turns[how] ?? 0) + 1;
+            await sleep(200);
+            return null;
+        }
+        if (snap.itsActive) {
+            await driveIts(p, null);
+            return null;
+        }
+    }
+    await sleep(250);
+    return null;
+}
+
 const FRAME_COUNTER_INTERVAL_MS = 500;
+/** How long the other players get to reach their own outcome after the first one does. */
+const OUTCOME_GRACE_MS = 90_000;
 
 /**
  * Live frame counter: each player's engine tick (one fixed-step frame per tick) as the battle runs,
@@ -457,13 +549,31 @@ async function playBattle(players, missionId) {
     const timer = setTimeout(() => {
         stopFlag.stop = true;
     }, MAX_BATTLE_MS);
-    for (const p of players) p.stats = { turns: {}, casts: {}, stalls: [], lastTick: null };
+    for (const p of players) {
+        p.stats = { turns: {}, casts: {}, stalls: [], lastTick: null };
+        p.skipAbilities = new Set(SKIP_ABILITIES);
+    }
     const frameCounter = startFrameCounter(players, missionId);
     let outcomes;
     try {
-        outcomes = await Promise.all(players.map((p) => playerLoop(p, stopFlag).finally(() => {
+        // When one player reaches an outcome, give the others a grace period to reach theirs: a
+        // player's result is only recorded once its own client shows the victory popover (run
+        // 2026-11-06T17-22: the joiner was stopped on the Victory banner and got no mission result).
+        let graceTimer = null;
+        outcomes = await Promise.all(players.map((p) => playerLoop(p, stopFlag).then((outcome) => {
+            if (outcome === 'victory' || outcome === 'defeat') {
+                graceTimer ??= setTimeout(() => {
+                    stopFlag.stop = true;
+                }, OUTCOME_GRACE_MS);
+            } else {
+                stopFlag.stop = true;
+            }
+            return outcome;
+        }, (err) => {
             stopFlag.stop = true;
+            throw err;
         })));
+        if (graceTimer) clearTimeout(graceTimer);
     } finally {
         // A live interval keeps Node running after main() returns (2026-11-03: hung after a failed battle).
         clearTimeout(timer);
@@ -480,6 +590,7 @@ async function playBattle(players, missionId) {
             ...p.stats,
             spinner: { count: durations.length, p50: pct(0.5), p90: pct(0.9), max: durations.length ? Math.round(durations.at(-1)) : null },
             consoleErrors: p.consoleErrors.splice(0).slice(0, 30),
+            syncEvents: p.syncEvents.splice(0),
             finalShot: await shot(p, `${missionId}-end`),
         };
     }
@@ -511,10 +622,16 @@ async function main() {
     const missions = process.argv.slice(2).filter((a) => !a.startsWith('-'));
     if (missions.length === 0) missions.push(...DEFAULT_MISSIONS);
     const env = loadEnvFile(ENV_PATH);
-    const creds = [
-        [env.PLAYWRIGHT_USERNAME, env.PLAYWRIGHT_PASSWORD],
-        [env.PLAYWRIGHT_USERNAME_2, env.PLAYWRIGHT_PASSWORD_2],
-    ];
+    const creds =
+        ACCOUNTS === 'session'
+            ? [
+                  [env.SESSION_TEST_USERNAME_A, env.SESSION_TEST_PASSWORD_A],
+                  [env.SESSION_TEST_USERNAME_B, env.SESSION_TEST_PASSWORD_B],
+              ]
+            : [
+                  [env.PLAYWRIGHT_USERNAME, env.PLAYWRIGHT_PASSWORD],
+                  [env.PLAYWRIGHT_USERNAME_2, env.PLAYWRIGHT_PASSWORD_2],
+              ];
     if (SOLO) creds.pop();
     if (creds.some(([u, pw]) => !u || !pw)) {
         throw new Error('Need PLAYWRIGHT_USERNAME/_PASSWORD and PLAYWRIGHT_USERNAME_2/_PASSWORD_2 in .env.playwright.local (ask the user before creating an account).');
@@ -533,10 +650,30 @@ async function main() {
         note('both logged in');
         for (const p of players) note(`${p.label}: character ${await ensureCharacter(p)}`);
 
-        for (const [i, missionId] of missions.entries()) {
+        let previousLobby = null;
+        for (const [i, entry] of expandMissionArgs(missions).entries()) {
+            const missionId = entry.label;
             const t0 = Date.now();
             let lobby = null;
-            if (i === 0 || !/\/lobby\//.test(host.page.url())) {
+            if (entry.quest && entry.quest.index === 0 && !(i === 0 && REJOIN_LOBBY)) {
+                if (i > 0) await ensureCharacter(host);
+                lobby = await hostQuest(host, entry.quest.bankId, entry.quest.questDefId);
+                note(`host started quest ${entry.quest.questDefId} in lobby ${lobby}`);
+                await joiner?.page.goto(`/lobby/${lobby}`, { waitUntil: 'domcontentloaded' });
+            } else if (entry.quest && entry.quest.index > 0) {
+                // Quest continuation: each player's victory Continue claims the next quest lobby.
+                lobby = await waitForNextLobby(host, previousLobby, 60_000);
+                if (!lobby) throw new Error(`host did not reach the next quest lobby after ${previousLobby}`);
+                const joinerLobby = joiner ? await waitForNextLobby(joiner, previousLobby, 30_000) : null;
+                note(`quest continues in lobby ${lobby}${joiner ? ` (joiner landed in ${joinerLobby ?? 'none'})` : ''}`);
+                if (joiner && joinerLobby !== lobby) {
+                    await joiner.page.goto(`/lobby/${lobby}`, { waitUntil: 'domcontentloaded' });
+                }
+            } else if (i === 0 && REJOIN_LOBBY) {
+                lobby = REJOIN_LOBBY;
+                note(`rejoining lobby ${lobby} for ${missionId}`);
+                await Promise.all(players.map((p) => p.page.goto(`/lobby/${lobby}`, { waitUntil: 'domcontentloaded' })));
+            } else if (i === 0 || !/\/lobby\//.test(host.page.url())) {
                 if (i > 0) await ensureCharacter(host);
                 lobby = await hostMission(host, missionId);
                 note(`host lobby ${lobby} for ${missionId}`);
@@ -552,6 +689,7 @@ async function main() {
             note(`${missionId}: battle started after ${Math.round((Date.now() - t0) / 1000)}s (story clicks ${pre.map((x) => x.storyClicks).join('/')})`);
             const battle = await playBattle(players, missionId);
             battle.lobby = lobby;
+            previousLobby = lobby;
             battle.seconds = Math.round((Date.now() - t0) / 1000);
             report.missions.push(battle);
             note(`${missionId}: ${JSON.stringify(battle.outcomes)} in ${battle.seconds}s`);

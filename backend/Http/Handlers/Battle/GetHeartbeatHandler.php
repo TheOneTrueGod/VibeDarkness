@@ -106,7 +106,8 @@ class GetHeartbeatHandler
             }
         }
         $ordersTipTick = $storage->getOrdersTipTick($lobbyId, $gameId);
-        $ordersRecordCount = $storage->countOrderRecords($lobbyId, $gameId);
+        // Monotonic orders revision, not a line count (see BattleStorage::getOrdersRevision).
+        $ordersRecordCount = $storage->getOrdersRevision($lobbyId, $gameId);
         $expectingData = $storage->getExpectingFromPlayerIdsAt($lobbyId, $gameId);
         $initialState = $storage->getInitialState($lobbyId, $gameId);
 

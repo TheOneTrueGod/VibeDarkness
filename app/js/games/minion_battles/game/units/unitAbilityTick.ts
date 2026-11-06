@@ -233,6 +233,47 @@ function fireIntervalEntry(
 }
 
 /**
+ * After a snapshot restore, rebuild `unit.activeCastBehaviours` records for this cast's sustained
+ * behaviours that were mid-window: their `onSetup` already fired (serialized `setupFiredBehaviourKeys`),
+ * and neither their window nor their interval had ended at `prevElapsed`. Mirrors the registration in
+ * `fireIntervalEntry` without re-running `onSetup`, so the restored engine ticks the same behaviours as
+ * the one that never restored. `tickUnitActiveAbilities` clears the unit flag after the pass.
+ */
+export function rehydrateSustainedCastBehaviours(
+    unit: Unit,
+    active: ActiveAbility,
+    intervals: AbilityTimingInterval[],
+    prevElapsed: number,
+): void {
+    const fired = active.setupFiredBehaviourKeys;
+    if (!fired || fired.size === 0) return;
+    for (const interval of intervals) {
+        if (prevElapsed < interval.start || prevElapsed >= interval.end) continue;
+        const behaviours = getEffectiveCastBehaviours(interval);
+        if (!behaviours) continue;
+        for (let bIdx = 0; bIdx < behaviours.length; bIdx++) {
+            const entry = behaviours[bIdx]!;
+            const behaviourKey = `${interval.id}_${bIdx}`;
+            if (!fired.has(behaviourKey) || unit.activeCastBehaviours.has(behaviourKey)) continue;
+            if (entry.timingEnd === undefined) continue;
+            const resolvedStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
+            const resolvedEnd = resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end);
+            if (prevElapsed >= resolvedEnd) continue;
+            unit.activeCastBehaviours.set(behaviourKey, {
+                entry,
+                intervalStart: resolvedStart,
+                intervalEnd: resolvedEnd,
+                caster: unit,
+                active,
+                targetDef: interval.targetDef,
+                onProjectileHit: interval.onProjectileHit,
+                fireOnHitAtFirstTick: !entry.behaviour.handlesOnProjectileHit && (interval.onProjectileHit?.length ?? 0) > 0,
+            });
+        }
+    }
+}
+
+/**
  * The first label in `missingLabels` among the select intervals a select gate defers (the gated select
  * and any later interval starting at the same time), in interval order. Undefined when none is missing.
  */
@@ -374,6 +415,9 @@ export function tickUnitActiveAbilities(
             delete active.pendingSelectGate;
         }
         const safePrevTime = Math.max(0, prevTime);
+        if (unit.castBehavioursNeedRehydrate) {
+            rehydrateSustainedCastBehaviours(unit, active, intervals, safePrevTime);
+        }
 
         // Use unclamped prevTime for entry/exit detection so intervals starting at t=0
         // are correctly detected as "entered" on the first tick (safePrevTime would be 0,
@@ -741,6 +785,8 @@ export function tickUnitActiveAbilities(
             completed.push(i);
         }
     }
+    // Every cast had its restore pass this tick (rehydrateSustainedCastBehaviours).
+    unit.castBehavioursNeedRehydrate = false;
 
     for (let i = completed.length - 1; i >= 0; i--) {
         const completedIndex = completed[i];

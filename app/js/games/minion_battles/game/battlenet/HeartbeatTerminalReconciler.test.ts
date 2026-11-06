@@ -273,6 +273,37 @@ describe('HeartbeatTerminalReconciler.reconcileFingerprintsEqualHostTick', () =>
         expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
     });
 
+    // Lobby DA8A43: right after battle load the non-host's fingerprint ring is still empty when the
+    // first heartbeat (hostTick 0) lands. Treating "no local row yet" as a mismatch forced a full
+    // resync at tick 0, every recovery tier failed, and the page reloaded.
+    it('non-host: no local fingerprint row for the tick yet waits instead of resyncing', () => {
+        const { reconciler, requestResync, syncStatusSpy } = makeHarness({
+            session: { getLatestFingerprint: () => null },
+        });
+        reconciler.reconcileFingerprintsEqualHostTick(0, hb({ hostTick: 0, hostFingerprint: 'ece63bbb3dd6', hostPaused: false }));
+        expect(requestResync).not.toHaveBeenCalled();
+        expect(syncStatusSpy).toHaveBeenLastCalledWith('waiting_for_host');
+    });
+
+    it(`non-host: still no local row after ${BATTLE_NET_T2_RESYNC_POLLS} polls at the same tick requests resync`, () => {
+        const { reconciler, requestResync } = makeHarness({
+            session: { getLatestFingerprint: () => null },
+        });
+        for (let i = 0; i < BATTLE_NET_T2_RESYNC_POLLS; i++) {
+            reconciler.reconcileFingerprintsEqualHostTick(0, hb({ hostTick: 0, hostFingerprint: 'ece63bbb3dd6' }));
+        }
+        expect(requestResync).toHaveBeenCalledTimes(1);
+        expect(requestResync).toHaveBeenCalledWith('hash-mismatch');
+    });
+
+    it('non-host: a real local row that disagrees still resyncs immediately', () => {
+        const { reconciler, requestResync } = makeHarness({
+            session: { getLatestFingerprint: () => ({ tick: 7, fp: 'localfp', paused: false }) },
+        });
+        reconciler.reconcileFingerprintsEqualHostTick(7, hb({ hostTick: 7, hostFingerprint: 'hostfp' }));
+        expect(requestResync).toHaveBeenCalledWith('hash-mismatch');
+    });
+
     it('non-host: ITS preview active — pause-flag mismatch does not request resync', () => {
         const { reconciler, requestResync } = makeHarness({
             session: {

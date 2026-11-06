@@ -8,7 +8,7 @@ import { getAbility } from '../../../abilities/AbilityRegistry';
 import { resolveModeAbilityId } from '../../../abilities/resolveAbilityMode';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { Unit, UnitAbilityRuntimeState } from '../../../game/units/Unit';
-import { getAbilityDisabledReason } from '../abilityDisabledReason';
+import { getAbilityDisabledReason, getDisabledReasonDisplay } from '../abilityDisabledReason';
 import AbilitySlot from '../AbilitySlot';
 import { battleAbilityCardTestId } from '../../../../../testing/testIds';
 import AbilityTooltip from '../AbilityTooltip';
@@ -393,7 +393,11 @@ export default function RowSlotAbilities({
                     else unregisterHudAnchor(abilityCardHudAnchorId(card.abilityId));
                 }}
                 data-testid={battleAbilityCardTestId(card.abilityId)}
-                data-disabled-reason={disabledReason ?? undefined}
+                data-disabled-reason={
+                    disabledReason
+                        ? `${disabledReason.reason_id}: ${getDisabledReasonDisplay(disabledReason).title}`
+                        : undefined
+                }
             >
                 <AbilitySlot
                     ability={card.ability}

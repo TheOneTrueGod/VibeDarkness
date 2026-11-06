@@ -13,6 +13,7 @@ import {
     type AbilityTimingInterval,
 } from '../../abilities/abilityTimings';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { applyHeal } from './unitHeal';
 import {
     refundAbilityCost,
     resolveAbilityInterruptPolicy,
@@ -335,6 +336,11 @@ export function unitRoundStart(unit: Unit, engine: EngineContext): void {
     if (movement) {
         const recovery = Math.max(0, unit.getMovementRecoveryPerRound() - unit.getMovementSlowStacks(engine));
         movement.add(recovery);
+    }
+    const healthRegen = unit.getHealthRegenPerRound();
+    if (healthRegen > 0) {
+        // Passive regen restores, it doesn't treat a wound: no heal-penalty injury.
+        applyHeal(unit, healthRegen, 0, { eventBus: engine.eventBus, sourceUnitId: unit.id });
     }
     for (const resource of unit.resources) {
         resource.onRoundStart?.(unit, engine);

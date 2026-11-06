@@ -34,6 +34,9 @@ export class HeartbeatTerminalReconciler {
     /** Polls paused behind the host tail at {@link pausedBehindTailEngineTick} (non-host). */
     private pausedBehindTailPolls = 0;
     private pausedBehindTailEngineTick: number | null = null;
+    /** Non-host: equal-tick polls with no local fingerprint row at {@link missingLocalRowTick}. */
+    private missingLocalRowPolls = 0;
+    private missingLocalRowTick: number | null = null;
 
     constructor(private readonly ctx: BattleNetContext) {}
 
@@ -132,6 +135,25 @@ export class HeartbeatTerminalReconciler {
             return;
         }
         if (!this.ctx.isHost && hb.hostFingerprint != null) {
+            // No local row for this tick is not evidence of divergence: right after battle load
+            // (lobby DA8A43, tick 0) the ring is still empty when the first heartbeat lands. Wait for
+            // the next completed tick to compare; resync only if a row never shows up.
+            if (local == null || local.tick !== engineTick) {
+                if (this.missingLocalRowTick !== engineTick) {
+                    this.missingLocalRowTick = engineTick;
+                    this.missingLocalRowPolls = 0;
+                }
+                this.missingLocalRowPolls++;
+                if (this.missingLocalRowPolls < BATTLE_NET_T2_RESYNC_POLLS) {
+                    this.ctx.syncStatus.setStatus(
+                        'waiting_for_host',
+                        'No local fingerprint for this tick yet; comparing on the next tick.',
+                    );
+                    return;
+                }
+                this.missingLocalRowTick = null;
+                this.missingLocalRowPolls = 0;
+            }
             const rowAtTail = this.ctx.session.getFingerprintRange(engineTick, engineTick)[0];
             logToLobbyLogBattleSync({
                 lobbyClient: this.ctx.api as unknown as LobbyClient,

@@ -6,6 +6,19 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite", "--port", "5173", "--strictPort"],
       "port": 5173
+    },
+    {
+      "name": "vite-dev-ip",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host", "127.0.0.1", "--port", "5176", "--strictPort"],
+      "port": 5176,
+      "url": "http://127.0.0.1:5176"
+    },
+    {
+      "name": "php",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["-S", "localhost:8000", "index.php"],
+      "port": 8000
     }
   ]
 }

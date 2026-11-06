@@ -415,7 +415,7 @@ export interface ActiveAbility {
      * so mid-cast recovery preserves the mode behaviours read via ctx.abilityMode.
      */
     abilityMode?: string;
-    /** Per-behaviour per-cast runtime state. Keyed by `${intervalId}_${behaviourIndex}`. NOT serialized. */
+    /** Per-behaviour per-cast runtime state. Keyed by `${intervalId}_${behaviourIndex}`. Serialized (Set/Map-safe, see castBehaviourStateSerialization.ts). */
     castBehaviourPayloads?: Record<string, unknown>;
     /**
      * Named targets collected via per-timing `SelectTargetDef` entries, keyed by
@@ -448,7 +448,7 @@ export interface ActiveAbility {
     /**
      * One-shot cast behaviour setup keys already fired this cast (`${intervalId}_${bIdx}`).
      * Prevents duplicate onSetup when enteredTimingIds re-enters at prevElapsed === start.
-     * NOT serialized.
+     * Serialized as an array; also marks which sustained behaviours a restore must rebuild.
      */
     setupFiredBehaviourKeys?: Set<string>;
     /**

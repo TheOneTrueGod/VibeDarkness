@@ -171,6 +171,7 @@ final class BattleStorage
             }
             fflush($fh);
             flock($fh, LOCK_UN);
+            $this->bumpOrdersRevision($lobbyId, $gameId);
 
             return ['appended' => true, 'pendingLineId' => $pendingLineId, 'reusedExisting' => false];
         } finally {
@@ -194,6 +195,7 @@ final class BattleStorage
         }
         $merged = 0;
         $seenHashes = [];
+        $changed = false;
         try {
             if (!flock($pendingFh, LOCK_EX)) {
                 throw new RuntimeException("mergeFinalizedPendingForBatch: LOCK_EX failed {$pendingPath}");
@@ -307,8 +309,14 @@ final class BattleStorage
             }
             fflush($pendingFh);
             flock($pendingFh, LOCK_UN);
+            $changed = $merged > 0 || count($keptEncoded) !== count($lines);
         } finally {
             fclose($pendingFh);
+        }
+        if ($changed) {
+            // A merge can drop a draft and append its final row with the line count unchanged; the
+            // revision still has to move so peers refetch (playtest 0003, lobby 83C3E9 hardlock).
+            $this->bumpOrdersRevision($lobbyId, $gameId);
         }
 
         return ['merged' => $merged, 'appendedHashes' => $seenHashes];
@@ -369,6 +377,10 @@ final class BattleStorage
                 }
                 $keptLines[] = $rawLine;
             }
+            $prunedAny = count($keptLines) !== count(array_filter(
+                explode("\n", trim($blob, "\n")),
+                static fn (string $l): bool => trim($l) !== '',
+            ));
 
             ftruncate($pendingFh, 0);
             rewind($pendingFh);
@@ -379,6 +391,9 @@ final class BattleStorage
             flock($pendingFh, LOCK_UN);
         } finally {
             fclose($pendingFh);
+        }
+        if (!empty($prunedAny)) {
+            $this->bumpOrdersRevision($lobbyId, $gameId);
         }
     }
 
@@ -631,7 +646,63 @@ final class BattleStorage
     }
 
     /**
-     * Line count across pending + applied JSONL streams (heartbeat revision counter).
+     * Monotonic revision of the pending + applied order streams, served as heartbeat
+     * `ordersRecordCount`. Clients refetch orders whenever it increases. A plain line count is not
+     * enough: a merge that drops a draft and appends its final row, or a prune, leaves the count
+     * unchanged or lower, and a peer that already applied the draft never sees the final order
+     * (playtest 0003, lobby 83C3E9). Lobbies from before this file existed seed it from the line
+     * count, so existing client baselines stay at or below it.
+     */
+    public function getOrdersRevision(string $lobbyId, string $gameId): int
+    {
+        return $this->withOrdersRevision($lobbyId, $gameId, false);
+    }
+
+    private function bumpOrdersRevision(string $lobbyId, string $gameId): void
+    {
+        $this->withOrdersRevision($lobbyId, $gameId, true);
+    }
+
+    private function withOrdersRevision(string $lobbyId, string $gameId, bool $bump): int
+    {
+        $path = $this->getGameDir($lobbyId, $gameId) . '/orders_revision.json';
+        $fh = fopen($path, 'c+');
+        if ($fh === false) {
+            return $this->countOrderRecords($lobbyId, $gameId);
+        }
+        try {
+            @flock($fh, LOCK_EX);
+            rewind($fh);
+            $raw = stream_get_contents($fh);
+            $decoded = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
+            $rev = is_array($decoded) && isset($decoded['rev']) && is_int($decoded['rev'])
+                ? $decoded['rev']
+                : null;
+            $dirty = false;
+            if ($rev === null) {
+                $rev = $this->countOrderRecords($lobbyId, $gameId);
+                $dirty = true;
+            }
+            if ($bump) {
+                $rev++;
+                $dirty = true;
+            }
+            if ($dirty) {
+                ftruncate($fh, 0);
+                rewind($fh);
+                fwrite($fh, (string) json_encode(['rev' => $rev]));
+                fflush($fh);
+            }
+            @flock($fh, LOCK_UN);
+
+            return $rev;
+        } finally {
+            fclose($fh);
+        }
+    }
+
+    /**
+     * Line count across pending + applied JSONL streams.
      */
     public function countOrderRecords(string $lobbyId, string $gameId): int
     {

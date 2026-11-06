@@ -27,6 +27,9 @@ export const TestIds = {
     researchResetPurchased: 'research-reset-purchased',
     researchResetAdmin: 'research-reset-admin',
     missionHost: 'mission-host',
+    /** Join Mission tab: lobby code input + Join by Code button */
+    joinLobbyCodeInput: 'join-lobby-code-input',
+    joinLobbyByCode: 'join-lobby-by-code',
     missionMapNodePrefix: 'mission-map-node-',
     missionMapQuestBankPrefix: 'mission-map-quest-bank-',
     questBankPickerPopup: 'quest-bank-picker-popup',
@@ -54,6 +57,8 @@ export const TestIds = {
     battlePass: 'battle-pass',
     battleAbilityCardPrefix: 'battle-ability-card-',
     victoryPopover: 'victory-popover',
+    /** Defeat modal root (Retry Mission / Abandon Quest / Leave). */
+    defeatModal: 'defeat-modal',
     victoryPopoverContinue: 'victory-popover-continue',
     objectivesPopover: 'objectives-popover',
     objectivesPopoverStart: 'objectives-popover-start',

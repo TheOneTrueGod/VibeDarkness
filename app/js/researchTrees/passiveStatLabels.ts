@@ -10,6 +10,7 @@ export const PASSIVE_STAT_LABELS: Record<PassiveStatKey, string> = {
     [PassiveStatKey.Ability0701Damage]: 'Dog Bite Damage',
     [PassiveStatKey.MaxMovementPoints]: 'Max Movement Points',
     [PassiveStatKey.MovementRegenPerRound]: 'Movement Regen / Round',
+    [PassiveStatKey.HealthRegenPerRound]: 'Health Regen / Round',
     [PassiveStatKey.LightRegenEnabled]: 'Light Regen',
     [PassiveStatKey.EnemyUnitSlimeMaxHealthBonus]: 'Enemy Slime Max Health',
     [PassiveStatKey.EnemyUnitSlimeExtraProjectiles]: 'Enemy Slime Extra Projectiles',

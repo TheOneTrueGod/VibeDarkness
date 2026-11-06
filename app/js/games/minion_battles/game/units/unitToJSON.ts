@@ -4,6 +4,7 @@ import { serializeTacticalPlan } from './unitAI/plans/planUtils';
 import { serializeUnitComponents } from './components/unitComponent';
 import { ccArmourStateToJSON } from '../../crowdControl/ccArmourState';
 import { serializeHoverFlight } from './hoverFlight';
+import { serializeCastBehaviourPayloads, serializeSetupFiredBehaviourKeys } from './castBehaviourStateSerialization';
 
 export function serializeUnit(unit: Unit, currentGameTick: number): Record<string, unknown> {
     return {
@@ -77,6 +78,14 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             ...(a.awaitingPickLabel !== undefined ? { awaitingPickLabel: a.awaitingPickLabel } : {}),
             ...(a.movementByLabel !== undefined
                 ? { movementByLabel: JSON.parse(JSON.stringify(a.movementByLabel)) as typeof a.movementByLabel }
+                : {}),
+            // Mid-cast behaviour state (lunges, dashes): without it a restored engine drops in-flight
+            // sustained behaviours (playtest 0003, lobby DA8A43). See castBehaviourStateSerialization.ts.
+            ...(serializeCastBehaviourPayloads(a.castBehaviourPayloads) !== undefined
+                ? { castBehaviourPayloads: serializeCastBehaviourPayloads(a.castBehaviourPayloads) }
+                : {}),
+            ...(serializeSetupFiredBehaviourKeys(a.setupFiredBehaviourKeys) !== undefined
+                ? { setupFiredBehaviourKeys: serializeSetupFiredBehaviourKeys(a.setupFiredBehaviourKeys) }
                 : {}),
         })),
         abilityNote: unit.abilityNote
