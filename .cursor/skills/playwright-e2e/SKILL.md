@@ -26,7 +26,7 @@ Requires Chromium once: `npx playwright install chromium`. Stack: `npm run php` 
 
 ## Local login
 
-The debugging account is `.env.playwright.local` (`PLAYWRIGHT_USERNAME` / `PLAYWRIGHT_PASSWORD`). Use it to log in while debugging the local app, in the browser or in Playwright. Use no other account. Leave the password in that file. Root `AGENTS.md` ("Live app debugging") points here.
+The debugging account is `.env.playwright.local` (`PLAYWRIGHT_USERNAME` / `PLAYWRIGHT_PASSWORD`). Use it to log in while debugging the local app, in the browser or in Playwright. For multi-session browser testing, use the **session-testing** accounts (`testuser_a` / `testuser_b`). Use no other account. Leave the password in that file. Root `AGENTS.md` ("Live app debugging") points here.
 
 ## Sandbox
 
