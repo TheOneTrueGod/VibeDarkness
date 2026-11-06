@@ -16,6 +16,8 @@ import { PET_AI_TREE } from './pet/index';
 import { SWARMLING_NETWORK_AI_TREE } from './swarmlingNetwork/index';
 import { NETWORK_HUNT_AI_TREE } from './networkHunt/index';
 import { SENTRY_PATROL_AI_TREE } from './sentryPatrol/index';
+import { COURT_MAGICIAN_AI_TREE } from './courtMagician/index';
+import { BOUND_FIXTURE_AI_TREE } from './boundFixture/index';
 
 export type { AIContext, AILightSource, UnitAITree, AINode, AIEdgeCondition, AINodeId } from './types';
 export { isNodeInTree } from './types';
@@ -87,6 +89,8 @@ const TREE_REGISTRY: Record<string, UnitAITree> = {
     swarmlingNetwork: SWARMLING_NETWORK_AI_TREE,
     networkHunt: NETWORK_HUNT_AI_TREE,
     sentryPatrol: SENTRY_PATROL_AI_TREE,
+    courtMagician: COURT_MAGICIAN_AI_TREE,
+    boundFixture: BOUND_FIXTURE_AI_TREE,
 };
 
 export function getUnitAITree(treeId: string): UnitAITree | null {

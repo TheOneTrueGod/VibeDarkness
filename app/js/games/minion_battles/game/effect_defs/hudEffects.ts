@@ -22,6 +22,21 @@ export class RoundStartBannerEffect extends HudEffect {
     }
 }
 
+// ─── ActionTitle ─────────────────────────────────────────────────────────────
+// Big outlined action-scene title (`action_title` event): fly in from the left to just short of centre,
+// drift right through centre, fly out to the right. Wall clock (render dt), so it plays through Time Stop.
+
+export type ActionTitleData = { text: string; color: number; glowColor: number | null };
+
+export class ActionTitleEffect extends HudEffect {
+    declare effectData: ActionTitleData;
+
+    constructor(text: string, durationSec: number, color = 0xfdf4ff, glowColor: number | null = null) {
+        super('ActionTitle', Math.max(0.3, durationSec));
+        this.effectData = { text, color, glowColor };
+    }
+}
+
 // ─── ScreenFlash ──────────────────────────────────────────────────────────────
 // Full-viewport color flash. Alpha rises then falls over duration.
 // Generic utility: crits, knockouts, round transitions.

@@ -133,6 +133,40 @@ export const ENEMY_IRON_WARDEN: EnemySpawnDef = {
     unitAITreeId: 'hunt',
 };
 
+/**
+ * Court Magician: castle boss who fights through his dark crystals (`ENEMY_COURT_CRYSTAL`, placed by
+ * the mission). Rearrange (1401), Shard Nova (1402), Crystal Volley (1403), Blink (1405, ordered by
+ * his AI tree), Mirror Swap (1406, cast every 10% HP lost by the `hpStep` component) and, enraged, the Crystal Laser super (1490). Keeps his distance (`aiSettings`), lets
+ * the party land a few hits up close, then blinks away. Abilities and numbers in
+ * `card_defs/14_enemy_court_magician/`.
+ */
+/** HP fraction at which the Court Magician enrages (denser novas, longer volleys, Crystal Laser). */
+export const COURT_MAGICIAN_ENRAGE_THRESHOLD = 0.5;
+/** He casts Mirror Swap (1406) every time he loses this fraction of max HP. */
+export const COURT_MAGICIAN_SWAP_HP_STEP = 0.1;
+
+export const ENEMY_COURT_MAGICIAN: EnemySpawnDef = {
+    characterId: 'court_magician',
+    name: 'Court Magician',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['1401', '1402', '1403', '1405', '1406', '1490'],
+    aiSettings: { minRange: 160, maxRange: 300 },
+    unitTags: [UnitTag.Boss, UnitTag.CrowdSpacingAnchor],
+    unitAITreeId: 'courtMagician',
+};
+
+/** Court Magician's dark crystal: an untouchable fixture that only rams (1404) on his command. */
+export const ENEMY_COURT_CRYSTAL: EnemySpawnDef = {
+    characterId: 'court_crystal',
+    name: 'Dark Crystal',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['1404'],
+    aiSettings: { minRange: 0, maxRange: 0 },
+    unitAITreeId: 'boundFixture',
+};
+
 /** Swarmling: fast small biter — two copies of Bite (0013) per round. */
 export const ENEMY_SWARMLING: EnemySpawnDef = {
     characterId: 'swarmling',

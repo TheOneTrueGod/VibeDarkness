@@ -287,6 +287,13 @@ export class OrderManager {
         return true;
     }
 
+    /** Drop every order queued for `unitId` at or after `fromTick` (default: now). Returns how many were dropped. */
+    dropPendingOrdersForUnit(unitId: string, fromTick = this.ctx.gameTick): number {
+        const before = this.pendingOrders.length;
+        this.pendingOrders = this.pendingOrders.filter((o) => !(o.order.unitId === unitId && o.gameTick >= fromTick));
+        return before - this.pendingOrders.length;
+    }
+
     queueOrder(atTick: number, order: BattleOrder): void {
         const effectiveTick = atTick < this.ctx.gameTick ? this.ctx.gameTick : atTick;
         this.pendingOrders = this.pendingOrders.filter(

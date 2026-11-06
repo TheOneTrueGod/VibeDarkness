@@ -324,6 +324,27 @@ export class TerrainManager {
         });
     }
 
+    /** Max durability of the intact rock at (col, row) (bedrock: `EARTH_CORE_STONE_HEALTH`), or 0 when none. */
+    getRockMaxHealth(col: number, row: number): number {
+        if (!this.isIntactRockAt(col, row)) return 0;
+        return this.getFloorTile(col, row)?.destructible?.maxHealth ?? EARTH_CORE_STONE_HEALTH;
+    }
+
+    /**
+     * Chip an intact rock so it breaks after `hitsToBreak` such hits from full durability, whatever its max
+     * health (damage per hit = ceil(maxHealth / hitsToBreak)). No-op off-grid or on anything but intact rock.
+     */
+    damageRockByHits(
+        col: number,
+        row: number,
+        hitsToBreak: number,
+        sourceUnitId?: string | null,
+    ): TerrainStoneDamagedTransition | null {
+        const maxHealth = this.getRockMaxHealth(col, row);
+        if (maxHealth <= 0 || hitsToBreak <= 0) return null;
+        return this.damageRock(col, row, Math.ceil(maxHealth / hitsToBreak), sourceUnitId);
+    }
+
     consumeRockInRadius(
         centerCol: number,
         centerRow: number,

@@ -18,7 +18,8 @@ const MAX_CIRCLE_SEGMENTS = 96;
  * telegraph) draws through this wrapper unmodified — it has no idea clipping is happening.
  */
 export class LitClippingPreviewGraphics implements IAbilityPreviewGraphics {
-    private path: Point[] = [];
+    /** Subpaths since the last stroke/fill; each `moveTo` starts a new one. */
+    private paths: Point[][] = [];
     private pendingCircle: { x: number; y: number; r: number } | null = null;
 
     constructor(
@@ -28,22 +29,24 @@ export class LitClippingPreviewGraphics implements IAbilityPreviewGraphics {
 
     clear(): void {
         this.target.clear();
-        this.path = [];
+        this.paths = [];
         this.pendingCircle = null;
     }
 
     moveTo(x: number, y: number): void {
-        this.path = [{ x, y }];
+        this.paths.push([{ x, y }]);
         this.pendingCircle = null;
     }
 
     lineTo(x: number, y: number): void {
-        this.path.push({ x, y });
+        const current = this.paths[this.paths.length - 1];
+        if (current) current.push({ x, y });
+        else this.paths.push([{ x, y }]);
     }
 
     circle(x: number, y: number, radius: number): void {
         this.pendingCircle = { x, y, r: radius };
-        this.path = [];
+        this.paths = [];
     }
 
     fill(options: FillOptions): void {
@@ -54,17 +57,19 @@ export class LitClippingPreviewGraphics implements IAbilityPreviewGraphics {
             this.target.fill(options);
         }
         this.pendingCircle = null;
-        this.path = [];
+        this.paths = [];
     }
 
     stroke(options: StrokeOptions): void {
         if (this.pendingCircle) {
             drawLitClippedCircle(this.target, this.isLit, this.pendingCircle, options);
-        } else if (this.path.length >= 2) {
-            drawLitClippedPolyline(this.target, this.isLit, this.path, options);
+        } else {
+            for (const path of this.paths) {
+                if (path.length >= 2) drawLitClippedPolyline(this.target, this.isLit, path, options);
+            }
         }
         this.pendingCircle = null;
-        this.path = [];
+        this.paths = [];
     }
 }
 

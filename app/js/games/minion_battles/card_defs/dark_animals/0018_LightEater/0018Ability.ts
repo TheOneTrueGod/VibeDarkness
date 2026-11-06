@@ -33,6 +33,7 @@ import {
 } from '../../../game/displacer/displacerConstants';
 import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
 import { getCastElapsedAt } from '../../../game/time/actorClock';
+import { fireProjectileRing } from '../../../abilities/projectileRing';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}18`;
 export const LIGHT_EATER_ID = CARD_ID;
@@ -258,11 +259,9 @@ function explode(ctx: CastBehaviourTickContext): void {
         const ringCount = hasUnitTag(caster, UnitTag.Enraged)
             ? LIGHT_EATER_RING_PROJECTILES * LIGHT_EATER_ENRAGED_RING_MULTIPLIER
             : LIGHT_EATER_RING_PROJECTILES;
-        const step = (Math.PI * 2) / ringCount;
-        for (let i = 0; i < ringCount; i++) {
-            const angle = LIGHT_EATER_RING_ROTATION + i * step;
-            spawnDisplacerBoltProjectile(eng, caster, Math.cos(angle), Math.sin(angle));
-        }
+        fireProjectileRing({ count: ringCount, rotation: LIGHT_EATER_RING_ROTATION }, (dx, dy) =>
+            spawnDisplacerBoltProjectile(eng, caster, dx, dy),
+        );
     }
     eng.addEffect(new Effect({
         x: center.x,

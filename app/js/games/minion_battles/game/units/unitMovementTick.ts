@@ -217,7 +217,8 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown, opts?: UnitM
 
     // Wall recovery: nudge/snap stuck units out of impassable terrain (runs before stun check so
     // stunned units can still recover from a wall they were diagonal-clipped into).
-    if (terrainManager && unit.isAlive()) {
+    // Carried through the air by an ability this tick: over rock, not in it (landing re-runs this).
+    if (terrainManager && unit.isAlive() && !unit.inFlightThisTick) {
         tickWallUnstick(unit, dt, engine as EngineContext);
     }
 

@@ -55,5 +55,6 @@ Effects receive `viewportWidth` and `viewportHeight` each frame via `HudEffectLa
 | `TeamworkTextEffect` | `TeamworkText` | 1.1s | teamwork bonus in BattlePhase |
 | `RewindingTextEffect` | `RewindingText` | 1.0s | ITS commit rollback (`useRewindOverlay`) |
 | `InterruptedTextEffect` | `InterruptedText` | 1.2s | ITS preview cast interrupted → auto-undo (`useInteractiveTargetingProgress`) |
+| `ActionTitleEffect` | `ActionTitle` | caller-set | `action_title` engine event (e.g. Crystal Laser at its Time Stop): outlined title flies in left, drifts through centre, flies out right; wall clock |
 | `ResourceFlightEffect` | `ResourceFlight` | 0.8s | manual |
 | `ResourceArrivalPulseEffect` | `ResourceArrivalPulse` | 0.4s | auto-spawned when ResourceFlight completes |

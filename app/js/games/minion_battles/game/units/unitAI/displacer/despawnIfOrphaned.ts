@@ -6,13 +6,9 @@
 import type { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import { DISPLACER_SPIRIT_ID } from '../../../displacer/displacerConstants';
+import { despawnIfMasterGone } from '../../boundUnits';
 
 /** True (and schedules despawn) when the clone has no living master. */
 export function despawnIfOrphaned(unit: Unit, context: AIContext): boolean {
-    const masterAlive = context
-        .getUnits()
-        .some((u) => u.isAlive() && u.characterId === DISPLACER_SPIRIT_ID && u.teamId === unit.teamId);
-    if (masterAlive) return false;
-    unit.ephemeralDespawnAtGameTime = context.gameTime;
-    return true;
+    return despawnIfMasterGone(unit, context, DISPLACER_SPIRIT_ID);
 }

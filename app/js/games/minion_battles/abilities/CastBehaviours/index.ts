@@ -12,6 +12,10 @@ import { GroundPatch, type GroundPatchConfig, type GroundPatchBehaviour } from '
 import { terrainStrike, type TerrainStrikeBehaviour } from './TerrainStrikeBehaviour';
 import { pulse, type PulseConfig, type PulseBehaviour } from './PulseBehaviour';
 import { arcSweep, type ArcSweepConfig, type ArcSweepBehaviour } from './ArcSweepBehaviour';
+import { Arrange, type ArrangeConfig, type ArrangeBehaviour } from './ArrangeBehaviour';
+import { Teleport, type TeleportConfig, type TeleportBehaviour } from './TeleportBehaviour';
+import { Beam, type BeamConfig, type BeamBehaviour } from './BeamBehaviour';
+import { SwapPlaces, type SwapPlacesConfig, type SwapPlacesBehaviour } from './SwapPlacesBehaviour';
 import type { CastBehaviourTickContext } from '../castBehaviourTypes';
 
 export const CastBehaviours = {
@@ -41,6 +45,14 @@ export const CastBehaviours = {
     Pulse: (config: PulseConfig): PulseBehaviour => pulse(config),
     /** A whirlwind: arc segments laid around the caster one after another, each a fading effect and a hitbox. Supports Echo. */
     ArcSweep: (config: ArcSweepConfig): ArcSweepBehaviour => arcSweep(config),
+    /** Glides a group of other units into new positions (usually a formation) over its window. */
+    Arrange: (config: ArrangeConfig): ArrangeBehaviour => Arrange(config),
+    /** The caster blinks to a point on the window's first tick (snapped to open ground). */
+    Teleport: (config?: TeleportConfig): TeleportBehaviour => Teleport(config),
+    /** Caster and a chosen partner unit trade positions on the first tick (`onSwap` for effects). */
+    SwapPlaces: (config: SwapPlacesConfig): SwapPlacesBehaviour => SwapPlaces(config),
+    /** Sustained parallel rays that stop at the first wall or unit and damage it in blockable pulses. */
+    Beam: (config: BeamConfig): BeamBehaviour => Beam(config),
 };
 
 export { BaseAttackBehaviour } from './BaseAttackBehaviour';

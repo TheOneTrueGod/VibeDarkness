@@ -11,6 +11,7 @@ import { rockSlideDef } from './rockSlideDef';
 import { foldedDeployableDef } from './foldedDeployableDef';
 import { tetheredHookDef, TETHERED_HOOK_PROJECTILE_TYPE } from './tetheredHookDef';
 import { arcBoltDef, ARC_BOLT_PROJECTILE_TYPE } from './arcBoltDef';
+import { darkShardDef, DARK_SHARD_PROJECTILE_TYPE } from './darkShardDef';
 import {
     DEPLOYABLE_DELIVERY_PROJECTILE_TYPE,
     LEGACY_TURRET_DELIVERY_PROJECTILE_TYPE,
@@ -28,6 +29,7 @@ const registry: Record<string, IProjectileDef> = {
     rock_slide: rockSlideDef,
     [TETHERED_HOOK_PROJECTILE_TYPE]: tetheredHookDef,
     [ARC_BOLT_PROJECTILE_TYPE]: arcBoltDef,
+    [DARK_SHARD_PROJECTILE_TYPE]: darkShardDef,
     [DEPLOYABLE_DELIVERY_PROJECTILE_TYPE]: foldedDeployableDef,
     [LEGACY_TURRET_DELIVERY_PROJECTILE_TYPE]: foldedDeployableDef,
 };

@@ -17,6 +17,13 @@ import { HuskGraspCard } from './11_enemy_husk/1101_HuskGrasp/1101Ability';
 import { GaolersHookCard } from './12_enemy_warden/1201_GaolersHook/1201Ability';
 import { ExecutionSlamCard } from './12_enemy_warden/1202_ExecutionSlam/1202Ability';
 import { BulwarkCard } from './12_enemy_warden/1203_Bulwark/1203Ability';
+import { RearrangeCard_1401 } from './14_enemy_court_magician/1401_Rearrange/1401Ability';
+import { ShardNovaCard_1402 } from './14_enemy_court_magician/1402_ShardNova/1402Ability';
+import { CrystalVolleyCard_1403 } from './14_enemy_court_magician/1403_CrystalVolley/1403Ability';
+import { CrystalRamCard_1404 } from './14_enemy_court_magician/1404_CrystalRam/1404Ability';
+import { BlinkCard_1405 } from './14_enemy_court_magician/1405_Blink/1405Ability';
+import { MirrorSwapCard_1406 } from './14_enemy_court_magician/1406_MirrorSwap/1406Ability';
+import { CrystalLaserCard_1490 } from './14_enemy_court_magician/1490_CrystalLaser/1490Ability';
 import { AlphaWolfClawCard } from './dark_animals/0004_AlphaWolfClaw/0004Ability';
 import { AlphaWolfSummonCard } from './dark_animals/0005_AlphaWolfSummon/0005Ability';
 import { BoarChargeCard } from './dark_animals/0006_BoarCharge/0006Ability';
@@ -117,6 +124,13 @@ const cardDefs: CardDef[] = [
     GaolersHookCard,
     ExecutionSlamCard,
     BulwarkCard,
+    RearrangeCard_1401,
+    ShardNovaCard_1402,
+    CrystalVolleyCard_1403,
+    CrystalRamCard_1404,
+    BlinkCard_1405,
+    MirrorSwapCard_1406,
+    CrystalLaserCard_1490,
     AlphaWolfClawCard,
     AlphaWolfSummonCard,
     BoarChargeCard,

@@ -293,6 +293,7 @@ export class UnitManager {
         // Ephemeral ability-movement claim — dash/lunge/moveUnit re-claim while still sliding.
         for (const unit of this.units) {
             unit.abilityOwnsMovementThisTick = false;
+            unit.inFlightThisTick = false;
             // Hits held by the 'onResume' frozen-hit policy land, in order, on the first tick the unit thaws.
             if (unit.pendingFrozenHits.length > 0) resolvePendingFrozenHits(unit, engine.eventBus);
         }

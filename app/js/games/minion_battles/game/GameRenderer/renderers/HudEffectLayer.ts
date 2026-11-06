@@ -1,7 +1,13 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import type { GameEngine } from '../../GameEngine';
 import type { Camera } from '../../Camera';
-import type { RoundStartEvent, RecoveryChargeGrantedEvent, BossExposedCcSuppressedEvent, UnitEnragedEvent } from '../../EventBus';
+import type {
+    RoundStartEvent,
+    RecoveryChargeGrantedEvent,
+    BossExposedCcSuppressedEvent,
+    UnitEnragedEvent,
+    ActionTitleEvent,
+} from '../../EventBus';
 import { HudEffect } from '../../effects/HudEffect';
 import {
     RoundStartBannerEffect,
@@ -9,6 +15,8 @@ import {
     ResourceArrivalPulseEffect,
     ResilientTextEffect,
     EnrageRingsEffect,
+    ActionTitleEffect,
+    type ActionTitleData,
     type RoundStartResourceGrant,
     type ResourceFlightData,
     type ResourceArrivalPulseData,
@@ -23,6 +31,34 @@ const BADGE_R = 12;                 // radius of the count badge circle
 const ICON_GAP = 12;
 const ICON_BASE_Y = 6; // y offset from banner container origin to icon circle centre-y
 const BANNER_Y_FRAC = 0.40; // canvas-fraction for banner vertical center
+
+// Action title (ActionTitleEffect).
+const ACTION_TITLE_FONT_PX = 96;
+const ACTION_TITLE_Y_FRAC = 0.32;
+/** Share of the effect spent flying in, and where the fly-out starts. */
+const ACTION_TITLE_IN_END = 0.14;
+const ACTION_TITLE_OUT_START = 0.8;
+/** Drift (fraction of canvas width) either side of centre during the hold. */
+const ACTION_TITLE_DRIFT = 0.03;
+
+/**
+ * Action title pose at progress p: `offset` -1..1 (fully off left .. fully off right), `drift` in canvas
+ * widths, `skew` (radians, negative leans forward). Exported for tests.
+ */
+export function actionTitlePose(p: number): { offset: number; drift: number; skew: number } {
+    if (p < ACTION_TITLE_IN_END) {
+        const t = p / ACTION_TITLE_IN_END;
+        const e = 1 - (1 - t) ** 3; // fast in, settling
+        return { offset: -1 + e, drift: -ACTION_TITLE_DRIFT, skew: -0.35 + 0.15 * e };
+    }
+    if (p < ACTION_TITLE_OUT_START) {
+        const t = (p - ACTION_TITLE_IN_END) / (ACTION_TITLE_OUT_START - ACTION_TITLE_IN_END);
+        return { offset: 0, drift: -ACTION_TITLE_DRIFT + 2 * ACTION_TITLE_DRIFT * t, skew: -0.2 };
+    }
+    const t = (p - ACTION_TITLE_OUT_START) / (1 - ACTION_TITLE_OUT_START);
+    const e = t ** 3; // slow start, then gone
+    return { offset: e, drift: ACTION_TITLE_DRIFT, skew: -0.2 - 0.2 * e };
+}
 
 // Main (darker) and soft (lighter) hex color pairs per charge type.
 // Must stay in sync with recoveryChargeDefinitions.ts mainHex / softHex.
@@ -63,6 +99,7 @@ export class HudEffectLayer {
     private readonly onRecoveryChargeGrantedBound: (data: RecoveryChargeGrantedEvent) => void;
     private readonly onBossExposedCcSuppressedBound: (data: BossExposedCcSuppressedEvent) => void;
     private readonly onUnitEnragedBound: (data: UnitEnragedEvent) => void;
+    private readonly onActionTitleBound: (data: ActionTitleEvent) => void;
 
     constructor(
         private readonly hudContainer: Container,
@@ -72,6 +109,7 @@ export class HudEffectLayer {
         this.onRecoveryChargeGrantedBound = this.onRecoveryChargeGranted.bind(this);
         this.onBossExposedCcSuppressedBound = this.onBossExposedCcSuppressed.bind(this);
         this.onUnitEnragedBound = this.onUnitEnraged.bind(this);
+        this.onActionTitleBound = this.onActionTitle.bind(this);
     }
 
     addEffect(effect: HudEffect): void {
@@ -97,12 +135,14 @@ export class HudEffectLayer {
                 this.engineSource.eventBus.off('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
                 this.engineSource.eventBus.off('boss_exposed_cc_suppressed', this.onBossExposedCcSuppressedBound);
                 this.engineSource.eventBus.off('unit_enraged', this.onUnitEnragedBound);
+                this.engineSource.eventBus.off('action_title', this.onActionTitleBound);
             }
             this.engineSource = engine;
             engine.eventBus.on('round_start', this.onRoundStartBound);
             engine.eventBus.on('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
             engine.eventBus.on('boss_exposed_cc_suppressed', this.onBossExposedCcSuppressedBound);
             engine.eventBus.on('unit_enraged', this.onUnitEnragedBound);
+            engine.eventBus.on('action_title', this.onActionTitleBound);
         }
 
         // Advance all active effects; collect deferred effects to spawn.
@@ -163,6 +203,7 @@ export class HudEffectLayer {
             this.engineSource.eventBus.off('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
             this.engineSource.eventBus.off('boss_exposed_cc_suppressed', this.onBossExposedCcSuppressedBound);
             this.engineSource.eventBus.off('unit_enraged', this.onUnitEnragedBound);
+            this.engineSource.eventBus.off('action_title', this.onActionTitleBound);
             this.engineSource = null;
         }
         for (const visual of this.effectVisuals.values()) {
@@ -289,6 +330,7 @@ export class HudEffectLayer {
             case 'ResourceArrivalPulse': return this.createResourceArrivalPulse(effect);
             case 'ResilientText': return this.createResilientText();
             case 'EnrageRings': return this.createEnrageRings(effect);
+            case 'ActionTitle': return this.createActionTitle(effect);
             default: return new Container();
         }
     }
@@ -303,6 +345,7 @@ export class HudEffectLayer {
             case 'ResourceArrivalPulse': return this.updateResourceArrivalPulse(visual as Graphics, effect);
             case 'ResilientText': return this.updateResilientText(visual, effect);
             case 'EnrageRings': return this.updateEnrageRings(visual, effect);
+            case 'ActionTitle': return this.updateActionTitle(visual, effect, vw, vh);
         }
     }
 
@@ -698,6 +741,58 @@ export class HudEffectLayer {
 
         // Alpha: full until 65%, then linear fade to 0
         visual.alpha = p < 0.65 ? 1 : Math.max(0, 1 - (p - 0.65) / 0.35);
+    }
+
+    // ─── ActionTitle ─────────────────────────────────────────────────────────
+
+    private onActionTitle(data: ActionTitleEvent): void {
+        this.addEffect(new ActionTitleEffect(data.text, data.durationSec, data.color, data.glowColor ?? null));
+    }
+
+    private createActionTitle(effect: HudEffect): Container {
+        const data = effect.effectData as ActionTitleData;
+        const t = new Text({
+            text: data.text.toUpperCase(),
+            style: new TextStyle({
+                fontFamily: 'Arial Black, Arial, Helvetica, sans-serif',
+                fontSize: ACTION_TITLE_FONT_PX,
+                fontWeight: '900',
+                fontStyle: 'italic',
+                letterSpacing: 6,
+                fill: data.color,
+                stroke: { color: 0x000000, width: 10, join: 'round' },
+                dropShadow: {
+                    alpha: 1,
+                    angle: Math.PI / 4,
+                    blur: data.glowColor != null ? 14 : 0,
+                    color: data.glowColor ?? 0x000000,
+                    distance: data.glowColor != null ? 0 : 6,
+                },
+                padding: 24,
+            }),
+        });
+        // Centre anchor: x = vw / 2 puts the middle of the word on the middle of the screen.
+        t.anchor.set(0.5, 0.5);
+        const container = new Container();
+        container.addChild(t);
+        return container;
+    }
+
+    private updateActionTitle(visual: Container, effect: HudEffect, vw: number, vh: number): void {
+        const text = visual.children[0] as Text | undefined;
+        if (!text) return;
+        // Fit: at most 85% of the canvas width (measured unscaled, so the fit does not feed back on itself).
+        const naturalW = Math.max(1, text.width / (text.scale.x || 1));
+        const fit = Math.min(1, (vw * 0.85) / naturalW);
+        text.scale.set(fit);
+        const halfW = (naturalW * fit) / 2;
+        const pose = actionTitlePose(effect.progress);
+        // Offsets are in units of "half screen + half word", so 1 = fully off-screen on that side.
+        const offscreen = vw / 2 + halfW + 40;
+        visual.x = vw / 2 + pose.offset * offscreen + pose.drift * vw;
+        visual.y = vh * ACTION_TITLE_Y_FRAC;
+        visual.skew.x = pose.skew;
+        visual.alpha = 1;
     }
 
     // ─── EnrageRings ─────────────────────────────────────────────────────────

@@ -26,6 +26,17 @@ export const STORM_THEME: AbilityTheme = {
     font: '#0b1a3a',
     shadeFactor: 0.5,
 };
+/**
+ * Court Magic (the Court Magician enemy family): a near-black violet for crystal mass (bodies, shard
+ * cores, telegraph fills) and a hot orchid glow for the event (shard edges, beams, flashes).
+ */
+export const COURT_MAGIC_THEME: AbilityTheme = {
+    id: 'court_magic',
+    primary: '#3b0764',
+    secondary: '#f0abfc',
+    font: '#1e0336',
+    shadeFactor: 0.5,
+};
 export const EARTH_THEME: AbilityTheme = { id: 'earth', primary: '#b45309' };
 export const LIGHT_THEME: AbilityTheme = { id: 'light', primary: '#eab308' };
 export const GRAVITY_THEME: AbilityTheme = { id: 'gravity', primary: '#a855f7' };
@@ -40,6 +51,7 @@ export const ABILITY_THEMES: Readonly<Record<string, AbilityTheme>> = Object.fro
     [
         ARMORY_THEME,
         STORM_THEME,
+        COURT_MAGIC_THEME,
         EARTH_THEME,
         LIGHT_THEME,
         GRAVITY_THEME,
@@ -65,4 +77,5 @@ export const ABILITY_GROUP_THEMES: Readonly<Partial<Record<number, AbilityTheme>
     9: GRAVITY_THEME, // AbilityGroupId.Gravity
     10: ARMORY_THEME, // AbilityGroupId.Armory
     13: STORM_THEME, // AbilityGroupId.Storm
+    14: COURT_MAGIC_THEME, // AbilityGroupId.EnemyCourtMagician
 };

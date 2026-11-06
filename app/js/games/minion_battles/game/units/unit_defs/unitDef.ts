@@ -30,6 +30,7 @@ import { UNIT_SPRITE_URLS } from './unitSprites';
 import { componentSpec, type UnitComponentSpec } from '../components/unitComponent';
 import { LANTERNITE_COMPONENT } from '../components/lanterniteComponent';
 import { SWARM_COMPONENT } from '../components/swarmComponent';
+import { HP_STEP_COMPONENT } from '../components/hpStepComponent';
 import { SLIME } from '../dark_animals/slime';
 import {
     ENEMY_DARK_WOLF,
@@ -40,6 +41,9 @@ import {
     ENEMY_HUSK,
     ENEMY_IRON_WARDEN,
     IRON_WARDEN_SHIELDBREAK_THRESHOLD,
+    ENEMY_COURT_MAGICIAN,
+    COURT_MAGICIAN_ENRAGE_THRESHOLD,
+    COURT_MAGICIAN_SWAP_HP_STEP,
     ENEMY_SWARMLING,
     ALLY_LANTERNITE,
 } from '../../../constants/enemyConstants';
@@ -120,7 +124,9 @@ export type EnemyUnitId =
     | 'swarm_nest'
     | 'dog'
     | 'husk'
-    | 'iron_warden';
+    | 'iron_warden'
+    | 'court_magician'
+    | 'court_crystal';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
 /**
@@ -217,6 +223,12 @@ export interface UnitDefEntry {
      * random point within this radius. Purely local presentation: never touches engine state.
      */
     displayWiggleRadius?: number;
+    /**
+     * This character belongs to a master of another character type on its team (e.g. the Court
+     * Magician's crystals). Its master's abilities find it with `getBoundUnits`, and the `boundFixture`
+     * AI tree despawns it once no master of that type is alive. See `units/boundUnits.ts`.
+     */
+    boundToCharacterId?: string;
 }
 
 const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
@@ -505,6 +517,58 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         onDeathVisualEffects: darkCreatureParticleBurstVFX(6),
         uiDescription:
             'Hollowed castle gaoler in plate. Hooks stragglers in with a chain, crushes them with its tower shield, and blocks everything from the front until the shield breaks.',
+    },
+    court_magician: {
+        bodyColor: 0x3b0764,
+        displayName: 'Court Magician',
+        sprite: UNIT_SPRITE_URLS.court_magician,
+        bestiary: { abilityIds: ['1401', '1402', '1403', '1405', '1406', '1490'] },
+        baseSpawn: ENEMY_COURT_MAGICIAN,
+        characterSpriteKey: 'court_magician',
+        hp: 170,
+        // Slow on foot on purpose: the party can catch him, and Blink is how he gets away.
+        speed: 55,
+        size: 'Medium',
+        stamina: 2,
+        perceptionRange: 520,
+        creatureType: 'dark_creature',
+        deathSequence: DISPLACER_SPIRIT_DEATH_SEQUENCE,
+        // Enraged: denser Shard Novas, two more crystals per Crystal Volley, and the Crystal Laser super
+        // (which announces itself with an action title when it stops time).
+        phases: [enragePreset(COURT_MAGICIAN_ENRAGE_THRESHOLD)],
+        // Mirror Swap (1406) every 10% of max HP lost; held while the Crystal Laser (1490) wall is up.
+        components: [
+            componentSpec(HP_STEP_COMPONENT, {
+                triggers: [
+                    {
+                        id: 'mirrorSwap',
+                        stepFraction: COURT_MAGICIAN_SWAP_HP_STEP,
+                        abilityId: '1406',
+                        deferWhileCasting: ['1490'],
+                    },
+                ],
+            }),
+        ],
+        uiDescription:
+            'The castle\'s last illusionist. Fights through his dark crystals: rearranges them, bursts them into shard rings, flings them at you, and blinks away when cornered. Every tenth of his health lost, he swaps places with a crystal.',
+    },
+    court_crystal: {
+        bodyColor: 0x3b0764,
+        displayName: 'Dark Crystal',
+        sprite: UNIT_SPRITE_URLS.court_crystal,
+        bestiary: { abilityIds: ['1404'] },
+        characterSpriteKey: 'court_crystal',
+        hp: 1,
+        speed: 0,
+        size: 'Tiny',
+        stamina: 1,
+        perceptionRange: 0,
+        creatureType: 'dark_creature',
+        // Untouchable fixture: cannot be hurt, targeted or pushed; moves only when the magician moves it.
+        tags: [UnitTag.Invincible, UnitTag.Structure],
+        boundToCharacterId: 'court_magician',
+        onDeathVisualEffects: darkCreatureParticleBurstVFX(3),
+        uiDescription: 'A shard of the Court Magician\'s focus. It cannot be harmed, and shatters when he falls.',
     },
 };
 

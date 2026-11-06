@@ -13,6 +13,8 @@
  * | `runUnitComponentRoundMilestone` | the round-start block (after unit round-start work) and the round-half block | `onRoundMilestone` |
  * | `runUnitComponentDeath` | the `unit_died` listener, right after the def's death sequence / visual effects | `onDeath` for each component the dying unit carries |
  *
+ * The `hpStep` component (`hpStepHooks.ts`) uses `tick` to cast an ability each time a unit loses another N% of max HP.
+ *
  * The `phase` component (`phaseHooks.ts`) uses `tick` to end phase transitions and check non-damage phase conditions;
  * HP conditions are also checked by `UnitManager` right after `damage_taken`.
  *
@@ -38,6 +40,8 @@ import { LANTERNITE_COMPONENT } from './lanterniteComponent';
 import { SWARM_COMPONENT } from './swarmComponent';
 import { PHASE_COMPONENT } from './phaseComponent';
 import { PHASE_HOOKS } from './phaseHooks';
+import { HP_STEP_COMPONENT } from './hpStepComponent';
+import { HP_STEP_HOOKS } from './hpStepHooks';
 import { LANTERNITE_HOOKS } from '../../lanternite/lanterniteComponentHooks';
 import { SWARM_HOOKS } from '../../lanternite/swarmComponentHooks';
 
@@ -86,6 +90,8 @@ const HOOK_ENTRIES: HookEntry[] = [
     { type: SWARM_COMPONENT, hooks: SWARM_HOOKS },
     // Phases last: they read the world after this tick's spawns, and their `tick` ends transitions then checks conditions.
     { type: PHASE_COMPONENT, hooks: PHASE_HOOKS },
+    // After phases: a step cast sees any phase (enrage) the same hit entered.
+    { type: HP_STEP_COMPONENT, hooks: HP_STEP_HOOKS },
 ];
 
 /** Append hooks for a component type (tests and future components). Returns a function that unregisters them. */

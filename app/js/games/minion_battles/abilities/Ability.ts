@@ -111,6 +111,8 @@ export interface AIAbilityGateContext {
     gameTime: number;
     getUnits(): Unit[];
     getSpecialTiles(): import('../game/specialTiles/SpecialTile').SpecialTile[];
+    /** True when `unitId` has an order queued for this tick or later (e.g. a commanded unit not yet acting). */
+    hasPendingOrderForUnit?(unitId: string): boolean;
 }
 
 /** AI-specific settings that control when the AI will use this ability. */
@@ -201,6 +203,8 @@ export interface ActivePreviewEngineContext {
     darknessUpgradeBonuses?: PassiveBonuses;
     /** The viewer's own unit, for telegraphs that change once they can no longer hit the viewer. */
     getLocalPlayerUnit?(): Unit | undefined;
+    /** Live unit lookup, for telegraphs drawn on units that move during the windup. */
+    getUnit?(id: string): Unit | undefined;
 }
 
 /**

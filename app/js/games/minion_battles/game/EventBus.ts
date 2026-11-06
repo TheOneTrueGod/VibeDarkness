@@ -19,6 +19,7 @@ export type GameEventType =
     | 'round_end'
     | 'unit_died'
     | 'unit_enraged'
+    | 'action_title'
     | 'unit_phase_entered'
     | 'ability_used'
     | 'projectile_hit'
@@ -139,6 +140,20 @@ export interface UnitDiedEvent {
 export interface UnitEnragedEvent {
     unitId: string;
     tag: string;
+}
+
+/**
+ * Show a big action-scene title across the screen (HUD only, never serialized): flies in from the left, drifts
+ * right through centre, flies out right over `durationSec` of WALL-clock time, so it keeps playing through a
+ * Time Stop. Emit from an ability (e.g. when a super stops time).
+ */
+export interface ActionTitleEvent {
+    text: string;
+    durationSec: number;
+    /** Fill colour (default near-white). The outline is always black. */
+    color?: number;
+    /** Glow colour behind the outline (default: none). */
+    glowColor?: number;
 }
 
 /** A unit entered a phase (see `game/units/components/phaseDef.ts`). Fired once per phase, in order, even when one hit crosses several. */
@@ -302,6 +317,7 @@ export type GameEventDataMap = {
     round_end: RoundEndEvent;
     unit_died: UnitDiedEvent;
     unit_enraged: UnitEnragedEvent;
+    action_title: ActionTitleEvent;
     unit_phase_entered: UnitPhaseEnteredEvent;
     ability_used: AbilityUsedEvent;
     projectile_hit: ProjectileHitEvent;

@@ -38,6 +38,8 @@ export interface AIContext {
     /** How nodes move units: set a walk goal, the PathfindingManager plans the path. See `aiNav.ts`. */
     nav: AINav;
     queueOrder(atTick: number, order: BattleOrder): void;
+    /** True when `unitId` has an order queued for this tick or later. */
+    hasPendingOrderForUnit?(unitId: string): boolean;
     emitTurnEnd(unitId: string): void;
     generateRandomInteger(min: number, max: number): number;
     WORLD_WIDTH: number;

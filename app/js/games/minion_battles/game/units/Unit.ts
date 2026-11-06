@@ -200,6 +200,13 @@ export class Unit extends GameObject {
     abilityOwnsMovementThisTick: boolean = false;
 
     /**
+     * Runtime-only: this tick an ability is carrying this unit through the air (e.g. Arrange with `flight`).
+     * Wall recovery is skipped, so it passes over rock without being ejected or (for structures) shattering
+     * it. Cleared with `abilityOwnsMovementThisTick`; the carrier re-claims each tick and stops on landing.
+     */
+    inFlightThisTick: boolean = false;
+
+    /**
      * Durable walk destination. Survives path invalidation; cleared by clearMovement / arrival.
      * When set and `movement` is empty, movement tick repaths once the unit is free to walk.
      */
@@ -519,6 +526,12 @@ export class Unit extends GameObject {
      */
     claimAbilityMovement(): void {
         this.abilityOwnsMovementThisTick = true;
+    }
+
+    /** Claim movement and airborne travel for this tick (see `inFlightThisTick`). */
+    claimFlight(): void {
+        this.abilityOwnsMovementThisTick = true;
+        this.inFlightThisTick = true;
     }
 
     /**

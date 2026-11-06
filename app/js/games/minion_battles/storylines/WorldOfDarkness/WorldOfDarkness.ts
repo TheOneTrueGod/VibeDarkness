@@ -307,7 +307,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             numeral: '0',
             title: 'Unused Missions',
             adminOnly: true,
-            missionIds: ['thornbinder_arena', 'south_gate_swarm', 'crystal_corruption', 'the_circle'],
+            missionIds: ['thornbinder_arena', 'south_gate_swarm', 'crystal_corruption', 'the_circle', 'court_magician'],
         },
     ],
 };

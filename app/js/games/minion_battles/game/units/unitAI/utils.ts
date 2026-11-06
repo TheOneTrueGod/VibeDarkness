@@ -255,6 +255,12 @@ function aiSelectPlanIsUsable(unit: Unit, ability: AbilityStatic, target: Unit, 
     return buildAiSelectTargets(unit, ability, target, aiSelectEngine(context)).valid;
 }
 
+/** Restrict ability picking to some of the unit's abilities (e.g. an ability rotation's next step). */
+export interface AbilityPickFilter {
+    only?: readonly string[];
+    exclude?: readonly string[];
+}
+
 /**
  * Pick the best ability to use from unit.abilities based on AISettings (priority, range).
  * Returns { ability, target } or null if no valid ability.
@@ -268,11 +274,14 @@ export function pickBestAbility(
     candidateEnemies: Unit[],
     context: AIContext,
     nearbyEnemies: Unit[] = candidateEnemies,
+    filter?: AbilityPickFilter,
 ): { ability: AbilityStatic; target: Unit } | null {
     const randomInt = (min: number, max: number) => context.generateRandomInteger(min, max);
     const candidates: { ability: AbilityStatic; target: Unit; priority: number }[] = [];
 
     for (const abilityId of unit.abilities) {
+        if (filter?.only && !filter.only.includes(abilityId)) continue;
+        if (filter?.exclude?.includes(abilityId)) continue;
         const ability = getAbility(abilityId);
         if (!ability) continue;
         if (!hasCastTimeline(ability, unit)) continue;
@@ -348,8 +357,9 @@ export function tryQueueAbilityOrder(
     context: AIContext,
     candidateEnemies: Unit[],
     nearbyEnemies?: Unit[],
+    filter?: AbilityPickFilter,
 ): boolean {
-    const pick = pickBestAbility(unit, candidateEnemies, context, nearbyEnemies);
+    const pick = pickBestAbility(unit, candidateEnemies, context, nearbyEnemies, filter);
     if (!pick) return false;
 
     const { ability, target } = pick;

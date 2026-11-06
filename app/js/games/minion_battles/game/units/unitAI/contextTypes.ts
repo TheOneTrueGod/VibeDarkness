@@ -20,6 +20,7 @@ import type { PetAITreeContext } from './pet/context';
 import type { SwarmlingNetworkAITreeContext } from './swarmlingNetwork/context';
 import type { NetworkHuntAITreeContext } from './networkHunt/context';
 import type { SentryPatrolAITreeContext } from './sentryPatrol/context';
+import type { CourtMagicianAITreeContext } from './courtMagician/context';
 
 /** Maps tree IDs to their typed context shape. Extend when adding a new tree. */
 export interface AITreeContextMap {
@@ -36,6 +37,8 @@ export interface AITreeContextMap {
     swarmlingNetwork: SwarmlingNetworkAITreeContext;
     networkHunt: NetworkHuntAITreeContext;
     sentryPatrol: SentryPatrolAITreeContext;
+    courtMagician: CourtMagicianAITreeContext;
+    boundFixture: UnitAIContextBase & { aiTree: 'boundFixture' };
 }
 
 export type AITreeId = keyof AITreeContextMap;

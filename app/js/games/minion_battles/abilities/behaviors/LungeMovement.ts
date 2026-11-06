@@ -28,6 +28,11 @@ export interface LungeTarget {
      */
     chargeDirX?: number;
     chargeDirY?: number;
+    /**
+     * Set once terrain cut the lunge short: it stays stopped against the wall for the rest of the lunge
+     * (the planned line no longer drags the caster through it). Lives on the serialized note.
+     */
+    lungeStopped?: boolean;
 }
 
 export interface LungeSegment {
@@ -138,6 +143,11 @@ export class LungeMovement {
         const toX = ox + dirX * newDist;
         const toY = oy + dirY * newDist;
 
+        // Stopped against a wall: stay put, sweep nothing new.
+        if (target.lungeStopped) {
+            return { fromX: caster.x, fromY: caster.y, toX: caster.x, toY: caster.y };
+        }
+
         const segmentLength = Math.sqrt((toX - fromX) ** 2 + (toY - fromY) ** 2);
         const terrainManager = engine.terrainManager ?? null;
         // Ghost through CrowdSpacing only while the lunge is still displacing this tick.
@@ -152,6 +162,11 @@ export class LungeMovement {
                 caster.x = fromX + (toX - fromX) * scale;
                 caster.y = fromY + (toY - fromY) * scale;
                 caster.invalidateMovementPath();
+            }
+            if (distance < segmentLength - 1e-6) {
+                // Terrain ended the lunge here; the hit sweep stops at the wall too.
+                target.lungeStopped = true;
+                return { fromX, fromY, toX: fromX + (toX - fromX) * (distance / segmentLength), toY: fromY + (toY - fromY) * (distance / segmentLength) };
             }
         }
 

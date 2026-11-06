@@ -130,7 +130,27 @@ function drawLiftColumn(
 /**
  * Pulse effect: three waves of colored circles expanding and fading at different speeds.
  * Optional `effectData.scale` shrinks/grows the radii and `effectData.alpha` multiplies opacity (both default 1).
+ * `effectData.maxRadius` instead sets the outermost wave's final radius in px (overrides `scale`),
+ * e.g. a puff sized to the unit it comes from.
  */
+const PULSE_BASE_RADIUS = 10;
+const PULSE_WAVES = [
+    { startPhase: 0, growthRate: 70, opacityRate: 1.2 },
+    { startPhase: 0.12, growthRate: 90, opacityRate: 1.0 },
+    { startPhase: 0.24, growthRate: 110, opacityRate: 0.9 },
+] as const;
+/** Final radius of the outermost Pulse wave at scale 1. */
+export const PULSE_MAX_RADIUS = PULSE_BASE_RADIUS + Math.max(...PULSE_WAVES.map((w) => w.growthRate));
+
+export type PulseEffectData = {
+    colors?: number[];
+    scale?: number;
+    maxRadius?: number;
+    alpha?: number;
+    /** Ring stroke width in px (default 2). */
+    lineWidth?: number;
+};
+
 export const pulseEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
         return new Graphics();
@@ -139,26 +159,21 @@ export const pulseEffectDef: IEffectDef = {
         const g = visual as Graphics;
         g.clear();
         const progress = effect.progress;
-        const data = (effect.effectData ?? {}) as { colors?: number[]; scale?: number; alpha?: number };
+        const data = (effect.effectData ?? {}) as PulseEffectData;
         const colors = data.colors ?? [0x8b5a2b, 0x5d4e37, 0x2d2d2d];
-        const scale = data.scale ?? 1;
+        const scale = data.maxRadius !== undefined ? data.maxRadius / PULSE_MAX_RADIUS : (data.scale ?? 1);
         const alphaMul = data.alpha ?? 1;
+        const width = data.lineWidth ?? 2;
 
         // Three waves: different start phases and growth rates
-        const waves = [
-            { startPhase: 0, growthRate: 70, opacityRate: 1.2 },
-            { startPhase: 0.12, growthRate: 90, opacityRate: 1.0 },
-            { startPhase: 0.24, growthRate: 110, opacityRate: 0.9 },
-        ];
-
-        for (let i = 0; i < 3; i++) {
-            const w = waves[i]!;
+        for (let i = 0; i < PULSE_WAVES.length; i++) {
+            const w = PULSE_WAVES[i]!;
             const effectiveProgress = progress <= w.startPhase ? 0 : Math.min(1, (progress - w.startPhase) / (1 - w.startPhase));
-            const radius = (10 + effectiveProgress * w.growthRate) * scale;
+            const radius = (PULSE_BASE_RADIUS + effectiveProgress * w.growthRate) * scale;
             const alpha = Math.max(0, 0.9 - effectiveProgress * w.opacityRate) * alphaMul;
             const color = colors[i] ?? 0x5d4e37;
             g.circle(0, 0, radius);
-            g.stroke({ color, width: 2, alpha });
+            g.stroke({ color, width, alpha });
         }
     },
 };

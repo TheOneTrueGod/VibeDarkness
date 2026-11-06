@@ -26,7 +26,8 @@ import {
     WOD_SWARMLING_SOURCE_BANK,
     WorldOfDarknessStoryline,
 } from './WorldOfDarkness';
-import { WOD_CH0_MAP_X_COL0, WOD_CH0_MAP_X_COL1, WOD_CH0_MAP_Y_ROW0, WOD_CH0_MAP_Y_ROW1 } from './chapter0Map';
+import { WOD_CH0_MAP_X_COL0, WOD_CH0_MAP_X_COL1, WOD_CH0_MAP_X_COL2, WOD_CH0_MAP_Y_ROW0, WOD_CH0_MAP_Y_ROW1 } from './chapter0Map';
+import { COURT_MAGICIAN_MISSION } from './missions/013_court_magician';
 import { CAMPSITE, CAMPSITE_2, CAMPSITE_3, CAMPSITE_4 } from './questMissions/campsite';
 import { CRYSTAL_CORRUPTION } from './missions/004b_crystal_corruption';
 import { DISPLACER } from './missions/006d_displacer';
@@ -88,18 +89,19 @@ describe('chapter 2 mission map grid', () => {
         const ch0 = WorldOfDarknessStoryline.chapters!.find((c) => c.id === 'wod_ch0')!;
         expect(ch0.adminOnly).toBe(true);
         expect(ch0.numeral).toBe('0');
-        expect(ch0.missionIds).toEqual(['thornbinder_arena', 'south_gate_swarm', 'crystal_corruption', 'the_circle']);
+        expect(ch0.missionIds).toEqual(['thornbinder_arena', 'south_gate_swarm', 'crystal_corruption', 'the_circle', 'court_magician']);
         const ch2 = WorldOfDarknessStoryline.chapters!.find((c) => c.id === 'wod_ch2')!.missionIds;
         for (const id of ch0.missionIds) expect(ch2).not.toContain(id);
         const targets = (WorldOfDarknessStoryline.edges ?? []).map((e) => e.toMissionId);
         for (const id of ch0.missionIds) expect(targets).not.toContain(id);
     });
 
-    it('lays Chapter 0 out: Thornbinder on row 0, the rest in a line on row 1', () => {
+    it('lays Chapter 0 out: Thornbinder, South Gate and the Court Magician on row 0, the rest on row 1', () => {
         expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH0_MAP_X_COL0, y: WOD_CH0_MAP_Y_ROW0 });
         expect(SOUTH_GATE_SWARM.mapPosition).toEqual({ x: WOD_CH0_MAP_X_COL1, y: WOD_CH0_MAP_Y_ROW0 });
         expect(CRYSTAL_CORRUPTION.mapPosition).toEqual({ x: WOD_CH0_MAP_X_COL0, y: WOD_CH0_MAP_Y_ROW1 });
         expect(THE_CIRCLE.mapPosition).toEqual({ x: WOD_CH0_MAP_X_COL1, y: WOD_CH0_MAP_Y_ROW1 });
+        expect(COURT_MAGICIAN_MISSION.mapPosition).toEqual({ x: WOD_CH0_MAP_X_COL2, y: WOD_CH0_MAP_Y_ROW0 });
     });
 
     it('keeps Thornbinder Arena disabled', () => {

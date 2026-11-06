@@ -56,6 +56,10 @@ export interface AbilityEngineContext {
                 atTick: number,
                 order: { unitId: string; abilityId: string; targets: ResolvedTarget[] },
             ): void;
+            /** True when `unitId` has an order queued for this tick or later. */
+            hasAnyPendingOrderForUnit?(unitId: string): boolean;
+            /** Drop every order queued for `unitId` from now on. */
+            dropPendingOrdersForUnit?(unitId: string): number;
         };
         fieldObjects?: FieldObjectManager;
     };

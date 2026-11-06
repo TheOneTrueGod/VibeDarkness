@@ -203,6 +203,12 @@ export class Projectile extends GameObject {
      */
     collidesWithTerrain: TerrainType[];
     /**
+     * When set, an intact rock that stops this projectile takes a chip that breaks a full-health rock in this
+     * many hits (`TerrainManager.damageRockByHits`). Needs the projectile to stop at rock (`stopsAtWalls` or
+     * `collidesWithTerrain: [Rock]`). Serialized.
+     */
+    rockHitsToBreak?: number;
+    /**
      * Runtime-only: the tile and terrain that stopped this projectile (`stopsAtWalls` /
      * `collidesWithTerrain`), set just before it expires so `onProjectileExpired` can react to what it
      * hit. Null when it expired for any other reason. Not serialized (read in the same tick).
@@ -308,6 +314,8 @@ export class Projectile extends GameObject {
         modifiers?: ProjectileModifierId[];
         /** Terrain types the projectile stops at; see `Projectile.collidesWithTerrain`. */
         collidesWithTerrain?: TerrainType[];
+        /** See `Projectile.rockHitsToBreak`. */
+        rockHitsToBreak?: number;
         passThroughEnemies?: boolean;
         pierce?: number;
         summonSeedWeak?: boolean;
@@ -354,6 +362,7 @@ export class Projectile extends GameObject {
         this.spriteConfig = config.spriteConfig;
         this.modifiers = [...(config.modifiers ?? [])];
         this.collidesWithTerrain = [...(config.collidesWithTerrain ?? [])];
+        this.rockHitsToBreak = config.rockHitsToBreak;
         this.passThroughEnemies = config.passThroughEnemies ?? false;
         this.summonSeedWeak = config.summonSeedWeak;
         this.hitShape = config.hitShape ?? 'circle';
@@ -494,6 +503,7 @@ export class Projectile extends GameObject {
             this.update(pieceDt, ctx, { deferRangeExpiry: true });
             // The last step still collides: it ends exactly at max range, as far as the forecast line reaches.
             this.checkCollision(ctx.units, ctx.eventBus, ctx.gameTime, ctx);
+            this.finishRangeExpiry(ctx);
         }
         if (!this.active) this.timeDebt = 0;
     }
@@ -521,7 +531,6 @@ export class Projectile extends GameObject {
 
         if (this.heldBy) {
             this.updateHeld(dt, engine);
-            this.finishRangeExpiry(ctx);
             return;
         }
 
@@ -548,6 +557,10 @@ export class Projectile extends GameObject {
                 this.y = stop.y;
                 this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, stop.x, stop.y, terrainManager);
                 this.clearTerrainAlongPath(prevX, prevY, engine);
+                const wall = this.stoppedAtTerrain;
+                if (this.rockHitsToBreak !== undefined && wall?.terrainType === TerrainType.Rock) {
+                    terrainManager.damageRockByHits(wall.col, wall.row, this.rockHitsToBreak, this.sourceUnitId);
+                }
                 this.triggerExpireEffect(engine);
                 this.active = false;
                 return;
@@ -999,6 +1012,7 @@ export class Projectile extends GameObject {
             spriteConfig: this.spriteConfig,
             modifiers: this.modifiers,
             ...(this.collidesWithTerrain.length > 0 ? { collidesWithTerrain: [...this.collidesWithTerrain] } : {}),
+            ...(this.rockHitsToBreak !== undefined ? { rockHitsToBreak: this.rockHitsToBreak } : {}),
             passThroughEnemies: this.passThroughEnemies,
             hitPolicy: cloneHitPolicy(this.hitPolicy),
             hitShape: this.hitShape,
@@ -1045,6 +1059,7 @@ export class Projectile extends GameObject {
             maxDistance: data.maxDistance as number,
             modifiers: (data.modifiers as ProjectileModifierId[] | undefined) ?? [],
             collidesWithTerrain: data.collidesWithTerrain as TerrainType[] | undefined,
+            rockHitsToBreak: typeof data.rockHitsToBreak === 'number' ? data.rockHitsToBreak : undefined,
             heldBy: heldBy ?? undefined,
             clearsTerrainEffects: data.clearsTerrainEffects as ProjectileTerrainClear | undefined,
             // Saves from before `hitPolicy` carry the legacy fields, which the constructor maps.

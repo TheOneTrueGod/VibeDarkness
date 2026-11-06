@@ -192,6 +192,16 @@ ctx.aiState = 'aggroWander_attack';
      actually enforce `minRange`/`maxRange` against the candidate pool instead of the legacy
      "valid whenever any candidate enemy exists" behavior. Needed for a tightly-ranged
      self-centered ability (e.g. a defensive stomp) to only fire when something is actually close.
+5. `tryQueueAbilityOrder(..., filter)` takes `{ only?, exclude? }` ability-id lists to restrict the pick.
+6. **Scripted attack order (bosses):** `abilityRotation.ts`. An `AbilityRotationDef` splits each round into
+   windows; each window replays `steps` (single abilities, or `anyOrder` groups shuffled with the engine RNG),
+   with optional `firstRoundSteps` and `skipWindowIfEnteredAfter`. The node calls
+   `tryQueueAbilityOrder(..., { exclude: rotationIds })` for out-of-rotation abilities (supers) first, then
+   `tryQueueRotationAbility`. State lives on the tree context (`AbilityRotationState`). Reference:
+   `courtMagician/courtMagician_attack.ts`.
+   - **RNG pitfall:** `generateRandomInteger(0, n)` with a small `n` uses the LCG's low bits, which cycle
+     (the lowest bit alternates every draw). The rotation shuffle scales a 2^30 draw instead; do the same
+     for any coin flip that must vary.
 
 ## Adding a new tree
 

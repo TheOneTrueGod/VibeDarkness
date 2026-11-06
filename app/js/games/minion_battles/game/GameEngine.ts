@@ -1542,6 +1542,7 @@ export class GameEngine implements EngineContext {
             terrainManager: this.terrainManager,
             nav: this.aiNav,
             queueOrder: (atTick, order) => this.state.orderMgr.queueOrder(atTick, order),
+            hasPendingOrderForUnit: (unitId) => this.state.orderMgr.hasAnyPendingOrderForUnit(unitId),
             emitTurnEnd: (unitId) => this.eventBus.emit('turn_end', { unitId, unitIds: [unitId] }),
             generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
             getAbilityUsesThisRound: (unitId, abilityId) =>
