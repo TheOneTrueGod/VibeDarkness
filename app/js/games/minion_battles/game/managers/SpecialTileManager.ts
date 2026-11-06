@@ -5,7 +5,7 @@
  */
 
 import type { SpecialTile } from '../specialTiles/SpecialTile';
-import { specialTileToJSON, specialTileFromJSON } from '../specialTiles/SpecialTile';
+import { normalizeSpecialTile, specialTileToJSON, specialTileFromJSON } from '../specialTiles/SpecialTile';
 import { getSpecialTileDef } from '../../storylines/specialTileDefs';
 import type { EngineContext } from '../EngineContext';
 import type { LightSource } from '../LightGrid';
@@ -27,7 +27,7 @@ export class SpecialTileManager implements DeployableProvider {
     }
 
     addSpecialTile(tile: SpecialTile): void {
-        this.specialTiles.push(tile);
+        this.specialTiles.push(normalizeSpecialTile(tile));
         // Bump navEpoch if this is a crystal (blocks enemy pathfinding).
         if (tile.defId === 'Crystal' && tile.hp > 0) {
             this.ctx.terrainManager?.notifyNavChanged();
