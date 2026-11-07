@@ -1061,6 +1061,15 @@ export class GameEngine implements EngineContext {
         }
     }
 
+    /** Whether the frame loop may advance the simulation (render ticks run regardless). */
+    private canRunSimulationNow(): boolean {
+        return (
+            !this.state.levelEventManager.isTerminal &&
+            !this.isPaused &&
+            !this.state.multiplayerAwaitHostCatchup
+        );
+    }
+
     private loop(timestamp: number): void {
         if (!this.running) return;
 
@@ -1072,11 +1081,14 @@ export class GameEngine implements EngineContext {
         this.doRenderTick(frameTime);
 
         const debugPauseModeActive = debugSettingsSnapshot.debugPauseMode;
-        const canRunSimulation =
-            !this.state.levelEventManager.isTerminal &&
-            !this.isPaused &&
-            !this.state.multiplayerAwaitHostCatchup;
-        if (canRunSimulation) {
+        const canRunSimulation = this.canRunSimulationNow();
+        if (!canRunSimulation) {
+            // Time spent paused is not owed to the simulation. Without this, the frame time left over
+            // when a pause began mid-frame drained through real ticks on the next frames while still
+            // paused: a host's completed ITS preview advanced 1-4 ticks during its in-place persist and
+            // formed the caster's next order pause late (playtest 0003, P0.16).
+            this.accumulator = 0;
+        } else {
             if (debugPauseModeActive) {
                 // Explicit one-step mode for deterministic debug inspection.
                 if (consumeDebugAdvanceTickRequest()) {
@@ -1090,7 +1102,7 @@ export class GameEngine implements EngineContext {
         }
 
         let stateChanged = false;
-        while (this.accumulator >= FIXED_DT) {
+        while (this.accumulator >= FIXED_DT && this.canRunSimulationNow()) {
             const hadWaitingOrders = this.waitingForOrders != null;
             const wasPaused = this.isPaused;
             this.fixedUpdate(FIXED_DT);
@@ -1219,6 +1231,11 @@ export class GameEngine implements EngineContext {
      */
     commitDroppedItsPreviewPauseForStopTick(): boolean {
         return this.orderPause.commitDroppedItsPreviewPauseForStopTick();
+    }
+
+    /** Diagnostics: why the last {@link commitDroppedItsPreviewPauseForStopTick} did or did not form a pause. */
+    getLastDroppedPauseCommitDiag(): OrderPauseController['lastDroppedPauseCommitDiag'] {
+        return this.orderPause.lastDroppedPauseCommitDiag;
     }
 
     /**

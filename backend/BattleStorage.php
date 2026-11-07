@@ -326,6 +326,13 @@ final class BattleStorage
      * After snapshot for completed tick `$completedSnapshotTick`, prune pending orders:
      * keep only rows targeting tick `$completedSnapshotTick + 1` whose basisFingerprint matches
      * authoritative snapshot synchash for `$completedSnapshotTick` when both are present.
+     *
+     * Finalized rows for batches at or before the snapshot tick are history, not stale drafts: the
+     * host only passes a batch once its orders are applied, so the snapshot already includes them.
+     * They move to applied (unless that batch already has an applied row for the same player and
+     * unit) instead of being dropped. Otherwise a snapshot POST that beats the host's merge for the
+     * previous batch deletes that batch's order, and peers replaying the order log form a pause the
+     * host never formed (playtest 0003, lobby 83C3E9, P0.15).
      */
     public function prunePendingOrdersAfterSnapshot(string $lobbyId, string $gameId, int $completedSnapshotTick): void
     {
@@ -353,6 +360,8 @@ final class BattleStorage
 
             /** @var list<string> $keptLines */
             $keptLines = [];
+            /** @var list<array<string,mixed>> $settledFinalized */
+            $settledFinalized = [];
             foreach (explode("\n", trim($blob, "\n")) as $rawLine) {
                 $rawLine = trim($rawLine);
                 if ($rawLine === '') {
@@ -363,6 +372,17 @@ final class BattleStorage
                     continue;
                 }
                 $atTick = (int) ($rec['atTick'] ?? -1);
+                if (
+                    $atTick >= 0
+                    && $atTick <= $completedSnapshotTick
+                    && self::isFinalizedOrderRecord($rec)
+                    && is_array($rec['order'] ?? null)
+                    && is_string($rec['idHash'] ?? null)
+                    && $rec['idHash'] !== ''
+                ) {
+                    $settledFinalized[] = $rec;
+                    continue;
+                }
                 if ($atTick !== $expectedNext) {
                     continue;
                 }
@@ -381,6 +401,11 @@ final class BattleStorage
                 explode("\n", trim($blob, "\n")),
                 static fn (string $l): bool => trim($l) !== '',
             ));
+
+            // Same lock order as mergeFinalizedPendingForBatch: applied is written while pending is held.
+            if (count($settledFinalized) > 0) {
+                $this->appendSettledFinalizedToApplied($dir . '/applied_orders.jsonl', $settledFinalized);
+            }
 
             ftruncate($pendingFh, 0);
             rewind($pendingFh);
@@ -492,6 +517,69 @@ final class BattleStorage
     }
 
     /** Overlay identity of an order row: (atTick, playerId, unitId). */
+    /**
+     * Append settled finalized pending rows (see prunePendingOrdersAfterSnapshot) to applied, skipping
+     * any whose idHash or (atTick, player, unit) already has an applied finalized row.
+     *
+     * @param list<array<string,mixed>> $rows
+     */
+    private function appendSettledFinalizedToApplied(string $appliedPath, array $rows): void
+    {
+        $appliedFh = fopen($appliedPath, 'c+');
+        if ($appliedFh === false) {
+            throw new RuntimeException("prunePendingOrdersAfterSnapshot: cannot open {$appliedPath}");
+        }
+        try {
+            if (!flock($appliedFh, LOCK_EX)) {
+                throw new RuntimeException('prunePendingOrdersAfterSnapshot: LOCK_EX applied failed');
+            }
+            rewind($appliedFh);
+            /** @var array<string,true> $seenHashes */
+            $seenHashes = [];
+            /** @var array<string,true> $seenKeys */
+            $seenKeys = [];
+            while (($line = fgets($appliedFh)) !== false) {
+                $existing = json_decode(trim($line), true);
+                if (!is_array($existing)) {
+                    continue;
+                }
+                if (isset($existing['idHash']) && is_string($existing['idHash'])) {
+                    $seenHashes[$existing['idHash']] = true;
+                }
+                if (self::isFinalizedOrderRecord($existing)) {
+                    $seenKeys[self::orderOverlayKey($existing)] = true;
+                }
+            }
+            fseek($appliedFh, 0, SEEK_END);
+            foreach ($rows as $rec) {
+                $hash = (string) $rec['idHash'];
+                $key = self::orderOverlayKey($rec);
+                if (isset($seenHashes[$hash]) || isset($seenKeys[$key])) {
+                    continue;
+                }
+                $enc = json_encode([
+                    'atTick' => (int) $rec['atTick'],
+                    'playerId' => (string) ($rec['playerId'] ?? ''),
+                    'order' => $rec['order'],
+                    'idHash' => $hash,
+                    'ts' => isset($rec['ts']) ? (int) $rec['ts'] : time(),
+                    'sourcePendingLineId' => $rec['pendingLineId'] ?? null,
+                    'mergedAt' => time(),
+                    'mergedBy' => 'snapshot_prune',
+                ], JSON_UNESCAPED_SLASHES);
+                if ($enc !== false) {
+                    fwrite($appliedFh, $enc . "\n");
+                    $seenHashes[$hash] = true;
+                    $seenKeys[$key] = true;
+                }
+            }
+            fflush($appliedFh);
+            flock($appliedFh, LOCK_UN);
+        } finally {
+            fclose($appliedFh);
+        }
+    }
+
     private static function orderOverlayKey(array $rec): string
     {
         $order = $rec['order'] ?? null;

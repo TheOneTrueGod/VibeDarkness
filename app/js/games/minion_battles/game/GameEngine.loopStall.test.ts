@@ -99,3 +99,57 @@ describe('GameEngine loop when requestAnimationFrame stalls', () => {
         engine.destroy();
     });
 });
+
+describe('GameEngine loop does not drain leftover frame time while paused (P0.16)', () => {
+    let pendingRaf: Map<number, RafCallback>;
+    let nextRafId: number;
+
+    beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date', 'performance'] });
+        pendingRaf = new Map();
+        nextRafId = 1;
+        vi.stubGlobal('requestAnimationFrame', (cb: RafCallback) => {
+            const id = nextRafId++;
+            pendingRaf.set(id, cb);
+            return id;
+        });
+        vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+            pendingRaf.delete(id);
+        });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+    });
+
+    function deliverFrame(advanceMs: number): void {
+        vi.advanceTimersByTime(advanceMs);
+        const [[id, cb]] = [...pendingRaf.entries()];
+        pendingRaf.delete(id);
+        cb(performance.now());
+    }
+
+    // Playtest 0003, lobby 9A0775: an ITS preview pauses the engine (isPaused, no order batch) mid-frame.
+    // The frame's leftover accumulator then drained through real ticks on the following frames while the
+    // in-place persist was in flight, so the host formed the caster's next order pause 1-4 ticks late.
+    it('a pause set mid-frame stops ticks on later frames', () => {
+        const engine = makeEngine();
+        // Like a host ITS preview: order pauses are dropped, so the only thing holding the engine is isPaused.
+        engine.isSequentialTargetingPreview = true;
+        const internals = engine as unknown as { fixedUpdate: (dt: number) => void };
+        const original = internals.fixedUpdate.bind(engine);
+        let calls = 0;
+        internals.fixedUpdate = (dt: number) => {
+            original(dt);
+            calls++;
+            if (calls === 1) engine.isPaused = true; // like isITSPreviewComplete pausing the preview
+        };
+        engine.start();
+        deliverFrame(100); // one long frame: about six ticks of time, paused after the first
+        const tickAtPause = engine.gameTick;
+        for (let i = 0; i < 5; i++) deliverFrame(16);
+        expect(engine.gameTick).toBe(tickAtPause);
+        engine.destroy();
+    });
+});

@@ -82,7 +82,8 @@ Baseline: the read-only `window.__minionBattlesPlaytest` bridge (`ui/pages/battl
 - Host state at 288 (`snapshots/288.json`): unit_2 at (543.33, 349.25). That's exactly where a replay *without* the dodge has it at tick 262. So the host's unit drifted for 3 ticks (crowd spacing) before the dash claimed its movement.
 - Joiner, applying the persisted order at 259: unit_2 never moved from (544.34, 349.91). Its dodge ended earlier, it formed the next order pause at 285 instead of 289, and it hit `paused behind host tail — forcing full resync` at 284. Snapshot recovery (tier 2) fixed it in about 4s, and the fingerprints matched afterwards.
 - Hypothesis: during the select pause, the host's ITS preview advanced (or applied the queued order) a few ticks later than the mark+1 it persists, so the in-place-committed timeline isn't the timeline every other client replays. Non-host commits always roll back and replay, which is why only the host diverges.
-- Next step: an ability-test-style headless repro. Host ITS in-place commit of a Dodge versus `applyOrder` of the same `{atTick: 259}` order, comparing per-tick fingerprints. Note that `replay-battle` from snapshot 258 did not apply the 259 order at all, which needs checking too.
+- **Likely the same root cause as P0.16** (the frame loop draining leftover time through ticks while paused). The host's preview sat paused at the ITS mark, and a few ticks of drift with no order is exactly what a drained leftover produces. Headless repros never reproduced it because they step with `stepSimulationFixedTicks` and the accumulator stays at 0. Re-verify with the P0.16 loop fix in.
+- Earlier next step: an ability-test-style headless repro. Host ITS in-place commit of a Dodge versus `applyOrder` of the same `{atTick: 259}` order, comparing per-tick fingerprints. Note that `replay-battle` from snapshot 258 did not apply the 259 order at all, which needs checking too.
 
 ### [x] P0.12 Desync: restoring a snapshot mid-cast dropped every in-flight sustained cast behaviour
 **Complexity:** Medium
@@ -106,14 +107,41 @@ Baseline: the read-only `window.__minionBattlesPlaytest` bridge (`ui/pages/battl
 - Fix: `BattleStorage::getOrdersRevision` is a monotonic counter in `orders_revision.json`, bumped on every append, every merge that changes the streams, and every prune. Lobbies from before it existed seed it from the line count. The heartbeat serves it under the same `ordersRecordCount` key, so clients needed no change. Test: `php backend/tests/BattleStorageOrdersRevisionTest.php`, and the existing overlay test still passes.
 - Verified live: bumping 83C3E9's revision to 16 un-froze the battle (421 → 726 within a minute).
 
-### P0.15 The joiner forms an order pause the host doesn't (same fingerprint up to the pause)
-**Complexity:** Medium (open)
+### [x] P0.15 The joiner forms an order pause the host doesn't (same fingerprint up to the pause)
+**Complexity:** Low (fixed)
+- **Root cause: a pause snapshot's prune deleted the previous batch's unmerged order.**
+  - In 83C3E9, the host's own unit_2 had an order for batch 814 (Dodge `524e3f6d`) and one for 839 (Punch `a5aeea23`). Both were appended to pending and accepted.
+  - The server log shows the order of events: append 814 (ts …462), then the host's pause snapshot for **816** (…463), then the host's merge for 814 (…463).
+  - `SaveSnapshotHandler::writeHostSnapshot` calls `prunePendingOrdersAfterSnapshot(816)`, which kept only rows for 817 and deleted the finalized 814 order. The merge that followed had nothing to move. 839 and 841 repeated the same sequence.
+- The host had applied the order locally (playahead), so its timeline had the Dodge. The order log never did. Peers replaying it saw unit_2 idle and formed a pause at 814 that the host never formed: `paused behind host tail — forcing full resync`. Recovery then bootstrapped from the host's 816 checkpoint, which contains the Dodge, so the state looked "right" until the next lost order.
+- Scope: 4 of the 12 non-tick-0 joiner resyncs across DA8A43 and 83C3E9 match a lost finalized order within 8 ticks (813, 838, 1345, 1849). Peers' orders are exposed to the same race: a joiner's finalized `wait` at 83C3E9 tick 1323 was lost too.
+- Fix (`BattleStorage::prunePendingOrdersAfterSnapshot`): finalized rows for batches at or before the snapshot tick now move to applied instead of being dropped, unless that (atTick, player, unit) already has an applied finalized row. Drafts and stale next-batch rows are dropped as before. Test: `php backend/tests/BattleStoragePruneMergeRaceTest.php`. It fails on the old code (814 lost) and passes now; the overlay and revision checks still pass.
+- Not covered here: the 9A0775 spectator loop (P0.16) has no lost finalized orders. There the spectator paused at 136 for the host's unit, whose next applied order is at 170, so that's a sim-state difference about when the unit goes idle. It also has one non-finalized host row (`6bd7a572` at 140) that was never applied, worth checking first.
+
+**Original notes:**
 - 83C3E9, tick 838, with P0.12 in: the joiner's history matches the host's fingerprints on every canonical tick. That includes each post-restore re-run (789–813, then 817–838 three times); only discarded ITS playahead ticks differ. Even so, the joiner paused waiting for orders at 839 while the host ran on to 841, and the joiner hit `paused behind host tail — forcing full resync`. A soft-align ("host expects local player at earlier batch") ran just before, at about 816.
 - So this isn't a sim divergence the fingerprint can see. Pause *formation* differs: the joiner forms a waiter the host doesn't, likely from order-queue state such as a stale optimistic own order or a staged row after the soft-align, rather than unit state.
 - Next step: dump `orderMgr.pendingOrders` and `waitingForOrders` on both sides at the pause (add them to the "recent tick history" debug dump), and reproduce soft-align followed by the next batch in a BattleNet test.
 
-### P0.16 A client with no unit in the battle resyncs in a loop (and the joiner was left out)
-**Complexity:** Medium (open)
+### [x] P0.16 A client with no unit in the battle resyncs in a loop (and the joiner was left out)
+**Complexity:** Low (fixed)
+- **Root cause: the frame loop drained leftover frame time through real ticks while paused.**
+  - `GameEngine.loop` stopped *adding* frame time while paused, but still ran `while (accumulator >= FIXED_DT) fixedUpdate(...)`.
+  - `fixedUpdate` only refuses to tick for an order batch (`waitingForOrders`) or a target prompt. A bare `isPaused` (a completed host ITS preview, whose caster pause is dropped) doesn't stop it.
+  - When the preview completed mid-frame, the drain broke but kept up to 0.1 s of leftover. On the next frames, during the in-place persist, the paused engine burned it as 1–5 real ticks.
+  - `commitDroppedItsPreviewPauseForStopTick` then formed the caster's next pause at the *later* tick, so the host's batch landed after the canonical one (136 vs 140 in 9A0775).
+  - Every replaying client paused earlier than the host and fell into `paused behind host tail — forcing full resync`.
+- Found with the new `diag: ITS in-place dropped-pause commit` lobby-log line, which is kept. A solo run showed 18 of 34 in-place commits advancing during the persist (e.g. 245 → 249) with `isPaused` true before and after. A temporary `isPaused`-setter trace recorded **no** unpause, which pointed at ticking *through* the pause rather than a resume.
+- Fix: the loop drains only while `canRunSimulationNow()` holds, and zeroes the accumulator while paused, so paused time isn't owed. This also covers a non-host in `multiplayerAwaitHostCatchup`, which had the same leak. Test: `GameEngine.loopStall.test.ts`, "a pause set mid-frame stops ticks on later frames". It fails on the old loop (tick 1 → 6 while paused) and passes now.
+- Joiner left out: the host clicked Ready 2 s after creating the lobby, before the joiner reached character select (`characterSelections` held only the host). The battle started with one unit, and the joiner joined in progress as a spectator. The driver now waits for the joiner's Ready button before either player readies. Joining late as a spectator remains legitimate, and it no longer resync-loops once the loop fix is in.
+- **Findings (2026-11-06):**
+  - In 9A0775 the host is the only player with a unit, so all **169** of its ITS commits were `in_place`; none were rollbacks. In two-player lobbies host commits were almost all rollbacks. The spectator only ever replays canonical orders, so it sees every in-place divergence. This is the P0.10 class, hit on every turn.
+  - The simulation is identical: the spectator's tick history matches the host's fingerprints on every tick (2–135, 170–245). Only the pause plane differs. At 135 the host's Dodge (ordered at 110) ends; the canonical replay forms a batch at 136, but the host formed one at 140.
+  - The host's log order (batched timestamps, but ordered) shows the engine advancing **inside `itsCommitInPlace`**. "Auto end turn commit" logged at engineTick 135, and the same commit's "ITS: preview ended" at 139. In between, the host saved a real pause snapshot at 139 for batch 140, during the `persistInPlaceCommittedTargetingOrder` await (persistOrder → appendBattleOrder).
+  - Then `OrderPauseController.commitDroppedItsPreviewPauseForStopTick` hits its guard `dropped.gameTick !== engine.gameTick` and **silently discards** the dropped caster pause, so the host's next pause forms late.
+- Ruled out: `finalizeResume` (the host batch hook returns no promise), `stepSimulationFixedTicks` (no live callers), and the engine/session alone. A harness with a hand-pumped rAF loop and a slow persist keeps the engine at the stop tick; that test is `previewCanonEquivalence.test.ts` "…while the live loop runs", currently `it.skip`. So something on the BattleNet side resumes or steps the engine during the persist.
+- Next suspects: `BattleNet.persistOrder`'s host envelope path (`persistHostCyclesEnvelope`, `awaitPauseSnapshotBeforeHostPersist`) and heartbeat/poll handlers that run while the in-place persist is pending. A robust fix either way: hold the engine (or hold the dropped pause until it can be committed) for the whole in-place commit, or form the dropped pause at its recorded stop tick rather than dropping it.
+- Separately: why the joiner had no unit at all (probably a Ready vs battle-start race in Displacer, which has no pre-battle story).
 - Displacer with Playtest Vitality (lobby 9A0775, 30 min, ticks 0 → 13046): `applied_orders` holds orders for **one** player unit only, the host's `unit_1`. The joiner (21) went through character select but has no unit in the battle; it took 0 turns.
 - As a spectator it paused at every host batch (`waiterUnitIds: ["unit_1"]`). The host was already 2–4 ticks ahead with its order applied, and the joiner hit `paused behind host tail — forcing full resync` within the 3-poll grace, about every 250 ticks. It logged 150 sync events, and four of those episodes ended in "all recovery tiers failed; reloading page".
 - Two things to fix:

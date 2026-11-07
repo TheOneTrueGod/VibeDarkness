@@ -685,6 +685,14 @@ async function main() {
                     await joiner.page.goto(`/lobby/${lobby}`, { waitUntil: 'domcontentloaded' });
                 }
             }
+            // Don't let the host Ready (and start) before the joiner is in character select: otherwise
+            // the battle starts without the joiner's unit and it spectates (run 2026-11-06T19-01, P0.16).
+            if (joiner && !(i === 0 && REJOIN_LOBBY) && !(entry.quest && entry.quest.index > 0)) {
+                const inSelect = await joiner.page.getByTestId(TestIds.characterSelectReady)
+                    .waitFor({ state: 'visible', timeout: 60_000 })
+                    .then(() => true, () => false);
+                if (!inSelect) note('joiner never reached character select; starting anyway');
+            }
             const pre = await Promise.all(players.map((p) => advanceToBattle(p, 180_000)));
             note(`${missionId}: battle started after ${Math.round((Date.now() - t0) / 1000)}s (story clicks ${pre.map((x) => x.storyClicks).join('/')})`);
             const battle = await playBattle(players, missionId);

@@ -289,6 +289,9 @@ async function itsCommitInPlace(
     // Mint the commit token before persisting the order. This token gates the POST during preview,
     // signifying "this order IS the promotion's order".
     const commitToken = its.previewRunId !== null ? session.mintCommitToken?.(its.previewRunId) : null;
+    const engineBeforePersist = session.getEngine();
+    const tickBeforePersist = engineBeforePersist?.gameTick ?? null;
+    const pausedBeforePersist = engineBeforePersist?.isPaused ?? null;
     const persisted = await session.persistInPlaceCommittedTargetingOrder(realOrder, atTick, commitToken);
     if (!persisted) {
         session.emitOrderSubmitFailed(unitId, abilityId);
@@ -303,6 +306,8 @@ async function itsCommitInPlace(
     const engine = session.getEngine();
     if (!engine) return;
 
+    const tickAfterPersist = engine.gameTick;
+    const pausedAfterPersist = engine.isPaused;
     const preserveConditionalCancelPause = isPreviewCastConditionalCancelPaused(engine);
 
     // Promote preview timeline to canonical (order already persisted by caller).
@@ -327,7 +332,18 @@ async function itsCommitInPlace(
     } else {
         // Playahead dropped the parallel pause formed on the stop tick; a canonical replay commits
         // it at the end of that tick, so form it here rather than one tick late on resume.
-        engine.commitDroppedItsPreviewPauseForStopTick();
+        const formed = engine.commitDroppedItsPreviewPauseForStopTick();
+        // Record why the dropped stop-tick pause was or was not formed (P0.16 diagnostics, plan 0003).
+        session.postBattleSyncLobbyLog('diag: ITS in-place dropped-pause commit', {
+            formed,
+            ...engine.getLastDroppedPauseCommitDiag(),
+            tickBeforePersist,
+            tickAfterPersist,
+            pausedBeforePersist,
+            pausedAfterPersist,
+            waitingForOrdersAtTick: engine.waitingForOrders?.atTick ?? null,
+            atTick,
+        }, engine.gameTick);
     }
 
     session.reemitSuppressedTerminalOutcome(engine);

@@ -38,6 +38,14 @@ export class OrderPauseController {
     constructor(private readonly engine: GameEngine) {}
 
     /** Called once per normal tick, before the units run (the preview drop only lives for one tick). */
+    /** Outcome of the last {@link commitDroppedItsPreviewPauseForStopTick} call (diagnostics only). */
+    lastDroppedPauseCommitDiag: {
+        declined: string | null;
+        droppedGameTick: number | null;
+        droppedWaiterUnitIds: string[];
+        engineTick: number;
+    } | null = null;
+
     clearDroppedItsPreviewPause(): void {
         this.droppedItsPreviewPause = null;
     }
@@ -217,13 +225,20 @@ export class OrderPauseController {
         const { engine } = this;
         const dropped = this.droppedItsPreviewPause;
         this.droppedItsPreviewPause = null;
-        if (
-            dropped == null
-            || dropped.gameTick !== engine.gameTick
-            || engine.isSequentialTargetingPreview
-            || engine.waitingForOrders != null
-            || engine.deferredOrderPause != null
-        ) {
+        const declined =
+            dropped == null ? 'no_dropped_pause'
+            : dropped.gameTick !== engine.gameTick ? 'stop_tick_mismatch'
+            : engine.isSequentialTargetingPreview ? 'still_previewing'
+            : engine.waitingForOrders != null ? 'pause_already_formed'
+            : engine.deferredOrderPause != null ? 'deferred_pause_pending'
+            : null;
+        this.lastDroppedPauseCommitDiag = {
+            declined,
+            droppedGameTick: dropped?.gameTick ?? null,
+            droppedWaiterUnitIds: dropped?.waiters.map((w) => w.unitId) ?? [],
+            engineTick: engine.gameTick,
+        };
+        if (declined != null || dropped == null) {
             return false;
         }
         engine.state.levelEventManager.runVictoryChecks();
