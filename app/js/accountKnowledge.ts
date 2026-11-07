@@ -67,6 +67,9 @@ export const KNOWLEDGE_TUTORIAL_BATTLE_BASICS = 'TutorialBattleBasics';
 /** Tutorial: Light. Carries the mission-2 tutorial on the dimming campfire and placing light with a torch. */
 export const KNOWLEDGE_TUTORIAL_LIGHT = 'TutorialLight';
 
+/** Tutorial: Stacked Units. Carries the tutorial shown the first time an enemy unit stack is on screen. */
+export const KNOWLEDGE_TUTORIAL_STACKED_UNITS = 'TutorialStackedUnits';
+
 /** What a piece of knowledge is about; drives the pill icon and the admin grant filters. */
 export type AccountKnowledgeType = 'resource' | 'equipment' | 'systems' | 'progression' | 'tutorial' | 'other';
 
@@ -189,6 +192,13 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
         type: 'tutorial',
         tier: 1,
         description: 'Recorded by the mission-2 tutorial on the dimming campfire and placing light with a torch.',
+    },
+    {
+        key: KNOWLEDGE_TUTORIAL_STACKED_UNITS,
+        label: 'Tutorial: Stacked Units',
+        type: 'tutorial',
+        tier: 1,
+        description: 'Recorded by the tutorial shown the first time an enemy unit stack is on screen.',
     },
 ];
 

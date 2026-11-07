@@ -67,6 +67,8 @@ export interface SpawnerSpec<Cfg> {
     intervalSec(cfg: Cfg): number;
     /** Children per burst. */
     burstCount(cfg: Cfg): number;
+    /** Members in each child token (a unit stack; default 1). The cap counts tokens, not members. */
+    childStackSize?(cfg: Cfg): number;
     /**
      * Extra gate checked after the cap and timer. `false` skips this tick WITHOUT rescheduling, so it is retried next
      * tick (the legacy lanternite patrol waits for its destination to exist).
@@ -119,6 +121,7 @@ export function spawnSpawnerChildren<Cfg>(args: {
 }): Unit[] {
     const { spawner, cfg, state, spec, count, spawnCtx, env } = args;
     const child = spec.child;
+    const stackSize = spec.childStackSize?.(cfg) ?? 1;
     const spawned: Unit[] = [];
     for (let burst = 0; burst < count; burst++) {
         // Re-check the cap each iteration: a previous burst member may have filled the spawner.
@@ -136,6 +139,7 @@ export function spawnSpawnerChildren<Cfg>(args: {
                 teamId: child.team === 'inherit' ? spawner.teamId : child.team,
                 unitAITreeId: described.unitAITreeId,
                 aiSettings: child.aiSettings ? { ...child.aiSettings } : null,
+                ...(stackSize > 1 ? { stackSize } : {}),
                 placement: described.placement ?? {
                     kind: 'relativeToUnit',
                     anchorUnitId: spawner.id,

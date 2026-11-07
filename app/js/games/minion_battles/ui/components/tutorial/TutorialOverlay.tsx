@@ -9,7 +9,8 @@ import type { GameEngine } from '../../../game/GameEngine';
 import type { Camera } from '../../../game/Camera';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import type { TutorialPointerTarget } from '../../../tutorials/tutorialTypes';
-import { nextButtonLabel, type ActiveTutorial } from '../../../tutorials/tutorialLogic';
+import { formatTutorialStepText, nextButtonLabel, type ActiveTutorial } from '../../../tutorials/tutorialLogic';
+import { findTutorialUnit, tutorialUnitView } from '../../../tutorials/tutorialUnits';
 import { abilityCardHudAnchorId, getHudAnchorRect } from '../hudAnchors';
 
 interface TutorialOverlayProps {
@@ -85,10 +86,7 @@ function resolvePointer(
     const local = engine.getLocalPlayerUnit();
     switch (target.type) {
         case 'unit': {
-            const unit = nearestTo(
-                engine.units.filter((u) => u.isAlive() && u.characterId === target.characterId),
-                local,
-            );
+            const unit = findTutorialUnit(engine, target, camera);
             return unit ? worldBox(unit.x, unit.y, unit.radius) : null;
         }
         case 'specialTile': {
@@ -156,6 +154,11 @@ export default function TutorialOverlay({ tutorial, engine, camera, canvasAreaRe
 
     if (!stepDef) return null;
     const nextLabel = nextButtonLabel(def, step);
+    const pointedUnit = pointAt?.type === 'unit' ? findTutorialUnit(engine, pointAt, camera) : undefined;
+    const stepText = formatTutorialStepText(
+        stepDef.text,
+        pointedUnit ? tutorialUnitView(pointedUnit, engine.getLocalPlayerUnit()?.teamId ?? 'player') : null,
+    );
 
     return createPortal(
         <div className="pointer-events-none fixed inset-0 z-40" data-testid="battle-tutorial">
@@ -184,7 +187,7 @@ export default function TutorialOverlay({ tutorial, engine, camera, canvasAreaRe
                         </span>
                     )}
                 </div>
-                <p className="text-sm leading-snug">{stepDef.text}</p>
+                <p className="text-sm leading-snug">{stepText}</p>
                 <div className="mt-2 flex items-center justify-between">
                     <button
                         type="button"

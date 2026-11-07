@@ -7,8 +7,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AccountKnowledgeMap, TutorialProgress } from '../../../../../accountKnowledge';
 import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import type { BattleSessionEvent } from '../../../game/BattleSession';
+import type { Camera } from '../../../game/Camera';
 import type { GameEngine } from '../../../game/GameEngine';
 import { TUTORIALS } from '../../../storylines/tutorialRegistry';
+import { tutorialUnitsOnScreen } from '../../../tutorials/tutorialUnits';
 import {
     findTriggeredTutorial,
     progressAfterStep,
@@ -21,6 +23,8 @@ interface UseBattleTutorialParams {
     api: MinionBattlesApi;
     missionId: string;
     engine: GameEngine | null;
+    /** Battle camera; `unitOnScreen` triggers only see units inside its viewport. */
+    camera: Camera | null;
     knowledge: AccountKnowledgeMap;
     /** Reload the account after progress is saved, so knowledge stays current. */
     refetchUser?: () => Promise<void>;
@@ -41,22 +45,34 @@ export function useBattleTutorial({
     api,
     missionId,
     engine,
+    camera,
     knowledge,
     refetchUser,
     ready,
 }: UseBattleTutorialParams): BattleTutorialState {
     const [active, setActive] = useState<ActiveTutorial | null>(null);
     const activeRef = useRef<ActiveTutorial | null>(null);
-    const checkedRef = useRef(false);
+    /** Tutorials already shown in this battle mount; never shown again here even before the account reloads. */
+    const shownRef = useRef<Set<string>>(new Set());
 
-    // Pick at most one tutorial per battle mount, the first time the player can act.
+    // Whenever the player can act and no tutorial is up, start the first one whose trigger matches.
     useEffect(() => {
-        if (checkedRef.current || !ready || !engine) return;
-        checkedRef.current = true;
-        const found = findTriggeredTutorial(TUTORIALS, knowledge, { missionId, gameTimeSeconds: engine.gameTime });
+        if (!ready || !engine || activeRef.current) return;
+        const found = findTriggeredTutorial(
+            TUTORIALS,
+            knowledge,
+            {
+                missionId,
+                gameTimeSeconds: engine.gameTime,
+                unitsOnScreen: camera ? tutorialUnitsOnScreen(engine, camera) : [],
+            },
+            shownRef.current,
+        );
+        if (!found) return;
+        shownRef.current.add(found.def.id);
         activeRef.current = found;
         setActive(found);
-    }, [ready, engine, knowledge, missionId]);
+    }, [ready, engine, camera, knowledge, missionId]);
 
     const save = useCallback(
         (def: TutorialDef, progress: TutorialProgress) => {

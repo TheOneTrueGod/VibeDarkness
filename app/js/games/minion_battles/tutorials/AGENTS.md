@@ -29,9 +29,15 @@ player sees their own.
 
 1. Reuse a knowledge key, or add a `type: 'tutorial'` key to `accountKnowledge.ts` and `TutorialKnowledge.php`.
 2. Write the `TutorialDef` in the storyline's `tutorials.ts` and list it in the storyline's export.
-3. Steps point at things with `pointAt` (`unit` by characterId, `specialTile` by defId, `abilityCard` by
-   ability ids, or any `hudAnchor`), and advance on a button (`next`) or a local order (`localOrder`,
-   optionally requiring a move and/or specific abilities). A missing target just shows no pointer.
+3. Pick a trigger: `battleStart` (one mission's opening turn) or `unitOnScreen` (any turn in any mission
+   while a unit matching a `TutorialUnitFilter` — characterId, `minStackSize`, `hostile` — is visible on
+   screen; enemies hidden in full darkness don't count). Use `unitOnScreen` to explain a unit or mechanic
+   the first time the player meets it, wherever that is.
+4. Steps point at things with `pointAt` (`unit` by a `TutorialUnitFilter`, `specialTile` by defId,
+   `abilityCard` by ability ids, or any `hudAnchor`), and advance on a button (`next`) or a local order
+   (`localOrder`, optionally requiring a move and/or specific abilities). A missing target just shows no
+   pointer. Step text may use `{stackSize}` (the pointed unit's stack count; `formatTutorialStepText`).
+   Live unit lookups (on screen, nearest, darkness) are in `tutorialUnits.ts`.
 
 ## Extending
 
@@ -43,5 +49,6 @@ player sees their own.
 - **New pointer target:** add a `TutorialPointerTarget` variant and resolve it in `TutorialOverlay`'s
   `resolvePointer`. For DOM elements, register a `hudAnchors.ts` anchor rather than querying the DOM.
 
-The hook picks at most one tutorial per battle mount, the first time the player can act (their turn, with
-the objectives intro docked), and shows it only while they can act.
+The hook checks triggers each time the player can act (their turn, with the objectives intro docked) and no
+tutorial is up, shows at most one at a time and only while they can act, and never repeats a tutorial
+within one battle mount (even before the account reload marks it done).

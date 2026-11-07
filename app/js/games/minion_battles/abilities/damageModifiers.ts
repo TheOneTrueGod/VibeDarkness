@@ -8,6 +8,7 @@ import {
 import type { ResearchNodeLevels } from '../../../researchTrees/types';
 import { getDamageBonusFromResearch } from '../research/researchTrainingEffects';
 import type { TooltipResolveContext } from './tooltipTokens';
+import { getStackDamageMultiplier } from '../game/units/stackRules';
 
 export const DEFAULT_DAMAGE_MODIFIER_MULTIPLIER = 1;
 
@@ -26,7 +27,7 @@ export const ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES: Record<string, number
 
 /**
  * Pure damage formula shared by combat and tooltips (no rounding).
- * `(base + flatAmt * abilityFlatScale) * multiplier * stackSize`.
+ * `(base + flatAmt * abilityFlatScale) * multiplier * getStackDamageMultiplier(stackSize)`.
  */
 export function applyDamageModifier(
     baseDamage: number,
@@ -35,7 +36,10 @@ export function applyDamageModifier(
     abilityFlatScale: number = DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
 ): number {
     const flatPart = damageModifier.flatAmt * abilityFlatScale;
-    return Math.max(0, (baseDamage + flatPart) * damageModifier.multiplier * stackSize);
+    return Math.max(
+        0,
+        (baseDamage + flatPart) * damageModifier.multiplier * getStackDamageMultiplier(stackSize),
+    );
 }
 
 /**

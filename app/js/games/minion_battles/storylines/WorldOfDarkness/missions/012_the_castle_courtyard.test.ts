@@ -10,7 +10,7 @@ import { WorldOfDarknessStoryline } from '../WorldOfDarkness';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
 import { isTileInZone } from '../../../terrain/zones';
 import { CASTLE_APPROACH_ZONE } from '../MapSegments/61_49_castle_gate';
-import { THE_LONELY_CASTLE_MISSION_ID } from './011_the_lonely_castle';
+import { SWARMLING_STACK_SIZE, THE_LONELY_CASTLE_MISSION_ID, WOLF_STACK_SIZE } from './011_the_lonely_castle';
 import {
     BRIDGE_CAMPFIRE_CELL,
     BRIDGE_PLAYER_SPAWN_POINTS,
@@ -140,6 +140,23 @@ describe('The Castle Courtyard (012)', () => {
             const { col, row } = cellOf(u);
             expect(isTileInZone(zone, col, row), `${u.characterId} at (${col},${row})`).toBe(true);
         }
+        const freshWolves = fresh.filter((u) => u.characterId === 'dark_wolf');
+        expect(freshWolves.length).toBeGreaterThan(0);
+        for (const wolf of freshWolves) expect(wolf.stackSize).toBe(WOLF_STACK_SIZE);
+        engine.destroy();
+    });
+
+    it('the spawners raise swarmlings in stacks', () => {
+        const engine = initMission();
+        const player = engine.units.find((u) => u.isPlayerControlled())!;
+        let guard = 0;
+        while (engine.gameTime < 8 && guard++ < 3000) {
+            player.hp = player.maxHp;
+            step(engine, 1);
+        }
+        const swarmlings = engine.units.filter((u) => u.characterId === 'swarmling' && u.isAlive());
+        expect(swarmlings.length).toBeGreaterThan(0);
+        for (const s of swarmlings) expect(s.stackSize).toBe(SWARMLING_STACK_SIZE);
         engine.destroy();
     });
 });

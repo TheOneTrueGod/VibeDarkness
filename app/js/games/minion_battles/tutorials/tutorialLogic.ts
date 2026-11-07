@@ -5,18 +5,37 @@ import {
     type TutorialDef,
     type TutorialEvent,
     type TutorialStepDef,
+    type TutorialUnitFilter,
 } from './tutorialTypes';
+
+/** What tutorial rules need to know about one living unit. */
+export interface TutorialUnitView {
+    characterId: string;
+    stackSize: number;
+    /** Hostile to the local player. */
+    hostile: boolean;
+}
 
 /** Where a battle is when tutorials are checked. */
 export interface TutorialBattleContext {
     missionId: string;
     /** Battle clock, seconds. */
     gameTimeSeconds: number;
+    /** Living units currently on screen (for `unitOnScreen` triggers). */
+    unitsOnScreen?: readonly TutorialUnitView[];
 }
 
 export interface ActiveTutorial {
     def: TutorialDef;
     step: number;
+}
+
+/** Whether `unit` satisfies every field of `filter`. */
+export function unitMatchesTutorialFilter(unit: TutorialUnitView, filter: TutorialUnitFilter): boolean {
+    if (filter.characterId != null && unit.characterId !== filter.characterId) return false;
+    if (filter.minStackSize != null && unit.stackSize < filter.minStackSize) return false;
+    if (filter.hostile != null && unit.hostile !== filter.hostile) return false;
+    return true;
 }
 
 function triggerMatches(def: TutorialDef, ctx: TutorialBattleContext): boolean {
@@ -27,7 +46,17 @@ function triggerMatches(def: TutorialDef, ctx: TutorialBattleContext): boolean {
                 trigger.missionId === ctx.missionId &&
                 ctx.gameTimeSeconds <= (trigger.withinSeconds ?? DEFAULT_BATTLE_START_WINDOW_SECONDS)
             );
+        case 'unitOnScreen':
+            return (ctx.unitsOnScreen ?? []).some((u) => unitMatchesTutorialFilter(u, trigger.unit));
     }
+}
+
+/**
+ * Fill a step's text tokens from the unit it points at (see `TutorialStepDef.text`). With no unit (it died,
+ * or the step points at none), `{stackSize}` reads "several".
+ */
+export function formatTutorialStepText(text: string, unit: TutorialUnitView | null | undefined): string {
+    return text.replace(/\{stackSize\}/g, unit ? String(unit.stackSize) : 'several');
 }
 
 /**
@@ -38,8 +67,11 @@ export function findTriggeredTutorial(
     tutorials: readonly TutorialDef[],
     knowledge: AccountKnowledgeMap,
     ctx: TutorialBattleContext,
+    /** Tutorial ids to pass over (e.g. already shown in this battle while the account reloads). */
+    exclude?: ReadonlySet<string>,
 ): ActiveTutorial | null {
     for (const def of tutorials) {
+        if (exclude?.has(def.id)) continue;
         if (def.steps.length === 0 || !triggerMatches(def, ctx)) continue;
         const progress = readTutorialProgress(knowledge, def.knowledgeKey, def.id);
         if (progress?.done) continue;

@@ -1,6 +1,6 @@
 /**
  * Priority-fill hit selection: committed units still in-shape first, then other
- * in-shape units, capped with the same stack-aware slot rules as MeleeAttack.
+ * in-shape units, capped with the same one-slot-per-unit rule as MeleeAttack.
  */
 
 import type { Unit } from '../game/units/Unit';
@@ -11,42 +11,25 @@ import type { ResolvedTarget } from '../game/types';
 import { findMeleeAimPixelInTargets } from './targeting';
 
 /**
- * Assign up to `cap` hit slots to candidates. Each unique unit gets one slot
- * first (preserving order). Remaining slots go to stacks (largest first,
- * capped by stackSize), spreading across stacks before double-hitting one.
+ * Assign up to `cap` hit slots to candidates, one per unique unit in candidate order.
+ * A unit stack is a single target (see `game/units/stackRules.ts`): it takes one slot
+ * however many members it has, so leftover slots go unused.
  */
 export function assignHitSlots(candidates: Unit[], cap: number): Unit[] {
-    const slotsUsed = new Map<string, number>();
+    const seen = new Set<string>();
     const result: Unit[] = [];
-
     for (const u of candidates) {
         if (result.length >= cap) break;
-        if (!slotsUsed.has(u.id)) {
-            slotsUsed.set(u.id, 1);
-            result.push(u);
-        }
+        if (seen.has(u.id)) continue;
+        seen.add(u.id);
+        result.push(u);
     }
-
-    if (result.length < cap) {
-        const stackable = [...new Set(candidates)]
-            .filter((u) => u.stackSize > (slotsUsed.get(u.id) ?? 0))
-            .sort((a, b) => b.stackSize - a.stackSize);
-
-        for (const u of stackable) {
-            while (result.length < cap && (slotsUsed.get(u.id) ?? 0) < u.stackSize) {
-                slotsUsed.set(u.id, (slotsUsed.get(u.id) ?? 0) + 1);
-                result.push(u);
-            }
-            if (result.length >= cap) break;
-        }
-    }
-
     return result;
 }
 
 /**
  * Priority fill: committed IDs still present in `inShape` (stable commit order),
- * then other in-shape units, then stack-aware cap at `numTargets`.
+ * then other in-shape units, then cap at `numTargets` (one slot per unit, stacks included).
  */
 export function priorityFillHits(
     committedIds: readonly string[],

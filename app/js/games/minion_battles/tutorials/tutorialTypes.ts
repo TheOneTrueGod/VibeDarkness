@@ -8,21 +8,42 @@
  */
 import type { HudAnchorId } from '../ui/components/hudAnchors';
 
+/**
+ * Which units a trigger or pointer means. Every field given must hold; an empty filter matches any
+ * living unit.
+ */
+export interface TutorialUnitFilter {
+    characterId?: string;
+    /** Only unit stacks of at least this many members (`Unit.stackSize`). */
+    minStackSize?: number;
+    /** Only units hostile to the local player. */
+    hostile?: boolean;
+}
+
 /** When a tutorial starts. */
-export type TutorialTrigger = {
-    /** At the start of a battle in `missionId`, on the local player's first turn. */
-    type: 'battleStart';
-    missionId: string;
-    /** Only while the battle clock is under this many seconds (default {@link DEFAULT_BATTLE_START_WINDOW_SECONDS}). */
-    withinSeconds?: number;
-};
+export type TutorialTrigger =
+    | {
+          /** At the start of a battle in `missionId`, on the local player's first turn. */
+          type: 'battleStart';
+          missionId: string;
+          /** Only while the battle clock is under this many seconds (default {@link DEFAULT_BATTLE_START_WINDOW_SECONDS}). */
+          withinSeconds?: number;
+      }
+    | {
+          /**
+           * On any of the local player's turns (in any mission) while a living unit matching `unit` is on
+           * screen. Use it to explain a unit or mechanic the first time the player meets it.
+           */
+          type: 'unitOnScreen';
+          unit: TutorialUnitFilter;
+      };
 
 export const DEFAULT_BATTLE_START_WINDOW_SECONDS = 1;
 
 /** Something on screen a step points at. Targets that are missing just show no pointer. */
 export type TutorialPointerTarget =
-    /** The living unit with this `characterId` nearest the local player's unit. */
-    | { type: 'unit'; characterId: string }
+    /** The living unit matching the filter nearest the local player's unit. */
+    | ({ type: 'unit' } & TutorialUnitFilter)
     /** The special tile with this `defId` nearest the local player's unit. */
     | { type: 'specialTile'; defId: string }
     /** The first of these abilities that is in the local player's hand. */
@@ -41,6 +62,10 @@ export type TutorialAdvance =
     | { type: 'localOrder'; withMove?: boolean; abilityIds?: readonly string[] };
 
 export interface TutorialStepDef {
+    /**
+     * Step text. Tokens filled from the unit the step points at: `{stackSize}` — that unit's stack count
+     * ("several" when there is no such unit).
+     */
     text: string;
     pointAt?: TutorialPointerTarget;
     advance: TutorialAdvance;

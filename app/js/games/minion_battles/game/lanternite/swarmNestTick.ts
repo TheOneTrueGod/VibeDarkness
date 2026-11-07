@@ -72,6 +72,7 @@ export const SWARM_SPAWNER: SpawnerSpec<SwarmNestMissionConfig> = {
     maxChildren: (cfg) => cfg.maxSwarmlings,
     intervalSec: (cfg) => cfg.spawnIntervalSec,
     burstCount: (cfg) => cfg.spawnCount ?? 1,
+    childStackSize: (cfg) => cfg.spawnStackSize ?? 1,
     describeChild(nest, aliveCount, _env) {
         const orbitAngle = (aliveCount * GOLDEN_ANGLE) % (Math.PI * 2);
         const cfg = swarmStateOf(nest).nestConfig!;

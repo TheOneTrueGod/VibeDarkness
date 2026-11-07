@@ -58,11 +58,11 @@ describe('priorityFillHits', () => {
         expect(hits.map((u) => u.id)).toEqual(['a', 'b']);
     });
 
-    it('uses stack-aware slots when distinct targets are scarce', () => {
+    it('hits a stack only once, even with spare slots', () => {
         const stack = makeUnit('stack', { stackSize: 3 });
         const other = makeUnit('other');
         const hits = priorityFillHits([], [stack, other], 3);
-        expect(hits.map((u) => u.id)).toEqual(['stack', 'other', 'stack']);
+        expect(hits.map((u) => u.id)).toEqual(['stack', 'other']);
     });
 });
 

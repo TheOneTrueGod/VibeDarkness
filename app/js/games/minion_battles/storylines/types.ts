@@ -435,6 +435,8 @@ export interface EnemySpawnDef {
     hp?: number;
     /** Movement speed in px/s. Omitted → `getDefaultSpeed(characterId)`. */
     speed?: number;
+    /** Number of individual creatures this token represents (a unit stack). Defaults to 1. */
+    stackSize?: number;
     /** Starting position in world space. */
     position: { x: number; y: number };
     /** Team this enemy belongs to. */

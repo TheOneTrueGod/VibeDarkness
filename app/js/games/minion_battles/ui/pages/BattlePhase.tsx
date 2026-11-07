@@ -395,6 +395,7 @@ export default function BattlePhase({
         api,
         missionId,
         engine: sessionRef.current?.getEngine() ?? null,
+        camera: sessionRef.current?.getCamera() ?? null,
         knowledge: accountKnowledge,
         refetchUser,
         ready: battleInitPhase === 'ready' && canUseOrderUi && objectivesIntroSettled,

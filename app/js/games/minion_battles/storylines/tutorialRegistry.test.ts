@@ -20,7 +20,9 @@ describe('tutorial registry', () => {
     it('triggers only in real missions and points only at real abilities', () => {
         for (const t of TUTORIALS) {
             expect(t.steps.length, t.id).toBeGreaterThan(0);
-            expect(MISSION_MAP[t.trigger.missionId], t.id).toBeDefined();
+            if (t.trigger.type === 'battleStart') {
+                expect(MISSION_MAP[t.trigger.missionId], t.id).toBeDefined();
+            }
             for (const step of t.steps) {
                 const ids = [
                     ...(step.pointAt?.type === 'abilityCard' ? step.pointAt.abilityIds : []),

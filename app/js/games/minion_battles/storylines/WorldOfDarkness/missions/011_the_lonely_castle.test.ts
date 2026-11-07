@@ -19,6 +19,11 @@ import {
     CAVE_EXIT_AMBUSH_SWARMLINGS,
     CAVE_EXIT_AMBUSH_WOLVES,
     OPENING_THICKET_WOLVES,
+    ROAD_WAVE_SLIMES,
+    ROAD_WAVE_SWARMLINGS,
+    ROAD_WAVE_WOLVES,
+    SWARMLING_STACK_SIZE,
+    WOLF_STACK_SIZE,
     THE_LONELY_CASTLE,
     THE_LONELY_CASTLE_MISSION_ID,
 } from './011_the_lonely_castle';
@@ -78,6 +83,9 @@ describe('The Lonely Castle (011)', () => {
         const enemies = engine.units.filter((u) => u.teamId === 'enemy');
         const count = (id: string) => enemies.filter((u) => u.characterId === id).length;
         expect(count('dark_wolf')).toBe(OPENING_THICKET_WOLVES);
+        for (const wolf of enemies.filter((u) => u.characterId === 'dark_wolf')) {
+            expect(wolf.stackSize).toBe(WOLF_STACK_SIZE);
+        }
         expect(count('swarmling')).toBe(0);
         expect(count('slime')).toBe(0);
         expect(count('thornbinder')).toBe(1);
@@ -106,7 +114,7 @@ describe('The Lonely Castle (011)', () => {
         expect(engine.state.levelEventManager.triggerManager.hasFired(TRIGGER_LEFT_CAVE)).toBe(false);
         expect(slimes()).toHaveLength(0);
         expect(ofType('swarmling')).toHaveLength(0);
-        const wolvesBefore = ofType('dark_wolf').length;
+        const wolvesBefore = ofType('dark_wolf').map((u) => u.id);
 
         // Step the hero onto the cave road.
         const player = engine.units.find((u) => u.isPlayerControlled())!;
@@ -122,10 +130,15 @@ describe('The Lonely Castle (011)', () => {
         step(engine, 2);
 
         expect(engine.state.levelEventManager.triggerManager.hasFired(TRIGGER_LEFT_CAVE)).toBe(true);
-        // The cave-exit ambush plus the first road wave (2 wolves, 1 swarmling, 1 slime).
-        expect(slimes()).toHaveLength(CAVE_EXIT_AMBUSH_SLIMES + 1);
-        expect(ofType('swarmling')).toHaveLength(CAVE_EXIT_AMBUSH_SWARMLINGS + 1);
-        expect(ofType('dark_wolf').length - wolvesBefore).toBe(CAVE_EXIT_AMBUSH_WOLVES + 2);
+        // The cave-exit ambush plus the first road wave: wolves and the ambush swarmlings come as stacks.
+        expect(slimes()).toHaveLength(CAVE_EXIT_AMBUSH_SLIMES + ROAD_WAVE_SLIMES);
+        const swarmlings = ofType('swarmling');
+        expect(swarmlings).toHaveLength(CAVE_EXIT_AMBUSH_SWARMLINGS + ROAD_WAVE_SWARMLINGS);
+        const swarmlingCreatures = swarmlings.reduce((n, u) => n + u.stackSize, 0);
+        expect(swarmlingCreatures).toBe(CAVE_EXIT_AMBUSH_SWARMLINGS * SWARMLING_STACK_SIZE + ROAD_WAVE_SWARMLINGS);
+        const newWolves = ofType('dark_wolf').filter((u) => !wolvesBefore.includes(u.id));
+        expect(newWolves).toHaveLength(CAVE_EXIT_AMBUSH_WOLVES + ROAD_WAVE_WOLVES);
+        for (const wolf of newWolves) expect(wolf.stackSize).toBe(WOLF_STACK_SIZE);
         // Scattered across the hillside between the cave mouth and ~20 tiles east, not bunched up.
         const caveMouthX = CAVE_ROAD_REGION.col * CELL_SIZE;
         const exitWave = [...slimes(), ...ofType('swarmling')];

@@ -41,7 +41,14 @@ import {
     COURTYARD_NORTHEAST,
     COURTYARD_NORTHWEST,
 } from '../MapSegments/61_48_castle_courtyard';
-import { cellCentre, darknessSpawn, onMission, SEGMENT_SIZE } from './011_the_lonely_castle';
+import {
+    cellCentre,
+    darknessSpawn,
+    onMission,
+    SEGMENT_SIZE,
+    SWARMLING_STACK_SIZE,
+    WOLF_STACK_SIZE,
+} from './011_the_lonely_castle';
 
 export const THE_CASTLE_COURTYARD_MISSION_ID = 'the_castle_courtyard';
 
@@ -77,10 +84,14 @@ export const BRIDGE_PLAYER_SPAWN_POINTS: PlayerSpawnPoint[] = [
 // --- Tuning --------------------------------------------------------------
 /** The bridge campfire starts bright and burns out over a few rounds (same as Towards the Light's). */
 export const BRIDGE_CAMPFIRE_LIGHT = { lightAmount: 6, radius: 4, decayRate: 0.5, decayInterval: 0.25 } as const;
-export const NEST_MAX_SWARMLINGS = 8;
+/** Nests spawn swarmling stacks (tokens of `SWARMLING_STACK_SIZE`); the cap counts tokens. 4 × 2 = 8 swarmlings. */
+export const NEST_MAX_SWARMLINGS = 4;
 /** Each nest bursts twice per round. */
 export const NEST_SPAWN_INTERVAL_SEC = ROUND_DURATION / 2;
-export const NEST_SPAWN_COUNT = 2;
+/** One stack of 2 per burst: the same 4 swarmlings a round as two lone ones per burst. */
+export const NEST_SPAWN_COUNT = 1;
+/** Wolf stacks in each round's darkness wave south of the moat (each `WOLF_STACK_SIZE` wolves). */
+export const APPROACH_WAVE_WOLVES = 1;
 
 /** A Husk's patrol: it spawns on `from` and paces back and forth to `to` (segment-local cells). */
 export interface HuskRoute {
@@ -124,6 +135,7 @@ function swarmNest(cell: { col: number; row: number }): EnemySpawnDef {
             maxSwarmlings: NEST_MAX_SWARMLINGS,
             spawnIntervalSec: NEST_SPAWN_INTERVAL_SEC,
             spawnCount: NEST_SPAWN_COUNT,
+            spawnStackSize: SWARMLING_STACK_SIZE,
             spawnAITreeId: 'hunt',
         },
     };
@@ -134,7 +146,7 @@ export const THE_CASTLE_COURTYARD_LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'spawnWave',
         trigger: { atRound: 1 },
-        spawns: [darknessSpawn(ENEMY_THORNBINDER, 1, CASTLE_APPROACH_ZONE.id)],
+        spawns: [darknessSpawn(ENEMY_THORNBINDER, 1, { spawnZoneId: CASTLE_APPROACH_ZONE.id })],
         emittedMessage: 'Something stirs in the courtyard beyond the gate.',
     },
     // A light trickle out of the darkness outside the castle, south of the moat.
@@ -142,8 +154,11 @@ export const THE_CASTLE_COURTYARD_LEVEL_EVENTS: LevelEvent[] = [
         type: 'continuousSpawn',
         trigger: { intervalRounds: 1 },
         spawns: [
-            darknessSpawn(SLIME, 1, CASTLE_APPROACH_ZONE.id),
-            darknessSpawn(ENEMY_DARK_WOLF, 2, CASTLE_APPROACH_ZONE.id),
+            darknessSpawn(SLIME, 1, { spawnZoneId: CASTLE_APPROACH_ZONE.id }),
+            darknessSpawn(ENEMY_DARK_WOLF, APPROACH_WAVE_WOLVES, {
+                spawnZoneId: CASTLE_APPROACH_ZONE.id,
+                stackSize: WOLF_STACK_SIZE,
+            }),
         ],
     },
     {

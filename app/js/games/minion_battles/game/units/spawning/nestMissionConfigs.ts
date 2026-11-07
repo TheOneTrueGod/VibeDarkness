@@ -15,6 +15,8 @@ export interface SwarmNestMissionConfig {
     spawnIntervalSec: number;
     /** How many swarmlings to spawn per interval (default 1). Capped by maxSwarmlings. */
     spawnCount?: number;
+    /** Members in each spawned swarmling token (a unit stack; default 1). `maxSwarmlings` counts tokens. */
+    spawnStackSize?: number;
     /** Seconds for a swarmling to build a new nest after arriving at a POI (default 10). */
     scoutConstructionSec?: number;
     /** `nest` POI id this swarm nest occupies (mission-defined starting nests only). */

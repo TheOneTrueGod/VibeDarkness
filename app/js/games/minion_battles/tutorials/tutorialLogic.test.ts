@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { readTutorialProgress } from '../../../accountKnowledge';
-import { findTriggeredTutorial, nextButtonLabel, progressAfterStep, stepAdvancedBy } from './tutorialLogic';
+import {
+    findTriggeredTutorial,
+    formatTutorialStepText,
+    nextButtonLabel,
+    progressAfterStep,
+    stepAdvancedBy,
+    unitMatchesTutorialFilter,
+} from './tutorialLogic';
 import type { TutorialDef } from './tutorialTypes';
 
 const MOVE_THEN_PUNCH: TutorialDef = {
@@ -98,5 +105,41 @@ describe('progress', () => {
             step: 2,
             done: true,
         });
+    });
+});
+
+describe('unitOnScreen trigger', () => {
+    const STACKS: TutorialDef = {
+        id: 'stacks',
+        knowledgeKey: 'TutorialTest',
+        title: 'Stacks',
+        trigger: { type: 'unitOnScreen', unit: { minStackSize: 2, hostile: true } },
+        steps: [{ text: 'A stack of {stackSize}.', advance: { type: 'next' } }],
+    };
+    const lone = { characterId: 'wolf', stackSize: 1, hostile: true };
+    const stack = { characterId: 'wolf', stackSize: 3, hostile: true };
+    const alliedStack = { characterId: 'wolf', stackSize: 3, hostile: false };
+    const ctx = (unitsOnScreen: typeof lone[]) => ({ missionId: 'any', gameTimeSeconds: 40, unitsOnScreen });
+
+    it('fires in any mission, at any time, once a matching unit is on screen', () => {
+        expect(findTriggeredTutorial([STACKS], {}, ctx([lone]))).toBeNull();
+        expect(findTriggeredTutorial([STACKS], {}, ctx([alliedStack]))).toBeNull();
+        expect(findTriggeredTutorial([STACKS], {}, ctx([lone, stack]))).toEqual({ def: STACKS, step: 0 });
+    });
+
+    it('skips excluded tutorials', () => {
+        expect(findTriggeredTutorial([STACKS], {}, ctx([stack]), new Set(['stacks']))).toBeNull();
+    });
+
+    it('matches every field of a unit filter', () => {
+        expect(unitMatchesTutorialFilter(stack, {})).toBe(true);
+        expect(unitMatchesTutorialFilter(stack, { characterId: 'wolf', minStackSize: 3 })).toBe(true);
+        expect(unitMatchesTutorialFilter(stack, { characterId: 'slime' })).toBe(false);
+        expect(unitMatchesTutorialFilter(stack, { minStackSize: 4 })).toBe(false);
+    });
+
+    it('fills {stackSize} from the pointed unit', () => {
+        expect(formatTutorialStepText('A stack of {stackSize}.', stack)).toBe('A stack of 3.');
+        expect(formatTutorialStepText('A stack of {stackSize}.', null)).toBe('A stack of several.');
     });
 });

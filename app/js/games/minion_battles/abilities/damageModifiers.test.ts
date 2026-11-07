@@ -17,6 +17,7 @@ import {
 import { RESEARCH_DAMAGE_BONUSES } from '../research/researchTrainingEffects';
 import { formatTooltipNumber, resolveDamageToken } from './tooltipTokens';
 import type { Unit } from '../game/units/Unit';
+import { STACK_DAMAGE_SCALING, getStackDamageMultiplier } from '../game/units/stackRules';
 
 /** Mighty researched twice → all_damage mult 1.2 (base 10 → 12). */
 const MIGHTY_TWO_LEVELS = 2;
@@ -33,6 +34,15 @@ describe('applyDamageModifier', () => {
     it('scales flat by abilityFlatScale', () => {
         // (10 + 6 * 0.5) * 1 = 13
         expect(applyDamageModifier(10, { flatAmt: 6, multiplier: 1 }, 1, 0.5)).toBe(13);
+    });
+
+    it('scales by the stack damage curve, not linearly', () => {
+        const mod = { flatAmt: 0, multiplier: 1 };
+        expect(applyDamageModifier(10, mod, 1)).toBe(10);
+        expect(applyDamageModifier(10, mod, 2)).toBeCloseTo(10 * getStackDamageMultiplier(2));
+        expect(applyDamageModifier(10, mod, 6)).toBeCloseTo(10 * getStackDamageMultiplier(6));
+        expect(getStackDamageMultiplier(2)).toBeCloseTo(1 + STACK_DAMAGE_SCALING.bonusPerExtraMember);
+        expect(getStackDamageMultiplier(6)).toBeCloseTo(1 + 5 * STACK_DAMAGE_SCALING.bonusPerExtraMember);
     });
 
     it('leaves fractional results (no combat Math.round)', () => {

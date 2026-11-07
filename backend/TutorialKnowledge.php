@@ -16,6 +16,7 @@ final class TutorialKnowledge
     public const KEYS = [
         'TutorialBattleBasics',
         'TutorialLight',
+        'TutorialStackedUnits',
     ];
 
     public static function isRecordable(string $key): bool

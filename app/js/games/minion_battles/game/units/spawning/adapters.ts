@@ -55,6 +55,7 @@ export function enemySpawnDefToSpawnDefinition(e: EnemySpawnDef, ownerId = 'ai')
         name: e.name,
         hp: e.hp,
         speed: e.speed,
+        stackSize: e.stackSize,
         abilities: e.abilities,
         aiSettings: e.aiSettings,
         radius: e.radius,

@@ -68,15 +68,25 @@ const THICKET = cellCentre(onMission(1, 1, SOUTH_THICKET));
 export const BRIDGE_THRESHOLD = onMission(2, 0, MOAT_BRIDGE);
 
 // --- Tuning --------------------------------------------------------------
+// Wolves and swarmlings come in unit stacks (this is where the player first meets stacks). Counts below
+// are tokens; a stack token holds `*_STACK_SIZE` creatures.
+/** Creatures per wolf token. */
+export const WOLF_STACK_SIZE = 2;
+/** Creatures per stacked swarmling token. */
+export const SWARMLING_STACK_SIZE = 2;
 /** The ambush that rises out of the darkness around the first unit to leave the cave. */
-export const CAVE_EXIT_AMBUSH_WOLVES = 2;
-export const CAVE_EXIT_AMBUSH_SWARMLINGS = 2;
+export const CAVE_EXIT_AMBUSH_WOLVES = 1;
+export const CAVE_EXIT_AMBUSH_SWARMLINGS = 1;
 export const CAVE_EXIT_AMBUSH_SLIMES = 1;
-export const OPENING_THICKET_WOLVES = 2;
+/** The per-round darkness wave on the road. Its one swarmling is a lone unit, not a stack. */
+export const ROAD_WAVE_WOLVES = 1;
+export const ROAD_WAVE_SWARMLINGS = 1;
+export const ROAD_WAVE_SLIMES = 1;
+export const OPENING_THICKET_WOLVES = 1;
 /** Tiles around the thicket POI that the opening wolves scatter across (kept off rock and water). */
 const THICKET_SCATTER_RADIUS = 1.2;
-/** One more wolf from the south thicket on each of these rounds. */
-export const THICKET_REINFORCEMENT_ROUNDS = [2, 3, 4] as const;
+/** One more wolf stack from the south thicket on each of these rounds. */
+export const THICKET_REINFORCEMENT_ROUNDS = [2, 4] as const;
 
 /** The cave road segment (layout slot 1,1): stepping onto it means the party has left the cave. */
 export const CAVE_ROAD_REGION = { col: SEGMENT_SIZE, row: SEGMENT_SIZE, width: SEGMENT_SIZE, height: SEGMENT_SIZE } as const;
@@ -94,14 +104,22 @@ export const TRIGGER_LEFT_CAVE = 'left_cave';
 
 export const OBJECTIVE_REACH_BRIDGE = 'reach_bridge';
 
-/** A darkness-risen enemy entry, optionally confined to a segment zone. */
-export function darknessSpawn(template: EnemySpawnDef, count: number, spawnZoneId?: string): SpawnWaveEntry {
+/**
+ * A darkness-risen enemy entry: `count` tokens, optionally confined to a segment zone, each a unit stack of
+ * `stackSize` creatures when given.
+ */
+export function darknessSpawn(
+    template: EnemySpawnDef,
+    count: number,
+    opts: { spawnZoneId?: string; stackSize?: number } = {},
+): SpawnWaveEntry {
     return {
         characterId: template.characterId,
         name: template.name,
         spawnBehaviour: 'anywhere',
         inDarkness: true,
-        ...(spawnZoneId != null ? { spawnZoneId } : {}),
+        ...(opts.spawnZoneId != null ? { spawnZoneId: opts.spawnZoneId } : {}),
+        ...(opts.stackSize != null && opts.stackSize > 1 ? { stackSize: opts.stackSize } : {}),
         spawnCount: count,
         unitAITreeId: template.unitAITreeId,
     };
@@ -115,6 +133,7 @@ function thicketWolf(): SpawnWaveEntry {
         inDarkness: true,
         spawnTarget: { ...THICKET, radius: 2 },
         spawnCount: 1,
+        stackSize: WOLF_STACK_SIZE,
         unitAITreeId: ENEMY_DARK_WOLF.unitAITreeId,
     };
 }
@@ -122,8 +141,8 @@ function thicketWolf(): SpawnWaveEntry {
 /** Waits in the dark beyond the cave mouth; spawns when the party steps out. */
 function caveExitAmbush(): SpawnWaveEntry[] {
     return [
-        darknessSpawn(ENEMY_DARK_WOLF, CAVE_EXIT_AMBUSH_WOLVES),
-        darknessSpawn(ENEMY_SWARMLING, CAVE_EXIT_AMBUSH_SWARMLINGS),
+        darknessSpawn(ENEMY_DARK_WOLF, CAVE_EXIT_AMBUSH_WOLVES, { stackSize: WOLF_STACK_SIZE }),
+        darknessSpawn(ENEMY_SWARMLING, CAVE_EXIT_AMBUSH_SWARMLINGS, { stackSize: SWARMLING_STACK_SIZE }),
         darknessSpawn(SLIME, CAVE_EXIT_AMBUSH_SLIMES),
     ];
 }
@@ -131,9 +150,9 @@ function caveExitAmbush(): SpawnWaveEntry[] {
 /** The per-round darkness wave while the party is on the road. */
 function roadDarknessWave(): SpawnWaveEntry[] {
     return [
-        darknessSpawn(ENEMY_DARK_WOLF, 2),
-        darknessSpawn(ENEMY_SWARMLING, 1),
-        darknessSpawn(SLIME, 1),
+        darknessSpawn(ENEMY_DARK_WOLF, ROAD_WAVE_WOLVES, { stackSize: WOLF_STACK_SIZE }),
+        darknessSpawn(ENEMY_SWARMLING, ROAD_WAVE_SWARMLINGS),
+        darknessSpawn(SLIME, ROAD_WAVE_SLIMES),
     ];
 }
 
@@ -204,7 +223,7 @@ function openingEnemies(engine: GameEngine): EnemySpawnDef[] {
     );
     return [
         { ...ENEMY_THORNBINDER, position: OUTCROP },
-        ...thicket.map((position) => ({ ...ENEMY_DARK_WOLF, position })),
+        ...thicket.map((position) => ({ ...ENEMY_DARK_WOLF, position, stackSize: WOLF_STACK_SIZE })),
     ];
 }
 

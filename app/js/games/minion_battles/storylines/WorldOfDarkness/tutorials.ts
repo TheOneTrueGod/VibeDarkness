@@ -1,5 +1,9 @@
 /** World of Darkness tutorials. Registered in `storylines/tutorialRegistry.ts`; see `tutorials/tutorialTypes.ts`. */
-import { KNOWLEDGE_TUTORIAL_BATTLE_BASICS, KNOWLEDGE_TUTORIAL_LIGHT } from '../../../../accountKnowledge';
+import {
+    KNOWLEDGE_TUTORIAL_BATTLE_BASICS,
+    KNOWLEDGE_TUTORIAL_LIGHT,
+    KNOWLEDGE_TUTORIAL_STACKED_UNITS,
+} from '../../../../accountKnowledge';
 import type { TutorialDef } from '../../tutorials/tutorialTypes';
 import { ENEMY_DARK_WOLF } from '../../constants/enemyConstants';
 import { DARK_AWAKENING } from './missions/001_dark_awakening';
@@ -52,4 +56,25 @@ export const TUTORIAL_LIGHT: TutorialDef = {
     ],
 };
 
-export const WORLD_OF_DARKNESS_TUTORIALS: readonly TutorialDef[] = [TUTORIAL_FIRST_BATTLE, TUTORIAL_LIGHT];
+/** The first time an enemy unit stack is on screen (first met in The Lonely Castle). */
+export const TUTORIAL_STACKED_UNITS: TutorialDef = {
+    id: 'stacked_units',
+    knowledgeKey: KNOWLEDGE_TUTORIAL_STACKED_UNITS,
+    title: 'Stacked units',
+    trigger: { type: 'unitOnScreen', unit: { minStackSize: 2, hostile: true } },
+    steps: [
+        {
+            text:
+                'This token is a stack of {stackSize} units. The more of them there are, the more damage it deals. ' +
+                'Every time you deal enough damage to kill one of them, the stack count goes down by one.',
+            pointAt: { type: 'unit', minStackSize: 2, hostile: true },
+            advance: { type: 'next' },
+        },
+    ],
+};
+
+export const WORLD_OF_DARKNESS_TUTORIALS: readonly TutorialDef[] = [
+    TUTORIAL_FIRST_BATTLE,
+    TUTORIAL_LIGHT,
+    TUTORIAL_STACKED_UNITS,
+];
