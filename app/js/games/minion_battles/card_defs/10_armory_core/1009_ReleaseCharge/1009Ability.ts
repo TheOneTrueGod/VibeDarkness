@@ -1,7 +1,7 @@
 /**
  * Release Charge — the held buckler's strike. Cone of Light's burst in Armory colours (from the theme), paid for in Charge.
  * Single use. The buckler is put away after, and leaves nothing on the ground.
- * Echo: a smaller circular burst at each of the caster's dropped bucklers, which are destroyed.
+ * Echo 2: a smaller circular burst at each of the caster's two closest dropped weapons, which are destroyed.
  */
 
 import { defineConeStrike } from '../../../abilities/archetypes/defineConeStrike';
@@ -25,7 +25,7 @@ import {
 } from '../../0121_ConeOfLight/0121Ability';
 import {
     ARMORY_ECHO_CHARGE_COST,
-    ARMORY_SHIELD_ECHO,
+    ARMORY_ECHO,
     RELEASE_CHARGE_ABILITY_ID,
     SHIELD_FOLLOWUP_USES,
 } from '../armoryConstants';
@@ -36,7 +36,7 @@ const RELEASE_CHARGE_AIM_LABEL = 'Direction';
 const TOOLTIP_LINES = [
     'Deal {{DAMAGE}} damage to {{MAX_TARGETS}} enemies in a {{ARC_DEGREES}}° cone',
     `{Stun ${CONE_OF_LIGHT_STUN_SECONDS}}`,
-    formatEchoLine(ARMORY_SHIELD_ECHO),
+    formatEchoLine(ARMORY_ECHO),
 ];
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -56,7 +56,7 @@ export const ReleaseChargeAbility_1009 = defineConeStrike({
     range: CONE_OF_LIGHT_RANGE,
     halfAngleRad: CONE_OF_LIGHT_HALF_ANGLE_RAD,
     damage: RELEASE_CHARGE_DAMAGE,
-    echo: { ...ARMORY_SHIELD_ECHO, radius: RELEASE_CHARGE_ECHO_RADIUS },
+    echo: { ...ARMORY_ECHO, radius: RELEASE_CHARGE_ECHO_RADIUS },
     maxTargets: CONE_OF_LIGHT_MAX_TARGETS,
     stunSeconds: CONE_OF_LIGHT_STUN_SECONDS,
     stunCcCharges: CONE_OF_LIGHT_STUN_CHARGES,

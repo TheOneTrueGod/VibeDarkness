@@ -3,8 +3,9 @@
  * bursts its arcs outward and sends a green pulse that heals every ally within reach.
  *
  * The post is a deployable, not a unit: it cannot be attacked and does not block movement.
- * It pulses {@link REPAIR_POST_PULSES} times, then leaves. Costs Charge. One use, recovered at
- * each round start.
+ * It pulses {@link REPAIR_POST_PULSES} times, then leaves. Costs no Charge: it needs
+ * {@link ARMORY_DEPLOYABLE_WEAPON_COST} of the caster's dropped weapons within placing range, and
+ * destroys them. One use, recovered at each round start.
  *
  *   one pick: the tile (the ring shows the heal reach)
  *   the cast launches the folded post on the simulation clock
@@ -20,14 +21,20 @@ import { groundPointHitbox } from '../../../hitboxes';
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
-import { ResourceId } from '../../../resources/resourceIds';
 import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
 import { deployablePlacementValidator } from '../../../abilities/archetypes/deployablePlacement';
+import {
+    droppedWeaponCostValidator,
+    drawDroppedWeaponCostPreview,
+    payDroppedWeaponCost,
+    type DroppedWeaponCost,
+} from '../../../abilities/archetypes/droppedWeaponCost';
 import { spawnDeliveredDeployable } from '../../../game/fieldObjects/FieldObjectManager';
 import type { Projectile } from '../../../game/projectiles/Projectile';
 import repairPostSvg from './repairPost.svg?raw';
 import {
-    ARMORY_ABILITY_CHARGE_COST,
+    ARMORY_DEPLOYABLE_WEAPON_COST,
+    ARMORY_PRIMARY_COLOR_NUM,
     ARMORY_REPAIR_POST_DEF_ID,
     REPAIR_POST_ABILITY_ID,
 } from '../armoryConstants';
@@ -57,14 +64,25 @@ const PLACE_HITBOX = groundPointHitbox(REPAIR_POST_PLACE_RANGE, {
     alpha: REPAIR_POST_PREVIEW_ALPHA,
 });
 
-export const validateRepairPostPlacement = deployablePlacementValidator(REPAIR_POST_PLACE_RANGE);
+const WEAPON_COST: DroppedWeaponCost = { count: ARMORY_DEPLOYABLE_WEAPON_COST, radius: REPAIR_POST_PLACE_RANGE };
+/** Short of weapons: the reach ring and marks go red. */
+const SHORT_COLOR = 0xef4444;
+/** Ring drawn on each weapon that will be destroyed. */
+const WEAPON_MARK_RADIUS = 14;
+
+export const validateRepairPostPlacement = droppedWeaponCostValidator(
+    WEAPON_COST,
+    deployablePlacementValidator(REPAIR_POST_PLACE_RANGE),
+);
 
 const TOOLTIP_LINES = [
     'Create a repair post within {{RANGE}} tiles that heals nearby allies for {{HEAL}}, {{PULSES}} times',
     'It heals once each quarter round.',
+    'Needs {{WEAPONS}} of your dropped weapons within {{RANGE}} tiles, and destroys them.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    WEAPONS: { kind: 'plain', value: ARMORY_DEPLOYABLE_WEAPON_COST },
     RANGE: { kind: 'plain', value: REPAIR_POST_PLACE_RANGE_TILES },
     HEAL: { kind: 'plain', value: REPAIR_POST_HEAL },
     PULSES: { kind: 'plain', value: REPAIR_POST_PULSES },
@@ -107,6 +125,7 @@ export function deployRepairPost(ctx: CastBehaviourTickContext): void {
     const place = active?.targetsByLabel?.[REPAIR_POST_PLACE_LABEL]?.position
         ?? ctx.allTargets.find((target) => target.position)?.position;
     if (!place) return;
+    if (!payDroppedWeaponCost(ctx.engine, ctx.caster, WEAPON_COST)) return;
     ctx.engine.state?.fieldObjects?.launchDeployableDelivery(ctx.engine, {
         defId: ARMORY_REPAIR_POST_DEF_ID,
         fromX: ctx.caster.x,
@@ -126,7 +145,7 @@ export const RepairPostAbility_1011 = defineAbility({
     name: 'Repair Post',
     flavorText: 'Not every weapon you make points outward.',
     image: repairPostSvg,
-    resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
+    resourceCost: null,
     resourceCosts: [],
     rechargeTurns: 1,
     maxUses: 1,
@@ -143,6 +162,13 @@ export const RepairPostAbility_1011 = defineAbility({
     },
     onProjectileExpired(engine, caster, projectile): void {
         spawnDeliveredDeployable(engine, caster, projectile as Projectile, REPAIR_POST_ABILITY_ID, ARMORY_REPAIR_POST_DEF_ID);
+    },
+    renderSelectTargetPreviewExtras(gr, caster, gameState): void {
+        drawDroppedWeaponCostPreview(gr, gameState, caster, WEAPON_COST, {
+            color: ARMORY_PRIMARY_COLOR_NUM,
+            shortColor: SHORT_COLOR,
+            markRadius: WEAPON_MARK_RADIUS,
+        });
     },
     getTooltipText(gameState?: unknown): string[] {
         return formatTooltipLegacyLines(

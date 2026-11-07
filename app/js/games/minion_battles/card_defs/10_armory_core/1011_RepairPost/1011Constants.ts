@@ -3,6 +3,7 @@
  * Its drawing lives with the painter: `game/effect_defs/repairPostPose.ts` and `deployablePainters.ts`.
  */
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { ARMORY_DEPLOYABLE_WEAPON_COST } from '../armoryConstants';
 import { ROUND_DURATION } from '../../../game/gameConstants';
 import { REPAIR_POST_FOLDED_CORE_RADIUS } from '../../../game/effect_defs/repairPostPose';
 import {
@@ -41,7 +42,7 @@ export const REPAIR_POST_DELIVERY_BODY_RADIUS = REPAIR_POST_FOLDED_CORE_RADIUS;
 export const REPAIR_POST_PREVIEW_COLOR = 0x22c55e;
 export const REPAIR_POST_PREVIEW_ALPHA = 0.14;
 
-export const REPAIR_POST_PLACE_LABEL = 'Place';
+export const REPAIR_POST_PLACE_LABEL = `Place (needs ${ARMORY_DEPLOYABLE_WEAPON_COST} dropped weapons)`;
 
 /** Cast windows after the pick. */
 export const REPAIR_POST_PLACE_WINDOW_END = 0.05;

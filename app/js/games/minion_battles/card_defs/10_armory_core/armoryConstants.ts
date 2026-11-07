@@ -41,8 +41,8 @@ export const ARMORY_TURRET_DEF_ID = 'armory_turret';
 /** Repair Post deployable def id. Registered in `register.ts` from `1011_RepairPost/1011Constants.ts`. */
 export const ARMORY_REPAIR_POST_DEF_ID = 'armory_repair_post';
 
-/** Charge for Deploy Turret and Repair Post. */
-export const ARMORY_ABILITY_CHARGE_COST = 2;
+/** Dropped weapons Deploy Turret and Repair Post need within reach of the caster. They are destroyed on use. */
+export const ARMORY_DEPLOYABLE_WEAPON_COST = 4;
 /** Charge for Create Sword, Create Mace and Create Shield: the abilities that put tokens down. */
 export const ARMORY_CREATE_CHARGE_COST = 1;
 /** Charge for Throw Sword, Whirl and Release Charge: the abilities that echo at the tokens. */
@@ -53,10 +53,9 @@ export const ARMORY_CREATE_RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: ARMORY_CREATE_MAX_USES },
 ];
 
-/** Echo targets: each consuming ability echoes at its own weapon's dropped tokens. */
-export const ARMORY_SWORD_ECHO: EchoSpec = { tokenType: DROPPED_WEAPON_KIND_SWORD, tokenLabel: 'Sword' };
-export const ARMORY_MACE_ECHO: EchoSpec = { tokenType: DROPPED_WEAPON_KIND_MACE, tokenLabel: 'Mace' };
-export const ARMORY_SHIELD_ECHO: EchoSpec = { tokenType: DROPPED_WEAPON_KIND_SHIELD, tokenLabel: 'Shield' };
+/** Echo for Throw Sword, Whirl and Release Charge: repeat at the two closest dropped weapons. */
+export const ARMORY_ECHO_COUNT = 2;
+export const ARMORY_ECHO: EchoSpec = { count: ARMORY_ECHO_COUNT };
 
 /**
  * Held-use counts (`ConjuredWeaponDef.heldUses`). Each is read by `register.ts` and by the held

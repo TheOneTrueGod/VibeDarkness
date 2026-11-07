@@ -6,6 +6,7 @@
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { ROUND_DURATION } from '../../../game/gameConstants';
 import { THROW_RANGE } from '../../throwNumbers';
+import { ARMORY_DEPLOYABLE_WEAPON_COST } from '../armoryConstants';
 
 export const TURRET_PLACE_RANGE_TILES = 3;
 export const TURRET_PLACE_RANGE = TURRET_PLACE_RANGE_TILES * CELL_SIZE;
@@ -45,7 +46,7 @@ export const TURRET_SHOT_SPRITE_SCALE = 0.08;
 /** Hit radius of a turret round, in pixels. Matches the tiny sprite. */
 export const TURRET_SHOT_HIT_RADIUS = 2;
 
-export const TURRET_PLACE_LABEL = 'Place';
+export const TURRET_PLACE_LABEL = `Place (needs ${ARMORY_DEPLOYABLE_WEAPON_COST} dropped weapons)`;
 export const TURRET_AIM_LABEL = 'Facing';
 
 /** Deploy Turret commit windows after both picks. */

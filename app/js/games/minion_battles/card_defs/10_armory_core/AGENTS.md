@@ -40,8 +40,8 @@ Quench, the `armory` theme. The values and the role rules (primary, secondary, s
 | `chargeSword.svg` | Ghostly blade for Create Sword, Charge Sword, the throw's flight, and the dropped token |
 | `chargeSwordThrow.svg` | Same blade, tipped and trailed, for the Throw Sword card only |
 | `1003_ThrowSword/` | The throw. The sword becomes a token when the projectile stops |
-| `1004_DeployTurret/` | The folded turret that becomes a placed deployable when it lands |
-| `1011_RepairPost/` | Repair Post: a `healPulse` deployable that heals allies each quarter round; `repairPost.svg` is its card |
+| `1004_DeployTurret/` | The folded turret that becomes a placed deployable when it lands. Costs 4 dropped weapons in reach, not Charge |
+| `1011_RepairPost/` | Repair Post: a `healPulse` deployable that heals allies each quarter round, paid for with 4 dropped weapons in reach; `repairPost.svg` is its card |
 | `1005_CreateMace/` | Spend Charge and equip the conjured mace. The orbit uses the mace picture |
 | `1006_ChargeMace/` | Charge Mace, the swing. Same strike as Swing Mace. Every swing drops a mace token; the last one discards the mace |
 | `1007_Whirl/` | The full-circle release, and the swung-mace card picture |

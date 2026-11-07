@@ -1,7 +1,6 @@
 /**
- * Echo: an ability also happens at every token of one type that its caster has on the field,
- * then those tokens are destroyed. A token is any deployable with a `subtype`
- * (`game/deployables/Deployable.ts`), e.g. a dropped sword is subtype `sword`.
+ * Echo N: an ability also happens at the N closest dropped weapons its caster has on the field,
+ * then those weapons are destroyed. Any kind of dropped weapon counts (sword, mace, buckler).
  *
  * The ability decides what "happens at a token" means. Built-in shapes:
  * - a burst ({@link EchoBurstSpec}, {@link strikeEchoBurst}): damage, knockback and stun in a circle
@@ -18,12 +17,10 @@ import type { Unit } from '../../game/units/Unit';
 import { damageEnemiesInCircle } from '../targetHelpers';
 import { landAreaStrike, type AreaStrikeEngine, type AreaStrikeSpec } from '../areaStrike';
 
-/** Which tokens an ability echoes at. */
+/** How many dropped weapons an ability echoes at. */
 export interface EchoSpec {
-    /** `Deployable.subtype` of the tokens, e.g. a dropped weapon's token kind. */
-    tokenType: string;
-    /** Shown in the keyword line, e.g. `Sword` for `{Echo: Sword}`. */
-    tokenLabel: string;
+    /** Closest dropped weapons used, e.g. 2 for `{Echo 2}`. Fewer on the field means fewer echoes. */
+    count: number;
 }
 
 /** What one echo does in a circle around its token: an area strike (`abilities/areaStrike.ts`). */
@@ -40,21 +37,23 @@ interface EchoEngine {
     consumeDeployable?(deployable: Pick<Deployable, 'id' | 'kind'>): boolean;
 }
 
-/** Tooltip keyword line, e.g. `{Echo: Sword}`. */
+/** Tooltip keyword line, e.g. `{Echo 2}`. */
 export function formatEchoLine(spec: EchoSpec): string {
-    return `{Echo: ${spec.tokenLabel}}`;
+    return `{Echo ${spec.count}}`;
 }
 
-/** The caster's own tokens of `spec.tokenType`, nearest first. Empty when the engine has no deployables. */
+/** The caster's `spec.count` closest dropped weapons, nearest first. Empty when the engine has no deployables. */
 export function findEchoTokens(engine: unknown, caster: Unit, spec: EchoSpec): Deployable[] {
     const eng = engine as EchoEngine | undefined;
     if (!eng?.findDeployables) return [];
-    return eng.findDeployables({
-        castingTeam: caster.teamId,
-        near: { x: caster.x, y: caster.y },
-        subtype: spec.tokenType,
-        ownerUnitId: caster.id,
-    });
+    return eng
+        .findDeployables({
+            castingTeam: caster.teamId,
+            near: { x: caster.x, y: caster.y },
+            tags: ['droppedWeapon'],
+            ownerUnitId: caster.id,
+        })
+        .slice(0, Math.max(0, spec.count));
 }
 
 export function consumeEchoTokens(engine: unknown, tokens: readonly Deployable[]): void {

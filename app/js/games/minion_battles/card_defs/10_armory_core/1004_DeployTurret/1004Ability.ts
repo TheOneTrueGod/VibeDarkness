@@ -3,7 +3,8 @@
  *
  * The turret is not a unit. It cannot be attacked. It fires four rocks down a 45 degree
  * cone over one round, including a shot along its facing when the cone is empty.
- * Costs Charge. One use, recovered at each round start.
+ * Costs no Charge: it needs {@link ARMORY_DEPLOYABLE_WEAPON_COST} of the caster's dropped weapons within
+ * placing range, and destroys them. One use, recovered at each round start.
  *
  *   place, then facing, with no time between the two clicks
  *   the cast launches a folded-turret projectile on the simulation clock
@@ -21,13 +22,19 @@ import { facingConeHitbox, groundPointHitbox } from '../../../hitboxes';
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
-import { ResourceId } from '../../../resources/resourceIds';
 import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
 import { deployablePlacementValidator } from '../../../abilities/archetypes/deployablePlacement';
+import {
+    droppedWeaponCostValidator,
+    drawDroppedWeaponCostPreview,
+    payDroppedWeaponCost,
+    type DroppedWeaponCost,
+} from '../../../abilities/archetypes/droppedWeaponCost';
 import { spawnDeliveredDeployable } from '../../../game/fieldObjects/FieldObjectManager';
 import type { Projectile } from '../../../game/projectiles/Projectile';
 import {
-    ARMORY_ABILITY_CHARGE_COST,
+    ARMORY_DEPLOYABLE_WEAPON_COST,
+    ARMORY_PRIMARY_COLOR_NUM,
     ARMORY_TURRET_DEF_ID,
     DEPLOY_TURRET_ABILITY_ID,
 } from '../armoryConstants';
@@ -62,12 +69,18 @@ const PLACE_HITBOX = groundPointHitbox(TURRET_PLACE_RANGE, {
 });
 const AIM_HITBOX = facingConeHitbox(TURRET_SHOT_RANGE, TURRET_CONE_HALF_ANGLE_RAD);
 
+const WEAPON_COST: DroppedWeaponCost = { count: ARMORY_DEPLOYABLE_WEAPON_COST, radius: TURRET_PLACE_RANGE };
+/** Short of weapons: the reach ring and marks go red. */
+const SHORT_COLOR = 0xef4444;
+
 const TOOLTIP_LINES = [
     'Create a turret within {{RANGE}} tiles that shoots {{SHOTS}} times dealing {{DAMAGE}} damage',
     'It shoots down a narrow cone, once each quarter round.',
+    'Needs {{WEAPONS}} of your dropped weapons within {{RANGE}} tiles, and destroys them.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    WEAPONS: { kind: 'plain', value: ARMORY_DEPLOYABLE_WEAPON_COST },
     RANGE: { kind: 'plain', value: TURRET_PLACE_RANGE_TILES },
     SHOTS: { kind: 'plain', value: TURRET_SHOT_COUNT },
     DAMAGE: { kind: 'damage', base: TURRET_SHOT_DAMAGE },
@@ -83,7 +96,10 @@ export interface TurretCastPayload {
     aim?: { x: number; y: number };
 }
 
-export const validateTurretPlacement = deployablePlacementValidator(TURRET_PLACE_RANGE);
+export const validateTurretPlacement = droppedWeaponCostValidator(
+    WEAPON_COST,
+    deployablePlacementValidator(TURRET_PLACE_RANGE),
+);
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     {
@@ -141,6 +157,7 @@ export function deployTurret(ctx: CastBehaviourTickContext): void {
     const place = payload.place;
     const aim = payload.aim;
     if (!place || !aim) return;
+    if (!payDroppedWeaponCost(ctx.engine, ctx.caster, WEAPON_COST)) return;
     const facing = Math.atan2(aim.y - place.y, aim.x - place.x);
     ctx.engine.state?.fieldObjects?.launchDeployableDelivery(ctx.engine, {
         defId: ARMORY_TURRET_DEF_ID,
@@ -186,7 +203,7 @@ export const DeployTurretAbility = defineAbility({
     name: 'Deploy Turret',
     flavorText: 'You hammer stone and scrap together, and leave enough of yourself inside to keep watch.',
     image: TURRET_IMAGE,
-    resourceCost: { resourceId: ResourceId.Charge, amount: ARMORY_ABILITY_CHARGE_COST },
+    resourceCost: null,
     resourceCosts: [],
     rechargeTurns: 1,
     maxUses: 1,
@@ -208,6 +225,13 @@ export const DeployTurretAbility = defineAbility({
         if (!place) return;
         AIM_HITBOX.renderTargetingPreview(gr, { x: place.x, y: place.y }, mouseWorld, []);
         drawTurretFootprint(gr, place.x, place.y);
+    },
+    renderSelectTargetPreviewExtras(gr, caster, gameState): void {
+        drawDroppedWeaponCostPreview(gr, gameState, caster, WEAPON_COST, {
+            color: ARMORY_PRIMARY_COLOR_NUM,
+            shortColor: SHORT_COLOR,
+            markRadius: TURRET_BODY_RADIUS,
+        });
     },
     getTooltipText(gameState?: unknown): string[] {
         return formatTooltipLegacyLines(

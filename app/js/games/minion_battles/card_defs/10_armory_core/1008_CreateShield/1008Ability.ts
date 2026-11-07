@@ -1,7 +1,8 @@
 /**
- * Create Shield — raise a conjured buckler for one second, then hold it.
+ * Create Shield — raise a conjured buckler for two seconds, then hold it.
  *
- * Blocks like a standard shield while four bucklers spin out and back around the caster.
+ * Blocks like a standard shield for the whole cast. Four bucklers spin out and back around the
+ * caster during the first second.
  * The first block refunds the Charge it cost. When the cast ends, weapon abilities become
  * Release Charge and Create Shield swaps for Throw Shield. Either one puts the buckler away.
  * If a conjured weapon is already held, it is discarded as this cast starts.
@@ -27,6 +28,7 @@ import {
 import {
     CREATE_SHIELD_AIM_LABEL,
     CREATE_SHIELD_CAST_DURATION,
+    CREATE_SHIELD_ORBIT_DURATION,
     SHIELD_BLOCK_CHARGE_GRANT,
 } from './1008Constants';
 import { equipConjuredWeaponAtEnd, startConjureCast } from '../../../abilities/archetypes/conjureCast';
@@ -56,7 +58,7 @@ export const CreateShieldAbility_1008 = defineDirectionalShield({
 
     beginActiveCast(engine, caster): void {
         startConjureCast(engine, caster, DROPPED_WEAPON_KIND_SHIELD, {
-            duration: CREATE_SHIELD_CAST_DURATION,
+            duration: CREATE_SHIELD_ORBIT_DURATION,
             abilityId: CREATE_SHIELD_ABILITY_ID,
             ...ARMORY_CONJURE_ORBIT,
         });

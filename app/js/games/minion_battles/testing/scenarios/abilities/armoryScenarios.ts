@@ -47,6 +47,7 @@ import {
     CREATE_SWORD_ABILITY_ID,
     CREATE_SWORD_CAST_DURATION,
     DEPLOY_TURRET_ABILITY_ID,
+    ARMORY_DEPLOYABLE_WEAPON_COST,
     DROPPED_WEAPON_KIND_MACE,
     DROPPED_WEAPON_KIND_SHIELD,
     DROPPED_WEAPON_KIND_SWORD,
@@ -248,6 +249,24 @@ export const armorySwordCycleScenario: ScenarioDefinition = {
 // armory_turret_fires_and_expires
 // ---------------------------------------------------------------------------
 
+/** Dropped swords beside the player: the weapon cost of a turret or Repair Post. */
+function dropCostWeapons(engine: GameEngine): void {
+    const me = engine.getLocalPlayerUnit()!;
+    for (let i = 0; i < ARMORY_DEPLOYABLE_WEAPON_COST; i++) {
+        engine.state.fieldObjects.droppedWeapons.push({
+            id: `scenario_cost_weapon_${i}`,
+            x: me.x,
+            y: me.y + CELL_SIZE + i * 6,
+            kind: DROPPED_WEAPON_KIND_SWORD,
+            ownerUnitId: me.id,
+            teamId: me.teamId,
+            abilityId: 'scenario',
+            spawnedAtGameTime: 0,
+            facing: 0,
+        });
+    }
+}
+
 const TURRET_PLAYER = cellCentre(1, 3);
 const TURRET_PLACE = { x: TURRET_PLAYER.x + 2 * CELL_SIZE, y: TURRET_PLAYER.y };
 const TURRET_AIM = { x: TURRET_PLACE.x + CELL_SIZE, y: TURRET_PLACE.y };
@@ -289,6 +308,7 @@ export const armoryTurretFiresAndExpiresScenario: ScenarioDefinition = {
 
     buildEngine() {
         const engine = buildArmoryEngine(10, 7, TURRET_PLAYER, [ARMORY_NODE_CORE]);
+        dropCostWeapons(engine);
         const me = playerUnitId(engine);
         placeTargetDummy(engine, TURRET_DUMMY, TURRET_DUMMY_ID);
         engine.state.orderMgr.queueOrder(toTick(TURRET_KEEP_ALIVE_AT), { unitId: me, abilityId: 'wait', targets: [] });
@@ -461,6 +481,7 @@ export const armoryRepairPostHealsAlliesScenario: ScenarioDefinition = {
 
     buildEngine() {
         const engine = buildArmoryEngine(10, 7, REPAIR_PLAYER, [ARMORY_NODE_CORE, ARMORY_NODE_REPAIR_POST]);
+        dropCostWeapons(engine);
         const me = engine.getLocalPlayerUnit()!;
         me.hp = me.maxHp - REPAIR_WOUND;
         const dummy = placeTargetDummy(engine, REPAIR_DUMMY, REPAIR_DUMMY_ID);
