@@ -36,6 +36,8 @@ import { abilityRefillsUsesEachRound } from '../../abilities/abilityUses';
 import { keywordGlossaryEntries } from '../../abilities/keywords/keywordRegistry';
 import { getCardDef } from '../index';
 import { LIGHTNING_BOLT_EFFECT_TYPE, STORM_SPARK_EFFECT_TYPE } from '../../game/effect_defs/stormEffects';
+import { STORM_SPELL_CIRCLE_EFFECT_TYPE } from '../../game/effect_defs/spellCircleEffects';
+import { CAST_BOUND_FIZZLE_SECONDS } from '../../game/effects/castBound';
 import { ARC_BOLT_PROJECTILE_TYPE } from '../../game/projectiles/projectile_defs/arcBoltDef';
 import {
     ARC_BOLT_ABILITY_ID,
@@ -493,6 +495,25 @@ describe('Thunderclap (1304)', () => {
         expect(staticOf(player).current).toBe(4 - THUNDERCLAP_STATIC_COST + THUNDERCLAP_STATIC_PER_CHARGE);
         expect(plain.x).toBeGreaterThan(startX);
         expect(engine.lightSources.length).toBe(lightsBefore + 1);
+    });
+
+    it('draws the Storm spell circle over its windup, which fizzles out if the cast is cut', () => {
+        const { engine, player } = stormBattle([STORM_NODE_CORE, STORM_NODE_THUNDERCLAP]);
+        staticOf(player).current = 4;
+        executeUnitAbility(player, ThunderclapAbility_1304, [], engine);
+        step(engine, FIXED_DT);
+        const circle = engine.state.effectManager.effects.find((e) => e.effectType === STORM_SPELL_CIRCLE_EFFECT_TYPE);
+        expect(circle?.ownerActorId).toBe(player.id);
+        expect(circle?.effectData.castBound).toMatchObject({ abilityId: THUNDERCLAP_ABILITY_ID });
+        // The cast lands at the end of the windup; the rest of the effect is the flash after it.
+        expect((circle!.effectData.castAt as number) * circle!.duration).toBeCloseTo(ThunderclapAbility_1304.prefireTime!);
+
+        player.interruptAllAbilities(engine);
+        expect(player.activeAbilities).toHaveLength(0);
+        engine.state.effectManager.renderUpdate(FIXED_DT);
+        expect(circle!.effectData.fizzle).toBe(0);
+        engine.state.effectManager.renderUpdate(CAST_BOUND_FIZZLE_SECONDS + FIXED_DT);
+        expect(circle!.active).toBe(false);
     });
 
     it('shows a fixed Bright 1 in a short tooltip', () => {

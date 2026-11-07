@@ -16,7 +16,7 @@ The Armory is content on top of generic engine pieces; the engine never imports 
 
 - **Registration.** `registerArmoryContent()` in `register.ts` registers the three `ConjuredWeaponDef`s (with their `art`) and the turret and Repair Post `DeployableDef`s. Ability files do not import it for side effects. Tests that skip `abilities/AbilityRegistry.ts` call it in a `beforeAll`.
 - **Archetypes.** Create Sword and Create Mace are `defineConjure` configs; Throw Sword and Throw Shield are `defineThrownWeapon` configs. Create Shield is a `defineDirectionalShield` with the conjure hooks, and Release Charge is a `defineConeStrike`. All live in `abilities/archetypes/`.
-- **Engine definitions.** Weapons: `game/conjuredWeapons/AGENTS.md`. Deployables, tokens and landing: `game/fieldObjects/AGENTS.md`. Orbit, discard arc and whirl effects take their shape and colour from effect data (`game/effect_defs/weaponEffects.ts`), so the Armory passes its numbers in.
+- **Engine definitions.** Weapons: `game/conjuredWeapons/AGENTS.md`. Deployables, tokens and landing: `game/fieldObjects/AGENTS.md`. The conjure orbit is the Armory's spell circle style (`armory`, `game/spellCircles/`), so it fades out if a Create cast is cut. Orbit, discard arc and whirl effects take their shape and colour from effect data (`game/effect_defs/weaponEffects.ts`), so the Armory passes its numbers in.
 - **Colours** come from the `armory` theme, by role (below). Archetype colours default from the theme when a config leaves them out.
 
 ## Colour

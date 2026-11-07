@@ -1,6 +1,7 @@
 import '../../../abilities/AbilityRegistry';
 import { describe, expect, it } from 'vitest';
 import { RockSlideAbility_0537 } from './0537Ability';
+import { EARTH_SPELL_CIRCLE_EFFECT_TYPE } from '../../../game/effect_defs/spellCircleEffects';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { Unit } from '../../../game/units/Unit';
 import { executeUnitAbility } from '../../../game/units/unitAbilityLifecycle';
@@ -16,6 +17,8 @@ import {
 } from '../../../testing/scenarios/abilities/earthCoreScenarios';
 import {
     ROCK_SLIDE_AIM_START,
+    ROCK_SLIDE_AIM_END,
+    ROCK_SLIDE_PICK_END,
     ROCK_SLIDE_SPAWN_TIME,
     ROCK_SLIDE_LAUNCH_TIME,
     ROCK_SLIDE_CAST_TIME,
@@ -111,6 +114,19 @@ describe('Rock Slide (0537) timeline', () => {
         expect(flying.velocityX).toBeGreaterThan(0);
         expect(flying.x).toBeGreaterThan((SPAWN_TILE.col + 0.5) * CELL_SIZE);
         expect(flying.velocityY).toBe(0);
+    });
+
+    it('draws a light Earth spell circle in two parts: one landing as the rock breaks, one as it appears', () => {
+        const { engine, player, start } = setup();
+        stepToElapsed(engine, start, ROCK_SLIDE_SPAWN_TIME + 0.05);
+        const circles = engine.state.effectManager.effects.filter(
+            (e) => e.effectType === EARTH_SPELL_CIRCLE_EFFECT_TYPE && e.ownerActorId === player.id,
+        );
+        expect(circles).toHaveLength(2);
+        const landsAfter = circles.map((e) => (e.effectData.castAt as number) * e.duration);
+        expect(landsAfter[0]).toBeCloseTo(ROCK_SLIDE_AIM_START - ROCK_SLIDE_PICK_END, 2);
+        expect(landsAfter[1]).toBeCloseTo(ROCK_SLIDE_SPAWN_TIME - ROCK_SLIDE_AIM_END, 2);
+        for (const c of circles) expect(c.effectData.stoneCount).toBe(6);
     });
 
     it('grants the caster rock when the picked rock is destroyed at the end of the windup', () => {

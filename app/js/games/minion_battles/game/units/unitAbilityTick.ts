@@ -192,6 +192,7 @@ function fireIntervalEntry(
                 setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
                 engine,
                 onProjectileHit: interval.onProjectileHit,
+                windowSeconds: Math.max(0, (resolvedEnd ?? interval.end) - resolvedStart),
             };
             if (!active.setupFiredBehaviourKeys) active.setupFiredBehaviourKeys = new Set();
             if (!active.setupFiredBehaviourKeys.has(behaviourKey)) {

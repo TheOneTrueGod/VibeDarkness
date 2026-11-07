@@ -16,6 +16,14 @@ import {
     lightningBoltEffectDef,
     stormSparkEffectDef,
 } from './stormEffects';
+import {
+    EARTH_SPELL_CIRCLE_EFFECT_TYPE,
+    LIGHT_SPELL_CIRCLE_EFFECT_TYPE,
+    STORM_SPELL_CIRCLE_EFFECT_TYPE,
+    earthSpellCircleEffectDef,
+    lightSpellCircleEffectDef,
+    stormSpellCircleEffectDef,
+} from './spellCircleEffects';
 export type { IEffectDef, IEffectRenderContext } from './types';
 import type { IEffectDef, IEffectRenderContext } from './types';
 
@@ -133,6 +141,9 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     [TEMPO_ORB_EFFECT_TYPE]: tempoOrbEffectDef,
     [TEMPO_SPEED_LINE_EFFECT_TYPE]: tempoSpeedLineEffectDef,
     [WEAPON_ORBIT_EFFECT_TYPE]: weaponOrbitEffectDef,
+    [STORM_SPELL_CIRCLE_EFFECT_TYPE]: stormSpellCircleEffectDef,
+    [EARTH_SPELL_CIRCLE_EFFECT_TYPE]: earthSpellCircleEffectDef,
+    [LIGHT_SPELL_CIRCLE_EFFECT_TYPE]: lightSpellCircleEffectDef,
     [WEAPON_DISCARD_ARC_EFFECT_TYPE]: weaponDiscardArcEffectDef,
     [WEAPON_WHIRL_EFFECT_TYPE]: weaponWhirlEffectDef,
     [ARC_SEGMENT_EFFECT_TYPE]: arcSegmentEffectDef,

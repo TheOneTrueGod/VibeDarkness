@@ -42,6 +42,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `game/units/unitAI/` | AI runner, trees, and behaviour modules (grouped subfolders by tree/archetype). |
 | `game/effects/` | In-battle effect runtime objects: `Effect.ts`, `EffectManager.ts`, `EffectEmitter.ts`, `EffectEmitterManager.ts`. See `game/effects/AGENTS.md` for the Effect/EffectEmitter system. |
 | `game/effect_defs/` | Visual effect definitions (replaced the old `game/effectDef.ts`). |
+| `game/spellCircles/` | Spell circles: the tree-styled windup visual around a charging caster (style registry, `spawnSpellCircle`). Painters in `game/effect_defs/spellCircleEffects.ts`; usage rules in the **creating-an-ability** skill. |
 | `game/time/` | Time dilation: tempo, local clocks, world pace, step pieces, Time Stop. Read `game/time/AGENTS.md` (and the **time-dilation** skill) before touching any clock, `gameTime`, or cast elapsed. |
 | `game/conjuredWeapons/` | Conjured weapon definitions (with their art) and the equip / release runtime. Content registers weapons. See `game/conjuredWeapons/AGENTS.md`. |
 | `game/fieldObjects/` | Dropped weapon tokens and placed deployables (`DeployableDef`: turret, Repair Post), landing, concealed arrival. See `game/fieldObjects/AGENTS.md`. Engine code must not import content folders (`game/contentLayering.test.ts`). |

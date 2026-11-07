@@ -57,6 +57,7 @@ export const CreateShieldAbility_1008 = defineDirectionalShield({
     beginActiveCast(engine, caster): void {
         startConjureCast(engine, caster, DROPPED_WEAPON_KIND_SHIELD, {
             duration: CREATE_SHIELD_CAST_DURATION,
+            abilityId: CREATE_SHIELD_ABILITY_ID,
             ...ARMORY_CONJURE_ORBIT,
         });
     },

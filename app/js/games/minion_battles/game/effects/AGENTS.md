@@ -19,6 +19,12 @@ This directory contains two distinct classes of objects that both produce visual
 
 `TorchProjectile` effects set a `landingPending` flag on their `effectData` when travel completes (via `renderUpdate`). `EffectManager.gameUpdate` checks this flag each fixed tick and converts it into a `ctx.addLightSource(...)` call — this is the only remaining coupling between the effects system and engine context.
 
+### Cast-bound effects and spell circles
+
+An effect that belongs to one cast sets `effectData.castBound = { abilityId, castAt? }` and `ownerActorId` (`castBound.ts`). Each render frame `EffectManager` checks the owner still has that cast active; if it is gone before `castAt` (share of the effect's life where the cast lands), the effect freezes, `effectData.fizzle` ramps 0 to 1 over `CAST_BOUND_FIZZLE_SECONDS` of wall time, and it is removed. Painters fade with `castBoundAlpha(effect)`.
+
+Spell circles (`game/spellCircles/spellCircles.ts`) are the main user: one style per core tree (`SpellCircleStyleDef`: effect type, radius, linger, colours), painted in `effect_defs/spellCircleEffects.ts` (storm, earth, light) and `weaponEffects.ts` (the armory conjure orbit). They are owner-clocked, `'hold'` at a pause plane, and follow the caster. Spawn with `CastBehaviours.SpellCircle({ style })` or `spawnSpellCircle`.
+
 ### Adding a new Effect
 
 1. Pick an `effectType` string (e.g. `'MySparkle'`).

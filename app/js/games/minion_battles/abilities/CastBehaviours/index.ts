@@ -17,6 +17,7 @@ import { Arrange, type ArrangeConfig, type ArrangeBehaviour } from './ArrangeBeh
 import { Teleport, type TeleportConfig, type TeleportBehaviour } from './TeleportBehaviour';
 import { Beam, type BeamConfig, type BeamBehaviour } from './BeamBehaviour';
 import { SwapPlaces, type SwapPlacesConfig, type SwapPlacesBehaviour } from './SwapPlacesBehaviour';
+import { SpellCircleBehaviour, type SpellCircleBehaviourConfig } from './SpellCircleBehaviour';
 import type { CastBehaviourTickContext } from '../castBehaviourTypes';
 
 export const CastBehaviours = {
@@ -56,6 +57,11 @@ export const CastBehaviours = {
     SwapPlaces: (config: SwapPlacesConfig): SwapPlacesBehaviour => SwapPlaces(config),
     /** Sustained parallel rays that stop at the first wall or unit and damage it in blockable pulses. */
     Beam: (config: BeamConfig): BeamBehaviour => Beam(config),
+    /**
+     * Visual only: the caster's tree-styled spell circle (`game/spellCircles/`), landing at the window's
+     * end and fizzling if the cast is cut. For medium windups on medium-scale effects; use sparingly.
+     */
+    SpellCircle: (config: SpellCircleBehaviourConfig): SpellCircleBehaviour => new SpellCircleBehaviour(config),
 };
 
 export { BaseAttackBehaviour } from './BaseAttackBehaviour';

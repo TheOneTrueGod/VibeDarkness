@@ -1,6 +1,7 @@
 /**
- * Stone Tomb — Earth Core two-stage ground ability. The caster winds up, shaking, with rock chips
- * hopping at their feet. Just before the first punch lands they pick a tile: the target tile and its
+ * Stone Tomb — Earth Core two-stage ground ability. The caster winds up, shaking, while stones lift
+ * off the ground in a ring around them (the Earth spell circle) and slam down as the first punch
+ * lands. Just before that punch they pick a tile: the target tile and its
  * four orthogonal neighbours (a plus sign) are telegraphed in red and rumble. Then the caster punches
  * once, for the centre hit.
  *
@@ -12,7 +13,7 @@
  * Costs 2 rock; 2 uses per round. Centre may sit up to 6 tiles (Chebyshev) from the caster.
  *
  * Timeline (seconds):
- *   0.00-0.85   windup: caster shakes, rock chips hop on the caster's tile
+ *   0.00-0.85   windup: caster shakes; the Earth spell circle lifts stones, which slam down at stage 1
  *   0.85-0.867  pick the tomb tile (gated one-tick select: ITS pauses here, as late as possible)
  *   0.867-1.00  punch 1 slide-in; the marked tiles rumble
  *   1.00        stage 1: damage, knockback and the centre rock; punch 1 slide-out to 1.15
@@ -37,7 +38,8 @@ import { Effect } from '../../../game/effects/Effect';
 import { areEnemies } from '../../../game/teams';
 import { type CardDef } from '../../types';
 import { tileAreaHitbox, tileShapes } from '../../../hitboxes/TileAreaHitboxSpec';
-import { getUnitsInTiles, tileCentre, worldToTile, type TileCoord } from '../../../abilities/tileAreaHelpers';
+import { getUnitsInTiles, tileCentre, type TileCoord } from '../../../abilities/tileAreaHelpers';
+import { SPELL_CIRCLE_STYLE_EARTH } from '../../../game/spellCircles/spellCircles';
 import { drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
 import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -199,11 +201,6 @@ function tombCellsOf(ctx: CastBehaviourTickContext): TileCoord[] {
     return aim ? STONE_TOMB_HITBOX.resolveCells(ctx.caster, aim) : [];
 }
 
-/** The caster's own tile: where the windup rumbles, since the tomb is not picked yet. */
-function casterTileOf(ctx: CastBehaviourTickContext): TileCoord[] {
-    return [worldToTile(ctx.caster.x, ctx.caster.y)];
-}
-
 /** Render-only punch direction: from the caster toward the centre of the tomb tile. */
 function punchDirection(ctx: CastBehaviourBaseContext): Point | null {
     const aim = pixelOf(ctx.target);
@@ -253,9 +250,10 @@ const TIMINGS: AbilityTimingInterval[] = [
         castBehaviours: [
             { timingStart: 'start', timingEnd: 'end', behaviour: CastBehaviours.CasterShake({ from: 1, to: 3 }) },
             {
+                // Earth spell circle: stones lift around the caster and slam down as stage 1 lands.
                 timingStart: 'start',
                 timingEnd: 'end',
-                behaviour: stoneTombRumble(STONE_TOMB_PICK_TIME, casterTileOf),
+                behaviour: CastBehaviours.SpellCircle({ style: SPELL_CIRCLE_STYLE_EARTH, castSeconds: STONE_TOMB_STAGE1_TIME }),
             },
         ],
     },

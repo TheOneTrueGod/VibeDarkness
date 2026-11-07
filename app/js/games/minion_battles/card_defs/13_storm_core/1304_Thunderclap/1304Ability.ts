@@ -1,8 +1,8 @@
 /**
- * Thunderclap - the caster lets their charge go in one deafening burst. Charge gathers in a tightening
- * ring, then a storm-blue shockwave and a fan of bolts throw nearby enemies back. A Conductive enemy
- * caught takes the heavier hit and gives up a stack, which flows back to the caster as Static; any other
- * enemy is left Conductive. The flash always lights the same Bright light around the caster.
+ * Thunderclap - the caster lets their charge go in one deafening burst. Charge gathers in the Storm
+ * spell circle (a lightning ring that bolts join, up to six), then a storm-blue shockwave and a fan of
+ * bolts throw nearby enemies back. A Conductive enemy caught takes the heavier hit and gives up a stack,
+ * which flows back to the caster as Static; any other enemy is left Conductive. The flash always lights the same Bright light around the caster.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
@@ -17,6 +17,7 @@ import { applyMark, spendMarkStacks } from '../../../buffs/MarkBuff';
 import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 import type { EngineContext } from '../../../game/EngineContext';
 import { CircleHitbox, ringHitbox } from '../../../hitboxes';
+import { SPELL_CIRCLE_STYLE_STORM } from '../../../game/spellCircles/spellCircles';
 import { type CardDef } from '../../types';
 import {
     CONDUCTIVE_MARK_ID,
@@ -144,12 +145,12 @@ export const ThunderclapAbility_1304 = defineAbility({
             abilityPhase: AbilityPhase.Windup,
             timelineLabel: 'Gather',
             castBehaviours: [
+                // Storm spell circle: a lightning ring forms around the caster and bolts join it until the clap.
+                { timingStart: 'start', timingEnd: 'end', behaviour: CastBehaviours.SpellCircle({ style: SPELL_CIRCLE_STYLE_STORM }) },
                 {
                     timingStart: 'start',
                     behaviour: CastBehaviours.Instant((ctx) => {
-                        const eng = ctx.engine as EngineContext;
-                        spawnStormRing(eng, ctx.caster, THUNDERCLAP_RADIUS, 'contract', THUNDERCLAP_WINDUP);
-                        spawnStormSpark(eng, ctx.caster, { radius: ctx.caster.radius + 6, count: 6, duration: THUNDERCLAP_WINDUP });
+                        spawnStormSpark(ctx.engine as EngineContext, ctx.caster, { radius: ctx.caster.radius + 6, count: 6, duration: THUNDERCLAP_WINDUP });
                     }),
                 },
             ],

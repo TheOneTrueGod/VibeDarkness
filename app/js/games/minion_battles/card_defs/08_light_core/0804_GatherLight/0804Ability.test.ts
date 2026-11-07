@@ -16,7 +16,13 @@ import {
     getGatherLightCandidateTiles,
     pickRandomTiles,
 } from '../../../abilities/gatherLightHelpers';
-import { LIGHT_NODE_IMBUEMENT, LIGHT_TREE_ID } from '../../../../../researchTrees/trees/light';
+import { LIGHT_NODE_CORE, LIGHT_NODE_GATHER_LIGHT, LIGHT_NODE_IMBUEMENT, LIGHT_TREE_ID } from '../../../../../researchTrees/trees/light';
+import { buildTinyBattleEngine, placePlayerFromLoadout, TINY_BATTLE_PLAYER_ID } from '../../../testing/harness/buildTinyBattleEngine';
+import { CORE_ITEM_IDS } from '../../../character_defs/items';
+import { executeUnitAbility } from '../../../game/units/unitAbilityLifecycle';
+import { FIXED_DT } from '../../../game/gameConstants';
+import { LIGHT_SPELL_CIRCLE_EFFECT_TYPE } from '../../../game/effect_defs/spellCircleEffects';
+import { GATHER_LIGHT_PREFIRE_TIME } from '../../../abilities/gatherLightHelpers';
 
 void getAbility;
 
@@ -69,6 +75,31 @@ describe('Gather Light darkness', () => {
 });
 
 describe('Gather Light Light Imbuement gating', () => {
+    function castGatherLight(nodes: string[]) {
+        const engine = buildTinyBattleEngine({ gridW: 20, gridH: 20, localPlayerId: TINY_BATTLE_PLAYER_ID });
+        const { player } = placePlayerFromLoadout(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            world: { x: 300, y: 300 },
+            equipment: [CORE_ITEM_IDS.LightCore],
+            researchTrees: { [LIGHT_TREE_ID]: nodes },
+        });
+        engine.waitingForOrders = null;
+        engine.isPaused = false;
+        executeUnitAbility(player, GatherLightAbility, [], engine);
+        (engine as unknown as { fixedUpdate(dt: number): void }).fixedUpdate(FIXED_DT);
+        const circles = engine.state.effectManager.effects.filter((e) => e.effectType === LIGHT_SPELL_CIRCLE_EFFECT_TYPE);
+        return { player, circles };
+    }
+
+    it('draws the Light spell circle over the windup only when the cast imbues (Light Imbuement)', () => {
+        const imbuing = castGatherLight([LIGHT_NODE_CORE, LIGHT_NODE_GATHER_LIGHT, LIGHT_NODE_IMBUEMENT]);
+        expect(imbuing.circles).toHaveLength(1);
+        const circle = imbuing.circles[0]!;
+        expect(circle.ownerActorId).toBe(imbuing.player.id);
+        expect((circle.effectData.castAt as number) * circle.duration).toBeCloseTo(GATHER_LIGHT_PREFIRE_TIME);
+        expect(castGatherLight([LIGHT_NODE_CORE, LIGHT_NODE_GATHER_LIGHT]).circles).toHaveLength(0);
+    });
+
     it('detects Light Imbuement from a researchTrees tooltip bag', () => {
         expect(hasLightImbuementResearch({
             researchTrees: { [LIGHT_TREE_ID]: [LIGHT_NODE_IMBUEMENT] },

@@ -5,8 +5,8 @@
  * resource and drops a bright light source at their feet while up to 10 random lit tiles in the 5×5 around the caster are permanently
  * darkened. Yellow orbs fly inward from those tiles as visual feedback.
  *
- * When the Light Imbuement research node is owned, the cast also applies LightImbueBuff so the
- * next Swing Mace swaps to Imbued Mace (0803) for one use.
+ * When the Light Imbuement research node is owned, the windup also draws the Light spell circle (a soft
+ * glow) and the cast applies LightImbueBuff so the next Swing Mace swaps to Imbued Mace (0803) for one use.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
@@ -37,6 +37,7 @@ import {
 } from './0804Constants';
 import { spawnBrightLight, type EngineWithLight } from '../../../abilities/brightKeyword';
 import type { Unit } from '../../../game/units/Unit';
+import { SPELL_CIRCLE_STYLE_LIGHT } from '../../../game/spellCircles/spellCircles';
 import type { AbilityKeywordUse } from '../../../abilities/keywords/keywordTypes';
 import {
     formatKeywordUseTooltip,
@@ -102,6 +103,15 @@ export const GatherLightAbility = defineAbility({
             end: GATHER_LIGHT_PREFIRE_TIME,
             abilityPhase: AbilityPhase.Windup,
             castBehaviours: [
+                // Light spell circle, only when this cast imbues the weapon (Light Imbuement research).
+                {
+                    timingStart: 'start',
+                    timingEnd: 'end',
+                    behaviour: CastBehaviours.SpellCircle({
+                        style: SPELL_CIRCLE_STYLE_LIGHT,
+                        when: (ctx) => hasLightImbuementResearch(ctx.engine, ctx.caster),
+                    }),
+                },
                 {
                     timingStart: 'start',
                     behaviour: CastBehaviours.Instant((ctx) => {

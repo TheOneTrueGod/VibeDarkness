@@ -20,6 +20,7 @@
  * on regardless, and an interrupt during cooldown ends the cast (`interruptPolicy`).
  */
 
+import { SPELL_CIRCLE_STYLE_EARTH_LIGHT } from '../../../game/spellCircles/spellCircles';
 import type { AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { defineAbility } from '../../../abilities/defineAbility';
@@ -232,6 +233,8 @@ const TIMINGS: AbilityTimingInterval[] = [
                 timingEnd: 'end',
                 behaviour: CastBehaviours.CasterShake({ from: 1, to: 3 }),
             },
+            // Light Earth spell circle, part 1: a few stones hop up and drop as the picked rock breaks.
+            { timingStart: 'start', timingEnd: 'end', behaviour: CastBehaviours.SpellCircle({ style: SPELL_CIRCLE_STYLE_EARTH_LIGHT }) },
             {
                 timingStart: 'start',
                 timingEnd: 'end',
@@ -268,7 +271,17 @@ const TIMINGS: AbilityTimingInterval[] = [
             },
         ],
     },
-    { id: 'charge', start: ROCK_SLIDE_AIM_END, end: ROCK_SLIDE_SPAWN_TIME, abilityPhase: AbilityPhase.Active, doNotRefund: true },
+    {
+        id: 'charge',
+        start: ROCK_SLIDE_AIM_END,
+        end: ROCK_SLIDE_SPAWN_TIME,
+        abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
+        castBehaviours: [
+            // Light Earth spell circle, part 2: the stones hop again and drop as the rock appears to fly.
+            { timingStart: 'start', timingEnd: 'end', behaviour: CastBehaviours.SpellCircle({ style: SPELL_CIRCLE_STYLE_EARTH_LIGHT }) },
+        ],
+    },
     {
         id: 'punch',
         start: ROCK_SLIDE_SPAWN_TIME,

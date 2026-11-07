@@ -25,6 +25,7 @@ import {
     STONE_TOMB_MAX_TILE_OFFSET,
 } from '../earthCoreConstants';
 import type { Effect } from '../../../game/effects/Effect';
+import { EARTH_SPELL_CIRCLE_EFFECT_TYPE } from '../../../game/effect_defs/spellCircleEffects';
 import type { GameEngine } from '../../../game/GameEngine';
 import { executeUnitAbility } from '../../../game/units/unitAbilityLifecycle';
 import { FIXED_DT } from '../../../game/gameConstants';
@@ -172,9 +173,27 @@ describe('Stone Tomb (0530)', () => {
         return [...new Set(effects.map((e) => `${Math.floor(e.x / CELL)},${Math.floor(e.y / CELL)}`))].sort();
     }
 
-    it('the windup rumbles on the caster tile (no target yet), then the marked tiles rumble after the pick', () => {
+    it('the windup draws the Earth spell circle, landing as stage 1 does; the marked tiles rumble after the pick', () => {
         const caster = makeUnit('c', 'player', 5, 9);
-        expect(rumbleTiles('windup', caster, [])).toEqual(['5,9']);
+        const effects: Effect[] = [];
+        const { engine } = setup([caster]);
+        (engine as unknown as { addEffect: (e: Effect) => void }).addEffect = (e) => effects.push(e);
+        const circle = getEffectiveCastBehaviours(intervalById('windup'))![1]!.behaviour;
+        circle.onSetup!({
+            caster,
+            abilityId: '0530',
+            target: { type: 'pixel', position: { x: caster.x, y: caster.y } },
+            allTargets: [],
+            castPayload: {},
+            behaviourPayload: undefined,
+            setBehaviourPayload: () => {},
+            engine,
+            windowSeconds: STONE_TOMB_PICK_TIME,
+        });
+        expect(effects).toHaveLength(1);
+        expect(effects[0]!.effectType).toBe(EARTH_SPELL_CIRCLE_EFFECT_TYPE);
+        const castAt = effects[0]!.effectData.castAt as number;
+        expect(castAt * effects[0]!.duration).toBeCloseTo(STONE_TOMB_STAGE1_TIME);
         expect(rumbleTiles('punch1', caster, target(5, 5))).toEqual(['4,5', '5,4', '5,5', '5,6', '6,5']);
     });
 

@@ -1,18 +1,18 @@
 /**
  * Shared cast pieces for abilities that conjure a held weapon.
- * `startConjureCast` drops any held weapon and starts the orbit of `weaponKind` pictures.
+ * `startConjureCast` drops any held weapon and starts the orbit of `weaponKind` pictures (the Armory
+ * spell circle style, `game/spellCircles/`).
  * `equipConjuredWeaponAtEnd` swaps the weapon in when the conjure window closes.
  * `defineConjure` uses both; other archetypes (e.g. a conjured shield on `defineDirectionalShield`)
  * call them as hooks.
  */
 import type { Unit } from '../../game/units/Unit';
-import { Effect } from '../../game/effects/Effect';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import { CastBehaviours } from '../CastBehaviours';
 import type { CastBehaviour } from '../castBehaviourTypes';
 import { equipConjuredWeapon, releaseHeldConjuredWeapon } from '../../game/conjuredWeapons/runtime';
 import { getConjuredWeaponDef } from '../../game/conjuredWeapons/registry';
-import { WEAPON_ORBIT_EFFECT_TYPE } from '../../game/effect_defs/weaponEffects';
+import { SPELL_CIRCLE_STYLE_ARMORY, spawnSpellCircle } from '../../game/spellCircles/spellCircles';
 
 /** Shape of the conjure orbit. Omitted fields use the orbit effect's `DEFAULT_WEAPON_ORBIT_*`. */
 export interface ConjureOrbitShape {
@@ -29,31 +29,27 @@ export interface ConjureOrbitShape {
 export interface ConjureOrbitConfig extends ConjureOrbitShape {
     /** Seconds the orbit lasts; normally the conjure window. */
     duration: number;
+    /** The conjuring ability. The orbit is its spell circle and fades out if that cast is cut. */
+    abilityId: string;
 }
 
+/** Drop any held weapon and start the Armory spell circle: pictures of `weaponKind` orbiting the caster. */
 export function startConjureCast(engine: unknown, caster: Unit, weaponKind: string, orbit: ConjureOrbitConfig): void {
     const ctx = engine as AbilityEngineContext;
     if (caster.heldConjuredWeapon) {
         releaseHeldConjuredWeapon(caster, ctx, { leaveToken: true });
     }
-    ctx.addEffect(new Effect({
-        x: caster.x,
-        y: caster.y,
-        duration: orbit.duration,
-        effectType: WEAPON_ORBIT_EFFECT_TYPE,
-        timeDomain: 'owner',
-        ownerActorId: caster.id,
-        pauseBehaviour: 'hold',
-        effectData: {
-            followOwner: true,
+    spawnSpellCircle(ctx, caster, {
+        style: SPELL_CIRCLE_STYLE_ARMORY,
+        ...(orbit.radius !== undefined ? { radius: orbit.radius } : {}),
+        data: {
             weaponKind,
             ...(orbit.count !== undefined ? { count: orbit.count } : {}),
-            ...(orbit.radius !== undefined ? { radius: orbit.radius } : {}),
             ...(orbit.turns !== undefined ? { turns: orbit.turns } : {}),
             ...(orbit.fadePortion !== undefined ? { fadePortion: orbit.fadePortion } : {}),
             ...(orbit.scale !== undefined ? { scale: orbit.scale } : {}),
         },
-    }));
+    }, { castSeconds: orbit.duration, abilityId: orbit.abilityId });
 }
 
 export function equipConjuredWeaponAtEnd(weaponId: string): CastBehaviour {

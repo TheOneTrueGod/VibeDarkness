@@ -40,7 +40,8 @@ import {
     STORM_PRIMARY,
     STORM_SECONDARY,
 } from '../stormConstants';
-import { spawnStormBolt, spawnStormRing, spawnStormSpark } from '../stormVfx';
+import { spawnStormBolt, spawnStormSpark } from '../stormVfx';
+import { SPELL_CIRCLE_STYLE_STORM } from '../../../game/spellCircles/spellCircles';
 import CHAIN_LIGHTNING_IMAGE from './chainLightning.svg?raw';
 
 const CARD_ID = CHAIN_LIGHTNING_ABILITY_ID;
@@ -171,11 +172,11 @@ export const ChainLightningAbility_1303 = defineAbility({
             abilityPhase: AbilityPhase.Windup,
             timelineLabel: 'Gather',
             castBehaviours: [
+                // Storm spell circle: a lightning ring forms and bolts join it until the strike.
+                { timingStart: 'start', timingEnd: 'end', behaviour: CastBehaviours.SpellCircle({ style: SPELL_CIRCLE_STYLE_STORM }) },
                 {
                     timingStart: 'start',
                     behaviour: CastBehaviours.Instant((ctx) => {
-                        // Charge is drawn in from all around, converging on the caster as the windup ends.
-                        spawnStormRing(ctx.engine as EngineContext, ctx.caster, ctx.caster.radius + 34, 'contract', CHAIN_LIGHTNING_WINDUP);
                         spawnStormSpark(ctx.engine as EngineContext, ctx.caster, {
                             radius: ctx.caster.radius + 8,
                             count: 5,

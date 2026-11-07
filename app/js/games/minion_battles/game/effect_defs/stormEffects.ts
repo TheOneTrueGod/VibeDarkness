@@ -116,7 +116,7 @@ export function computeLightningPoints(
 }
 
 /** Stroke a polyline into `g`. Does not clear `g`. */
-function strokePolyline(
+export function strokePolyline(
     g: Graphics,
     points: ReadonlyArray<{ x: number; y: number }>,
     color: number,

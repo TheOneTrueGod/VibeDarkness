@@ -7,6 +7,7 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Sprite } from 'pixi.js';
 import type { Effect } from '../effects/Effect';
+import { castBoundAlpha } from '../effects/castBound';
 import type { IEffectDef, IEffectRenderContext } from './types';
 import {
     DEFAULT_WEAPON_ORBIT_COUNT,
@@ -27,7 +28,10 @@ import {
     syncWeaponCardTexture,
 } from '../fieldObjects/weaponArt';
 
-/** Weapons orbiting a caster while a conjure forms. Data: `count`, `radius`, `turns`, `fadePortion`, `scale`, `weaponKind`. */
+/**
+ * Weapons orbiting a caster while a conjure forms: the Armory spell circle style (`game/spellCircles/`).
+ * Data: `count`, `radius`, `turns`, `fadePortion`, `scale`, `weaponKind`.
+ */
 export const WEAPON_ORBIT_EFFECT_TYPE = 'ConjureSword';
 /** A dropped weapon's flight to its token. Data: `landX`, `landY`, `lift`, `restRotation`, `weaponKind`. */
 export const WEAPON_DISCARD_ARC_EFFECT_TYPE = 'WeaponDiscardArc';
@@ -61,6 +65,8 @@ export const weaponOrbitEffectDef: IEffectDef = {
         const kind = weaponKind(effect);
         const shape = orbitShape(effect, kind);
         const scale = numberOr(effect.effectData, 'scale', DEFAULT_WEAPON_ORBIT_SCALE);
+        // The orbit is the Armory's spell circle: it fades out if the conjure is cut.
+        visual.alpha = castBoundAlpha(effect);
         for (let i = 0; i < visual.children.length; i++) {
             const sprite = visual.children[i] as Sprite | undefined;
             if (!sprite) continue;

@@ -54,14 +54,14 @@ Deployables tagged `conductor` (all dropped weapons and placed deployables, i.e.
 
 ## Visual language (secondary `#a5f3fc`, primary `#3b5bdb`)
 
-Every Storm visual is a **jagged bolt with a white-hot core and a cyan glow** (`LightningBolt` effect, `drawLightningPath`) and every hit is a **spark burst** (`StormSpark`). Area mass (rings, telegraphs) is storm blue. Bolts re-fork a few times a second from a hash, never from engine RNG. Static's yellow crackle is the one exception: it marks the resource, not an attack.
+Every Storm visual is a **jagged bolt with a white-hot core and a cyan glow** (`LightningBolt` effect, `drawLightningPath`) and every hit is a **spark burst** (`StormSpark`). Area mass (rings, telegraphs) is storm blue. Bolts re-fork a few times a second from a hash, never from engine RNG. The tree's **spell circle** (`style: 'storm'`) is a jagged lightning ring that crackles in from the top both ways round, then gains orbiting bolts a pair at a time; it marks a longer charge, so only Chain Lightning and Thunderclap draw one. Static's yellow crackle is the one exception: it marks the resource, not an attack.
 
 | Ability | Projectile / trail | Hit |
 |---------|--------------------|-----|
 | Arc Bolt | `arc_bolt`: glowing head dragging a crackling two-strand tail (no BulletTrail) | `StormSpark`; each leap is a bolt between the two enemies plus a spark |
 | Static Step | afterimages + a bolt pinned at the start whose far end rides the caster | spark at start and arrival |
-| Chain Lightning | contracting gather ring, then hop-by-hop bolts (`Effect.delay`) | spark per target, bigger per stack spent; conductors flare |
-| Thunderclap | contracting ring windup; storm-blue shock ring + 8 radial bolts; a bolt from each enemy it drew charge from back to the caster | Bright light |
+| Chain Lightning | Storm spell circle over the gather windup, then hop-by-hop bolts (`Effect.delay`) | spark per target, bigger per stack spent; conductors flare |
+| Thunderclap | Storm spell circle windup (`game/spellCircles/`: lightning ring, then bolts join in pairs up to six); storm-blue shock ring + 8 radial bolts; a bolt from each enemy it drew charge from back to the caster | Bright light |
 
 ## Where Storm diverges from common patterns
 

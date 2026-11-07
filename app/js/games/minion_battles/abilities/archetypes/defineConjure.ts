@@ -75,7 +75,7 @@ export function defineConjure(config: ConjureConfig): AbilityStatic {
         beginActiveCast(engine, caster): void {
             const weapon = getConjuredWeaponDef(config.weaponId);
             if (!weapon) throw new Error(`defineConjure: "${config.id}" names unregistered weapon "${config.weaponId}"`);
-            startConjureCast(engine, caster, weapon.tokenKind, { duration, ...config.orbit });
+            startConjureCast(engine, caster, weapon.tokenKind, { duration, abilityId: config.id, ...config.orbit });
         },
     });
 }

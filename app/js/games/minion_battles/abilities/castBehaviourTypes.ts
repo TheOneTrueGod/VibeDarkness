@@ -52,6 +52,12 @@ export interface CastBehaviourSetupContext extends CastBehaviourBaseContext {
     engine: AbilityEngineContext;
     /** Visual effects to fire at the hit moment for this timing window. Set by unitAbilityTick from interval.onProjectileHit. */
     onProjectileHit?: VisualEffectDef[];
+    /**
+     * Local seconds from this behaviour's start to its end (`timingEnd`, or the interval's end for a
+     * one-shot entry). Lets a behaviour size a visual to its window (e.g. a spell circle). Absent in
+     * hand-built test contexts.
+     */
+    windowSeconds?: number;
 }
 
 export interface CastBehaviourTickContext extends CastBehaviourBaseContext {

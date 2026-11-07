@@ -9,6 +9,7 @@ import type { TeamId } from '../teams';
 import { FIXED_DT } from '../gameConstants';
 import { resolveTimeDomainRate, type OwnerTempoResolver } from './timeDomain';
 import { resolveEffectPauseBehaviour } from './pauseBehaviour';
+import { updateCastBound } from './castBound';
 
 export class EffectManager {
     effects: Effect[] = [];
@@ -80,6 +81,8 @@ export class EffectManager {
         for (const effect of this.effects) {
             if (!effect.active) continue;
             followOwner(this.ctx, effect);
+            // A cast-bound effect whose cast was cut fades on wall time and does not age normally.
+            if (updateCastBound(effect, realDt, (id) => this.ctx.getUnit(id))) continue;
             if (halted) {
                 const behaviour = resolveEffectPauseBehaviour(effect);
                 if (behaviour === 'hold') continue;
