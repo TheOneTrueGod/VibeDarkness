@@ -15,7 +15,7 @@ import {
 } from './slingshotHelpers';
 import { CONTROLLED_SLINGSHOT } from '../gameConstants';
 import { interruptUnitAbilities } from './unitAbilityLifecycle';
-import { getUnitEffectiveSpeed, isEntombedProtectionActive } from './unitAbilityQueries';
+import { getUnitEffectiveSpeed, isEntombedProtectionActive, isUnitImmuneToTerrainHazards } from './unitAbilityQueries';
 import { isImmuneToForcedMovement } from './unitTag';
 
 /**
@@ -49,7 +49,8 @@ export const WALL_SNAP_DELAY = 0.1;
 /**
  * If the unit is inside an impassable tile, nudge it toward the nearest passable cell each tick.
  * After WALL_SNAP_DELAY seconds of continuous wall contact, fire a slingshot launch (unless an
- * Entombed ability is in a non-Cooldown phase, in which case suppression holds).
+ * Entombed ability is in a non-Cooldown phase or the unit is in a juggernaut window, in which case
+ * suppression holds).
  */
 export function tickWallUnstick(unit: Unit, dt: number, engine: EngineContext): void {
     const gameTime = engine.gameTime;
@@ -68,8 +69,9 @@ export function tickWallUnstick(unit: Unit, dt: number, engine: EngineContext): 
 
     unit.wallStuckTime += dt;
 
-    // Suppress while any Entombed ability is still in an active (non-Cooldown) phase.
-    if (isEntombedProtectionActive(unit, engine)) {
+    // Suppress while any Entombed ability is still in an active (non-Cooldown) phase, or while the
+    // unit ignores terrain hazards (juggernaut): no ejection, no bounce damage, no interrupt.
+    if (isEntombedProtectionActive(unit, engine) || isUnitImmuneToTerrainHazards(unit, gameTime)) {
         unit.wallStuckTime = 0;
         unit.controlled = false;
         unit.controlledUntilTime = null;

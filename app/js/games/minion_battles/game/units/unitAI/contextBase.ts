@@ -13,4 +13,9 @@ export interface UnitAIContextBase {
     earthCoreArmour?: number;
     /** Earth Core armour stacked per source id; optional ability runtime. */
     earthCoreArmourSources?: Record<string, number>;
+    /**
+     * Abilities the AI may cast once more off schedule, oldest first (see `grantedCasts.ts`). Filled by
+     * `aiSettings.followUp` and phase `grantAiCasts`; consumed when the order is queued.
+     */
+    grantedCasts?: string[];
 }

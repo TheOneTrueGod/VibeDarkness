@@ -7,7 +7,7 @@
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
-import { AbilityPhase } from '../../../abilities/abilityTimings';
+import { AbilityPhase, withJuggernautBeforeCooldown } from '../../../abilities/abilityTimings';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import type { LeapBehaviour } from '../../../abilities/CastBehaviours/LeapBehaviour';
@@ -22,7 +22,6 @@ import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { applyHeal } from '../../../game/units/unitHeal';
 import type { Unit } from '../../../game/units/Unit';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { ROUND_DURATION } from '../../../game/gameConstants';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { spawnDisplacerBoltProjectile } from '../0017_DisplacerBolt/0017Ability';
@@ -34,6 +33,7 @@ import {
 import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
 import { getCastElapsedAt } from '../../../game/time/actorClock';
 import { fireProjectileRing } from '../../../abilities/projectileRing';
+import { PHANTOM_DECOY_ID } from '../0019_PhantomDecoy/0019Ability';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}18`;
 export const LIGHT_EATER_ID = CARD_ID;
@@ -282,7 +282,7 @@ const _base: AbilityStatic = defineAbility({
     maxUses: 1,
     recoveries: RECOVERIES,
     prefireTime: LIGHT_EATER_EXPLODE_TIME,
-    abilityTimings: [
+    abilityTimings: withJuggernautBeforeCooldown([
         { id: 'crouch', start: 0, end: LIGHT_EATER_WINDUP_TIME, abilityPhase: AbilityPhase.Windup },
         {
             id: 'flight',
@@ -303,7 +303,7 @@ const _base: AbilityStatic = defineAbility({
             castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(explode) }],
         },
         { id: 'cooldown', start: STRIKE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
-    ],
+    ]),
     targets: [] as TargetDef[],
     aiSettings: {
         minRange: 0,
@@ -312,9 +312,10 @@ const _base: AbilityStatic = defineAbility({
         priority: 30, // below Phantom Decoy (40) when both are eligible
         ninjutsu: { ignore: true },
         roundWindow: LIGHT_EATER_ROUND_WINDOW,
-        canUse: (_caster, ctx) =>
-            Math.floor(ctx.gameTime / ROUND_DURATION) % LIGHT_EATER_ROUND_INTERVAL === 0 &&
-            anyDevourableLight(ctx.getSpecialTiles()),
+        roundInterval: { every: LIGHT_EATER_ROUND_INTERVAL },
+        canUse: (_caster, ctx) => anyDevourableLight(ctx.getSpecialTiles()),
+        // Phantom Decoy is cast right after every Light Eater (it has no schedule of its own).
+        followUp: [PHANTOM_DECOY_ID],
     },
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: 0 }),
 
@@ -325,7 +326,7 @@ const _base: AbilityStatic = defineAbility({
             `The blast also looses a ring of ${LIGHT_EATER_RING_PROJECTILES} Displacer Bolts (${LIGHT_EATER_RING_PROJECTILES * LIGHT_EATER_ENRAGED_RING_MULTIPLIER} when enraged)`,
             'The blast area is shown at the light as soon as the cast begins',
             `The blast also damages every other light in its radius by ${LIGHT_EATER_LIGHT_REDUCTION}, including ones the players placed`,
-            'Used every other round, in the middle of the round',
+            'Used every other round, in the middle of the round, and followed at once by Phantom Decoy',
         ];
     },
 });

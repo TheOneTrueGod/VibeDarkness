@@ -605,7 +605,8 @@ describe('Alpha Wolf and Displacer migration', () => {
         ['alpha_wolf', ENEMY_ALPHA_WOLF],
         ['displacer_spirit', ENEMY_DISPLACER_SPIRIT],
     ] as const)('%s: enrages once at half health with the same tag and events as before', (characterId, def) => {
-        expect(getUnitPhases(characterId)).toEqual([enragePreset(0.5)]);
+        // First phase is the plain half-health enrage (the spirit also grants Light Eater and Phantom Decoy casts).
+        expect(getUnitPhases(characterId)?.[0]).toMatchObject(enragePreset(0.5));
         const engine = makeEngine();
         const boss = spawnBoss(engine, def);
         const enraged: unknown[] = [];

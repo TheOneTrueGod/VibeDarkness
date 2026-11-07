@@ -6,7 +6,7 @@
  */
 
 import type { AbilityRecoveryRule, AbilityStatic } from '../../../abilities/Ability';
-import { AbilityPhase } from '../../../abilities/abilityTimings';
+import { AbilityPhase, withJuggernautBeforeCooldown } from '../../../abilities/abilityTimings';
 import { defineAbility } from '../../../abilities/defineAbility';
 import type { TargetDef } from '../../../abilities/targeting';
 import { Effect } from '../../../game/effects/Effect';
@@ -21,10 +21,10 @@ import { pickCloneSpawnPositions } from '../../../game/displacer/clonePlacement'
 import {
     PHANTOM_DECOY_CLONE_COUNT,
     PHANTOM_DECOY_ENRAGED_CLONE_COUNT,
-    PHANTOM_DECOY_ROUND_INTERVAL,
-    PHANTOM_DECOY_ROUND_WINDOW,
+    DISPLACER_FADE_IN_MS,
+    PHANTOM_DECOY_SPLIT_FLICKER_FPS,
+    PHANTOM_DECOY_SPLIT_SEPARATION_PX,
 } from '../../../game/displacer/displacerConstants';
-import { ROUND_DURATION } from '../../../game/gameConstants';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 
@@ -35,8 +35,8 @@ export const PHANTOM_DECOY_ID = CARD_ID;
 export const PHANTOM_DECOY_SUPER_COST = 1;
 export const PHANTOM_DECOY_WINDUP = 0.8;
 const COOLDOWN_END = PHANTOM_DECOY_WINDUP + 0.1 + 1.0;
-/** Boss may use this when a player is within this range (px). */
-export const PHANTOM_DECOY_AI_RANGE = 400;
+/** No range cap: the spirit can conjure around any living player, at any distance, seen or not. */
+export const PHANTOM_DECOY_AI_RANGE = Number.POSITIVE_INFINITY;
 
 const SPIRIT_BLUE = 0x3366cc;
 
@@ -116,6 +116,9 @@ function buildDecoySpawn(): SpawnUnitsBehaviour {
             for (const at of [{ x, y }, { x: caster.x, y: caster.y }]) {
                 eng.addEffect(spiritPulse(at.x, at.y));
             }
+            // The spirit flickered out at the end of its wind-up; it fades back in with its new decoys
+            // (which fade in on appearing, `appearFadeInMs`), all at once.
+            eng.eventBus.emit('unit_fade_in', { unitId: caster.id, durationMs: DISPLACER_FADE_IN_MS });
         },
     });
 }
@@ -129,8 +132,24 @@ export const PhantomDecoyAbility: AbilityStatic = defineAbility({
     maxUses: 1,
     recoveries: RECOVERIES,
     prefireTime: PHANTOM_DECOY_WINDUP,
-    abilityTimings: [
-        { id: 'conjure', start: 0, end: PHANTOM_DECOY_WINDUP, abilityPhase: AbilityPhase.Windup },
+    abilityTimings: withJuggernautBeforeCooldown([
+        {
+            id: 'conjure',
+            start: 0,
+            end: PHANTOM_DECOY_WINDUP,
+            abilityPhase: AbilityPhase.Windup,
+            // The spirit splits: two flickering copies drift apart, then it vanishes into the decoys.
+            castBehaviours: [
+                {
+                    timingStart: 'start',
+                    timingEnd: 'end',
+                    behaviour: CastBehaviours.CasterSplitFlicker({
+                        maxSeparationPx: PHANTOM_DECOY_SPLIT_SEPARATION_PX,
+                        framesPerSecond: PHANTOM_DECOY_SPLIT_FLICKER_FPS,
+                    }),
+                },
+            ],
+        },
         {
             id: 'summon',
             start: PHANTOM_DECOY_WINDUP,
@@ -140,18 +159,19 @@ export const PhantomDecoyAbility: AbilityStatic = defineAbility({
             castBehaviours: [{ timingStart: 'start', behaviour: buildDecoySpawn() }],
         },
         { id: 'cooldown', start: PHANTOM_DECOY_WINDUP + 0.1, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
-    ],
+    ]),
     targets: [{ type: 'unit', label: 'Target' }] as TargetDef[],
     aiSettings: {
         minRange: 0,
         maxRange: PHANTOM_DECOY_AI_RANGE,
         maxUsesPerRound: 1,
-        priority: 40, // above Light Eater (30)
+        priority: 40,
         ninjutsu: { ignore: true },
-        roundWindow: PHANTOM_DECOY_ROUND_WINDOW,
         requireAffordable: true,
-        canUse: (_caster: Unit, ctx: { gameTime: number }) =>
-            Math.floor(ctx.gameTime / ROUND_DURATION) % PHANTOM_DECOY_ROUND_INTERVAL === 0,
+        // Any player at any range (the AI's wider `nearbyEnemies` pool), not just the one the spirit can see.
+        candidateScope: 'anyNearby',
+        // No schedule of its own: cast only as Light Eater's follow-up or when a phase recovers it.
+        onlyWhenGranted: true,
     },
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: PHANTOM_DECOY_AI_RANGE }),
 
@@ -159,6 +179,8 @@ export const PhantomDecoyAbility: AbilityStatic = defineAbility({
         return [
             `Spend ${PHANTOM_DECOY_SUPER_COST} super bar to conjure ${PHANTOM_DECOY_CLONE_COUNT} clones around a player (${PHANTOM_DECOY_ENRAGED_CLONE_COUNT} when enraged)`,
             'Clones echo Displacer Bolts and fade when the Displacer Spirit falls',
+            'Targets a player at any range, even out of sight',
+            'Cast right after Light Eater',
         ];
     },
 });

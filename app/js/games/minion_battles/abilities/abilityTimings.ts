@@ -28,7 +28,10 @@ export enum AbilityPhase {
 /**
  * Modifier tags on a timing interval that refine how it behaves and displays.
  * - `'iframe'`      — invincibility frames (unit cannot be hit; `unitHasIFrames` reads the tag); renders green. Tooltips call it {Dodge}.
- * - `'juggernaut'`  — defensive stance (shield active); renders sky-blue.
+ * - `'juggernaut'`  — defensive stance (shield active); renders sky-blue. The caster ignores hard CC
+ *   (stun, knockback, lift, interrupts) and terrain hazards (drowning, wall ejection and their damage);
+ *   see `isUnitInJuggernautWindow` / `isUnitImmuneToTerrainHazards`. Tag a whole cast with
+ *   {@link withJuggernautBeforeCooldown}.
  */
 export type AbilityTimingTag = 'iframe' | 'juggernaut';
 
@@ -261,6 +264,19 @@ export function normalizeLegacyAbilityTimings(legacy: AbilityTiming[]): AbilityT
         };
         cursor += seg.duration;
         return interval;
+    });
+}
+
+/**
+ * Preset: adds the `'juggernaut'` tag to every interval before the cast's cooldown (any phase other
+ * than Cooldown / CoopCooldown), so the whole windup and active part of the cast cannot be
+ * interrupted by CC or terrain hazards. For boss casts that must play out once started.
+ */
+export function withJuggernautBeforeCooldown(intervals: readonly AbilityTimingInterval[]): AbilityTimingInterval[] {
+    return intervals.map((it) => {
+        if (it.abilityPhase === AbilityPhase.Cooldown || it.abilityPhase === AbilityPhase.CoopCooldown) return it;
+        if (it.tags?.includes('juggernaut')) return it;
+        return { ...it, tags: [...(it.tags ?? []), 'juggernaut'] };
     });
 }
 

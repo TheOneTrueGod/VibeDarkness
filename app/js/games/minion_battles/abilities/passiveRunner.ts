@@ -13,6 +13,7 @@ import type {
     PassiveEffect,
     PassiveEventTriggerType,
     PassivePlaceTerrainEffect,
+    PassiveSpawnUnitsEffect,
     PassiveTrigger,
     PassiveTargetFilter,
 } from './passiveDef';
@@ -21,6 +22,8 @@ import { areEnemies } from '../game/teams';
 import { Effect } from '../game/effects/Effect';
 import { rasterizeArea } from '../game/TerrainLayerManager';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
+import { spawnUnitsAtPoints } from './CastBehaviours/SpawnUnitsBehaviour';
+import { pickCloneSpawnPositions } from '../game/displacer/clonePlacement';
 
 function shouldFire(trigger: PassiveTrigger, gameTime: number, dt: number): boolean {
     if (trigger.type === 'onTick') {
@@ -71,8 +74,50 @@ function applyEffects(caster: Unit, effects: PassiveEffect[], engine: EngineCont
             }
         } else if (effect.type === 'place_terrain') {
             placeTerrain(caster, effect, engine);
+        } else if (effect.type === 'spawn_units') {
+            spawnUnitsAroundCaster(caster, effect, engine);
         }
     }
+}
+
+function spawnUnitsAroundCaster(caster: Unit, effect: PassiveSpawnUnitsEffect, engine: EngineContext): void {
+    let count = effect.count;
+    if (effect.maxLiving !== undefined) {
+        const characterId = effect.template.characterId;
+        const living = engine.units.filter(
+            (u) => u !== caster && u.isAlive() && u.teamId === caster.teamId && u.characterId === characterId,
+        ).length;
+        count = Math.min(count, effect.maxLiving - living);
+    }
+    if (count <= 0) return;
+
+    const positions = pickCloneSpawnPositions(
+        { x: caster.x, y: caster.y },
+        {
+            count,
+            radius: effect.placement.maxDistance,
+            minDistanceFromCenter: effect.placement.minDistance,
+            ...(effect.placement.minSpacing !== undefined ? { minSpacing: effect.placement.minSpacing } : {}),
+            isFree: (x, y) => engine.terrainManager?.isPassable(x, y) ?? true,
+            occupied: engine.units.filter((u) => u.isAlive()).map((u) => ({ x: u.x, y: u.y })),
+            randomInt: (min, max) => engine.generateRandomInteger(min, max),
+        },
+    );
+    const spawned = spawnUnitsAtPoints(caster, { ...effect.template, teamId: caster.teamId }, positions, engine);
+    const hpFraction = caster.maxHp > 0 ? Math.max(0, Math.min(1, caster.hp / caster.maxHp)) : 1;
+    spawned.forEach((unit, i) => {
+        if (effect.inheritHpFraction) unit.hp = unit.maxHp * hpFraction;
+        if (effect.pulseColors) {
+            const at = positions[i]!;
+            engine.addEffect(new Effect({
+                x: at.x,
+                y: at.y,
+                duration: 0.5,
+                effectType: 'Pulse',
+                effectData: { colors: [...effect.pulseColors] },
+            }));
+        }
+    });
 }
 
 /** Cells within `cellRadius` (Chebyshev) of the caster's cell, row-major. */

@@ -17,6 +17,7 @@ import { TERRAIN_PROPERTIES, type TerrainHazardId } from '../../terrain/TerrainT
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { findNearestPassableCell } from '../forceMove';
 import { TERRAIN_HAZARD_DEFS } from './terrainHazardDefs';
+import { isUnitImmuneToTerrainHazards } from '../units/unitAbilityQueries';
 
 /** Serialized per-unit hazard state (null when not in a hazard). */
 export interface UnitTerrainHazardState {
@@ -29,6 +30,7 @@ export interface UnitTerrainHazardState {
 
 export interface TerrainHazardEngine {
     terrainManager?: TerrainManager | null;
+    gameTime: number;
 }
 
 /** Hazard for the effective terrain at a cell, if any. */
@@ -44,6 +46,7 @@ export function getTerrainHazardAt(
 /**
  * Starts the hazard for a grounded unit that just entered/landed on `cell`, if its terrain has
  * one. Stops knockback and walking immediately; abilities are interrupted on the first tick.
+ * A unit immune to terrain hazards (juggernaut window) ignores it: no sink, no interrupt, no damage.
  */
 export function triggerTerrainHazard(
     unit: Unit,
@@ -53,6 +56,7 @@ export function triggerTerrainHazard(
     if (unit.terrainHazard || !unit.isAlive()) return false;
     const hazardId = getTerrainHazardAt(engine.terrainManager, cell.col, cell.row);
     if (!hazardId) return false;
+    if (isUnitImmuneToTerrainHazards(unit, engine.gameTime)) return false;
     unit.terrainHazard = { hazardId, elapsed: 0, started: false };
     unit.knockback = null;
     unit.clearMovement();

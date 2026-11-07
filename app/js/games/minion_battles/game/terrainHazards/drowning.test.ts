@@ -140,6 +140,24 @@ describe('drowning', () => {
         engine.destroy();
     });
 
+    it('a unit in a juggernaut window ignores the water: no sink, no interrupt, no damage', () => {
+        const engine = engineWithPond([5, 6, 7]);
+        const unit = addSlime(engine, 4);
+        step(engine, 1);
+        vi.spyOn(unit, 'isInJuggernautWindow').mockReturnValue(true);
+        const interrupt = vi.spyOn(unit, 'interruptAllAbilities');
+
+        knockEast(engine, unit, 40);
+        step(engine, 60);
+
+        expect(Math.floor(unit.x / CELL)).toBeGreaterThanOrEqual(5);
+        expect(engine.terrainManager!.isPassable(unit.x, unit.y)).toBe(false);
+        expect(unit.terrainHazard).toBeNull();
+        expect(unit.hp).toBe(50);
+        expect(interrupt).not.toHaveBeenCalled();
+        engine.destroy();
+    });
+
     it('deep water drowns for double damage', () => {
         const engine = engineWithPond([]);
         for (const col of [5, 6, 7]) engine.terrainManager!.grid.set(col, ROW, TerrainType.DeepWater);

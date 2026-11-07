@@ -20,7 +20,13 @@ import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { enemySpawnDefToSpawnDefinition } from '../units/spawning/adapters';
 import { ENEMY_DISPLACER_CLONE, ENEMY_DISPLACER_SPIRIT } from '../../constants/enemyConstants';
 import { initializeAbilityRuntimeForUnit } from '../../abilities/abilityUses';
-import { pickBestAbility, getRoundFraction, isInRoundWindow } from '../units/unitAI/utils';
+import { pickBestAbility, getRoundFraction, isInRoundWindow, tryQueueAbilityOrder } from '../units/unitAI/utils';
+import { getGrantedCasts, grantAiCasts } from '../units/unitAI/grantedCasts';
+import { getTotalAbilityDuration } from '../../abilities/abilityTimings';
+import { getUnitAppearFadeInMs } from '../units/unit_defs/unitDef';
+import { CasterSplitFlickerBehaviour } from '../../abilities/CastBehaviours/CasterSplitFlickerBehaviour';
+import { normalizeAbilityTimingsToIntervals } from '../../abilities/abilityTimings';
+import { PhantomDecoyAbility } from '../../card_defs/dark_animals/0019_PhantomDecoy/0019Ability';
 import type { AIContext } from '../units/unitAI/types';
 import { addUnitTag, hasUnitTag, UnitTag } from '../units/unitTag';
 import { LightSource } from '../lightSources/LightSource';
@@ -60,21 +66,29 @@ import { PHANTOM_DECOY_ID, PHANTOM_DECOY_WINDUP } from '../../card_defs/dark_ani
 import {
     DISPLACER_BOLT_DAMAGE,
     DISPLACER_BOLT_ID,
+    DISPLACER_BOLT_PREFIRE_TIME,
     DISPLACER_BOLT_PROJECTILE_RADIUS,
     DISPLACER_BOLT_SPEED,
     DISPLACER_BOLT_TRAVEL_DISTANCE,
+    spawnDisplacerBoltProjectile,
 } from '../../card_defs/dark_animals/0017_DisplacerBolt/0017Ability';
+import { PHANTOM_ECHO_ID } from '../../card_defs/dark_animals/0021_PhantomEcho/0021Ability';
 import {
     CLONE_MIRROR_MAX_CLONES,
     CLONE_MIRROR_STAGGER_SEC,
     CLONE_MIRROR_START_DELAY_SEC,
     DISPLACER_CLONE_ID,
+    DISPLACER_FADE_IN_MS,
+    DISPLACER_LIGHT_EATER_ID,
+    DISPLACER_PHANTOM_DECOY_ID,
+    PHANTOM_ECHO_MAX_DECOYS,
+    PHANTOM_ECHO_MAX_DISTANCE,
+    PHANTOM_ECHO_MIN_DISTANCE,
     DISPLACER_STARTING_SUPER_BARS,
     DISPLACER_SPIRIT_ID,
     LIGHT_EATER_ROUND_WINDOW,
     PHANTOM_DECOY_CLONE_COUNT,
     PHANTOM_DECOY_MIN_DISTANCE_FROM_TARGET,
-    PHANTOM_DECOY_ROUND_WINDOW,
     PHANTOM_DECOY_SPAWN_RADIUS,
 } from './displacerConstants';
 import { mirrorAbilityToClones } from './mirrorToClones';
@@ -527,28 +541,22 @@ describe('Displacer boss AI round gating', () => {
         expect(getRoundFraction(ROUND_DURATION * 2.25)).toBeCloseTo(0.25);
         expect(isInRoundWindow(ROUND_DURATION * 0.3, LIGHT_EATER_ROUND_WINDOW)).toBe(true);
         expect(isInRoundWindow(ROUND_DURATION * 0.8, LIGHT_EATER_ROUND_WINDOW)).toBe(false);
-        expect(isInRoundWindow(ROUND_DURATION * 0.5, PHANTOM_DECOY_ROUND_WINDOW)).toBe(true);
-        expect(isInRoundWindow(ROUND_DURATION * 0.4, PHANTOM_DECOY_ROUND_WINDOW)).toBe(false);
     });
 
-    it('Decoy > Light Eater > Bolt, each only inside its round window', () => {
+    it('Light Eater > Bolt, Light Eater only inside its round window and only with a light to eat', () => {
         const engine = makeEngine();
         const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
         const player = spawnPlayerTarget(engine, boss.x - 150, boss.y);
 
-        // First half: only the bolt is eligible.
+        // First quarter: only the bolt is eligible.
         expect(pick(boss, player, ROUND_DURATION * 0.2, true)).toBe(DISPLACER_BOLT_ID);
-        // Third quarter: Decoy and Light Eater are both eligible; Decoy outranks both the bolt and Light Eater.
-        expect(pick(boss, player, ROUND_DURATION * 0.6, true)).toBe(PHANTOM_DECOY_ID);
-        // Last quarter: Light Eater's window has closed, so Decoy is still the pick.
-        expect(pick(boss, player, ROUND_DURATION * 0.8, true)).toBe(PHANTOM_DECOY_ID);
-        // No super bars: Decoy is unaffordable, so Light Eater (second or third quarter) and then the bolt follow.
-        boss.getResource('super')!.current = 0;
-        expect(pick(boss, player, ROUND_DURATION * 0.6, true)).toBe(LIGHT_EATER_ID);
-        expect(pick(boss, player, ROUND_DURATION * 0.8, true)).toBe(DISPLACER_BOLT_ID);
+        // Second / third quarter: Light Eater outranks the bolt.
         expect(pick(boss, player, ROUND_DURATION * 0.3, true)).toBe(LIGHT_EATER_ID);
+        expect(pick(boss, player, ROUND_DURATION * 0.6, true)).toBe(LIGHT_EATER_ID);
+        // Last quarter: Light Eater's window has closed.
+        expect(pick(boss, player, ROUND_DURATION * 0.8, true)).toBe(DISPLACER_BOLT_ID);
         // No light left to eat: only the bolt remains.
-        expect(pick(boss, player, ROUND_DURATION * 0.8, false)).toBe(DISPLACER_BOLT_ID);
+        expect(pick(boss, player, ROUND_DURATION * 0.6, false)).toBe(DISPLACER_BOLT_ID);
         engine.destroy();
     });
 
@@ -566,16 +574,28 @@ describe('Displacer boss AI round gating', () => {
         engine.destroy();
     });
 
-    it('Decoy opens at 0.5 rounds, then every 3 rounds (3.5, 6.5, ...)', () => {
+    it('Phantom Decoy has no schedule of its own: never picked unless granted', () => {
         const engine = makeEngine();
         const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
         const player = spawnPlayerTarget(engine, boss.x - 150, boss.y);
-        for (const rounds of [0.5, 3.5, 6.5]) {
-            expect(pick(boss, player, ROUND_DURATION * rounds, false)).toBe(PHANTOM_DECOY_ID);
-        }
-        for (const rounds of [1.5, 2.5, 4.5, 5.5]) {
+        for (const rounds of [0.5, 0.9, 3.5, 6.5]) {
             expect(pick(boss, player, ROUND_DURATION * rounds, false)).toBe(DISPLACER_BOLT_ID);
         }
+        engine.destroy();
+    });
+
+    it('a granted cast is picked at once, off schedule, ahead of everything else; oldest grant first', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, boss.x - 150, boss.y);
+        // Round 1, first quarter: both are off schedule.
+        grantAiCasts(boss, [LIGHT_EATER_ID, PHANTOM_DECOY_ID]);
+        expect(pick(boss, player, ROUND_DURATION * 1.1, true)).toBe(LIGHT_EATER_ID);
+        // Light Eater still needs a light: the next grant goes ahead instead of waiting.
+        expect(pick(boss, player, ROUND_DURATION * 1.1, false)).toBe(PHANTOM_DECOY_ID);
+        // A granted Decoy still needs a super bar.
+        boss.getResource('super')!.current = 0;
+        expect(pick(boss, player, ROUND_DURATION * 1.1, false)).toBe(DISPLACER_BOLT_ID);
         engine.destroy();
     });
 });
@@ -807,9 +827,10 @@ describe('Displacer Spirit enrage (half health)', () => {
     it('enrages once, below half health, and not before', () => {
         const engine = makeEngine();
         const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
-        expect(getUnitPhases(boss.characterId)).toMatchObject([
-            { enterWhen: { kind: 'health_below_percent', threshold: 0.5 }, tags: { add: [UnitTag.Enraged] } },
-        ]);
+        expect(getUnitPhases(boss.characterId)?.[0]).toMatchObject({
+            enterWhen: { kind: 'health_below_percent', threshold: 0.5 },
+            tags: { add: [UnitTag.Enraged] },
+        });
         boss.takeDamage(boss.maxHp * 0.4, null, engine.eventBus);
         expect(hasUnitTag(boss, UnitTag.Enraged)).toBe(false);
         boss.takeDamage(boss.maxHp * 0.15, null, engine.eventBus);
@@ -996,6 +1017,228 @@ describe('Light Eater explosion damages every light in its radius (including pla
         const res = devourLightsInRadius(engine as never, c, LIGHT_EATER_EXPLOSION_RADIUS);
         expect(res).toEqual({ reduced: 0, eliminated: 0 });
         expect(dark.emitsLight!.lightAmount).toBe(12);
+        engine.destroy();
+    });
+});
+
+describe('Phantom Decoy follows Light Eater; HP thresholds recover both', () => {
+    function queueContext(gameTime: number, tiles: unknown[]) {
+        const queued: { abilityId: string }[] = [];
+        const context = {
+            gameTime,
+            gameTick: Math.floor(gameTime * TICKS_PER_SEC),
+            getAbilityUsesThisRound: () => 0,
+            getSpecialTiles: () => tiles,
+            getUnits: () => [],
+            getUnit: () => undefined,
+            generateRandomInteger: (min: number) => min,
+            queueOrder: (_tick: number, order: { abilityId: string }) => queued.push(order),
+            emitTurnEnd: () => undefined,
+        } as unknown as AIContext;
+        return { context, queued };
+    }
+
+    const LIGHT = [{ id: 't', defId: 'Campfire', col: 1, row: 1, hp: 5, maxHp: 5, emitsLight: { lightAmount: 12, radius: 4 } }];
+
+    it('the ability ids on the unit def match the cards', () => {
+        expect(DISPLACER_LIGHT_EATER_ID).toBe(LIGHT_EATER_ID);
+        expect(DISPLACER_PHANTOM_DECOY_ID).toBe(PHANTOM_DECOY_ID);
+    });
+
+    it('queuing Light Eater grants Phantom Decoy, which is the very next AI cast', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, boss.x - 150, boss.y);
+
+        const first = queueContext(ROUND_DURATION * 0.3, LIGHT);
+        expect(tryQueueAbilityOrder(boss, first.context, [player])).toBe(true);
+        expect(first.queued.map((o) => o.abilityId)).toEqual([LIGHT_EATER_ID]);
+        expect(getGrantedCasts(boss)).toEqual([PHANTOM_DECOY_ID]);
+
+        // Even in the last quarter, where nothing else is scheduled, Decoy comes next and spends its grant.
+        const next = queueContext(ROUND_DURATION * 0.9, LIGHT);
+        expect(tryQueueAbilityOrder(boss, next.context, [player])).toBe(true);
+        expect(next.queued.map((o) => o.abilityId)).toEqual([PHANTOM_DECOY_ID]);
+        expect(getGrantedCasts(boss)).toEqual([]);
+        engine.destroy();
+    });
+
+    it('in a live battle the spirit casts Phantom Decoy right after Light Eater', () => {
+        const engine = makeEngine();
+        addLight(engine, 'fire', 14, 8, 12);
+        const [boss] = engine.spawnUnit(
+            enemySpawnDefToSpawnDefinition({ ...ENEMY_DISPLACER_SPIRIT, position: { x: cell(18), y: cell(8) } }, 'ai'),
+            'initialGameSpawn',
+        );
+        initializeAbilityRuntimeForUnit(boss!);
+        spawnPlayerTarget(engine, cell(12), cell(8));
+        const casts: { id: string; at: number }[] = [];
+        engine.eventBus.on('ability_used', (e) => {
+            if (e.unitId === boss!.id && e.abilityId !== DISPLACER_BOLT_ID) casts.push({ id: e.abilityId, at: engine.gameTime });
+        });
+        // Rounds 0-2: Light Eater runs in rounds 0 and 2 (round 2 had no Decoy under the old every-3-rounds timer).
+        step(engine, ROUND_DURATION * 3);
+        expect(casts.map((c) => c.id)).toEqual([LIGHT_EATER_ID, PHANTOM_DECOY_ID, LIGHT_EATER_ID, PHANTOM_DECOY_ID]);
+        const lightEaterDuration = getTotalAbilityDuration(LightEaterAbility);
+        for (const i of [0, 2]) {
+            const gap = casts[i + 1]!.at - (casts[i]!.at + lightEaterDuration);
+            expect(gap).toBeGreaterThanOrEqual(-1e-6);
+            expect(gap).toBeLessThan(0.25);
+        }
+        expect(Math.floor(casts[3]!.at / ROUND_DURATION)).toBe(2);
+        engine.destroy();
+    });
+
+    it('Phantom Decoy has no range cap: it can pick a player far beyond the old 400 px limit', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const far = spawnPlayerTarget(engine, boss.x - 2000, boss.y);
+        grantAiCasts(boss, [PHANTOM_DECOY_ID]);
+        // `far` is not in sight (empty candidate list), only in the wider any-range pool.
+        const picked = pickBestAbility(boss, [], queueContext(ROUND_DURATION * 1.1, []).context, [far]);
+        expect(picked?.ability.id).toBe(PHANTOM_DECOY_ID);
+        expect(picked?.target.id).toBe(far.id);
+        engine.destroy();
+    });
+
+    it('in a live battle the spirit casts a granted Phantom Decoy at a player it cannot see', () => {
+        const engine = makeEngine();
+        const grid = engine.terrainManager!.grid;
+        for (let row = 0; row < 16; row++) grid.set(15, row, TerrainType.Rock);
+        engine.terrainManager!.clearPathCache();
+        const [boss] = engine.spawnUnit(
+            enemySpawnDefToSpawnDefinition({ ...ENEMY_DISPLACER_SPIRIT, position: { x: cell(18), y: cell(8) } }, 'ai'),
+            'initialGameSpawn',
+        );
+        initializeAbilityRuntimeForUnit(boss!);
+        spawnPlayerTarget(engine, cell(12), cell(8)); // behind the wall
+        boss!.aiContext.aiState = 'displacerBoss_attack';
+        grantAiCasts(boss!, [PHANTOM_DECOY_ID]);
+        const casts: string[] = [];
+        engine.eventBus.on('ability_used', (e) => {
+            if (e.unitId === boss!.id) casts.push(e.abilityId);
+        });
+        step(engine, 0.5);
+        expect(casts).toEqual([PHANTOM_DECOY_ID]);
+        engine.destroy();
+    });
+
+    it('at half health the spirit recovers Light Eater and Phantom Decoy, once (no quarter-health trigger)', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, boss.x - 150, boss.y);
+        expect(getUnitPhases(boss.characterId)).toHaveLength(1);
+        boss.abilityRuntime[LIGHT_EATER_ID]!.currentUses = 0;
+        boss.abilityRuntime[PHANTOM_DECOY_ID]!.currentUses = 0;
+
+        boss.takeDamage(boss.maxHp * 0.4, null, engine.eventBus);
+        expect(getGrantedCasts(boss)).toEqual([]);
+        boss.takeDamage(boss.maxHp * 0.15, null, engine.eventBus);
+        expect(getGrantedCasts(boss)).toEqual([LIGHT_EATER_ID, PHANTOM_DECOY_ID]);
+        expect(boss.abilityRuntime[LIGHT_EATER_ID]!.currentUses).toBe(1);
+        expect(boss.abilityRuntime[PHANTOM_DECOY_ID]!.currentUses).toBe(1);
+        // Off schedule (round 1, first quarter), Light Eater is cast at once.
+        expect(pickBestAbility(boss, [player], queueContext(ROUND_DURATION * 1.1, LIGHT).context)?.ability.id).toBe(LIGHT_EATER_ID);
+
+        // Dropping below a quarter grants nothing more.
+        boss.aiContext.grantedCasts = [];
+        boss.takeDamage(boss.maxHp * 0.3, null, engine.eventBus);
+        expect(boss.isAlive()).toBe(true);
+        expect(getGrantedCasts(boss)).toEqual([]);
+        engine.destroy();
+    });
+});
+
+describe('Phantom Echo (0021): a decoy per projectile the spirit fires', () => {
+    function clonesOf(engine: GameEngine): Unit[] {
+        return engine.units.filter((u) => u.isAlive() && u.characterId === DISPLACER_CLONE_ID);
+    }
+
+    function fireBolt(engine: GameEngine, caster: Unit, player: Unit): void {
+        engine.state.orderMgr.applyOrder({
+            unitId: caster.id,
+            abilityId: DISPLACER_BOLT_ID,
+            targets: [{ type: 'pixel', position: { x: player.x, y: player.y } }],
+        });
+        step(engine, DISPLACER_BOLT_PREFIRE_TIME + 0.1);
+    }
+
+    it('the spirit carries the passive; clones do not', () => {
+        expect(ENEMY_DISPLACER_SPIRIT.abilities).toContain(PHANTOM_ECHO_ID);
+        expect(ENEMY_DISPLACER_CLONE.abilities).not.toContain(PHANTOM_ECHO_ID);
+    });
+
+    it('a bolt from the spirit conjures one decoy beside it, at the spirit\'s health fraction', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, boss.x - 150, boss.y);
+        boss.hp = boss.maxHp / 2;
+
+        fireBolt(engine, boss, player);
+        const clones = clonesOf(engine);
+        expect(clones).toHaveLength(1);
+        const d = Math.hypot(clones[0]!.x - boss.x, clones[0]!.y - boss.y);
+        expect(d).toBeGreaterThanOrEqual(PHANTOM_ECHO_MIN_DISTANCE - 1);
+        expect(d).toBeLessThanOrEqual(PHANTOM_ECHO_MAX_DISTANCE + 1);
+        expect(clones[0]!.hp / clones[0]!.maxHp).toBeCloseTo(0.5);
+        expect(clones[0]!.teamId).toBe(boss.teamId);
+        engine.destroy();
+    });
+
+    it('never conjures past 4 decoys, even from a 12-bolt Light Eater ring', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        // Twelve projectiles in one tick, as the ring fires them.
+        for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2;
+            spawnDisplacerBoltProjectile(engine, boss, Math.cos(a), Math.sin(a));
+        }
+        expect(clonesOf(engine)).toHaveLength(PHANTOM_ECHO_MAX_DECOYS);
+        spawnDisplacerBoltProjectile(engine, boss, 1, 0);
+        expect(clonesOf(engine)).toHaveLength(PHANTOM_ECHO_MAX_DECOYS);
+        engine.destroy();
+    });
+
+    it('a clone firing a bolt conjures nothing', () => {
+        const engine = makeEngine();
+        const clone = spawnEnemy(engine, ENEMY_DISPLACER_CLONE, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, clone.x - 150, clone.y);
+        fireBolt(engine, clone, player);
+        expect(engine.projectiles.some((p) => p.sourceUnitId === clone.id)).toBe(true);
+        expect(clonesOf(engine)).toHaveLength(1); // just itself
+        engine.destroy();
+    });
+});
+
+describe('Phantom Decoy visuals (display cues)', () => {
+    it('decoys fade in on appearing, and the wind-up splits the spirit into flickering copies', () => {
+        expect(getUnitAppearFadeInMs(DISPLACER_CLONE_ID)).toBe(DISPLACER_FADE_IN_MS);
+        expect(getUnitAppearFadeInMs(DISPLACER_SPIRIT_ID)).toBe(0);
+        const conjure = normalizeAbilityTimingsToIntervals(PhantomDecoyAbility.abilityTimings).find((i) => i.id === 'conjure')!;
+        expect(conjure.castBehaviours?.some((b) => b.behaviour instanceof CasterSplitFlickerBehaviour)).toBe(true);
+    });
+
+    it('cues the spirit to fade back in the moment its decoys appear', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, cell(8), cell(8));
+        const fades: { unitId: string; durationMs: number; clones: number }[] = [];
+        engine.eventBus.on('unit_fade_in', (e) => {
+            const clones = engine.units.filter((u) => u.characterId === DISPLACER_CLONE_ID && u.isAlive()).length;
+            fades.push({ ...e, clones });
+        });
+        engine.state.orderMgr.applyOrder({
+            unitId: boss.id,
+            abilityId: PHANTOM_DECOY_ID,
+            targets: [{ type: 'unit', unitId: player.id }],
+        });
+        step(engine, PHANTOM_DECOY_WINDUP - 0.05);
+        expect(fades).toEqual([]);
+        step(engine, 0.2);
+        expect(fades).toHaveLength(1);
+        expect(fades[0]!.unitId).toBe(boss.id);
+        expect(fades[0]!.durationMs).toBe(DISPLACER_FADE_IN_MS);
+        expect(fades[0]!.clones).toBeGreaterThan(0); // same tick the clones spawned
         engine.destroy();
     });
 });

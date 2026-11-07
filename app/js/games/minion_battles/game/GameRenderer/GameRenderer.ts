@@ -14,7 +14,7 @@ import type { Camera } from '../Camera';
 import type { TeamId } from '../teams';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainRenderer } from '../../terrain/TerrainRenderer';
-import type { DamageTakenEvent, TerrainStoneDamagedEvent } from '../EventBus';
+import type { DamageTakenEvent, TerrainStoneDamagedEvent, UnitFadeInEvent } from '../EventBus';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { ResolvedTarget, GhostPlanData } from '../types';
 import { AssetRegistry } from './AssetRegistry';
@@ -89,6 +89,7 @@ export class GameRenderer {
 	/** Engine whose eventBus is subscribed to `damage_taken` (must rebind when the engine instance changes). */
 	private eventBusSource: GameEngine | null = null;
 	private readonly damageTakenBound = (data: DamageTakenEvent) => this.unitRenderer.onDamageTaken(data);
+	private readonly unitFadeInBound = (data: UnitFadeInEvent) => this.unitRenderer.onUnitFadeIn(data);
 	private readonly terrainStoneDamagedBound = (e: TerrainStoneDamagedEvent) =>
 		this.terrainRenderer.invalidateTile(e.col, e.row);
 	private readonly daylightPulseBound = () => {
@@ -127,6 +128,7 @@ export class GameRenderer {
 	unbindFromEngine(engine: GameEngine | null | undefined): void {
 		if (!engine || this.eventBusSource !== engine) return;
 		engine.eventBus.off('damage_taken', this.damageTakenBound);
+		engine.eventBus.off('unit_fade_in', this.unitFadeInBound);
 		engine.eventBus.off('terrain_stone_damaged', this.terrainStoneDamagedBound);
 		engine.eventBus.off('daylight_damage_pulse', this.daylightPulseBound);
 		this.eventBusSource = null;
@@ -264,12 +266,14 @@ export class GameRenderer {
 			if (engine !== this.eventBusSource) {
 				if (this.eventBusSource) {
 					this.eventBusSource.eventBus.off('damage_taken', this.damageTakenBound);
+					this.eventBusSource.eventBus.off('unit_fade_in', this.unitFadeInBound);
 					this.eventBusSource.eventBus.off('terrain_stone_damaged', this.terrainStoneDamagedBound);
 					this.eventBusSource.eventBus.off('daylight_damage_pulse', this.daylightPulseBound);
 				}
 				this.eventBusSource = engine;
 				if (engine) {
 					engine.eventBus.on('damage_taken', this.damageTakenBound);
+					engine.eventBus.on('unit_fade_in', this.unitFadeInBound);
 					engine.eventBus.on('terrain_stone_damaged', this.terrainStoneDamagedBound);
 					engine.eventBus.on('daylight_damage_pulse', this.daylightPulseBound);
 				}
@@ -391,6 +395,7 @@ export class GameRenderer {
 		if (!this.initialized) return;
 		if (this.eventBusSource) {
 			this.eventBusSource.eventBus.off('damage_taken', this.damageTakenBound);
+			this.eventBusSource.eventBus.off('unit_fade_in', this.unitFadeInBound);
 			this.eventBusSource.eventBus.off('daylight_damage_pulse', this.daylightPulseBound);
 			this.eventBusSource = null;
 		}

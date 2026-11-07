@@ -54,6 +54,53 @@ export function offsetsFromCaster(offsets: ReadonlyArray<{ dx: number; dy: numbe
  * Usage:
  *   behaviour: new SpawnUnitsBehaviour({ template, positions: offsetsFromCaster([...]) })
  */
+/**
+ * Spawn one unit from `template` at each point, owned by `spawner`, through the shared spawner core. The
+ * building block behind `SpawnUnitsBehaviour`, usable without a cast (e.g. passive `spawn_units`).
+ * Returns the spawned units in point order.
+ */
+export function spawnUnitsAtPoints(
+    spawner: Unit,
+    template: SpawnUnitsTemplate,
+    positions: readonly SpawnPoint[],
+    engine: { units: Unit[]; gameTime: number },
+): Unit[] {
+    if (positions.length === 0) return [];
+    // A template taken from a mission-style def carries its own placement and count; the points own both here.
+    const { placement: _ignoredPlacement, count: _ignoredCount, ...overrides } = template;
+    const spec: SpawnerSpec<null> = {
+        child: {
+            characterId: template.characterId,
+            name: template.name ?? template.characterId,
+            abilities: template.abilities,
+            team: template.teamId,
+            aiSettings: template.aiSettings ?? null,
+            spawnRadiusExtraPx: 0,
+            inheritInvulnerability: false,
+            spawnSource: 'abilitySpawn',
+        },
+        maxChildren: () => positions.length,
+        intervalSec: () => 0,
+        burstCount: () => positions.length,
+        describeChild: (_spawner, living) => ({
+            aiHookup: template.aiHookup ?? { kind: 'none' },
+            placement: { kind: 'fixedWorld', x: positions[living]!.x, y: positions[living]!.y },
+            // The whole template wins over the generated fields, so nothing is lost or reinterpreted.
+            overrides,
+        }),
+    };
+    const state: SpawnerState = { spawnedIds: [], nextSpawnAtGameTime: 0 };
+    return spawnSpawnerChildren({
+        spawner,
+        cfg: null,
+        state,
+        spec,
+        count: positions.length,
+        spawnCtx: engine as unknown as SpawnUnitContext,
+        env: { units: engine.units, gameTime: engine.gameTime },
+    });
+}
+
 export class SpawnUnitsBehaviour implements CastBehaviour {
     constructor(private readonly config: SpawnUnitsConfig) {}
 
@@ -72,40 +119,7 @@ export class SpawnUnitsBehaviour implements CastBehaviour {
         if (positions.length === 0) return;
 
         const template = typeof config.template === 'function' ? config.template(ctx) : config.template;
-        // A template taken from a mission-style def carries its own placement and count; the picker owns both here.
-        const { placement: _ignoredPlacement, count: _ignoredCount, ...overrides } = template;
-        const spec: SpawnerSpec<null> = {
-            child: {
-                characterId: template.characterId,
-                name: template.name ?? template.characterId,
-                abilities: template.abilities,
-                team: template.teamId,
-                aiSettings: template.aiSettings ?? null,
-                spawnRadiusExtraPx: 0,
-                inheritInvulnerability: false,
-                spawnSource: 'abilitySpawn',
-            },
-            maxChildren: () => positions.length,
-            intervalSec: () => 0,
-            burstCount: () => positions.length,
-            describeChild: (_spawner, living) => ({
-                aiHookup: template.aiHookup ?? { kind: 'none' },
-                placement: { kind: 'fixedWorld', x: positions[living]!.x, y: positions[living]!.y },
-                // The whole template wins over the generated fields, so nothing is lost or reinterpreted.
-                overrides,
-            }),
-        };
-        const state: SpawnerState = { spawnedIds: [], nextSpawnAtGameTime: 0 };
-
-        const spawned = spawnSpawnerChildren({
-            spawner: ctx.caster,
-            cfg: null,
-            state,
-            spec,
-            count: positions.length,
-            spawnCtx: eng as unknown as SpawnUnitContext,
-            env: { units: eng.units, gameTime: eng.gameTime },
-        });
+        const spawned = spawnUnitsAtPoints(ctx.caster, template, positions, eng);
 
         spawned.forEach((unit, i) => config.onSpawned?.(ctx, unit, i, positions[i]!));
         config.onBatchSpawned?.(ctx, spawned);

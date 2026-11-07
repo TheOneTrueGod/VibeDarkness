@@ -63,7 +63,8 @@ export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
 
 /**
  * Displacer Spirit boss: slime-style ranged bolt (0017, same targeting/AI range as the slime) that
- * flies twice as far as it aims, Light Eater (0018) and the super-bar Phantom Decoy (0019).
+ * flies twice as far as it aims, Light Eater (0018), the super-bar Phantom Decoy (0019) and the passive
+ * Phantom Echo (0021: a decoy per projectile fired, up to 4 alive).
  * Baseline hp/speed/starting super bars in unit defs. Own AI tree: kites at ~70% bolt range.
  */
 export const ENEMY_DISPLACER_SPIRIT: EnemySpawnDef = {
@@ -71,7 +72,7 @@ export const ENEMY_DISPLACER_SPIRIT: EnemySpawnDef = {
     name: 'Displacer Spirit',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
-    abilities: ['0017', '0018', '0019', '0020'],
+    abilities: ['0017', '0018', '0019', '0020', '0021'],
     aiSettings: { minRange: 0, maxRange: 140 },
     unitTags: [UnitTag.Boss, UnitTag.ShowHpBar],
     unitAITreeId: 'displacerBoss',

@@ -17,6 +17,7 @@ import {
 } from './types';
 import { Unit } from './units/Unit';
 import { Projectile } from './projectiles/Projectile';
+import { processUnitPassiveEvent } from '../abilities/passiveRunner';
 import { Effect } from './effects/Effect';
 import type { TeamId } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
@@ -461,10 +462,14 @@ export class GameEngine implements EngineContext {
     getLocalPlayerUnit(): Unit | undefined { return this.state.unitManager.getLocalPlayerUnit(this.localPlayerId); }
     getAllies(caster: Unit): Unit[] { return this.state.unitManager.getAllies(caster); }
 
+    /** The one entry point for a newly fired projectile (checkpoint restore goes to the manager directly). */
     addProjectile(projectile: Projectile): void {
         projectile.id = this.allocateObjectId('proj');
         this.state.projectileManager.addProjectile(projectile);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(projectile.id), Math.floor(projectile.x), Math.floor(projectile.y));
+        // Passives that react to their owner firing (e.g. the Displacer Spirit conjuring a decoy per shot).
+        const shooter = projectile.sourceUnitId ? this.getUnit(projectile.sourceUnitId) : undefined;
+        if (shooter) processUnitPassiveEvent(shooter, 'onProjectileFired', this);
     }
 
     addEffect(effect: Effect): void {

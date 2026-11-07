@@ -7,7 +7,7 @@
 
 import { AbilityState } from '../../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry } from '../../../abilities/Ability';
-import { AbilityPhase } from '../../../abilities/abilityTimings';
+import { AbilityPhase, withJuggernautBeforeCooldown } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { offsetsFromCaster } from '../../../abilities/CastBehaviours/SpawnUnitsBehaviour';
 import type { Unit } from '../../../game/units/Unit';
@@ -99,7 +99,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: PREFIRE_TIME,
-    abilityTimings: [
+    abilityTimings: withJuggernautBeforeCooldown([
         {
             id: 'windup',
             start: 0,
@@ -158,7 +158,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
             end: PREFIRE_TIME + 3.1,
             abilityPhase: AbilityPhase.Cooldown,
         },
-    ],
+    ]),
     targets: [] as TargetDef[],
     aiSettings: {
         minRange: 0,

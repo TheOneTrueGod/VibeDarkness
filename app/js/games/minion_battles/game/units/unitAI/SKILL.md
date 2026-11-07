@@ -202,6 +202,18 @@ ctx.aiState = 'aggroWander_attack';
    - **RNG pitfall:** `generateRandomInteger(0, n)` with a small `n` uses the LCG's low bits, which cycle
      (the lowest bit alternates every draw). The rotation shuffle scales a 2^30 draw instead; do the same
      for any coin flip that must vary.
+7. **Schedules and chained casts (any tree, no node code):**
+   - `roundWindow` (part of each round) and `roundInterval: { every, offset? }` (which rounds) gate when the
+     AI may pick an ability. Prefer these over a `canUse` that does round maths; keep `canUse` for world
+     preconditions (e.g. "a light exists").
+   - `followUp: [abilityId]` — queuing this ability grants the follow-ups, so they are cast right after it.
+   - `onlyWhenGranted: true` — never picked on its own schedule; only from a grant (e.g. a pure follow-up).
+   - Granted casts (`grantedCasts.ts`, on `aiContext.grantedCasts`) restore a use, skip the schedule gates
+     (`roundWindow`, `roundInterval`, `maxUsesPerRound`, `onlyWhenGranted`) and outrank every ungranted
+     ability, oldest first. Tags, range, `requireAffordable` and `canUse` still apply; a grant waits until
+     castable and is spent when its order is queued. Sources: `followUp`, and phase `grantAiCasts` (e.g. a
+     boss recovering moves at an HP threshold). Reference: Light Eater / Phantom Decoy and the Displacer
+     Spirit's phases in `unitDef.ts`.
 
 ## Adding a new tree
 

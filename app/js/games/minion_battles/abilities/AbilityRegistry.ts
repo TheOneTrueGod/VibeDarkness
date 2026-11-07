@@ -62,6 +62,7 @@ import { LanterniteStrikeAbility } from '../card_defs/0010_LanterniteStrike/0010
 import { LanterniteNestAuraAbility } from '../card_defs/dark_animals/0014_LanterniteNestAura/0014Ability';
 import { LightEaterAbility } from '../card_defs/dark_animals/0018_LightEater/0018Ability';
 import { PhantomDecoyAbility } from '../card_defs/dark_animals/0019_PhantomDecoy/0019Ability';
+import { PhantomEchoAbility } from '../card_defs/dark_animals/0021_PhantomEcho/0021Ability';
 import { DisplacerBoltAbility } from '../card_defs/dark_animals/0017_DisplacerBolt/0017Ability';
 import { FrenziedDisplacerBoltAbility } from '../card_defs/dark_animals/0020_FrenziedDisplacerBolt/0020Ability';
 import { HuskGraspAbility } from '../card_defs/11_enemy_husk/1101_HuskGrasp/1101Ability';
@@ -195,6 +196,7 @@ register(DisplacerBoltAbility);
 register(FrenziedDisplacerBoltAbility);
 register(LightEaterAbility);
 register(PhantomDecoyAbility);
+register(PhantomEchoAbility);
 register(HuskGraspAbility);
 register(MiasmaAbility);
 register(GaolersHookAbility_1201);

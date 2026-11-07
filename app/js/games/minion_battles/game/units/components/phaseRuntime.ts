@@ -25,6 +25,7 @@ import { UnitTag, addUnitTag, hasUnitTag, removeUnitTag } from '../unitTag';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { TimeDilationBuff, applyTimeDilationBuff } from '../../../buffs/TimeDilationBuff';
 import { getUnitAITree, isNodeInTree, setCurrentNodeId } from '../unitAI';
+import { grantAiCasts } from '../unitAI/grantedCasts';
 import type { PhaseCondition, UnitPhaseDef } from './phaseDef';
 import { peekPhaseState, phasesOf, type UnitPhaseState } from './phaseComponent';
 
@@ -128,8 +129,9 @@ function enterPhase(unit: Unit, state: UnitPhaseState, phase: UnitPhaseDef, engi
         engine.eventBus.emit('unit_enraged', { unitId: unit.id, tag: UnitTag.Enraged });
     }
 
-    // 2. Explicit ability list changes.
+    // 2. Explicit ability list changes, then recovered casts (after adds, so a new ability can be granted).
     applyAbilityChanges(unit, phase);
+    grantAiCasts(unit, phase.grantAiCasts);
 
     // 3. Modifiers.
     applyModifiers(unit, phase, engine);

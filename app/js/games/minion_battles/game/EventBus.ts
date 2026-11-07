@@ -22,6 +22,7 @@ export type GameEventType =
     | 'action_title'
     | 'unit_phase_entered'
     | 'ability_used'
+    | 'unit_fade_in'
     | 'projectile_hit'
     | 'terrain_stone_damaged'
     | 'nearby_stone_damaged'
@@ -172,6 +173,16 @@ export interface AbilityUsedEvent {
     abilityId: string;
 }
 
+/**
+ * Render cue: fade this unit's visual in from transparent over `durationMs` of wall time (display only).
+ * E.g. the Displacer Spirit reappearing among its fresh decoys. Units whose def sets `appearFadeInMs`
+ * fade in on their own when they first appear.
+ */
+export interface UnitFadeInEvent {
+    unitId: string;
+    durationMs: number;
+}
+
 export interface ProjectileHitEvent {
     projectileId: string;
     targetUnitId: string;
@@ -320,6 +331,7 @@ export type GameEventDataMap = {
     action_title: ActionTitleEvent;
     unit_phase_entered: UnitPhaseEnteredEvent;
     ability_used: AbilityUsedEvent;
+    unit_fade_in: UnitFadeInEvent;
     projectile_hit: ProjectileHitEvent;
     terrain_stone_damaged: TerrainStoneDamagedEvent;
     nearby_stone_damaged: NearbyStoneDamagedEvent;

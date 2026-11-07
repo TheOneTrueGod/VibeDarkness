@@ -14,6 +14,7 @@ import {
     normalizeAbilityTimingsToIntervals,
     normalizeLegacyAbilityTimings,
     resolveAbilityTimingEntries,
+    withJuggernautBeforeCooldown,
 } from './abilityTimings';
 
 describe('normalizeLegacyAbilityTimings', () => {
@@ -305,5 +306,24 @@ describe('coop tail split + elapsedIsInCoopCooldown', () => {
         ]);
         const merged = buildPrimaryTimelineSegments(intervals);
         expect(merged.some((s) => s.phaseId === 'coopCooldown')).toBe(true);
+    });
+});
+
+describe('withJuggernautBeforeCooldown', () => {
+    it('tags every interval except Cooldown / CoopCooldown, keeping existing tags', () => {
+        const out = withJuggernautBeforeCooldown([
+            { id: 'windup', start: 0, end: 0.5, abilityPhase: AbilityPhase.Windup },
+            { id: 'dodge', start: 0.5, end: 0.6, abilityPhase: AbilityPhase.Active, tags: ['iframe'] },
+            { id: 'already', start: 0.6, end: 0.7, abilityPhase: AbilityPhase.Active, tags: ['juggernaut'] },
+            { id: 'cooldown', start: 0.7, end: 1, abilityPhase: AbilityPhase.Cooldown },
+            { id: 'coop', start: 1, end: 1.2, abilityPhase: AbilityPhase.CoopCooldown },
+        ]);
+        expect(out.map((i) => i.tags ?? [])).toEqual([
+            ['juggernaut'],
+            ['iframe', 'juggernaut'],
+            ['juggernaut'],
+            [],
+            [],
+        ]);
     });
 });

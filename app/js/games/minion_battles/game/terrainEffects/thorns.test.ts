@@ -24,7 +24,7 @@ function unit(characterId: string): Unit {
 }
 
 const base = { enterDamage: 1, landDamage: 2, consumeOnTrigger: false };
-const engine = () => ({ terrainLayers: new TerrainLayerManager(), eventBus: new EventBus() });
+const engine = () => ({ gameTime: 0, terrainLayers: new TerrainLayerManager(), eventBus: new EventBus() });
 
 describe('unitIsHurtByThorns', () => {
     it('honours only / except filters', () => {

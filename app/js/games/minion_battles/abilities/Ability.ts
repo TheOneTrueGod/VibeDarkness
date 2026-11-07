@@ -143,6 +143,22 @@ export interface AbilityAISettings {
      */
     roundWindow?: { start: number; end: number };
     /**
+     * Restricts the AI to every `every`-th round, counting from round `offset` (default 0): with
+     * `{ every: 2 }` the ability is only picked in rounds 0, 2, 4, ... Combine with `roundWindow`
+     * for "every other round, mid-round".
+     */
+    roundInterval?: { every: number; offset?: number };
+    /**
+     * When true, the AI never picks this ability on its own schedule, only from a granted cast
+     * (another ability's `followUp`, or a phase's `grantAiCasts`). See `unitAI/grantedCasts.ts`.
+     */
+    onlyWhenGranted?: boolean;
+    /**
+     * Abilities the AI casts right after this one: queuing this ability grants each of them one
+     * off-schedule cast (restoring a use). See `unitAI/grantedCasts.ts`.
+     */
+    followUp?: readonly string[];
+    /**
      * When true, the AI only picks this ability if the caster can currently afford its resource
      * costs (`canAffordAbility`). Needed for enemy abilities that spend a resource (e.g. super bars),
      * because the AI otherwise does not check affordability.

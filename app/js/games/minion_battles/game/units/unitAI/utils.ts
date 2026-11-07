@@ -18,6 +18,7 @@ import { meetsTagRequirements } from '../../../abilities/abilityUses';
 import { hasCastTimeline } from '../../../abilities/abilityTimings';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { MIN_FOLLOW_RADIUS, ROUND_DURATION } from '../../gameConstants';
+import { consumeGrantedCast, getGrantedCasts, grantAiCasts } from './grantedCasts';
 
 export { ROUND_DURATION } from '../../gameConstants';
 
@@ -31,6 +32,13 @@ export function getRoundFraction(gameTime: number): number {
 export function isInRoundWindow(gameTime: number, window: { start: number; end: number }): boolean {
     const f = getRoundFraction(gameTime);
     return f >= window.start && f < window.end;
+}
+
+/** True when `gameTime` falls in a round picked by `aiSettings.roundInterval` (every `every` rounds from `offset`). */
+export function isInRoundInterval(gameTime: number, interval: { every: number; offset?: number }): boolean {
+    const every = Math.max(1, Math.floor(interval.every));
+    const round = Math.floor(gameTime / ROUND_DURATION + 1e-9) - (interval.offset ?? 0);
+    return round >= 0 && round % every === 0;
 }
 
 /** Euclidean distance between two points. */
@@ -277,7 +285,8 @@ export function pickBestAbility(
     filter?: AbilityPickFilter,
 ): { ability: AbilityStatic; target: Unit } | null {
     const randomInt = (min: number, max: number) => context.generateRandomInteger(min, max);
-    const candidates: { ability: AbilityStatic; target: Unit; priority: number }[] = [];
+    const candidates: { ability: AbilityStatic; target: Unit; priority: number; grantRank: number }[] = [];
+    const granted = getGrantedCasts(unit);
 
     for (const abilityId of unit.abilities) {
         if (filter?.only && !filter.only.includes(abilityId)) continue;
@@ -287,12 +296,20 @@ export function pickBestAbility(
         if (!hasCastTimeline(ability, unit)) continue;
 
         const ai = ability.aiSettings;
-        if (ai?.maxUsesPerRound != null && context.getAbilityUsesThisRound) {
-            const used = context.getAbilityUsesThisRound(unit.id, ability.id);
-            if (used >= ai.maxUsesPerRound) continue;
+        // A granted cast (follow-up / phase recovery) ignores the schedule gates and outranks everything else.
+        const grantIndex = granted.indexOf(abilityId);
+        const isGranted = grantIndex >= 0;
+        const grantRank = isGranted ? granted.length - grantIndex : 0;
+        if (!isGranted) {
+            if (ai?.onlyWhenGranted) continue;
+            if (ai?.maxUsesPerRound != null && context.getAbilityUsesThisRound) {
+                const used = context.getAbilityUsesThisRound(unit.id, ability.id);
+                if (used >= ai.maxUsesPerRound) continue;
+            }
+            if (ai?.roundWindow && !isInRoundWindow(context.gameTime, ai.roundWindow)) continue;
+            if (ai?.roundInterval && !isInRoundInterval(context.gameTime, ai.roundInterval)) continue;
         }
         if (!meetsTagRequirements(unit, ability)) continue;
-        if (ai?.roundWindow && !isInRoundWindow(context.gameTime, ai.roundWindow)) continue;
         if (ai?.requireAffordable && !canAffordAbility(unit, ability)) continue;
         if (ai?.canUse && !ai.canUse(unit, context)) continue;
 
@@ -302,24 +319,25 @@ export function pickBestAbility(
             if (ai?.enforceRangeWhenUntargeted) {
                 const validTarget = findAIAbilityTarget(unit, ability, enemyPool, randomInt);
                 if (validTarget && aiSelectPlanIsUsable(unit, ability, validTarget, context)) {
-                    candidates.push({ ability, target: validTarget, priority: ai?.priority ?? 0 });
+                    candidates.push({ ability, target: validTarget, priority: ai?.priority ?? 0, grantRank });
                 }
                 continue;
             }
             if (enemyPool.length > 0 && aiSelectPlanIsUsable(unit, ability, enemyPool[0]!, context)) {
-                candidates.push({ ability, target: enemyPool[0]!, priority: ai?.priority ?? 0 });
+                candidates.push({ ability, target: enemyPool[0]!, priority: ai?.priority ?? 0, grantRank });
             }
             continue;
         }
 
         const validTarget = findAIAbilityTarget(unit, ability, enemyPool, randomInt);
         if (validTarget && aiSelectPlanIsUsable(unit, ability, validTarget, context)) {
-            candidates.push({ ability, target: validTarget, priority: ai?.priority ?? 0 });
+            candidates.push({ ability, target: validTarget, priority: ai?.priority ?? 0, grantRank });
         }
     }
 
     if (candidates.length === 0) return null;
-    candidates.sort((a, b) => b.priority - a.priority);
+    // Granted casts first (oldest grant first), then priority.
+    candidates.sort((a, b) => b.grantRank - a.grantRank || b.priority - a.priority);
     const best = candidates[0]!;
     return { ability: best.ability, target: best.target };
 }
@@ -386,6 +404,7 @@ export function tryQueueAbilityOrder(
         const pool = mgr.getPool(poolType);
         if (pool?.config.enabled) {
             mgr.registerRequest(poolType, unit, ability, resolvedTargets, movePath, context.gameTick);
+            onAiCastQueued(unit, ability);
             context.emitTurnEnd(unit.id);
             return true;
         }
@@ -398,6 +417,13 @@ export function tryQueueAbilityOrder(
         targetsByLabel,
         movePath,
     });
+    onAiCastQueued(unit, ability);
     context.emitTurnEnd(unit.id);
     return true;
+}
+
+/** Bookkeeping once the AI has committed to a cast: spend its grant, grant its follow-ups. */
+function onAiCastQueued(unit: Unit, ability: AbilityStatic): void {
+    consumeGrantedCast(unit, ability.id);
+    grantAiCasts(unit, ability.aiSettings?.followUp);
 }

@@ -7,6 +7,7 @@
  */
 
 import type { CreatureType } from '../game/units/unit_defs/unitDef';
+import type { SpawnUnitsTemplate } from './CastBehaviours/SpawnUnitsBehaviour';
 
 // ---- Triggers ----
 
@@ -25,7 +26,16 @@ export interface PassiveOnCellEnterTrigger {
     type: 'onCellEnter';
 }
 
-export type PassiveTrigger = PassiveOnTickTrigger | PassiveOnCellEnterTrigger;
+/**
+ * Fires each time a projectile owned by the unit is created (`GameEngine.addProjectile`): a cast shot, each
+ * bolt of a ring, a mirrored echo. Only the unit carrying the passive reacts, so its summons don't unless
+ * they carry it too.
+ */
+export interface PassiveOnProjectileFiredTrigger {
+    type: 'onProjectileFired';
+}
+
+export type PassiveTrigger = PassiveOnTickTrigger | PassiveOnCellEnterTrigger | PassiveOnProjectileFiredTrigger;
 
 /** Trigger types that fire from a unit event rather than the clock. */
 export type PassiveEventTriggerType = Exclude<PassiveTrigger['type'], 'onTick'>;
@@ -94,7 +104,30 @@ export interface PassivePlaceTerrainEffect {
     pulseRadius?: number;
 }
 
-export type PassiveEffect = PassiveAoeDamageEffect | PassivePlaceTerrainEffect;
+/**
+ * Spawn units on the caster's team in a ring around the caster (e.g. a boss conjuring a decoy as it fires).
+ * Positions use the engine RNG, so every client agrees.
+ */
+export interface PassiveSpawnUnitsEffect {
+    type: 'spawn_units';
+    /** What each unit looks like. Its team is always the caster's. */
+    template: SpawnUnitsTemplate;
+    /** Units per trigger. */
+    count: number;
+    /**
+     * Cap: spawn only while fewer than this many living units with `template.characterId` are on the caster's
+     * team (the caster itself never counts), and never past it. Omit for no cap.
+     */
+    maxLiving?: number;
+    /** Ring around the caster (px): spawn points sit between `minDistance` and `maxDistance`, `minSpacing` apart. */
+    placement: { minDistance: number; maxDistance: number; minSpacing?: number };
+    /** Spawned units start at the caster's current HP fraction. */
+    inheritHpFraction?: boolean;
+    /** If set, a `Pulse` effect in these colours plays at each spawn point. */
+    pulseColors?: readonly number[];
+}
+
+export type PassiveEffect = PassiveAoeDamageEffect | PassivePlaceTerrainEffect | PassiveSpawnUnitsEffect;
 
 // ---- Top-level def ----
 

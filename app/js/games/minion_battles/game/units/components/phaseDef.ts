@@ -69,6 +69,12 @@ export interface UnitPhaseDef {
     tags?: { add?: UnitTag[]; remove?: UnitTag[] };
     /** Explicit ability list changes, for finer control than tags. */
     abilities?: { add?: string[]; remove?: string[] };
+    /**
+     * Abilities the unit recovers on entering: each gets a use back and one off-schedule AI cast, in
+     * list order, as soon as it can be cast (`unitAI/grantedCasts.ts`). E.g. a boss re-opening its
+     * signature moves at an HP threshold.
+     */
+    grantAiCasts?: string[];
     /** Swap the AI tree, and/or jump to a node of the (new) tree. */
     ai?: { treeId?: string; node?: string };
     modifiers?: PhaseModifiers;

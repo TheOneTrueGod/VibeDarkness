@@ -22,6 +22,7 @@ import type { CcResistKey } from '../../../crowdControl/ccTypes';
 import { UnitTag, hidesWorldHpBar } from '../unitTag';
 import { enragePreset, type UnitPhaseDef } from '../components/phaseDef';
 import { PHASE_COMPONENT } from '../components/phaseComponent';
+import { DISPLACER_FADE_IN_MS, DISPLACER_LIGHT_EATER_ID, DISPLACER_PHANTOM_DECOY_ID } from '../../displacer/displacerConstants';
 import type { LightHateDef } from '../../lightHate';
 import { DarknessLevel } from '../../darknessLevels';
 import type { EnemySpawnDef } from '../../../storylines/types';
@@ -82,11 +83,11 @@ const ALLY_PET_GLOW_COLOR = 0x3b82f6; // blue-500
 /** Color for allied player-controlled units. */
 const ALLY_PLAYER_GLOW_COLOR = 0x9ca3af; // gray-400
 /** Color for enemy unit glows. */
-const ENEMY_GLOW_COLOR = 0xef4444; // red-500
+export const ENEMY_GLOW_COLOR = 0xef4444; // red-500
 /** Color for nature-faction unit glows. */
 const NATURE_GLOW_COLOR = 0x22c55e; // green-500
 /** Glow radius around units. */
-const GLOW_RADIUS = 6;
+export const GLOW_RADIUS = 6;
 /** Scale of character sprite relative to hitbox diameter (1 = same size). */
 export const CHARACTER_SPRITE_SCALE = 0.85;
 
@@ -229,6 +230,11 @@ export interface UnitDefEntry {
      */
     displayWiggleRadius?: number;
     /**
+     * Display-only fade-in (wall-time ms) when this unit first appears on screen, e.g. a conjured decoy.
+     * Never touches engine state. A running fade can also be started with the `unit_fade_in` event.
+     */
+    appearFadeInMs?: number;
+    /**
      * This character belongs to a master of another character type on its team (e.g. the Court
      * Magician's crystals). Its master's abilities find it with `getBoundUnits`, and the `boundFixture`
      * AI tree despawns it once no master of that type is alive. See `units/boundUnits.ts`.
@@ -363,7 +369,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         bodyColor: 0x1e3a5f,
         displayName: 'Displacer Spirit',
         sprite: UNIT_SPRITE_URLS.displacer_spirit,
-        bestiary: { abilityIds: ['0017', '0018', '0019'] },
+        bestiary: { abilityIds: ['0017', '0018', '0019', '0021'] },
         characterSpriteKey: 'displacer_spirit',
         hp: 120,
         // Slime is 50; a bit above that (no ghost unit def exists yet — see mission notes).
@@ -379,7 +385,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         startingResources: { super: 2 },
         displayWiggleRadius: 10,
         // Enrages at half health, like the alpha wolf: bigger decoys, a double-tap bolt, a denser light-eater ring.
-        phases: [enragePreset(0.5)],
+        // At half health it also recovers Light Eater and Phantom Decoy, cast at once off schedule.
+        phases: [{ ...enragePreset(0.5), grantAiCasts: [DISPLACER_LIGHT_EATER_ID, DISPLACER_PHANTOM_DECOY_ID] }],
     },
     displacer_clone: {
         bodyColor: 0x1e3a5f,
@@ -399,6 +406,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         maxPerTile: 1,
         tags: [UnitTag.Clone],
         displayWiggleRadius: 10,
+        // Decoys fade in quickly as they are conjured (display only, wall time).
+        appearFadeInMs: DISPLACER_FADE_IN_MS,
     },
     lanternite: {
         bodyColor: 0x34d399,
@@ -623,6 +632,11 @@ export function getBaseSpawnDefs(): Record<string, EnemySpawnDef> {
 /** Display-only sprite wiggle radius (px) for a character id; 0 when it does not wiggle. */
 export function getUnitDisplayWiggleRadius(characterId: string): number {
     return UNIT_DEFS[characterId as UnitDefId]?.displayWiggleRadius ?? 0;
+}
+
+/** Display-only fade-in (wall-time ms) when a unit of this character first appears; 0 = none. */
+export function getUnitAppearFadeInMs(characterId: string): number {
+    return UNIT_DEFS[characterId as UnitDefId]?.appearFadeInMs ?? 0;
 }
 
 /** Resources (and starting values) attached to every spawn of this character id. */

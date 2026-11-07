@@ -84,6 +84,15 @@ export function isUnitInJuggernautWindow(unit: Unit, gameTime: number): boolean 
 }
 
 /**
+ * True while terrain hazards ignore the unit: no drowning on entering Water, no wall ejection (or its
+ * bounce damage) while inside rock, so neither interrupts the cast. Granted by a juggernaut window.
+ * Once it ends the normal rules apply again to wherever the unit then stands.
+ */
+export function isUnitImmuneToTerrainHazards(unit: Unit, gameTime: number): boolean {
+    return unit.isInJuggernautWindow(gameTime);
+}
+
+/**
  * Returns the effective lunge distance for an ability, applying terrain speed multipliers.
  * The same two terrain layers used for movement speed are applied here.
  * Designed to be extended later with per-weapon-class research bonuses.

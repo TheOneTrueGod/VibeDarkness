@@ -1,8 +1,9 @@
 /**
  * displacerBoss_attack - Flit around the nearest player at ~70% bolt range without pausing (it only
- * stands still while casting), and cast the best eligible ability. Ability priority (set on the abilities) resolves
- * conflicts: Phantom Decoy (second half, needs a super bar) > Light Eater (second or third quarter, every
- * other round) > Displacer Bolt (up to 4 per round).
+ * stands still while casting), and cast the best eligible ability. Scheduling lives on the abilities:
+ * Light Eater (second or third quarter, every other round, needs a light) > Displacer Bolt (up to 4 per
+ * round). Phantom Decoy has no schedule: it is Light Eater's `followUp`, and the spirit's HP phases recover
+ * both (granted casts, which outrank everything; see `unitAI/grantedCasts.ts`).
  */
 
 import type { Unit } from '../../Unit';
@@ -31,7 +32,10 @@ export const displacerBoss_attack: AINode<'displacerBoss', DisplacerBossNodeId> 
             ctx.targetUnitId = target.id;
 
             applyKiteMovement(unit, target, context, { continuous: true });
-            if (inSight.length > 0 && tryQueueAbilityOrder(unit, context, inSight)) return;
+            // Most abilities need a player in sight; `candidateScope: 'anyNearby'` ones (Phantom Decoy) may target
+            // any living player at any range, so they get every enemy regardless of distance or cover.
+            const everyEnemy = getEnemiesInRangeNearestFirst(unit, context, Number.POSITIVE_INFINITY);
+            if (tryQueueAbilityOrder(unit, context, inSight, everyEnemy)) return;
             context.emitTurnEnd(unit.id);
         },
     },

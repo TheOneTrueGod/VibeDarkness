@@ -6,6 +6,9 @@
 
 export const DISPLACER_SPIRIT_ID = 'displacer_spirit';
 export const DISPLACER_CLONE_ID = 'displacer_clone';
+/** Ability ids of the spirit's signature moves (as on their cards), for unit-def data such as phase grants. */
+export const DISPLACER_LIGHT_EATER_ID = '0018';
+export const DISPLACER_PHANTOM_DECOY_ID = '0019';
 
 /** Super bars the boss spawns with (also set via the unit def's `startingResources`). */
 export const DISPLACER_STARTING_SUPER_BARS = 2;
@@ -28,6 +31,21 @@ export const PHANTOM_DECOY_SPAWN_RADIUS = 160;
 export const PHANTOM_DECOY_MIN_DISTANCE_FROM_TARGET = 50;
 /** Minimum centre-to-centre spacing between clones (px) so they do not overlap. */
 export const PHANTOM_DECOY_MIN_SPACING = 44;
+
+// --- Decoy visuals (display only) -----------------------------------------
+/** Wall-time fade-in (ms) of a decoy as it appears, and of the spirit reappearing among a Phantom Decoy batch. */
+export const DISPLACER_FADE_IN_MS = 250;
+/** Phantom Decoy wind-up: the spirit flickers between two copies drifting this far (px) from its centre. */
+export const PHANTOM_DECOY_SPLIT_SEPARATION_PX = 22;
+/** Phantom Decoy wind-up flicker rate (frames per second of game time). */
+export const PHANTOM_DECOY_SPLIT_FLICKER_FPS = 14;
+
+// --- Phantom Echo (passive: a decoy per projectile fired) ---------------------
+/** The spirit only conjures an echo decoy while fewer than this many decoys are alive. */
+export const PHANTOM_ECHO_MAX_DECOYS = 4;
+/** Echo decoys appear in this ring around the spirit (px). */
+export const PHANTOM_ECHO_MIN_DISTANCE = 40;
+export const PHANTOM_ECHO_MAX_DISTANCE = 100;
 /** Random placement attempts per clone before giving up on it. */
 export const PHANTOM_DECOY_PLACEMENT_ATTEMPTS = 30;
 
@@ -43,9 +61,8 @@ export const DISPLACER_KITE_PAUSE_SEC = { min: 0.3, max: 0.9 } as const;
 export const DISPLACER_KITE_ORBIT_RADIANS = 0.9;
 
 // --- Round timing (fractions of ROUND_DURATION) -----------------------------
-/** Decoy opens at the halfway point of round 0 (t = 0.5 rounds), then every `PHANTOM_DECOY_ROUND_INTERVAL` rounds (3.5, 6.5, ...). */
-export const PHANTOM_DECOY_ROUND_WINDOW = { start: 0.5, end: 1 } as const;
-export const PHANTOM_DECOY_ROUND_INTERVAL = 3;
+// Phantom Decoy has no schedule: it follows every Light Eater (`aiSettings.followUp`) and is recovered by
+// the spirit's HP phases (`grantAiCasts` on its unit def).
 export const LIGHT_EATER_ROUND_WINDOW = { start: 0.25, end: 0.75 } as const; // second or third quarter
 /** Light Eater is usable only every other round (rounds 0, 2, 4, ...). */
 export const LIGHT_EATER_ROUND_INTERVAL = 2;

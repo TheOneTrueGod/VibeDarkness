@@ -28,14 +28,17 @@ import {
     syncUnitCharacterSpriteIfNeeded,
     CHARACTER_SPRITE_SCALE,
     getUnitDisplayWiggleRadius,
+    getUnitAppearFadeInMs,
     type IUnitRenderContext,
 } from '../../units/unit_defs/unitDef';
 import { getSpawnRenderState } from '../../units/spawnVisuals';
 import { getDrowningRenderState, type DrowningRenderState } from '../../terrainHazards/drowning';
 import { DisplayWiggle } from '../displayWiggle';
+import { shouldShowJuggernautRing, syncJuggernautRing } from './juggernautRing';
 import { hitStunShakeOffset } from './hitStunShake';
 import { getBuffVisualRenderer } from '../../../buffs/buffVisuals';
-import type { DamageTakenEvent } from '../../EventBus';
+import type { DamageTakenEvent, UnitFadeInEvent } from '../../EventBus';
+import { isUnitFadeInDone, unitFadeInAlpha, type UnitFadeInState } from './unitFadeIn';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { isLanterniteNest, lanterniteStateOf, peekLanterniteState } from '../../units/components/lanterniteComponent';
 import { syncDarknessNeedles } from './darknessNeedleVisual';
@@ -55,6 +58,8 @@ export class UnitRenderer {
     private unitVisuals: Map<string, Container> = new Map();
     /** Local-only display wiggle per unit (defs with `displayWiggleRadius`); never serialized or synced. */
     private unitWiggles: Map<string, DisplayWiggle> = new Map();
+    /** Running wall-time fade-ins, by unit id (`unitFadeIn.ts`). */
+    private unitFadeIns: Map<string, UnitFadeInState> = new Map();
     /** Wall-clock time (ms) of the previous renderUnits call; wiggle runs on real time so it moves while paused. */
     private lastWiggleRealTimeMs: number | null = null;
     private knockbackShadowVisuals: Map<string, Graphics> = new Map();
@@ -109,6 +114,11 @@ export class UnitRenderer {
         // Shield buff soaked the hit with no HP loss -> blue; partial absorbs stay red.
         const shieldSoaked = (data.shieldAbsorbed ?? 0) > 0 && (data.hpDamage ?? 0) <= 0;
         this.startHitFlash(data.unitId, container, unit.radius, shieldSoaked ? SHIELD_HIT_FLASH_COLOR : HIT_FLASH_COLOR);
+    }
+
+    /** `unit_fade_in` event: (re)start the unit's fade-in now, on wall time. */
+    onUnitFadeIn(data: UnitFadeInEvent): void {
+        this.unitFadeIns.set(data.unitId, { startMs: performance.now(), durationMs: data.durationMs });
     }
 
     clearHitFlashes(): void {
@@ -170,6 +180,10 @@ export class UnitRenderer {
                 visual.zIndex = Z_UNITS;
                 this.unitVisuals.set(unit.id, visual);
                 this.gameContainer.addChild(visual);
+                const appearFadeMs = getUnitAppearFadeInMs(unit.characterId);
+                if (appearFadeMs > 0 && !this.unitFadeIns.has(unit.id)) {
+                    this.unitFadeIns.set(unit.id, { startMs: nowMs, durationMs: appearFadeMs });
+                }
             }
 
             let renderOffsetX = 0;
@@ -315,6 +329,14 @@ export class UnitRenderer {
             visual.y = unit.y + renderOffsetY + wiggleY + knockupYOffset + (spawnState?.yOffset ?? 0) + (drowning?.sinkY ?? 0);
             this.drawHoverFlightJuice(unit, visual.x, visual.y, wiggleDt);
             visual.visible = unit.active && (spawnState ? spawnState.visible : true);
+            const fadeIn = this.unitFadeIns.get(unit.id);
+            if (fadeIn) {
+                visual.alpha = unitFadeInAlpha(nowMs, fadeIn);
+                if (isUnitFadeInDone(nowMs, fadeIn)) {
+                    this.unitFadeIns.delete(unit.id);
+                    visual.alpha = 1;
+                }
+            }
             this.updateDrowningMask(unit.id, visual, drowning, unit.x, unit.radius);
 
             // Grow-in animation: scale from 0 → 1 over growAnimTimer duration (nestSpawn units)
@@ -366,6 +388,7 @@ export class UnitRenderer {
                 if (label) label.visible = false;
                 if (glow) glow.visible = false;
                 if (playerRing) playerRing.visible = false;
+                syncJuggernautRing(visual, unit, false);
             } else {
                 if (body) {
                     body.clear();
@@ -388,6 +411,12 @@ export class UnitRenderer {
                 if (label) label.visible = true;
                 if (glow) glow.visible = true;
                 if (playerRing) playerRing.visible = true;
+                // Uninterruptible enemy cast: solid red band with a juggernaut-blue inner border (hides the glow).
+                syncJuggernautRing(
+                    visual,
+                    unit,
+                    shouldShowJuggernautRing(unit, engine.gameTime, areEnemies(localTeamId, unit.teamId)),
+                );
                 if (showHpBar) updateUnitHpBar(visual, unit);
             }
 
@@ -601,6 +630,9 @@ export class UnitRenderer {
             }
         }
 
+        for (const id of this.unitFadeIns.keys()) {
+            if (!activeUnitIds.has(id)) this.unitFadeIns.delete(id);
+        }
         for (const id of this.unitWiggles.keys()) {
             if (!activeUnitIds.has(id)) this.unitWiggles.delete(id);
         }

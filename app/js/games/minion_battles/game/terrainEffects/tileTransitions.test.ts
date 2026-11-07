@@ -56,6 +56,7 @@ function placeThorn(
 
 function makeEngine(units: Unit[], terrainLayers: TerrainLayerManager) {
     return {
+        gameTime: 0,
         units,
         terrainLayers,
         eventBus: new EventBus(),

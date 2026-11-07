@@ -8,7 +8,7 @@
  */
 
 import type { AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
-import { AbilityPhase } from '../../../abilities/abilityTimings';
+import { AbilityPhase, withJuggernautBeforeCooldown } from '../../../abilities/abilityTimings';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { haltCommandedUnits } from '../../../abilities/commandUnits';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
@@ -179,7 +179,7 @@ const _base: AbilityStatic = defineAbility({
     requiredTags: [UnitTag.Enraged],
     // Constant damage: no hit freeze per pulse.
     hitImpact: { hitstopSeconds: 0, hitstunSeconds: 0 },
-    abilityTimings: [
+    abilityTimings: withJuggernautBeforeCooldown([
         {
             id: 'gather',
             start: 0,
@@ -246,7 +246,7 @@ const _base: AbilityStatic = defineAbility({
             ],
         },
         { id: 'cooldown', start: FIRE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
-    ],
+    ]),
     targets: [{ type: 'pixel', label: 'Target' }] as TargetDef[],
     aiSettings: {
         minRange: 0,
