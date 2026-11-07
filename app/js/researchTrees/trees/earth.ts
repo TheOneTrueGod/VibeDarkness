@@ -121,6 +121,7 @@ export const earthTree: ResearchTreeDef = {
         {
             id: EARTH_NODE_ROCK_SYNERGY_DAMAGE,
             title: 'Stone Synergy',
+            disabled: true,
             description: 'Earth resonance strengthens your throws. Rock throws deal {+4} damage; charged rock explosions deal {+2} damage.',
             // Also a stat upgrade (on top of the tree's `core` tag), e.g. for campsite stat slots.
             tags: ['stat'],
@@ -149,6 +150,7 @@ export const earthTree: ResearchTreeDef = {
         {
             id: EARTH_NODE_ROCK_SYNERGY_ENTOMBED,
             title: 'Buried Arsenal',
+            disabled: true,
             description: 'Your rock throw abilities gain {Entombed}.',
             order: 8,
             tier: 2,
@@ -248,6 +250,7 @@ export const earthTree: ResearchTreeDef = {
         {
             id: EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE,
             title: 'Grinding Debris',
+            disabled: true,
             description: 'Gather Stone also grinds loose rubble: enemies standing on a rubble tile in the area take {6} damage (each enemy once per cast).',
             flavorText: 'The gravel bites back.',
             order: 12,

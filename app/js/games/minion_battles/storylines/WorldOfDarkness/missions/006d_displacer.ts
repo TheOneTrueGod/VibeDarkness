@@ -22,7 +22,7 @@ import { ENEMY_DARK_WOLF, ENEMY_DISPLACER_SPIRIT } from '../../../constants/enem
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
-import { WOD_CH2_MAP_X_COL1, WOD_CH2_MAP_Y_ROW1 } from '../chapter2Map';
+import { WOD_CH2_MAP_X_COL0, WOD_CH2_MAP_Y_ROW1 } from '../chapter2Map';
 import { DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS } from '../../../../../researchTrees/trees/darkness_upgrades';
 import {
     MAP_SEGMENT_0_0_BOSS_ARENA,
@@ -159,7 +159,7 @@ export class DisplacerMission extends BaseMissionDef {
 
     missionId = DISPLACER_MISSION_ID;
     /** Chapter 2 grid — row 1 col 1, right after the third campsite on the path. */
-    mapPosition = { x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 };
+    mapPosition = { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 };
     missionType = 'boss' as const;
     description = 'A spirit flickers in the lit circle. Its bolts fly farther than they seem to aim.';
     /** First Darkness Upgrade: the Displacer Spirit's power empowers the slimes (and sweetens future victories). */

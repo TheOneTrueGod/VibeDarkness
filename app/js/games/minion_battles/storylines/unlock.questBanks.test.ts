@@ -173,11 +173,11 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
     it('chains the second and third Surface Quests pickers on the campsite after the previous one', () => {
         expect(WOD_POST_CORE_QUEST_BANK_2.id).toBe(WOD_POST_CORE_QUEST_BANK_2_ID);
         // Chained through the campsite (which is gated on the previous picker), so the map line runs campsite → picker.
-        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBeUndefined();
-        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterMissionId).toBe('campsite_4');
+        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBe(WOD_EXAMPLE_QUEST_BANK_ID);
+        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterMissionId).toBeUndefined();
         expect(WOD_POST_CORE_QUEST_BANK_2.requiredClears).toBe(2);
         expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({
-            x: WOD_CH2_MAP_X_COL2,
+            x: WOD_CH2_MAP_X_COL1,
             y: WOD_CH2_MAP_Y_ROW0,
         });
         expect(WOD_POST_CORE_QUEST_BANK_2.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
@@ -185,7 +185,7 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterMissionId).toBe('campsite');
         expect(WOD_POST_CORE_QUEST_BANK_3.requiredClears).toBe(3);
         expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({
-            x: WOD_CH2_MAP_X_COL3,
+            x: WOD_CH2_MAP_X_COL2,
             y: WOD_CH2_MAP_Y_ROW1,
         });
         expect(WOD_POST_CORE_QUEST_BANK_3.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
@@ -193,30 +193,18 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         const banks = WorldOfDarknessStoryline.questSlotBanks ?? [];
         expect(isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterCore, [], banks)).toBe(false);
         const bank1Cleared = [bankVictory(SWARMLING_SOURCE.id, WOD_EXAMPLE_QUEST_BANK_ID)];
-        // The first picker alone is not enough; the campsite after it must be visited.
+        // Surface Quests 2 opens as soon as picker 1 is full (no campsite in between).
         expect(
             isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterCore, bank1Cleared, banks),
-        ).toBe(false);
-        expect(
-            isQuestSlotBankUnlocked(
-                WOD_POST_CORE_QUEST_BANK_2,
-                [...afterCore, victoryMission('campsite_4')],
-                bank1Cleared,
-                banks,
-            ),
         ).toBe(true);
+        // Picker 3 still waits for the campsite after picker 2.
         expect(
-            isQuestSlotBankUnlocked(
-                WOD_POST_CORE_QUEST_BANK_3,
-                [...afterCore, victoryMission('campsite_4')],
-                bank1Cleared,
-                banks,
-            ),
+            isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_3, afterCore, bank1Cleared, banks),
         ).toBe(false);
         expect(
             isQuestSlotBankUnlocked(
                 WOD_POST_CORE_QUEST_BANK_3,
-                [...afterCore, victoryMission('campsite_4'), victoryMission('campsite')],
+                [...afterCore, victoryMission('campsite')],
                 bank1Cleared,
                 banks,
             ),

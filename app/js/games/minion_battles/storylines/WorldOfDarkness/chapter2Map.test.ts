@@ -28,7 +28,7 @@ import {
 } from './WorldOfDarkness';
 import { WOD_CH0_MAP_X_COL0, WOD_CH0_MAP_X_COL1, WOD_CH0_MAP_X_COL2, WOD_CH0_MAP_Y_ROW0, WOD_CH0_MAP_Y_ROW1 } from './chapter0Map';
 import { COURT_MAGICIAN_MISSION } from './missions/013_court_magician';
-import { CAMPSITE, CAMPSITE_2, CAMPSITE_3, CAMPSITE_4 } from './questMissions/campsite';
+import { CAMPSITE, CAMPSITE_2 } from './questMissions/campsite';
 import { CRYSTAL_CORRUPTION } from './missions/004b_crystal_corruption';
 import { DISPLACER } from './missions/006d_displacer';
 import { THORNBINDER_ARENA } from './missions/006b_thornbinder_arena';
@@ -47,13 +47,11 @@ describe('chapter 2 mission map grid', () => {
 
     it('snakes the questline: row 0 left to right, then wraps to row 1 moving left', () => {
         expect(WOD_POST_CORE_QUEST_BANK.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW0 });
-        expect(CAMPSITE_4.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW0 });
-        expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW0 });
-        expect(CAMPSITE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW0 });
-        expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(CAMPSITE_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(DISPLACER.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(CAMPSITE_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW0 });
+        expect(CAMPSITE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW0 });
+        expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(CAMPSITE_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(DISPLACER.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 });
     });
 
     it('puts dedicated side quests below a "Side Quests" divider', () => {
@@ -76,9 +74,9 @@ describe('chapter 2 mission map grid', () => {
     it('chains each node on the previous one', () => {
         const edges = WorldOfDarknessStoryline.edges ?? [];
         expect(WOD_POST_CORE_QUEST_BANK.unlockAfterMissionId).toBe('core_awakening');
-        expect(edges.find((e) => e.toMissionId === 'campsite_4')?.requiresQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK.id);
-        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBeUndefined();
-        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterMissionId).toBe('campsite_4');
+        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK.id);
+        expect(edges.map((e) => e.toMissionId)).not.toContain('campsite_3');
+        expect(edges.map((e) => e.toMissionId)).not.toContain('campsite_4');
         expect(edges.find((e) => e.toMissionId === 'campsite')?.requiresQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_2.id);
         expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterMissionId).toBe('campsite');
         expect(edges.find((e) => e.toMissionId === 'campsite_2')?.requiresQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_3.id);

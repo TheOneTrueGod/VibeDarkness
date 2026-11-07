@@ -203,9 +203,9 @@ describe('resolveResearchRewardSlots - stat (Training) slots', () => {
         expect(maxed.has(TRAINING_NODE_MIGHTY)).toBe(false);
     });
 
-    it('offers Stone Synergy as a stat upgrade to an Earth Core character', () => {
+    it('does not offer the disabled Stone Synergy stat upgrade', () => {
         const seen = offeredStatNodeIds(CHIP_RESEARCH, CHIP_EQUIPMENT, { accountKnowledge: KNOWS_RESEARCH });
-        expect(seen.has(EARTH_NODE_ROCK_SYNERGY_DAMAGE)).toBe(true);
+        expect(seen.has(EARTH_NODE_ROCK_SYNERGY_DAMAGE)).toBe(false);
     });
 
     it('offers Earth Attuned as a stat upgrade to an Earth Core character', () => {

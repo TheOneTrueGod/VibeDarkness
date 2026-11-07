@@ -7,10 +7,8 @@ import { BaseMissionDef } from '../../BaseMissionDef';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { PostMissionStoryDef, ResearchRewardSlot } from '../../storyTypes';
 import {
-    WOD_CH2_MAP_X_COL0,
     WOD_CH2_MAP_X_COL1,
     WOD_CH2_MAP_X_COL2,
-    WOD_CH2_MAP_X_COL3,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
 } from '../chapter2Map';
@@ -22,13 +20,6 @@ import { TerrainType } from '../../../terrain/TerrainType';
 export const CAMPSITE_MISSION_ID = 'campsite';
 /** Campsite between Surface Quests 3 and Displacer. */
 export const CAMPSITE_2_MISSION_ID = 'campsite_2';
-/** Campsite right after Displacer. */
-export const CAMPSITE_3_MISSION_ID = 'campsite_3';
-/**
- * First campsite on the chapter 2 path, between Surface Quests 1 and 2.
- * Numbered 4 because it was added last; ids are persisted in saves, so the others keep theirs.
- */
-export const CAMPSITE_4_MISSION_ID = 'campsite_4';
 export const CAMPSITE_CHOICE_ID = 'campsite_research_choice';
 export const CAMPSITE_HUNGER_RECOVERY = 20;
 /** Core picks offered at a campsite, at most. */
@@ -96,26 +87,14 @@ export class CampsiteMission extends BaseMissionDef {
     ninjutsuPools = { shadow: NINJUTSU_DISABLED };
 }
 
-/** Chapter 2 row 0 col 1, between Surface Quests 1 and 2. */
-export const CAMPSITE_4 = new CampsiteMission(CAMPSITE_4_MISSION_ID, {
-    x: WOD_CH2_MAP_X_COL1,
-    y: WOD_CH2_MAP_Y_ROW0,
-});
-
-/** Chapter 2 row 0 col 3, between Surface Quests 2 and 3. */
+/** Chapter 2 row 0 col 2, between Surface Quests 2 and 3. */
 export const CAMPSITE = new CampsiteMission(CAMPSITE_MISSION_ID, {
-    x: WOD_CH2_MAP_X_COL3,
+    x: WOD_CH2_MAP_X_COL2,
     y: WOD_CH2_MAP_Y_ROW0,
 });
 
-/** Chapter 2 row 1 col 2, between Surface Quests 3 and Displacer. */
+/** Chapter 2 row 1 col 1, between Surface Quests 3 and Displacer. */
 export const CAMPSITE_2 = new CampsiteMission(CAMPSITE_2_MISSION_ID, {
-    x: WOD_CH2_MAP_X_COL2,
-    y: WOD_CH2_MAP_Y_ROW1,
-});
-
-/** Chapter 2 row 1 col 0, right after Displacer. */
-export const CAMPSITE_3 = new CampsiteMission(CAMPSITE_3_MISSION_ID, {
-    x: WOD_CH2_MAP_X_COL0,
+    x: WOD_CH2_MAP_X_COL1,
     y: WOD_CH2_MAP_Y_ROW1,
 });

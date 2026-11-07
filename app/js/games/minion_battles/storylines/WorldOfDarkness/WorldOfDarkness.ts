@@ -19,8 +19,6 @@ import {
 import {
     CAMPSITE_MISSION_ID,
     CAMPSITE_2_MISSION_ID,
-    CAMPSITE_3_MISSION_ID,
-    CAMPSITE_4_MISSION_ID,
 } from './questMissions/campsite';
 import { THE_LONELY_CASTLE_MISSION_ID } from './missions/011_the_lonely_castle';
 import { THE_CASTLE_COURTYARD_MISSION_ID } from './missions/012_the_castle_courtyard';
@@ -116,15 +114,15 @@ export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
     isSideQuest: true,
 };
 
-/** Second Surface Quests picker. Unlocks after the campsite that follows the first picker. */
+/** Second Surface Quests picker. Unlocks right after the first picker. */
 export const WOD_POST_CORE_QUEST_BANK_2: QuestSlotBank = {
     id: WOD_POST_CORE_QUEST_BANK_2_ID,
     title: surfaceQuestTitle(2),
-    unlockAfterMissionId: CAMPSITE_4_MISSION_ID,
+    unlockAfterQuestBankId: WOD_POST_CORE_QUEST_BANK_ID,
     requiredClears: WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS,
     filters: WOD_SURFACE_QUEST_FILTERS,
     displaySlotCount: WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS,
-    mapPosition: { x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW0 },
+    mapPosition: { x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW0 },
     isSideQuest: true,
 };
 
@@ -136,7 +134,7 @@ export const WOD_POST_CORE_QUEST_BANK_3: QuestSlotBank = {
     requiredClears: WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS,
     filters: WOD_SURFACE_QUEST_FILTERS,
     displaySlotCount: WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS,
-    mapPosition: { x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 },
+    mapPosition: { x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 },
     isSideQuest: true,
 };
 
@@ -221,15 +219,8 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'cave_respite' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        // Chapter 2 questline: Surface Quests 1 → Campsite → Surface Quests 2 → Campsite → Surface Quests 3 → Campsite → Displacer → Campsite.
+        // Chapter 2 questline: Surface Quests 1 → Surface Quests 2 → Campsite → Surface Quests 3 → Campsite → Displacer.
         // South Gate Swarm and Crystal Corruption are side quests; Thornbinder Arena lives in the admin-only Chapter 0.
-        // Campsite sits between Surface Quests 1 and 2.
-        {
-            fromMissionId: 'core_awakening',
-            result: 'victory',
-            toMissionId: CAMPSITE_4_MISSION_ID,
-            requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_ID,
-        },
         // Campsite sits between Surface Quests 2 and 3.
         {
             fromMissionId: 'core_awakening',
@@ -245,9 +236,8 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_3_ID,
         },
         { fromMissionId: CAMPSITE_2_MISSION_ID, result: 'victory', toMissionId: 'displacer' },
-        { fromMissionId: 'displacer', result: 'victory', toMissionId: CAMPSITE_3_MISSION_ID },
         // Chapter 3
-        { fromMissionId: CAMPSITE_3_MISSION_ID, result: 'victory', toMissionId: THE_LONELY_CASTLE_MISSION_ID },
+        { fromMissionId: 'displacer', result: 'victory', toMissionId: THE_LONELY_CASTLE_MISSION_ID },
         { fromMissionId: THE_LONELY_CASTLE_MISSION_ID, result: 'victory', toMissionId: THE_CASTLE_COURTYARD_MISSION_ID },
     ],
     questSlotBanks: [
@@ -287,8 +277,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
                 WOD_POST_CORE_QUEST_BANK_3_ID,
             ],
             missionIds: [
-                CAMPSITE_4_MISSION_ID, CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID,
-                'displacer', CAMPSITE_3_MISSION_ID,
+                CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID, 'displacer',
             ],
             mapDividers: [{ y: WOD_CH2_MAP_Y_SIDE_QUEST_DIVIDER, label: 'Side Quests' }],
         },
@@ -297,7 +286,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             id: 'wod_ch3',
             numeral: 'III',
             title: 'The Lonely Castle',
-            unlockAfterMissionId: CAMPSITE_3_MISSION_ID,
+            unlockAfterMissionId: 'displacer',
             missionIds: [THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID],
         },
         {

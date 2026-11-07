@@ -138,17 +138,7 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         expect(unlocked.has('thornbinder_arena')).toBe(false);
     });
 
-    it('unlocks the first campsite after Surface Quests 1', () => {
-        expect(getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING).has('campsite_4')).toBe(false);
-        const bank1Done: QuestResult[] = [
-            { questDefId: 'a', result: 'victory', placement: 'bank', bankId: WOD_POST_CORE_QUEST_BANK_ID },
-        ];
-        expect(
-            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank1Done).has('campsite_4'),
-        ).toBe(true);
-    });
-
-    it('unlocks the campsite before Displacer after bank 3, then Displacer after that campsite, then the last campsite after Displacer', () => {
+    it('unlocks the campsite before Displacer after bank 3, then Displacer after that campsite', () => {
         const bankVictory = (questDefId: string): QuestResult => ({
             questDefId,
             result: 'victory',
@@ -172,14 +162,6 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         );
         expect(afterCampsite2.has('displacer')).toBe(true);
         expect(afterCampsite2.has('thornbinder_arena')).toBe(false);
-        expect(afterCampsite2.has('campsite_3')).toBe(false);
-        const afterDisplacer = getUnlockedMissionIds(
-            WorldOfDarknessStoryline,
-            [...THROUGH_CORE_AWAKENING, victory('campsite_2'), victory('displacer')],
-            bank2Done,
-        );
-        expect(afterDisplacer.has('campsite_3')).toBe(true);
-        expect(afterDisplacer.has('thornbinder_arena')).toBe(false);
     });
 
     it('keeps single-chapter campaigns behaving as before', () => {
@@ -215,7 +197,7 @@ describe('getAllMissionIdsInOrder — flat list still complete', () => {
     it('includes chapter 2 missions that no longer sit on an edge', () => {
         const ids = getAllMissionIdsInOrder(WorldOfDarknessStoryline);
         expect(ids).toContain('displacer');
-        expect(ids).toContain('campsite_3');
+        expect(ids).not.toContain('campsite_3');
         expect(ids).not.toContain('thornbinder_arena'); // admin-only Chapter 0 is hidden by default
         expect(ids).not.toContain('crystal_corruption');
         expect(ids).not.toContain('the_circle');

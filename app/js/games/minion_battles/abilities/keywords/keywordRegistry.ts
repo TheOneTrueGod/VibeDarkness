@@ -164,6 +164,12 @@ registerGlossaryTerm({
 });
 
 registerGlossaryTerm({
+    title: 'Entombed',
+    matches: ['entombed'],
+    description: 'Allows the ability to be used while encased in rock.',
+});
+
+registerGlossaryTerm({
     title: 'Stun',
     matches: ['stun', 'stuns', 'stunned'],
     description: 'Cannot move or act for that many seconds.',

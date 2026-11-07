@@ -7,7 +7,6 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { resolveParallelOrderPause } from '../../../testing/runner/SimulationRunner';
 import { registerWorldOfDarknessSegments } from '../registerSegments';
 import { WorldOfDarknessStoryline } from '../WorldOfDarkness';
-import { CAMPSITE_3_MISSION_ID } from '../questMissions/campsite';
 import {
     BRIDGE_THRESHOLD,
     CAVE_ROAD_REGION,
@@ -63,9 +62,9 @@ describe('The Lonely Castle (011)', () => {
     it('opens Chapter 3, reached from the last Chapter 2 campsite', () => {
         const ch3 = WorldOfDarknessStoryline.chapters?.find((c) => c.id === 'wod_ch3');
         expect(ch3?.missionIds?.[0]).toBe(THE_LONELY_CASTLE_MISSION_ID);
-        expect(ch3?.unlockAfterMissionId).toBe(CAMPSITE_3_MISSION_ID);
+        expect(ch3?.unlockAfterMissionId).toBe('displacer');
         expect(WorldOfDarknessStoryline.edges).toContainEqual(
-            expect.objectContaining({ fromMissionId: CAMPSITE_3_MISSION_ID, toMissionId: THE_LONELY_CASTLE_MISSION_ID }),
+            expect.objectContaining({ fromMissionId: 'displacer', toMissionId: THE_LONELY_CASTLE_MISSION_ID }),
         );
     });
 
