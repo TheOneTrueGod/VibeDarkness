@@ -33,7 +33,7 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
 const MAX_USES = 2;
 /** The dash movement. The cast ends one tick after it (see the `dashEnd` interval); no cooldown. */
 const DASH_DURATION = 0.4;
-const MAX_DISTANCE = 160;
+const MAX_DISTANCE = 120; // playtest: -1 tile (was 160)
 const UNIT_DAMAGE = 6;
 export const DIGGING_CLAWS_MAX_TARGETS = 5;
 const ROCK_DAMAGE = 35;

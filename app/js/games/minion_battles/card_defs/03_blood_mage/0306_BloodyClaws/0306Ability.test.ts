@@ -274,9 +274,9 @@ describe('BloodyClawsAbility_0306', () => {
 });
 
 describe('Bloody Claws research node', () => {
-    it('is a tier-10 node requiring Blood Mage Core that grants card 0306', () => {
+    it('is a tier-11 node requiring Blood Mage Core that grants card 0306', () => {
         const node = bloodMageTree.nodes.find((n) => n.id === BLOOD_MAGE_NODE_CLAWS);
-        expect(node?.tier).toBe(10);
+        expect(node?.tier).toBe(11);
         expect(node?.prereqNodeIds).toEqual([BLOOD_MAGE_NODE_CORE]);
         expect(node?.effects).toContainEqual({ type: 'addCard', cardId: CARD_ID });
     });

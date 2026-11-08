@@ -95,13 +95,13 @@ describe('Repair Post (1011)', () => {
         registerArmoryContent();
     });
 
-    it('is unlocked by its own tier-15 Armory node, and the player gets the card', () => {
+    it('is unlocked by its own tier-11 Armory node, and the player gets the card', () => {
         const node = armoryTree.nodes.find((entry) => entry.id === ARMORY_NODE_REPAIR_POST)!;
-        expect(node.tier).toBe(15);
+        expect(node.tier).toBe(11);
         expect(node.prereqNodeIds).toEqual([ARMORY_NODE_CORE]);
         expect(node.effects).toContainEqual({ type: 'addCard', cardId: REPAIR_POST_ABILITY_ID });
         const total = (node.cost.attunement ?? 0) + (node.cost.vigor ?? 0) + (node.cost.metal ?? 0);
-        expect(total).toBe(30);
+        expect(total).toBe(22);
         expect(repairBattle().units[0]!.abilities).toContain(REPAIR_POST_ABILITY_ID);
     });
 

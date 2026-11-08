@@ -178,6 +178,9 @@ export default function CharacterEditor({
     const [researchSources, setResearchSources] = useState<ResearchNodeSources>(
         () => character.researchSources ?? {},
     );
+    const [researchTreeLevels, setResearchTreeLevels] = useState<Record<string, number>>(
+        () => character.researchTreeLevels ?? {},
+    );
     const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
     const [adminUseGridView, setAdminUseGridView] = useState(true);
     const [localCampaign, setLocalCampaign] = useState<CampaignState | null>(null);
@@ -242,7 +245,14 @@ export default function CharacterEditor({
         setResearchTrees(character.researchTrees ?? {});
         setResearchNodeLevels(character.researchNodeLevels ?? {});
         setResearchSources(character.researchSources ?? {});
-    }, [character.equipment, character.researchTrees, character.researchNodeLevels, character.researchSources]);
+        setResearchTreeLevels(character.researchTreeLevels ?? {});
+    }, [
+        character.equipment,
+        character.researchTrees,
+        character.researchNodeLevels,
+        character.researchSources,
+        character.researchTreeLevels,
+    ]);
 
     useEffect(() => {
         setName(character.name);
@@ -419,7 +429,7 @@ export default function CharacterEditor({
         }
     }, [api, permissionAccount?.role, resolvedCampaign?.id]);
 
-    const { handleResetResearch, handleResetResearchBySource, handleResearchNode } = useResearchActions({
+    const { handleResetResearch, handleResetResearchBySource, handleResearchNode, handleSetTreeLevel } = useResearchActions({
         character,
         api,
         account,
@@ -431,6 +441,7 @@ export default function CharacterEditor({
         researchTrees,
         researchNodeLevels,
         researchSources,
+        researchTreeLevels,
         activeResearchTrees,
         activeResearchNodeLevels,
         viewResearch,
@@ -445,6 +456,7 @@ export default function CharacterEditor({
         setResearchTrees,
         setResearchNodeLevels,
         setResearchSources,
+        setResearchTreeLevels,
         setEquipment,
     });
 
@@ -638,6 +650,8 @@ export default function CharacterEditor({
             character={character}
             equipment={equipment}
             viewResearch={viewResearch}
+            researchTreeLevels={researchTreeLevels}
+            onSetTreeLevel={handleSetTreeLevel}
             saving={saving}
             grantResourceKey={grantResourceKey}
             onGrantResourceKeyChange={setGrantResourceKey}

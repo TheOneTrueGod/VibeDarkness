@@ -25,6 +25,7 @@ import { ZERO_CAMPAIGN_RESOURCES } from '../campaignResources';
 import { RESEARCH_TREES } from './list';
 import { DEFAULT_PASSIVE_MULT, getAddAtLevel, getMultBonusAtLevel, getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 import { getNodeResearchSources } from './researchSources';
+import { getCharacterTreeLevel, requiredTreeLevelForNode } from './treeLevels';
 
 export interface ResearchContext {
     account: AccountState;
@@ -380,6 +381,16 @@ export function canResearchNode(
     // Requirements: treat campaignResourceMin against effective resources (after already-researched)
     const effective = computeEffectiveResourcesForTree(tree, ctx);
     const ctxEffective: ResearchContext = { ...ctx, campaignResources: effective };
+
+    // Rank gate: core-tree nodes need a tree level of (rank - 10).
+    const treeLevel = getCharacterTreeLevel(ctx.character, tree);
+    for (const n of neededNodes) {
+        // The target node is bought at its next level; auto-researched prereqs at their first.
+        const buyLevel = n.id === nodeId ? currentLevel + 1 : 1;
+        if (requiredTreeLevelForNode(tree, n, buyLevel) > treeLevel) {
+            return { ok: false, missing: ['tree_level_too_low'] };
+        }
+    }
 
     // Requirements must hold for each node to be researched (and the target node)
     for (const n of neededNodes) {

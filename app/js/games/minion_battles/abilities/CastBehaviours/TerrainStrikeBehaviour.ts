@@ -54,32 +54,55 @@ export function strikeTerrain(
     tiles: readonly TileCoord[],
     effect: TerrainStrikeEffect,
 ): TileCoord[] {
+    return strikeTerrainDetailed(engine, caster, tiles, effect).struck;
+}
+
+/**
+ * {@link strikeTerrain} that also reports `rockDamaged`: the rock durability actually removed, in tiles'
+ * worth of full HP (1 = a full tile's durability). A tile that had less than the hit left only counts
+ * what it lost. `consumeRock` counts the destroyed tile's remaining durability.
+ */
+export function strikeTerrainDetailed(
+    engine: Pick<AbilityEngineContext, 'terrainManager'>,
+    caster: Pick<Unit, 'id'>,
+    tiles: readonly TileCoord[],
+    effect: TerrainStrikeEffect,
+): { struck: TileCoord[]; rockDamaged: number } {
     const tm = engine.terrainManager;
-    if (!tm || tiles.length === 0) return [];
+    if (!tm || tiles.length === 0) return { struck: [], rockDamaged: 0 };
 
     if (effect.kind === 'consumeRock') {
         const centre = tiles[0]!;
         const destroyed = tm.consumeRockInRadius(centre.col, centre.row, effect.radiusTiles, caster.id);
-        return destroyed ? [{ col: destroyed.col, row: destroyed.row }] : [];
+        if (!destroyed) return { struck: [], rockDamaged: 0 };
+        return {
+            struck: [{ col: destroyed.col, row: destroyed.row }],
+            rockDamaged: destroyed.maxHealth > 0 ? destroyed.previousHealth / destroyed.maxHealth : 1,
+        };
     }
 
     // Pre-check intact rock: damageRock returns null unless a crack tier changes or the rock is
     // destroyed, so its return value cannot say whether a tile was struck. isIntactRockAt is false
     // out of bounds, so edge-of-map voids never count.
     const struck: TileCoord[] = [];
+    let rockDamaged = 0;
     for (const tile of tiles) {
         if (!tm.isIntactRockAt(tile.col, tile.row)) continue;
+        const before = tm.getRockHealth(tile.col, tile.row);
+        const maxHealth = tm.getRockMaxHealth(tile.col, tile.row);
         tm.damageRock(tile.col, tile.row, effect.amount, caster.id);
+        const lost = before - tm.getRockHealth(tile.col, tile.row);
+        if (maxHealth > 0) rockDamaged += lost / maxHealth;
         struck.push({ col: tile.col, row: tile.row });
     }
-    return struck;
+    return { struck, rockDamaged };
 }
 
 export class TerrainStrikeBehaviour implements CastBehaviour {
     private _resolveTiles: ((ctx: CastBehaviourTickContext) => TileCoord[]) | null = null;
     private _effect: TerrainStrikeEffect = { kind: 'damageRock' };
     private _at: 'start' | 'end' = 'start';
-    private _onStruck: ((ctx: CastBehaviourTickContext, struck: TileCoord[]) => void) | null = null;
+    private _onStruck: ((ctx: CastBehaviourTickContext, struck: TileCoord[], rockDamaged: number) => void) | null = null;
 
     /** Strike the tile containing the point `resolver` returns (null skips the strike). */
     atPoint(resolver: (ctx: CastBehaviourTickContext) => { x: number; y: number } | null): this {
@@ -116,8 +139,11 @@ export class TerrainStrikeBehaviour implements CastBehaviour {
         return this;
     }
 
-    /** Called once after the strike with the tiles that were struck (skipped when none were). */
-    onStruck(fn: (ctx: CastBehaviourTickContext, struck: TileCoord[]) => void): this {
+    /**
+     * Called once after the strike with the tiles that were struck (skipped when none were), and the rock
+     * durability removed in full-tile units (see {@link strikeTerrainDetailed}).
+     */
+    onStruck(fn: (ctx: CastBehaviourTickContext, struck: TileCoord[], rockDamaged: number) => void): this {
         this._onStruck = fn;
         return this;
     }
@@ -125,8 +151,8 @@ export class TerrainStrikeBehaviour implements CastBehaviour {
     onTick(ctx: CastBehaviourTickContext): void {
         if (this._at === 'end' ? !ctx.isLastTick : !ctx.isFirstTick) return;
         const tiles = this._resolveTiles ? this._resolveTiles(ctx) : this.defaultTiles(ctx);
-        const struck = strikeTerrain(ctx.engine, ctx.caster, tiles, this._effect);
-        if (struck.length > 0) this._onStruck?.(ctx, struck);
+        const { struck, rockDamaged } = strikeTerrainDetailed(ctx.engine, ctx.caster, tiles, this._effect);
+        if (struck.length > 0) this._onStruck?.(ctx, struck, rockDamaged);
     }
 
     /** The cast's target point, falling back to the caster's own position. */

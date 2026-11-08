@@ -77,6 +77,16 @@ function normalizeResearchNodeLevels(
     return out;
 }
 
+function normalizeResearchTreeLevels(raw: CampaignCharacterData['researchTreeLevels']): Record<string, number> {
+    if (!raw || typeof raw !== 'object') return {};
+    const out: Record<string, number> = {};
+    for (const [treeId, level] of Object.entries(raw)) {
+        if (!treeId || typeof level !== 'number' || !Number.isFinite(level) || level < 0) continue;
+        out[treeId] = Math.floor(level);
+    }
+    return out;
+}
+
 export class CampaignCharacter {
     readonly id: string;
     readonly ownerAccountId: number | undefined;
@@ -93,6 +103,8 @@ export class CampaignCharacter {
     readonly researchNodeLevels: Record<string, Record<string, number>>;
     /** Per-tree node sources for each owned level. */
     readonly researchSources: ResearchNodeSources;
+    /** Explicit tree level per core tree (treeId -> level). Missing = derived; see `getCharacterTreeLevel`. */
+    readonly researchTreeLevels: Record<string, number>;
     /** Unix seconds; 0 if never used in a mission (per server). */
     readonly lastUsed: number;
     /** Fraction of max Hunger this character started with; legacy characters (field absent) started full. */
@@ -131,6 +143,7 @@ export class CampaignCharacter {
         this.researchTrees = rawResearchTrees;
         this.researchNodeLevels = normalizeResearchNodeLevels(data.researchNodeLevels);
         this.researchSources = normalizeResearchSources(data.researchSources);
+        this.researchTreeLevels = normalizeResearchTreeLevels(data.researchTreeLevels);
         this.startingHungerFraction =
             typeof data.startingHungerFraction === 'number' && Number.isFinite(data.startingHungerFraction)
                 ? Math.max(0, Math.min(1, data.startingHungerFraction))
@@ -230,6 +243,7 @@ export class CampaignCharacter {
             researchTrees: this.researchTrees,
             researchNodeLevels: this.researchNodeLevels,
             researchSources: this.researchSources,
+            researchTreeLevels: this.researchTreeLevels,
             lastUsed: this.lastUsed,
             startingHungerFraction: this.startingHungerFraction,
             missionResults: this.missionResults,

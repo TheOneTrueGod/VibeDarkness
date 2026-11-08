@@ -14,8 +14,8 @@ export const BLOOD_CORE_ATTUNEMENT_COST = 12;
 export const BLOOD_CORE_VIGOR_COST = 8;
 export const BLOOD_CORE_METAL_COST = 1;
 
-export const BLOOD_BURST_ATTUNEMENT_COST = 8;
-export const BLOOD_BURST_VIGOR_COST = 7;
+export const BLOOD_BURST_ATTUNEMENT_COST = 12;
+export const BLOOD_BURST_VIGOR_COST = 8;
 export const BLOOD_BURST_METAL_COST = 2;
 
 export const BLOOD_PACT_ATTUNEMENT_COST = 13;
@@ -73,7 +73,7 @@ export const bloodMageTree: ResearchTreeDef = {
                 'Open a vein and let it lash outward — a cone of blood that tears into everything it touches.',
             flavorText: 'Give it freely, and it takes gladly.',
             order: 10,
-            tier: 2,
+            tier: 11,
             position: { x: 420, y: 290 },
             prereqNodeIds: [BLOOD_MAGE_NODE_CORE],
             exclusiveWithNodeIds: [],
@@ -96,7 +96,7 @@ export const bloodMageTree: ResearchTreeDef = {
                 "Bind your life to an ally's, taking half of their wounds as your own.",
             flavorText: 'What is shared in blood is halved in death.',
             order: 25,
-            tier: 12,
+            tier: 11,
             position: { x: 660, y: 430 },
             prereqNodeIds: [BLOOD_MAGE_NODE_CORE],
             exclusiveWithNodeIds: [],
@@ -119,7 +119,7 @@ export const bloodMageTree: ResearchTreeDef = {
                 'Harden your blood into claws and rake your foes left, right, and across.',
             flavorText: 'Every wound it leaves keeps weeping.',
             order: 30,
-            tier: 10,
+            tier: 11,
             position: { x: 420, y: 150 },
             prereqNodeIds: [BLOOD_MAGE_NODE_CORE],
             exclusiveWithNodeIds: [],
@@ -139,10 +139,10 @@ export const bloodMageTree: ResearchTreeDef = {
             id: BLOOD_MAGE_NODE_SPLINTERS,
             title: 'Blood Splinters',
             description:
-                'Every shard you fling also bursts a shard out of each bleeding foe nearby, spending their bleeding to send it flying at your target.',
+                'Blood Shard bursts its extra shard from the nearest 3 bleeding foes in range instead of just the nearest, spending their bleeding to send each flying at your target.',
             flavorText: 'An open wound is just another way to throw.',
             order: 35,
-            tier: 13,
+            tier: 12,
             position: { x: 420, y: 430 },
             prereqNodeIds: [BLOOD_MAGE_NODE_CORE],
             exclusiveWithNodeIds: [],

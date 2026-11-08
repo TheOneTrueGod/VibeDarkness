@@ -54,6 +54,8 @@ export interface CampaignCharacterData {
      * Missing entries are treated as Purchased (legacy characters).
      */
     researchSources?: ResearchNodeSources;
+    /** Per core-tree "tree level" (treeId -> level). Gates research ranks; see researchTrees/treeLevels.ts. */
+    researchTreeLevels?: Record<string, number>;
     /** Unix seconds; server sets when this character starts a mission as a playable unit. */
     lastUsed?: number;
     /** Fraction of max Hunger the character started with (new characters 0.3); absent on legacy characters = full. */

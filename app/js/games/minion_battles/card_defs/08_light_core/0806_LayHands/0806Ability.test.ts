@@ -56,11 +56,11 @@ describe('Lay Hands ability', () => {
 });
 
 describe('Lay Hands research node', () => {
-    it('is a tier-14 Light Core follow-up that grants the Lay Hands card', () => {
+    it('is a tier-13 Light Core follow-up that grants the Lay Hands card', () => {
         const node = lightTree.nodes.find((n) => n.id === LIGHT_NODE_LAY_HANDS);
         expect(node?.title).toBe('Lay Hands');
-        expect(node?.tier).toBe(14);
-        expect(LIGHT_LAY_HANDS_TIER).toBe(14);
+        expect(node?.tier).toBe(13);
+        expect(LIGHT_LAY_HANDS_TIER).toBe(13);
         expect(node?.prereqNodeIds).toEqual([LIGHT_NODE_CORE]);
         expect(node?.effects).toEqual([{ type: 'addCard', cardId: LAY_HANDS_ABILITY_ID }]);
         expect(LIGHT_TREE_ID).toBe('light_core');

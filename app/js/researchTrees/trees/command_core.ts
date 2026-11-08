@@ -5,8 +5,6 @@ import { RESEARCH_TREE_ICON_COMMAND } from '../researchTreeChrome';
 
 export const COMMAND_CORE_TREE_ID = 'command_core';
 export const COMMAND_CORE_NODE_LOYAL_COMPANION = 'loyal_companion';
-export const COMMAND_CORE_NODE_HEEL = 'heel';
-export const COMMAND_CORE_NODE_SIC_EM = 'sic_em';
 export const COMMAND_CORE_NODE_MIMIC_THORN = 'mimic_thorn';
 export const COMMAND_CORE_NODE_MIMIC_BRAMBLES = 'mimic_brambles';
 export const COMMAND_CORE_NODE_EMPOWER_PET = 'empower_pet';
@@ -20,13 +18,7 @@ export const COMMAND_LOYAL_ATTUNEMENT_COST = 10;
 export const COMMAND_LOYAL_VIGOR_COST = 9;
 export const COMMAND_LOYAL_METAL_COST = 2;
 
-export const COMMAND_HEEL_ATTUNEMENT_COST = 10;
-export const COMMAND_HEEL_VIGOR_COST = 8;
-export const COMMAND_HEEL_METAL_COST = 2;
 
-export const COMMAND_SIC_ATTUNEMENT_COST = 11;
-export const COMMAND_SIC_VIGOR_COST = 8;
-export const COMMAND_SIC_METAL_COST = 2;
 
 export const COMMAND_THORN_ATTUNEMENT_COST = 11;
 export const COMMAND_THORN_VIGOR_COST = 9;
@@ -51,7 +43,7 @@ export const commandCoreTree: ResearchTreeDef = {
         {
             id: COMMAND_CORE_NODE_LOYAL_COMPANION,
             title: 'Loyal Companion',
-            description: 'A hound joins your side. It fights close to you, seeking out enemies that stray too near.',
+            description: "A hound joins your side. It fights close to you, seeking out enemies that stray too near. Heel recalls it to your side; Sic 'Em sends it pouncing on a target.",
             flavorText: 'Some bonds are forged in silence, tested in blood.',
             order: 5,
             tier: 10,
@@ -74,41 +66,9 @@ export const commandCoreTree: ResearchTreeDef = {
                 { type: 'grantPet', petId: 'dog' },
                 { type: 'addCard', cardId: '0708' },
                 { type: 'addCard', cardId: '0709' },
+                { type: 'addCard', cardId: '0703' },
+                { type: 'addCard', cardId: '0704' },
             ],
-        },
-        {
-            id: COMMAND_CORE_NODE_HEEL,
-            title: 'Heel',
-            description: 'Command your dog to disengage and return to your side, recovering {25%} of its max HP.',
-            order: 6,
-            tier: 10,
-            position: { x: 370, y: 160 },
-            prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
-            exclusiveWithNodeIds: [],
-            requirements: [],
-            cost: {
-                attunement: COMMAND_HEEL_ATTUNEMENT_COST,
-                vigor: COMMAND_HEEL_VIGOR_COST,
-                metal: COMMAND_HEEL_METAL_COST,
-            },
-            effects: [{ type: 'addCard', cardId: '0703' }],
-        },
-        {
-            id: COMMAND_CORE_NODE_SIC_EM,
-            title: "Sic 'Em",
-            description: 'Order your dog to pounce on a target — it lunges from its current position, knocking the enemy back.',
-            order: 7,
-            tier: 10,
-            position: { x: 370, y: 420 },
-            prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
-            exclusiveWithNodeIds: [],
-            requirements: [],
-            cost: {
-                attunement: COMMAND_SIC_ATTUNEMENT_COST,
-                vigor: COMMAND_SIC_VIGOR_COST,
-                metal: COMMAND_SIC_METAL_COST,
-            },
-            effects: [{ type: 'addCard', cardId: '0704' }],
         },
         {
             id: COMMAND_CORE_NODE_MIMIC_THORN,
@@ -161,7 +121,7 @@ export const commandCoreTree: ResearchTreeDef = {
             description: `+{${EMPOWER_PET_MAX_HEALTH_ADD / EMPOWER_PET_LEVELS}} pet max HP and +{${EMPOWER_PET_MAX_BITE_DAMAGE_ADD / EMPOWER_PET_LEVELS}} Dog Bite damage per level.`,
             flavorText: 'Stronger paws. Sharper teeth.',
             order: 30,
-            tier: 11,
+            tier: 12,
             position: { x: 370, y: 290 },
             prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
             exclusiveWithNodeIds: [],

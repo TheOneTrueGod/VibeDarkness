@@ -58,6 +58,8 @@ export interface StoryChoiceActionGrantResearchToPlayer {
     type: 'grant_research_to_player';
     treeId: string;
     nodeId: string;
+    /** Also raise the character's level in `treeId` to at least this (Core Awakening sets 2). */
+    setTreeLevel?: number;
 }
 
 /** Choice action: grant one of several research nodes based on equipped items. */

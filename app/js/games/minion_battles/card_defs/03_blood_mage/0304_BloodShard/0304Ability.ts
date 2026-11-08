@@ -46,7 +46,11 @@ export const BLOOD_SHARD_RANGE = THROW_RANGE;
 /** A third faster than thrown rocks and knives. */
 export const BLOOD_SHARD_PROJECTILE_SPEED = THROW_PROJECTILE_SPEED * (4 / 3);
 export const BLOOD_SHARD_PROFILE = QUICK_THROW_PROFILE;
-/** Blood Splinters (research): damage a splinter deals to the bleeding enemy it bursts out of. */
+/** Splinters: how many nearest bleeding enemies burst a shard. Base Blood Shard; Blood Splinters raises it. */
+export const BLOOD_SPLINTER_BASE_HOSTS = 1;
+/** Blood Splinters (research): the raised host count. */
+export const BLOOD_SPLINTER_UPGRADED_HOSTS = 3;
+/** Splinters: damage a splinter deals to the bleeding enemy it bursts out of. */
 export const BLOOD_SPLINTER_HOST_DAMAGE = 4;
 /** Blood Splinters: damage a splinter's flight deals to the first other enemy it hits. */
 export const BLOOD_SPLINTER_FLIGHT_DAMAGE = 4;
@@ -83,10 +87,14 @@ const BLOOD_SHARD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 </svg>`;
 
 /**
- * Enemies of `caster` that are bleeding and within Blood Shard's range of it: the units a Blood
- * Splinters shard bursts out of. Sorted by distance then id, so runtime and previews agree.
+ * The `maxHosts` nearest enemies of `caster` that are bleeding and within Blood Shard's range of it:
+ * the units a splinter bursts out of. Sorted by distance then id, so runtime and previews agree.
  */
-export function findBloodSplinterHosts(caster: Unit, units: readonly Unit[]): Unit[] {
+export function findBloodSplinterHosts(
+    caster: Unit,
+    units: readonly Unit[],
+    maxHosts: number = BLOOD_SPLINTER_UPGRADED_HOSTS,
+): Unit[] {
     const distTo = (u: Unit) => Math.hypot(u.x - caster.x, u.y - caster.y);
     return units
         .filter(
@@ -97,7 +105,8 @@ export function findBloodSplinterHosts(caster: Unit, units: readonly Unit[]): Un
                 && distTo(u) <= BLOOD_SHARD_RANGE + u.radius,
         )
         // Plain id comparison (not localeCompare) so every client orders ties identically.
-        .sort((a, b) => distTo(a) - distTo(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+        .sort((a, b) => distTo(a) - distTo(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+        .slice(0, maxHosts);
 }
 
 export interface BloodSplinterPreviewSegment {
@@ -112,8 +121,9 @@ export function getBloodSplinterPreviewSegments(
     caster: Unit,
     aim: { x: number; y: number },
     units: readonly Unit[],
+    maxHosts: number = BLOOD_SPLINTER_UPGRADED_HOSTS,
 ): BloodSplinterPreviewSegment[] {
-    return findBloodSplinterHosts(caster, units).map((host) => {
+    return findBloodSplinterHosts(caster, units, maxHosts).map((host) => {
         const clamped = clampToMaxRange(host, aim, BLOOD_SHARD_RANGE);
         return { host, from: { x: host.x, y: host.y }, to: { x: clamped.endX, y: clamped.endY } };
     });
@@ -134,16 +144,16 @@ const shardLaunch = CastBehaviours.ProjectileLaunch()
     .withSpriteConfig(bloodShardSprite());
 
 /**
- * Blood Splinters: a shard bursts out of every bleeding enemy in range. Each hits its host, eats
- * some of its bleed, then flies toward the target and hits the first other enemy.
+ * Splinters: a shard bursts out of each of the `maxHosts` nearest bleeding enemies in range. Each
+ * hits its host, eats some of its bleed, then flies toward the target and hits the first other enemy.
  */
-const splinterLaunch = CastBehaviours.ProjectileLaunch()
+const splinterLaunch = (maxHosts: number) => CastBehaviours.ProjectileLaunch()
     .withSpeed(BLOOD_SHARD_PROJECTILE_SPEED)
     .withMaxRange(BLOOD_SHARD_RANGE)
     .withBaseDamage(BLOOD_SPLINTER_FLIGHT_DAMAGE)
     .withSpriteConfig(bloodShardSprite())
     .withEmergeFrom(
-        (ctx) => findBloodSplinterHosts(ctx.caster, ctx.engine.units),
+        (ctx) => findBloodSplinterHosts(ctx.caster, ctx.engine.units, maxHosts),
         (ctx, host) => {
             const eng = ctx.engine as unknown as EngineContext;
             tryDamageOrBlock(host, {
@@ -162,11 +172,13 @@ const splinterLaunch = CastBehaviours.ProjectileLaunch()
         },
     );
 
-function hasSplinters(engine: AbilityEngineContext | undefined, caster: Unit | undefined): boolean {
-    return hasResearchNode(engine, caster, BLOOD_MAGE_TREE_ID, BLOOD_MAGE_NODE_SPLINTERS);
+function splinterHostLimit(engine: AbilityEngineContext | undefined, caster: Unit | undefined): number {
+    return hasResearchNode(engine, caster, BLOOD_MAGE_TREE_ID, BLOOD_MAGE_NODE_SPLINTERS)
+        ? BLOOD_SPLINTER_UPGRADED_HOSTS
+        : BLOOD_SPLINTER_BASE_HOSTS;
 }
 
-function buildBloodShardTimings(withSplinters: boolean) {
+function buildBloodShardTimings(maxHosts: number) {
     return buildThrowBaseTimings({
         profile: BLOOD_SHARD_PROFILE,
         launchBehaviour: shardLaunch,
@@ -181,7 +193,7 @@ function buildBloodShardTimings(withSplinters: boolean) {
         ],
         // Paid at release (the doNotRefund frame), so a cast cancelled during windup is free.
         // Splinters fire on the same frame as the main shard.
-        releaseBehaviours: [payHpCostBehaviour(BLOOD_SHARD_HP_COST), ...(withSplinters ? [splinterLaunch] : [])],
+        releaseBehaviours: [payHpCostBehaviour(BLOOD_SHARD_HP_COST), splinterLaunch(maxHosts)],
         onProjectileHit: [
             {
                 type: 'effect',
@@ -199,10 +211,10 @@ function buildBloodShardTimings(withSplinters: boolean) {
 const TOOLTIP_LINES = [
     'Fling a shard of your own blood, dealing {{DAMAGE}} damage to the first enemy hit.',
     'Costs {{HP_COST}} HP to cast.',
+    'Also bursts a shard from the nearest bleeding enemy in range: {{SPLINTER_HOST_DAMAGE}} damage to it, consumes up to {{SPLINTER_BLEED}} bleeding stacks, then flies at the target for {{SPLINTER_FLIGHT_DAMAGE}} damage.',
 ] as const;
 
-const SPLINTER_TOOLTIP_LINE =
-    'Each bleeding enemy in range bursts a shard: {{SPLINTER_HOST_DAMAGE}} damage to it, consumes up to {{SPLINTER_BLEED}} bleeding stacks, then flies at the target for {{SPLINTER_FLIGHT_DAMAGE}} damage.';
+const SPLINTER_UPGRADED_LINE = 'Blood Splinters: bursts from the nearest {{SPLINTER_HOSTS}} bleeding enemies instead.';
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: BLOOD_SHARD_DAMAGE },
@@ -210,6 +222,7 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     SPLINTER_HOST_DAMAGE: { kind: 'damage', base: BLOOD_SPLINTER_HOST_DAMAGE },
     SPLINTER_FLIGHT_DAMAGE: { kind: 'damage', base: BLOOD_SPLINTER_FLIGHT_DAMAGE },
     SPLINTER_BLEED: { kind: 'plain', value: BLOOD_SPLINTER_BLEED_CONSUMED },
+    SPLINTER_HOSTS: { kind: 'plain', value: BLOOD_SPLINTER_UPGRADED_HOSTS },
 };
 
 export const BloodShardAbility_0304 = defineAbility({
@@ -224,9 +237,9 @@ export const BloodShardAbility_0304 = defineAbility({
     recoveries: RECOVERIES,
     prefireTime: BLOOD_SHARD_PROFILE.prefireTime,
     aiSettings: { minRange: 0, maxRange: BLOOD_SHARD_RANGE },
-    abilityTimings: buildBloodShardTimings(false),
+    abilityTimings: buildBloodShardTimings(BLOOD_SPLINTER_BASE_HOSTS),
     getAbilityTimings(caster, gameState) {
-        return buildBloodShardTimings(hasSplinters(gameState as AbilityEngineContext | undefined, caster));
+        return buildBloodShardTimings(splinterHostLimit(gameState as AbilityEngineContext | undefined, caster));
     },
     targets: ONE_PIXEL_TARGET,
 
@@ -240,8 +253,8 @@ export const BloodShardAbility_0304 = defineAbility({
 
     renderTargetingPreviewSelectedTargets(gr, caster, _currentTargets, mouseWorld, units, gameState): void {
         drawClampedLine(gr, caster, mouseWorld, BLOOD_SHARD_RANGE, { color: PREVIEW_COLOR, width: 2, alpha: 0.75 });
-        if (!hasSplinters(gameState as AbilityEngineContext | undefined, caster)) return;
-        for (const { host, from, to } of getBloodSplinterPreviewSegments(caster, mouseWorld, units)) {
+        const maxHosts = splinterHostLimit(gameState as AbilityEngineContext | undefined, caster);
+        for (const { host, from, to } of getBloodSplinterPreviewSegments(caster, mouseWorld, units, maxHosts)) {
             gr.circle(host.x, host.y, host.radius + 6);
             gr.stroke({ color: SPLINTER_PREVIEW_COLOR, width: 2, alpha: 0.9 });
             gr.moveTo(from.x, from.y);
@@ -252,7 +265,9 @@ export const BloodShardAbility_0304 = defineAbility({
 
     getTooltipText(gameState?: unknown): string[] {
         const lines: string[] = [...TOOLTIP_LINES];
-        if (hasSplinters(gameState as AbilityEngineContext | undefined, undefined)) lines.push(SPLINTER_TOOLTIP_LINE);
+        if (splinterHostLimit(gameState as AbilityEngineContext | undefined, undefined) > BLOOD_SPLINTER_BASE_HOSTS) {
+            lines.push(SPLINTER_UPGRADED_LINE);
+        }
         return formatTooltipLegacyLines(
             lines,
             TOOLTIP_BINDINGS,

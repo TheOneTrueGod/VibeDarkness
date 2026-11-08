@@ -8,7 +8,8 @@
  * Stage 1 (the punch): enemies in the centre tile take 15 damage and all units there (allies
  * undamaged) are knocked back away from the centre of that tile, then a rock is raised there.
  * Stage 2 (0.3s later, no punch): enemies in any tile of the plus take 9 damage, then the four
- * outer tiles become gravel (Rubble). Only the centre is rock.
+ * outer tiles become gravel (Rubble). Only the centre is rock. Each enemy takes damage once per
+ * cast: anyone already struck by stage 1 (even if knocked into the gravel) is skipped.
  *
  * Costs 2 rock; 2 uses per round. Centre may sit up to 6 tiles (Chebyshev) from the caster.
  *
@@ -66,6 +67,7 @@ import {
 } from '../earthCoreConstants';
 import { stoneTombRumble } from './stoneTombVfx';
 import { getCastElapsedAt } from '../../../game/time/actorClock';
+import { getCastHitIds, recordCastHits } from '../../../abilities/castHitMemory';
 
 const ABILITY_ID = '0530';
 const TOMB_LABEL = 'Tomb location';
@@ -159,7 +161,9 @@ function stageOne(ctx: CastBehaviourTickContext): void {
             knockbackCtx,
         );
     };
-    for (const unit of unitsOnTiles(engine, caster, [center], true)) {
+    const struck = unitsOnTiles(engine, caster, [center], true);
+    recordCastHits(caster, ABILITY_ID, struck.map((u) => u.id));
+    for (const unit of struck) {
         // Flat, unblockable environment-style hit; return value unused (see 0532).
         unit.takeDamage(STONE_TOMB_STAGE1_DAMAGE, caster.id, engine.eventBus);
         applyTombStrikePauses(engine, caster, unit);
@@ -173,7 +177,7 @@ function stageOne(ctx: CastBehaviourTickContext): void {
 }
 
 /**
- * Stage 2: damage across the plus, then gravel (Rubble) on the four outer tiles. Only the centre is
+ * Stage 2: damage across the plus (sparing units stage 1 already struck), then gravel (Rubble) on the four outer tiles. Only the centre is
  * rock, raised in stage 1. Outer tiles that are already rock or impassable are left as they are.
  */
 function stageTwo(ctx: CastBehaviourTickContext): void {
@@ -183,7 +187,10 @@ function stageTwo(ctx: CastBehaviourTickContext): void {
     if (cells.length === 0) return;
 
     const engine = ctx.engine;
+    // Each enemy takes the tomb's damage once: skip anyone stage 1 already struck.
+    const alreadyHit = getCastHitIds(ctx.caster, ABILITY_ID);
     for (const unit of unitsOnTiles(engine, ctx.caster, cells, true)) {
+        if (alreadyHit.has(unit.id)) continue;
         unit.takeDamage(STONE_TOMB_STAGE2_DAMAGE, ctx.caster.id, engine.eventBus);
         applyTombStrikePauses(engine, ctx.caster, unit);
     }

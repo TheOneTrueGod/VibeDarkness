@@ -29,7 +29,7 @@ import { DarknessLevel } from '../../../game/darknessLevels';
 import { ENEMY_DARK_WOLF, ENEMY_HUSK, ENEMY_IRON_WARDEN, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
 import { SLIME } from '../../../game/units/dark_animals/slime';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
-import { WOD_CH3_MAP_X_COL1, WOD_CH3_MAP_Y_ROW0 } from '../chapter3Map';
+import { WOD_CH3_MAP_X_COL2, WOD_CH3_MAP_Y_ROW0 } from '../chapter3Map';
 import {
     CASTLE_APPROACH_ZONE,
     CASTLE_GATE_SEGMENT_ID,
@@ -210,7 +210,7 @@ export class TheCastleCourtyardMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     missionId = TheCastleCourtyardMission.missionId;
     name = TheCastleCourtyardMission.nameStr;
-    mapPosition = { x: WOD_CH3_MAP_X_COL1, y: WOD_CH3_MAP_Y_ROW0 };
+    mapPosition = { x: WOD_CH3_MAP_X_COL2, y: WOD_CH3_MAP_Y_ROW0 };
     missionType = 'battle' as const;
     description =
         'Past the moat bridge, the castle gate stands open. Something in the courtyard keeps the dark alive.';

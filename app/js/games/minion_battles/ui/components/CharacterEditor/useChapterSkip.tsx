@@ -35,6 +35,7 @@ export function useChapterSkip({ character, account, api, isAdmin, resolvedCampa
                 researchTrees: character.researchTrees ?? {},
                 researchNodeLevels: character.researchNodeLevels ?? {},
                 researchSources: character.researchSources ?? {},
+                researchTreeLevels: character.researchTreeLevels ?? {},
             },
             character.missionResults?.[character.campaignId] ?? [],
             skipChapter.missionIds,
@@ -71,6 +72,7 @@ export function useChapterSkip({ character, account, api, isAdmin, resolvedCampa
             researchTrees: plan.state.researchTrees,
             researchNodeLevels: plan.state.researchNodeLevels,
             researchSources: plan.state.researchSources,
+            researchTreeLevels: plan.state.researchTreeLevels,
             missionResults: { ...existingMap, [storylineId]: [...keptResults, ...newResults] },
         });
         for (const r of plan.missionResults) {

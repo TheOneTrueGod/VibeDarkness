@@ -26,6 +26,8 @@ export interface CharacterUpdates {
     /** Per-tree node level counts for multi-level (passive) research nodes. */
     researchNodeLevels?: Record<string, Record<string, number>>;
     researchSources?: ResearchNodeSources;
+    /** Per core-tree level (treeId -> level); gates research ranks. */
+    researchTreeLevels?: Record<string, number>;
     /** Per-campaign mission results; key = campaignId. */
     missionResults?: Record<string, MissionResult[]>;
     /** Per-campaign quest results; key = campaignId. */

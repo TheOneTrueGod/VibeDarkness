@@ -30,17 +30,17 @@ export const EARTH_CORE_ATTUNEMENT_COST = 10;
 export const EARTH_CORE_VIGOR_COST = 5;
 export const EARTH_CORE_METAL_COST = 6;
 
-export const EARTH_DIGGING_CLAWS_ATTUNEMENT_COST = 6;
-export const EARTH_DIGGING_CLAWS_VIGOR_COST = 4;
+export const EARTH_DIGGING_CLAWS_ATTUNEMENT_COST = 10;
+export const EARTH_DIGGING_CLAWS_VIGOR_COST = 5;
 export const EARTH_DIGGING_CLAWS_METAL_COST = 7;
 
-export const EARTH_STONE_SYNERGY_ATTUNEMENT_COST = 5;
-export const EARTH_STONE_SYNERGY_VIGOR_COST = 4;
-export const EARTH_STONE_SYNERGY_METAL_COST = 8;
+export const EARTH_STONE_SYNERGY_ATTUNEMENT_COST = 10;
+export const EARTH_STONE_SYNERGY_VIGOR_COST = 5;
+export const EARTH_STONE_SYNERGY_METAL_COST = 11;
 
-export const EARTH_BURIED_ARSENAL_ATTUNEMENT_COST = 6;
-export const EARTH_BURIED_ARSENAL_VIGOR_COST = 3;
-export const EARTH_BURIED_ARSENAL_METAL_COST = 8;
+export const EARTH_BURIED_ARSENAL_ATTUNEMENT_COST = 10;
+export const EARTH_BURIED_ARSENAL_VIGOR_COST = 5;
+export const EARTH_BURIED_ARSENAL_METAL_COST = 11;
 
 export const EARTH_RAPID_THROW_ATTUNEMENT_COST = 11;
 export const EARTH_RAPID_THROW_VIGOR_COST = 5;
@@ -105,7 +105,7 @@ export const earthTree: ResearchTreeDef = {
             title: 'Digging Claws',
             description: 'Your claws grow sharp enough to carve through stone. Dash through walls, damaging rock tiles in transit.',
             order: 6,
-            tier: 2,
+            tier: 11,
             position: { x: 370, y: 90 },
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
@@ -126,7 +126,7 @@ export const earthTree: ResearchTreeDef = {
             // Also a stat upgrade (on top of the tree's `core` tag), e.g. for campsite stat slots.
             tags: ['stat'],
             order: 7,
-            tier: 2,
+            tier: 13,
             position: { x: 120, y: 280 },
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
@@ -153,7 +153,7 @@ export const earthTree: ResearchTreeDef = {
             disabled: true,
             description: 'Your rock throw abilities gain {Entombed}.',
             order: 8,
-            tier: 2,
+            tier: 13,
             position: { x: 370, y: 280 },
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
@@ -206,7 +206,8 @@ export const earthTree: ResearchTreeDef = {
             // Also a stat upgrade (on top of the tree's `core` tag), e.g. for campsite stat slots.
             tags: ['stat'],
             order: 10,
-            tier: 12,
+            tier: 11,
+            levelTiers: [11, 13],
             position: { x: 620, y: 90 },
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
@@ -273,7 +274,7 @@ export const earthTree: ResearchTreeDef = {
             description: `Stones erupt out of the ground, dealing {${STONE_TOMB_STAGE1_DAMAGE}} damage to enemies in the centre, and {${STONE_TOMB_STAGE2_DAMAGE}} to enemies farther away.`,
             flavorText: 'The ground closes like a fist.',
             order: 13,
-            tier: 12,
+            tier: 11,
             position: { x: 620, y: 470 },
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],

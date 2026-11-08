@@ -25,6 +25,7 @@ export interface CampaignCharacterPayload {
     researchTrees?: Record<string, string[]>;
     researchNodeLevels?: Record<string, Record<string, number>>;
     researchSources?: ResearchNodeSources;
+    researchTreeLevels?: Record<string, number>;
     /** Per-campaign mission results; key = campaignId. */
     missionResults?: Record<string, MissionResult[]>;
     /** Per-campaign quest results; key = campaignId. */

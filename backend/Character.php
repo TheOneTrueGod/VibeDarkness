@@ -32,6 +32,8 @@ class Character
     private array $researchNodeLevels;
     /** @var array<string, array<string, list<string>>> treeId → nodeId → sources per level */
     private array $researchSources;
+    /** @var array<string, int> treeId => tree level (gates research ranks) */
+    private array $researchTreeLevels;
     /** Unix timestamp when this character last started a mission (playable unit). 0 = never. */
     private int $lastUsed;
     /** Per-campaign mission results. Key = campaignId, value = list of MissionResult objects. */
@@ -73,7 +75,8 @@ class Character
         array $researchSources = [],
         array $locationDeck = [],
         int $version = 0,
-        float $startingHungerFraction = 1.0
+        float $startingHungerFraction = 1.0,
+        array $researchTreeLevels = []
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -88,6 +91,7 @@ class Character
         $this->researchTrees = self::normalizeResearchTrees($researchTrees);
         $this->researchNodeLevels = self::normalizeResearchNodeLevels($researchNodeLevels);
         $this->researchSources = self::normalizeResearchSources($researchSources);
+        $this->researchTreeLevels = self::normalizeResearchTreeLevels($researchTreeLevels);
         $this->lastUsed = max(0, $lastUsed);
         $this->missionResults = is_array($missionResults) ? $missionResults : [];
         $this->questResults = is_array($questResults) ? $questResults : [];
@@ -178,6 +182,27 @@ class Character
     public function getResearchSources(): array
     {
         return $this->researchSources;
+    }
+
+    /** @return array<string, int> */
+    public function getResearchTreeLevels(): array
+    {
+        return $this->researchTreeLevels;
+    }
+
+    /** @param array<string, int> $researchTreeLevels */
+    public function setResearchTreeLevels(array $researchTreeLevels): void
+    {
+        $this->researchTreeLevels = self::normalizeResearchTreeLevels($researchTreeLevels);
+    }
+
+    /** Raise a tree's level to at least $level (never lowers it). */
+    public function raiseResearchTreeLevel(string $treeId, int $level): void
+    {
+        if ($treeId === '' || $level < 0) {
+            return;
+        }
+        $this->researchTreeLevels[$treeId] = max($level, (int) ($this->researchTreeLevels[$treeId] ?? 0));
     }
 
     public function getLastUsed(): int
@@ -327,6 +352,7 @@ class Character
             'researchTrees' => $this->researchTrees,
             'researchNodeLevels' => $this->researchNodeLevels,
             'researchSources' => $this->researchSources,
+            'researchTreeLevels' => $this->researchTreeLevels,
             'lastUsed' => $this->lastUsed,
             'missionResults' => $this->missionResults,
             'questResults' => $this->questResults,
@@ -347,6 +373,7 @@ class Character
         $researchTrees = $data['researchTrees'] ?? [];
         $researchNodeLevels = $data['researchNodeLevels'] ?? [];
         $researchSources = $data['researchSources'] ?? [];
+        $researchTreeLevels = $data['researchTreeLevels'] ?? [];
         $missionResults = $data['missionResults'] ?? [];
         $questResults = $data['questResults'] ?? [];
         $activeQuestRun = null;
@@ -378,7 +405,8 @@ class Character
             (int) ($data['version'] ?? 0),
             isset($data['startingHungerFraction']) && is_numeric($data['startingHungerFraction'])
                 ? (float) $data['startingHungerFraction']
-                : 1.0
+                : 1.0,
+            is_array($researchTreeLevels) ? $researchTreeLevels : []
         );
     }
 
@@ -440,6 +468,25 @@ class Character
             if ($treeOut !== []) {
                 $out[$treeId] = $treeOut;
             }
+        }
+        return $out;
+    }
+
+    /**
+     * @param mixed $researchTreeLevels
+     * @return array<string, int>
+     */
+    private static function normalizeResearchTreeLevels(mixed $researchTreeLevels): array
+    {
+        if (!is_array($researchTreeLevels)) {
+            return [];
+        }
+        $out = [];
+        foreach ($researchTreeLevels as $treeId => $level) {
+            if (!is_string($treeId) || $treeId === '' || !is_numeric($level)) {
+                continue;
+            }
+            $out[$treeId] = max(0, min(10, (int) $level));
         }
         return $out;
     }

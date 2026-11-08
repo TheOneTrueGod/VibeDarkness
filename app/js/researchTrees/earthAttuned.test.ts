@@ -35,9 +35,10 @@ function makeClawUnit(abilityId: string, modifiers: Record<string, AbilityModifi
 }
 
 describe('Earth Attuned research', () => {
-    it('is a tier-12 two-rank node', () => {
+    it('is a two-rank node: rank 1 is tier 11, rank 2 is tier 13', () => {
         const node = earthTree.nodes.find((n) => n.id === EARTH_NODE_EARTH_ATTUNED);
-        expect(node?.tier).toBe(12);
+        expect(node?.tier).toBe(11);
+        expect(node?.levelTiers).toEqual([11, 13]);
         expect(node?.levels).toBe(EARTH_ATTUNED_LEVELS);
         expect(node?.prereqNodeIds).toEqual([EARTH_NODE_EARTH_CORE]);
     });

@@ -143,6 +143,12 @@ export interface ResearchNodeDef {
     /** Display tier shown in the research tree view (1 = base, 2 = first upgrade, etc.). */
     tier?: number;
     /**
+     * Rank of each level of a multi-level node (index 0 = level 1), for core trees whose ranks
+     * gate on tree level. Later levels reuse the last entry. Omit to use `tier` for every level;
+     * when set, `tier` should equal the first entry (it is what the UI sorts and badges by).
+     */
+    levelTiers?: readonly number[];
+    /**
      * When true, this node is work-in-progress: hidden from research selection UI and
      * excluded from available-node / mission-reward discovery.
      */

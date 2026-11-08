@@ -21,7 +21,7 @@ import { nullHitbox } from '../../hitboxes';
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11` as '0111';
 const MAX_USES = 2;
 export const CLAW_DURATION = 0.4;
-export const CLAW_MAX_DISTANCE = 100;
+export const CLAW_MAX_DISTANCE = 60; // playtest: -1 tile (was 100)
 export const CLAW_COLLISION_STEP = 4;
 export const CLAW_DAMAGE = 5;
 const DAMAGE = CLAW_DAMAGE;

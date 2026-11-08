@@ -19,6 +19,7 @@ import {
 import {
     CAMPSITE_MISSION_ID,
     CAMPSITE_2_MISSION_ID,
+    CAMPSITE_3_MISSION_ID,
 } from './questMissions/campsite';
 import { THE_LONELY_CASTLE_MISSION_ID } from './missions/011_the_lonely_castle';
 import { THE_CASTLE_COURTYARD_MISSION_ID } from './missions/012_the_castle_courtyard';
@@ -237,7 +238,9 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         },
         { fromMissionId: CAMPSITE_2_MISSION_ID, result: 'victory', toMissionId: 'displacer' },
         // Chapter 3
-        { fromMissionId: 'displacer', result: 'victory', toMissionId: THE_LONELY_CASTLE_MISSION_ID },
+        // Campsite opens the chapter (grants rank 11 or 12 research).
+        { fromMissionId: 'displacer', result: 'victory', toMissionId: CAMPSITE_3_MISSION_ID },
+        { fromMissionId: CAMPSITE_3_MISSION_ID, result: 'victory', toMissionId: THE_LONELY_CASTLE_MISSION_ID },
         { fromMissionId: THE_LONELY_CASTLE_MISSION_ID, result: 'victory', toMissionId: THE_CASTLE_COURTYARD_MISSION_ID },
     ],
     questSlotBanks: [
@@ -286,8 +289,10 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             id: 'wod_ch3',
             numeral: 'III',
             title: 'The Lonely Castle',
+            description:
+                'Campsite missions in this chapter should generally grant tier 11 or 12 research (new first abilities, or upgrades to the ones chosen in chapter 2).',
             unlockAfterMissionId: 'displacer',
-            missionIds: [THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID],
+            missionIds: [CAMPSITE_3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID],
         },
         {
             // Admin-only holding ground for missions not yet placed in a player chapter.

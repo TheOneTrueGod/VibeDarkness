@@ -20,17 +20,17 @@ export const ARMORY_CORE_ATTUNEMENT_COST = 10;
 export const ARMORY_CORE_VIGOR_COST = 5;
 export const ARMORY_CORE_METAL_COST = 5;
 
-export const ARMORY_MACE_ATTUNEMENT_COST = 15;
+export const ARMORY_MACE_ATTUNEMENT_COST = 10;
 export const ARMORY_MACE_VIGOR_COST = 5;
-export const ARMORY_MACE_METAL_COST = 10;
+export const ARMORY_MACE_METAL_COST = 7;
 
-export const ARMORY_SHIELD_ATTUNEMENT_COST = 15;
-export const ARMORY_SHIELD_VIGOR_COST = 10;
+export const ARMORY_SHIELD_ATTUNEMENT_COST = 10;
+export const ARMORY_SHIELD_VIGOR_COST = 7;
 export const ARMORY_SHIELD_METAL_COST = 5;
 
-export const ARMORY_REPAIR_POST_ATTUNEMENT_COST = 15;
-export const ARMORY_REPAIR_POST_VIGOR_COST = 7;
-export const ARMORY_REPAIR_POST_METAL_COST = 8;
+export const ARMORY_REPAIR_POST_ATTUNEMENT_COST = 10;
+export const ARMORY_REPAIR_POST_VIGOR_COST = 6;
+export const ARMORY_REPAIR_POST_METAL_COST = 6;
 
 const CORE_SWAP_SOURCES = [
     CORE_ITEM_IDS.BasicCore,
@@ -90,7 +90,7 @@ export const armoryTree: ResearchTreeDef = {
                 'You learn to shape a heavy mace that knocks enemies back.',
             flavorText: 'You dig deeper, and forge what the ground gives up into something heavier.',
             order: 15,
-            tier: 15,
+            tier: 11,
             position: { x: 420, y: 290 },
             prereqNodeIds: [ARMORY_NODE_CORE],
             exclusiveWithNodeIds: [],
@@ -114,7 +114,7 @@ export const armoryTree: ResearchTreeDef = {
                 'You learn to shape a buckler that stores the energy of a blocked blow, then releases it.',
             flavorText: 'You learn to pull the earth up and shape it into a wall in your hand.',
             order: 16,
-            tier: 15,
+            tier: 11,
             position: { x: 420, y: 410 },
             prereqNodeIds: [ARMORY_NODE_CORE],
             exclusiveWithNodeIds: [],
@@ -138,7 +138,7 @@ export const armoryTree: ResearchTreeDef = {
                 'You learn to shape a post that heals the allies around it.',
             flavorText: 'The hands that forge blades can forge something that mends.',
             order: 17,
-            tier: 15,
+            tier: 11,
             position: { x: 420, y: 170 },
             prereqNodeIds: [ARMORY_NODE_CORE],
             exclusiveWithNodeIds: [],

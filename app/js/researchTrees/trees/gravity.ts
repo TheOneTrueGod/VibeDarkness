@@ -22,11 +22,11 @@ export const GRAVITY_CORE_ATTUNEMENT_COST = 13;
 export const GRAVITY_CORE_VIGOR_COST = 5;
 export const GRAVITY_CORE_METAL_COST = 2;
 
-export const GRAVITY_LOCUS_ATTUNEMENT_COST = 12;
+export const GRAVITY_LOCUS_ATTUNEMENT_COST = 16;
 export const GRAVITY_LOCUS_VIGOR_COST = 5;
 export const GRAVITY_LOCUS_METAL_COST = 1;
 
-export const GRAVITY_REPULSE_ATTUNEMENT_COST = 13;
+export const GRAVITY_REPULSE_ATTUNEMENT_COST = 18;
 export const GRAVITY_REPULSE_VIGOR_COST = 5;
 export const GRAVITY_REPULSE_METAL_COST = 1;
 
@@ -88,7 +88,7 @@ export const gravityTree: ResearchTreeDef = {
                 'You learn to fix the pull to one spot, drawing enemies in or driving them away.',
             flavorText: 'You tie a knot in the pull, and the ground bends around it.',
             order: 10,
-            tier: 2,
+            tier: 11,
             position: { x: 420, y: 290 },
             prereqNodeIds: [GRAVITY_NODE_CORE],
             exclusiveWithNodeIds: [],
@@ -112,7 +112,7 @@ export const gravityTree: ResearchTreeDef = {
                 "You learn to let Gravity Locus's pull snap outward when it ends, throwing enemies clear. The field lasts a shorter time.",
             flavorText: 'What was pulled together does not stay together.',
             order: 11,
-            tier: 3,
+            tier: 12,
             position: { x: 620, y: 290 },
             prereqNodeIds: [GRAVITY_NODE_GRAVITY_LOCUS],
             exclusiveWithNodeIds: [],
@@ -142,7 +142,7 @@ export const gravityTree: ResearchTreeDef = {
             description: "You learn to loosen the ground's hold on enemies, then slam them back down.",
             flavorText: 'For a moment, the ground forgets them.',
             order: 12,
-            tier: 2,
+            tier: 11,
             position: { x: 180, y: 420 },
             prereqNodeIds: [GRAVITY_NODE_CORE],
             exclusiveWithNodeIds: [],
@@ -187,7 +187,7 @@ export const gravityTree: ResearchTreeDef = {
                 'You learn to haul a group of enemies in front of you, ready for your next strike.',
             flavorText: 'Everything leans toward you, and then it lands.',
             order: 13,
-            tier: 2,
+            tier: 11,
             position: { x: 420, y: 420 },
             prereqNodeIds: [GRAVITY_NODE_CORE],
             exclusiveWithNodeIds: [],

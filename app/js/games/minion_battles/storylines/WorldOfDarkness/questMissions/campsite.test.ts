@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
     CAMPSITE,
+    CAMPSITE_3,
+    CAMPSITE_3_MISSION_ID,
     CAMPSITE_CHOICE_ID,
     CAMPSITE_CORE_PICKS,
     CAMPSITE_HUNGER_RECOVERY,
@@ -60,7 +62,13 @@ describe('campsite mission', () => {
     it('only has random core slots, which drop out when nothing is left', () => {
         expect(CAMPSITE_RESEARCH_OPTION_COUNT).toBe(CAMPSITE_CORE_PICKS);
         for (const slot of CAMPSITE_RESEARCH_SLOTS) {
-            expect(slot).toEqual({ tag: 'core', random: true, omitWhenUnavailable: true });
+            expect(slot).toEqual({
+                tag: 'core',
+                random: true,
+                omitWhenUnavailable: true,
+                minTier: 11,
+                maxTier: 11,
+            });
         }
     });
 
@@ -74,6 +82,32 @@ describe('campsite mission', () => {
             expect(tagsOf(row)).toContain('core');
         }
         expect(offer('p1')).toEqual(rows);
+    });
+
+    it('only offers rank-11 research', () => {
+        for (let i = 0; i < 25; i++) {
+            for (const row of offer(`p${i}`)) {
+                const a = row.action as { treeId: string; nodeId: string };
+                const node = getResearchTree(a.treeId)!.nodes.find((n) => n.id === a.nodeId)!;
+                expect(node.tier).toBe(11);
+            }
+        }
+    });
+
+    it('the chapter 3 campsite opens the chapter and only grants rank 11 or 12 research', () => {
+        expect(MISSION_MAP[CAMPSITE_3_MISSION_ID]).toBe(CAMPSITE_3);
+        for (const slot of CAMPSITE_3.postMissionStory!.phrases.flatMap((p) => (p.type === 'choice' ? p.researchRewardSlots ?? [] : []))) {
+            expect(slot).toMatchObject({ tag: 'core', minTier: 11, maxTier: 12 });
+        }
+        const researched = { [LIGHT_TREE_ID]: [LIGHT_NODE_CORE] };
+        const slots = CAMPSITE_3.postMissionStory!.phrases.flatMap((p) => (p.type === 'choice' ? p.researchRewardSlots ?? [] : []));
+        for (let i = 0; i < 25; i++) {
+            for (const row of resolveResearchRewardSlots(slots, researched, EQUIPMENT, `p${i}`)) {
+                const a = row.action as { treeId: string; nodeId: string };
+                expect(getResearchTree(a.treeId)!.nodes.find((n) => n.id === a.nodeId)!.tier).toBeGreaterThanOrEqual(11);
+                expect(getResearchTree(a.treeId)!.nodes.find((n) => n.id === a.nodeId)!.tier).toBeLessThanOrEqual(12);
+            }
+        }
     });
 
     it('never offers mission-reward-only nodes (e.g. alternative Cores)', () => {

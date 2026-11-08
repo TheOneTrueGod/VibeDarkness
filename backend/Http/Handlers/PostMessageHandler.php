@@ -274,6 +274,9 @@ class PostMessageHandler
                 http_response_code(400);
                 return ['success' => false, 'error' => 'treeId and nodeId required for grant_research_to_player'];
             }
+            $setTreeLevel = isset($payload['setTreeLevel']) && is_numeric($payload['setTreeLevel'])
+                ? max(0, min(10, (int) $payload['setTreeLevel']))
+                : null;
             $replaceItemIds = isset($payload['replaceItemIds']) && is_array($payload['replaceItemIds'])
                 ? array_values(array_filter($payload['replaceItemIds'], static fn ($v): bool => is_string($v)))
                 : [];
@@ -295,7 +298,8 @@ class PostMessageHandler
                 $actionType,
                 $treeId,
                 $nodeId,
-                $prepLoadoutPrimaryIds
+                $prepLoadoutPrimaryIds,
+                $setTreeLevel
             );
             if (!$success) {
                 http_response_code(400);

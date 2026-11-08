@@ -527,6 +527,8 @@ export default function PostMissionStoryPhase({
                         treeId: researchReward.treeId,
                         nodeId: researchReward.nodeId,
                         researchRewardId: researchReward.rewardId,
+                        ...(option?.action?.type === 'grant_research_to_player' &&
+                            option.action.setTreeLevel != null && { setTreeLevel: option.action.setTreeLevel }),
                     }),
                     ...(prepLoadoutPrimaryIds && { prepLoadoutPrimaryIds }),
                 });

@@ -106,7 +106,7 @@ class CharacterManager
      * Update a character's fields (equipment, name, portraitId, researchTrees). Caller must ensure ownership.
      *
      * @param string $characterId
-     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>, researchNodeLevels?: array<string, array<string, int>>, researchSources?: array<string, array<string, list<string>>>, lastUsed?: int, missionResults?: array<string, list<array<string, mixed>>>, questResults?: array<string, list<array<string, mixed>>>, activeQuestRun?: array<string, mixed>|null, campaignId?: string, lastMissionAbilityIds?: string[], locationDeck?: array<string, list<array<string, mixed>>>} $updates
+     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>, researchNodeLevels?: array<string, array<string, int>>, researchSources?: array<string, array<string, list<string>>>, researchTreeLevels?: array<string, int>, lastUsed?: int, missionResults?: array<string, list<array<string, mixed>>>, questResults?: array<string, list<array<string, mixed>>>, activeQuestRun?: array<string, mixed>|null, campaignId?: string, lastMissionAbilityIds?: string[], locationDeck?: array<string, list<array<string, mixed>>>} $updates
      * @return Character|null Updated character or null if not found
      */
     public function updateCharacter(string $characterId, array $updates): ?Character
@@ -143,6 +143,9 @@ class CharacterManager
             }
             if (isset($updates['researchNodeLevels']) && is_array($updates['researchNodeLevels'])) {
                 $data['researchNodeLevels'] = $updates['researchNodeLevels'];
+            }
+            if (isset($updates['researchTreeLevels']) && is_array($updates['researchTreeLevels'])) {
+                $data['researchTreeLevels'] = $updates['researchTreeLevels'];
             }
             if (isset($updates['researchSources']) && is_array($updates['researchSources'])) {
                 $data['researchSources'] = $updates['researchSources'];

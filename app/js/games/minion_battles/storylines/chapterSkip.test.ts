@@ -22,7 +22,7 @@ const STICK = '002';
 const CTX = { playerId: '2', accountKnowledge: {} };
 
 function freshState(equipment: string[] = []): ChapterSkipCharacterState {
-    return { equipment, researchTrees: {}, researchNodeLevels: {}, researchSources: {} };
+    return { equipment, researchTrees: {}, researchNodeLevels: {}, researchSources: {}, researchTreeLevels: {} };
 }
 
 /** Walk the wizard, picking `preferred[choiceId]` when offered, otherwise the first enabled option. */
@@ -190,6 +190,7 @@ describe('stripChapterResearchRewards', () => {
                     more_rock: [ResearchSource.Purchased],
                 },
             },
+            researchTreeLevels: {},
         };
         const results: MissionResult[] = [
             {

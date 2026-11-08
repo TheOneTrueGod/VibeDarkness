@@ -113,9 +113,9 @@ describe('BloodPactAbility_0305', () => {
 });
 
 describe('Blood Pact research node', () => {
-    it('is a tier-12 node requiring Blood Mage Core that grants card 0305', () => {
+    it('is a tier-11 node requiring Blood Mage Core that grants card 0305', () => {
         const node = bloodMageTree.nodes.find((n) => n.id === BLOOD_MAGE_NODE_PACT);
-        expect(node?.tier).toBe(12);
+        expect(node?.tier).toBe(11);
         expect(node?.prereqNodeIds).toEqual([BLOOD_MAGE_NODE_CORE]);
         expect(node?.effects).toContainEqual({ type: 'addCard', cardId: CARD_ID });
     });

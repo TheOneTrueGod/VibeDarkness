@@ -21,6 +21,7 @@ import {
 	type ResearchContext,
 } from '../../../../researchTrees/evaluator';
 import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
+import { MAX_TREE_LEVEL, getCharacterTreeLevel, treeUsesTreeLevels } from '../../../../researchTrees/treeLevels';
 import { getInactiveResearchNodeIds } from '../../../../researchTrees/activeResearch';
 import { researchChromeSurfaceStyle, resolveResearchTreeChrome } from '../../../../researchTrees/researchTreeChrome';
 import { computeResearchTreeNodePositions } from '../../../../researchTrees/researchTreeLayout';
@@ -158,6 +159,48 @@ function UpgradesResourcePills({
 				),
 			)}
 		</>
+	);
+}
+
+/** Admin control for a core tree's level (gates research ranks: rank N needs level N - 10). */
+function TreeLevelControl({
+	level,
+	saving,
+	onChange,
+}: {
+	level: number;
+	saving: boolean;
+	onChange: (level: number) => void;
+}) {
+	const buttonClass =
+		'rounded-md bg-surface-light border border-border-custom px-2 py-1 text-sm font-semibold text-white hover:bg-border-custom disabled:opacity-60';
+	return (
+		<div
+			className="flex items-center gap-1 text-sm text-white mt-0.5"
+			title="Tree level: rank 11 research needs level 1, rank 12 needs level 2, and so on."
+			data-testid="tree-level-control"
+		>
+			<span className="text-xs text-muted mr-1">Tree level</span>
+			<button
+				type="button"
+				className={buttonClass}
+				disabled={saving || level <= 0}
+				onClick={() => onChange(level - 1)}
+				aria-label="Decrease tree level"
+			>
+				-
+			</button>
+			<span className="w-6 text-center font-semibold" data-testid="tree-level-value">{level}</span>
+			<button
+				type="button"
+				className={buttonClass}
+				disabled={saving || level >= MAX_TREE_LEVEL}
+				onClick={() => onChange(level + 1)}
+				aria-label="Increase tree level"
+			>
+				+
+			</button>
+		</div>
 	);
 }
 
@@ -346,6 +389,10 @@ export interface ResearchTreeContentProps {
 	/** Per-tree node level counts for multi-level passive nodes. */
 	researchNodeLevels?: ResearchNodeLevels;
 	researchSources?: ResearchNodeSources;
+	/** Per core-tree level (treeId -> level); overrides the character's stored levels when given. */
+	researchTreeLevels?: Record<string, number>;
+	/** Admin: set this tree's level. Omit to hide the control. */
+	onSetTreeLevel?: (level: number) => void;
 	campaignResources: CampaignResources;
 	saving: boolean;
 	canResetResearch: boolean;
@@ -367,6 +414,8 @@ export function ResearchTreeContent({
 	researchTrees,
 	researchNodeLevels,
 	researchSources,
+	researchTreeLevels,
+	onSetTreeLevel,
 	campaignResources,
 	saving,
 	canResetResearch,
@@ -380,10 +429,17 @@ export function ResearchTreeContent({
 		const safeAccount = account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 };
 		return {
 			account: safeAccount as AccountState,
-			character: { ...character, equipment, researchTrees, researchNodeLevels, researchSources } as CampaignCharacter,
+			character: {
+				...character,
+				equipment,
+				researchTrees,
+				researchNodeLevels,
+				researchSources,
+				...(researchTreeLevels && { researchTreeLevels }),
+			} as CampaignCharacter,
 			campaignResources,
 		};
-	}, [account, campaignResources, character, equipment, researchTrees, researchNodeLevels, researchSources]);
+	}, [account, campaignResources, character, equipment, researchTrees, researchNodeLevels, researchSources, researchTreeLevels]);
 
 	const VIEW_W_MIN = 520;
 	const VIEW_H_MIN = 400;
@@ -472,6 +528,14 @@ export function ResearchTreeContent({
 						</div>
 					</div>
 
+					<div className="flex items-center gap-2">
+					{onSetTreeLevel && treeUsesTreeLevels(tree) && (
+						<TreeLevelControl
+							level={getCharacterTreeLevel(ctx.character, tree)}
+							saving={saving}
+							onChange={onSetTreeLevel}
+						/>
+					)}
 					{canResetResearch && hasResearchInThisTree && (
 						<button
 							type="button"
@@ -483,6 +547,7 @@ export function ResearchTreeContent({
 							Reset research
 						</button>
 					)}
+					</div>
 				</div>
 
 				<div
@@ -758,12 +823,15 @@ export interface ResearchedNodesGridProps {
 	equipment: string[];
 	researchNodeLevels?: ResearchNodeLevels;
 	researchSources?: ResearchNodeSources;
+	researchTreeLevels?: Record<string, number>;
 	campaignResources?: CampaignResources;
 	onResearchNode?: ResearchNodeClickHandler;
 	saving?: boolean;
 	isAdmin?: boolean;
 	onResetPurchasedResearch?: () => void;
 	onResetAdminResearch?: () => void;
+	/** Admin: set a core tree's level; shown when a single tree is selected. */
+	onSetTreeLevel?: (treeId: string, level: number) => void;
 }
 
 const EMPTY_CAMPAIGN_RESOURCES: CampaignResources = ZERO_CAMPAIGN_RESOURCES;
@@ -862,22 +930,32 @@ export function ResearchedNodesGrid({
 	equipment,
 	researchNodeLevels,
 	researchSources,
+	researchTreeLevels,
 	campaignResources,
 	onResearchNode,
 	saving = false,
 	isAdmin = false,
 	onResetPurchasedResearch,
 	onResetAdminResearch,
+	onSetTreeLevel,
 }: ResearchedNodesGridProps) {
 	const researchedByTreeId = useMemo(() => researchedSetsByTreeId(researchTrees), [researchTrees]);
 	const researchCtx = useMemo((): ResearchContext => {
 		const safeAccount = account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 };
 		return {
 			account: safeAccount as AccountState,
-			character: { ...character, equipment, researchTrees, researchNodeLevels, researchSources } as CampaignCharacter,
+			character: {
+				...character,
+				equipment,
+				researchTrees,
+				researchNodeLevels,
+				researchSources,
+				...(researchTreeLevels && { researchTreeLevels }),
+			} as CampaignCharacter,
 			campaignResources: campaignResources ?? EMPTY_CAMPAIGN_RESOURCES,
 		};
-	}, [account, campaignResources, character, equipment, researchNodeLevels, researchSources, researchTrees]);
+	}, [account, campaignResources, character, equipment, researchNodeLevels, researchSources, researchTreeLevels, researchTrees]);
+	const selectedGridTree = filterTreeId ? availableTrees.find((t) => t.id === filterTreeId) : undefined;
 	const eligible = useMemo(
 		() => collectEligibleResearchGridEntries(availableTrees, filterTreeId, researchCtx, isAdmin),
 		[availableTrees, filterTreeId, isAdmin, researchCtx],
@@ -917,6 +995,13 @@ export function ResearchedNodesGrid({
 						onResetPurchasedResearch={onResetPurchasedResearch}
 						onResetAdminResearch={onResetAdminResearch}
 					/>
+					{isAdmin && onSetTreeLevel && selectedGridTree && treeUsesTreeLevels(selectedGridTree) && (
+						<TreeLevelControl
+							level={getCharacterTreeLevel(researchCtx.character, selectedGridTree)}
+							saving={saving}
+							onChange={(level) => onSetTreeLevel(selectedGridTree.id, level)}
+						/>
+					)}
 				</div>
 			</div>
 			{!hasCards && <p className="text-sm text-muted">No research unlocked yet.</p>}
