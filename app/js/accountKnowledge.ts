@@ -70,6 +70,15 @@ export const KNOWLEDGE_TUTORIAL_LIGHT = 'TutorialLight';
 /** Tutorial: Stacked Units. Carries the tutorial shown the first time an enemy unit stack is on screen. */
 export const KNOWLEDGE_TUTORIAL_STACKED_UNITS = 'TutorialStackedUnits';
 
+/** Tutorial: CC Resistance. Carries the tutorial shown the first time a CC-resistant boss (the alpha wolf) is on screen. */
+export const KNOWLEDGE_TUTORIAL_CC_RESISTANCE = 'TutorialCcResistance';
+
+/**
+ * Tutorial: Juggernaut Frames. Carries the tutorial shown (with the game held) the first time an enemy's
+ * juggernaut border appears.
+ */
+export const KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES = 'TutorialJuggernautFrames';
+
 /** What a piece of knowledge is about; drives the pill icon and the admin grant filters. */
 export type AccountKnowledgeType = 'resource' | 'equipment' | 'systems' | 'progression' | 'tutorial' | 'other';
 
@@ -199,6 +208,20 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
         type: 'tutorial',
         tier: 1,
         description: 'Recorded by the tutorial shown the first time an enemy unit stack is on screen.',
+    },
+    {
+        key: KNOWLEDGE_TUTORIAL_CC_RESISTANCE,
+        label: 'Tutorial: CC Resistance',
+        type: 'tutorial',
+        tier: 1,
+        description: 'Recorded by the tutorial on a boss’s crowd control protection circles and Exposed state (alpha wolf).',
+    },
+    {
+        key: KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES,
+        label: 'Tutorial: Juggernaut frames',
+        type: 'tutorial',
+        tier: 1,
+        description: 'Recorded by the tutorial shown, with the game held, the first time an enemy shows its juggernaut border.',
     },
 ];
 

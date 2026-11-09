@@ -47,6 +47,12 @@ export class GameState {
      * until the next natural pause; do not use `gameTick > hostTick` alone to set this.
      */
     multiplayerAwaitHostCatchup = false;
+    /**
+     * Local-only, never serialized or synced: this client's frame loop stops advancing the sim while true
+     * (a tutorial that holds the game for the player reading it). Other players keep running; the held client
+     * catches up through the normal order sync.
+     */
+    localSimulationHold = false;
     storyPauseActive = false;
     storyPauseReason: string | null = null;
     storyPauseEndsAt: number | null = null;

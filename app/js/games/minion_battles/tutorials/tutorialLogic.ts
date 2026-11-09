@@ -5,8 +5,10 @@ import {
     type TutorialDef,
     type TutorialEvent,
     type TutorialStepDef,
+    type TutorialTextTerm,
     type TutorialUnitFilter,
 } from './tutorialTypes';
+import { ABILITY_TIMING_TAG_COLORS } from '../abilities/abilityTimings';
 
 /** What tutorial rules need to know about one living unit. */
 export interface TutorialUnitView {
@@ -14,6 +16,8 @@ export interface TutorialUnitView {
     stackSize: number;
     /** Hostile to the local player. */
     hostile: boolean;
+    /** Its juggernaut border is showing (it is inside a juggernaut window). */
+    inJuggernautWindow: boolean;
 }
 
 /** Where a battle is when tutorials are checked. */
@@ -35,6 +39,7 @@ export function unitMatchesTutorialFilter(unit: TutorialUnitView, filter: Tutori
     if (filter.characterId != null && unit.characterId !== filter.characterId) return false;
     if (filter.minStackSize != null && unit.stackSize < filter.minStackSize) return false;
     if (filter.hostile != null && unit.hostile !== filter.hostile) return false;
+    if (filter.inJuggernautWindow != null && unit.inJuggernautWindow !== filter.inJuggernautWindow) return false;
     return true;
 }
 
@@ -59,6 +64,32 @@ export function formatTutorialStepText(text: string, unit: TutorialUnitView | nu
     return text.replace(/\{stackSize\}/g, unit ? String(unit.stackSize) : 'several');
 }
 
+/** Colour of each `{Term}` word usable in step text. */
+export const TUTORIAL_TEXT_TERM_COLORS: Readonly<Record<TutorialTextTerm, string>> = {
+    Juggernaut: ABILITY_TIMING_TAG_COLORS.juggernaut,
+};
+
+/** A run of step text: plain, or a coloured term. */
+export interface TutorialTextSegment {
+    text: string;
+    color?: string;
+}
+
+/** Split already-formatted step text into plain and coloured-term runs (`{Juggernaut}` becomes a coloured word). */
+export function tutorialTextSegments(text: string): TutorialTextSegment[] {
+    const segments: TutorialTextSegment[] = [];
+    let last = 0;
+    for (const match of text.matchAll(/\{(\w+)\}/g)) {
+        const color = (TUTORIAL_TEXT_TERM_COLORS as Record<string, string | undefined>)[match[1]];
+        if (!color) continue;
+        if (match.index > last) segments.push({ text: text.slice(last, match.index) });
+        segments.push({ text: match[1], color });
+        last = match.index + match[0].length;
+    }
+    if (last < text.length) segments.push({ text: text.slice(last) });
+    return segments;
+}
+
 /**
  * The first tutorial in `tutorials` whose trigger matches and that the player has not finished, resumed
  * at its stored step. Null when none applies.
@@ -69,9 +100,12 @@ export function findTriggeredTutorial(
     ctx: TutorialBattleContext,
     /** Tutorial ids to pass over (e.g. already shown in this battle while the account reloads). */
     exclude?: ReadonlySet<string>,
+    /** Restrict to tutorials passing this test (e.g. only `pauseGame` ones when it is not the player's turn). */
+    accept?: (def: TutorialDef) => boolean,
 ): ActiveTutorial | null {
     for (const def of tutorials) {
         if (exclude?.has(def.id)) continue;
+        if (accept && !accept(def)) continue;
         if (def.steps.length === 0 || !triggerMatches(def, ctx)) continue;
         const progress = readTutorialProgress(knowledge, def.knowledgeKey, def.id);
         if (progress?.done) continue;

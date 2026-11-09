@@ -18,6 +18,8 @@ export interface TutorialUnitFilter {
     minStackSize?: number;
     /** Only units hostile to the local player. */
     hostile?: boolean;
+    /** Only units whose juggernaut border is showing now (inside a juggernaut window). */
+    inJuggernautWindow?: boolean;
 }
 
 /** When a tutorial starts. */
@@ -51,6 +53,9 @@ export type TutorialPointerTarget =
     /** Any registered DOM HUD anchor. */
     | { type: 'hudAnchor'; anchorId: HudAnchorId };
 
+/** Coloured words a step's text can use as `{Term}` (see {@link TutorialStepDef.text}). */
+export type TutorialTextTerm = 'Juggernaut';
+
 /** What moves a step on to the next one. */
 export type TutorialAdvance =
     /** The player clicks a button (`label`, default "Next" / "Got it" on the last step). */
@@ -64,7 +69,8 @@ export type TutorialAdvance =
 export interface TutorialStepDef {
     /**
      * Step text. Tokens filled from the unit the step points at: `{stackSize}` — that unit's stack count
-     * ("several" when there is no such unit).
+     * ("several" when there is no such unit). `{Juggernaut}` — the word, in the juggernaut colour
+     * (`TUTORIAL_TEXT_TERM_COLORS`). A newline (`\n`) starts a new line.
      */
     text: string;
     pointAt?: TutorialPointerTarget;
@@ -79,6 +85,12 @@ export interface TutorialDef {
     /** Short heading shown above the step text. */
     title: string;
     trigger: TutorialTrigger;
+    /**
+     * Hold this player's simulation while the tutorial is up, and let it start at any moment of the battle
+     * (not only on their turn): the hold is what makes it safe to interrupt live play. The game resumes when
+     * the tutorial finishes or is skipped. Local only; other players are not paused.
+     */
+    pauseGame?: boolean;
     steps: readonly TutorialStepDef[];
 }
 

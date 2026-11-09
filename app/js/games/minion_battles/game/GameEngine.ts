@@ -930,6 +930,7 @@ export class GameEngine implements EngineContext {
             || this.waitingForOrders != null
             || this.waitingForTargetInput != null
             || this.state.multiplayerAwaitHostCatchup
+            || this.state.localSimulationHold
             || this.state.levelEventManager.isTerminal;
     }
 
@@ -1066,7 +1067,8 @@ export class GameEngine implements EngineContext {
         return (
             !this.state.levelEventManager.isTerminal &&
             !this.isPaused &&
-            !this.state.multiplayerAwaitHostCatchup
+            !this.state.multiplayerAwaitHostCatchup &&
+            !this.state.localSimulationHold
         );
     }
 

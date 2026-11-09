@@ -17,6 +17,8 @@ final class TutorialKnowledge
         'TutorialBattleBasics',
         'TutorialLight',
         'TutorialStackedUnits',
+        'TutorialCcResistance',
+        'TutorialJuggernautFrames',
     ];
 
     public static function isRecordable(string $key): bool

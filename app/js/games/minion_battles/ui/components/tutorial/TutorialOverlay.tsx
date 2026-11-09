@@ -9,7 +9,12 @@ import type { GameEngine } from '../../../game/GameEngine';
 import type { Camera } from '../../../game/Camera';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import type { TutorialPointerTarget } from '../../../tutorials/tutorialTypes';
-import { formatTutorialStepText, nextButtonLabel, type ActiveTutorial } from '../../../tutorials/tutorialLogic';
+import {
+    formatTutorialStepText,
+    nextButtonLabel,
+    tutorialTextSegments,
+    type ActiveTutorial,
+} from '../../../tutorials/tutorialLogic';
 import { findTutorialUnit, tutorialUnitView } from '../../../tutorials/tutorialUnits';
 import { abilityCardHudAnchorId, getHudAnchorRect } from '../hudAnchors';
 
@@ -37,6 +42,7 @@ const MIN_WORLD_RING_PX = 36;
 const PANEL_WIDTH_PX = 380;
 const PANEL_TOP_OFFSET_PX = 56;
 const ARROW_SIZE_PX = 20;
+const PANEL_TARGET_GAP_PX = 14;
 
 function nearestTo<T extends { x: number; y: number }>(items: T[], from: { x: number; y: number } | undefined): T | undefined {
     if (!from) return items[0];
@@ -128,6 +134,15 @@ export default function TutorialOverlay({ tutorial, engine, camera, canvasAreaRe
                 panel.style.top = `${canvasRect.top + PANEL_TOP_OFFSET_PX}px`;
             }
             const box = pointAt ? resolvePointer(pointAt, engine, camera, canvasRect) : null;
+            if (panel && canvasRect && box) {
+                // Keep the panel off the thing it points at: drop it below the target when they would overlap.
+                const panelTop = canvasRect.top + PANEL_TOP_OFFSET_PX;
+                const panelBottom = panelTop + panel.offsetHeight;
+                const boxBottom = box.top + box.height;
+                if (box.top < panelBottom && boxBottom > panelTop) {
+                    panel.style.top = `${boxBottom + PANEL_TARGET_GAP_PX}px`;
+                }
+            }
             const ring = ringRef.current;
             const arrow = arrowRef.current;
             if (ring && arrow) {
@@ -157,7 +172,7 @@ export default function TutorialOverlay({ tutorial, engine, camera, canvasAreaRe
     const pointedUnit = pointAt?.type === 'unit' ? findTutorialUnit(engine, pointAt, camera) : undefined;
     const stepText = formatTutorialStepText(
         stepDef.text,
-        pointedUnit ? tutorialUnitView(pointedUnit, engine.getLocalPlayerUnit()?.teamId ?? 'player') : null,
+        pointedUnit ? tutorialUnitView(pointedUnit, engine.getLocalPlayerUnit()?.teamId ?? 'player', engine.gameTime) : null,
     );
 
     return createPortal(
@@ -187,7 +202,17 @@ export default function TutorialOverlay({ tutorial, engine, camera, canvasAreaRe
                         </span>
                     )}
                 </div>
-                <p className="text-sm leading-snug">{stepText}</p>
+                <p className="whitespace-pre-line text-sm leading-snug">
+                    {tutorialTextSegments(stepText).map((seg, i) =>
+                        seg.color ? (
+                            <span key={i} className="font-semibold" style={{ color: seg.color }}>
+                                {seg.text}
+                            </span>
+                        ) : (
+                            <React.Fragment key={i}>{seg.text}</React.Fragment>
+                        ),
+                    )}
+                </p>
                 <div className="mt-2 flex items-center justify-between">
                     <button
                         type="button"

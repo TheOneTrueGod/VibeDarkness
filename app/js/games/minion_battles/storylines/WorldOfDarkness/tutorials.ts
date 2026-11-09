@@ -1,11 +1,13 @@
 /** World of Darkness tutorials. Registered in `storylines/tutorialRegistry.ts`; see `tutorials/tutorialTypes.ts`. */
 import {
     KNOWLEDGE_TUTORIAL_BATTLE_BASICS,
+    KNOWLEDGE_TUTORIAL_CC_RESISTANCE,
+    KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES,
     KNOWLEDGE_TUTORIAL_LIGHT,
     KNOWLEDGE_TUTORIAL_STACKED_UNITS,
 } from '../../../../accountKnowledge';
 import type { TutorialDef } from '../../tutorials/tutorialTypes';
-import { ENEMY_DARK_WOLF } from '../../constants/enemyConstants';
+import { ENEMY_ALPHA_WOLF, ENEMY_DARK_WOLF } from '../../constants/enemyConstants';
 import { DARK_AWAKENING } from './missions/001_dark_awakening';
 import { TOWARDS_THE_LIGHT } from './missions/002_towards_the_light';
 
@@ -73,8 +75,51 @@ export const TUTORIAL_STACKED_UNITS: TutorialDef = {
     ],
 };
 
+/** The first time a CC-resistant boss is on screen (the alpha wolf, mission 005): points at its protection circles. */
+export const TUTORIAL_CC_RESISTANCE: TutorialDef = {
+    id: 'cc_resistance',
+    knowledgeKey: KNOWLEDGE_TUTORIAL_CC_RESISTANCE,
+    title: 'Crowd control resistance',
+    trigger: { type: 'unitOnScreen', unit: { characterId: ENEMY_ALPHA_WOLF.characterId, hostile: true } },
+    steps: [
+        {
+            text:
+                'This boss is resistant to stuns, knockbacks, and similar effects.\n' +
+                "Weak knockbacks and stuns won't affect it at all, and it will shrug off the first 2 strong effects.",
+            pointAt: { type: 'hudAnchor', anchorId: 'bossCcArmour' },
+            advance: { type: 'next' },
+        },
+        {
+            text: 'Once you hit it with the third crowd control effect, it will be exposed, taking double damage.',
+            pointAt: { type: 'hudAnchor', anchorId: 'bossCcArmour' },
+            advance: { type: 'next' },
+        },
+    ],
+};
+
+/**
+ * The first time an enemy's juggernaut border shows (the alpha wolf's first juggernaut frames). Holds the
+ * game for this player until they dismiss it.
+ */
+export const TUTORIAL_JUGGERNAUT_FRAMES: TutorialDef = {
+    id: 'juggernaut_frames',
+    knowledgeKey: KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES,
+    title: 'Juggernaut frames',
+    trigger: { type: 'unitOnScreen', unit: { hostile: true, inJuggernautWindow: true } },
+    pauseGame: true,
+    steps: [
+        {
+            text: 'This enemy has {Juggernaut} armour, and is immune to all stuns and knockbacks.',
+            pointAt: { type: 'unit', hostile: true, inJuggernautWindow: true },
+            advance: { type: 'next' },
+        },
+    ],
+};
+
 export const WORLD_OF_DARKNESS_TUTORIALS: readonly TutorialDef[] = [
     TUTORIAL_FIRST_BATTLE,
     TUTORIAL_LIGHT,
     TUTORIAL_STACKED_UNITS,
+    TUTORIAL_CC_RESISTANCE,
+    TUTORIAL_JUGGERNAUT_FRAMES,
 ];

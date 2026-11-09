@@ -4,7 +4,7 @@
  * `tutorials/AGENTS.md`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AccountKnowledgeMap, TutorialProgress } from '../../../../../accountKnowledge';
+import { readTutorialProgress, type AccountKnowledgeMap, type TutorialProgress } from '../../../../../accountKnowledge';
 import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import type { BattleSessionEvent } from '../../../game/BattleSession';
 import type { Camera } from '../../../game/Camera';
@@ -30,7 +30,19 @@ interface UseBattleTutorialParams {
     refetchUser?: () => Promise<void>;
     /** True while the player can act (their turn, battle intro out of the way). Tutorials start and show only then. */
     ready: boolean;
+    /**
+     * True once the battle is up and its intro is out of the way, whoever's turn it is. `pauseGame` tutorials
+     * may start and show from then on, since they hold the simulation themselves.
+     */
+    battleReady: boolean;
+    /** Hold or release this client's simulation (a `pauseGame` tutorial holds it while it is up). Keep it stable. */
+    setSimulationHold: (held: boolean) => void;
 }
+
+/** How often (ms) `pauseGame` tutorials are checked against the running battle. */
+const PAUSING_TRIGGER_POLL_MS = 50;
+
+const isPausingTutorial = (def: TutorialDef) => def.pauseGame === true;
 
 export interface BattleTutorialState {
     /** Tutorial and step to show now (null when none, or while not `ready`). */
@@ -49,30 +61,65 @@ export function useBattleTutorial({
     knowledge,
     refetchUser,
     ready,
+    battleReady,
+    setSimulationHold,
 }: UseBattleTutorialParams): BattleTutorialState {
     const [active, setActive] = useState<ActiveTutorial | null>(null);
     const activeRef = useRef<ActiveTutorial | null>(null);
     /** Tutorials already shown in this battle mount; never shown again here even before the account reloads. */
     const shownRef = useRef<Set<string>>(new Set());
 
-    // Whenever the player can act and no tutorial is up, start the first one whose trigger matches.
+    const startMatching = useCallback(
+        (accept?: (def: TutorialDef) => boolean) => {
+            if (!engine || activeRef.current) return;
+            const found = findTriggeredTutorial(
+                TUTORIALS,
+                knowledge,
+                {
+                    missionId,
+                    gameTimeSeconds: engine.gameTime,
+                    unitsOnScreen: camera ? tutorialUnitsOnScreen(engine, camera) : [],
+                },
+                shownRef.current,
+                accept,
+            );
+            if (!found) return;
+            shownRef.current.add(found.def.id);
+            activeRef.current = found;
+            setActive(found);
+        },
+        [engine, camera, knowledge, missionId],
+    );
+
+    // Whenever the player can act and no tutorial is up, start the first one whose trigger matches. Off their
+    // turn only `pauseGame` tutorials may start.
     useEffect(() => {
-        if (!ready || !engine || activeRef.current) return;
-        const found = findTriggeredTutorial(
-            TUTORIALS,
-            knowledge,
-            {
-                missionId,
-                gameTimeSeconds: engine.gameTime,
-                unitsOnScreen: camera ? tutorialUnitsOnScreen(engine, camera) : [],
-            },
-            shownRef.current,
+        if (!battleReady) return;
+        startMatching(ready ? undefined : isPausingTutorial);
+    }, [battleReady, ready, startMatching]);
+
+    // `pauseGame` tutorials react to live play (a juggernaut border appearing mid-fight), so keep checking
+    // while the simulation runs, for as long as one is still unseen.
+    useEffect(() => {
+        if (!battleReady || !engine) return;
+        const unseen = TUTORIALS.some(
+            (def) =>
+                isPausingTutorial(def) &&
+                !shownRef.current.has(def.id) &&
+                !readTutorialProgress(knowledge, def.knowledgeKey, def.id)?.done,
         );
-        if (!found) return;
-        shownRef.current.add(found.def.id);
-        activeRef.current = found;
-        setActive(found);
-    }, [ready, engine, camera, knowledge, missionId]);
+        if (!unseen) return;
+        const id = window.setInterval(() => startMatching(isPausingTutorial), PAUSING_TRIGGER_POLL_MS);
+        return () => window.clearInterval(id);
+    }, [battleReady, engine, knowledge, startMatching, active]);
+
+    // Hold this player's simulation for as long as a `pauseGame` tutorial is up; released on next / skip / unmount.
+    const holding = active?.def.pauseGame === true;
+    useEffect(() => {
+        if (!holding) return;
+        setSimulationHold(true);
+        return () => setSimulationHold(false);
+    }, [holding, setSimulationHold]);
 
     const save = useCallback(
         (def: TutorialDef, progress: TutorialProgress) => {
@@ -118,5 +165,6 @@ export function useBattleTutorial({
         [next],
     );
 
-    return { active: ready ? active : null, next, skip, onSessionEvent };
+    const visible = active != null && (active.def.pauseGame ? battleReady : ready);
+    return { active: visible ? active : null, next, skip, onSessionEvent };
 }

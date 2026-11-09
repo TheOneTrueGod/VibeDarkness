@@ -391,6 +391,10 @@ export default function BattlePhase({
     const objectivesIntroSettled =
         (MISSION_MAP[missionId]?.battleObjectives?.length ?? 0) === 0 ||
         (objectivesPhase !== 'hidden' && objectivesPhase !== 'intro' && objectivesPhase !== 'docking');
+    const setTutorialSimulationHold = useCallback(
+        (held: boolean) => sessionRef.current?.setLocalSimulationHold(held),
+        [sessionRef],
+    );
     const tutorial = useBattleTutorial({
         api,
         missionId,
@@ -399,6 +403,8 @@ export default function BattlePhase({
         knowledge: accountKnowledge,
         refetchUser,
         ready: battleInitPhase === 'ready' && canUseOrderUi && objectivesIntroSettled,
+        battleReady: battleInitPhase === 'ready' && objectivesIntroSettled,
+        setSimulationHold: setTutorialSimulationHold,
     });
     tutorialSessionEventRef.current = tutorial.onSessionEvent;
 
