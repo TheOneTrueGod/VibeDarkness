@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ChevronRight, ChevronsDownUp, ChevronsUpDown, CircleCheck, CircleQuestionMark } from 'lucide-react';
 import {
     DEFAULT_PLAN_FILTERS,
@@ -12,6 +12,7 @@ import {
     planItems,
 } from './plansData';
 import PalettePreview from './PalettePreview';
+import { FxPaletteCard, FxStudio, FxStudioProvider, type FxPalette } from './ParticleFxPreview';
 import PlanFilterBar from './PlanFilterBar';
 import PlanSizeChip from './PlanSizeChip';
 
@@ -82,6 +83,15 @@ function Block({ block }: { block: PlanBlock }) {
         case 'decision':
             return <DecisionCard question={block.question} blocks={block.blocks} />;
         case 'palette':
+            if (block.variant === 'fx') {
+                return (
+                    <FxPaletteCard name={block.name} primary={block.primary} secondary={block.secondary}>
+                        {block.blocks.map((child, i) => (
+                            <Block key={i} block={child} />
+                        ))}
+                    </FxPaletteCard>
+                );
+            }
             return (
                 <PalettePreview name={block.name} primary={block.primary} secondary={block.secondary}>
                     {block.blocks.map((child, i) => (
@@ -89,7 +99,26 @@ function Block({ block }: { block: PlanBlock }) {
                     ))}
                 </PalettePreview>
             );
+        case 'fxStudio':
+            return (
+                <FxStudio title={block.title}>
+                    {block.blocks.map((child, i) => (
+                        <Block key={i} block={child} />
+                    ))}
+                </FxStudio>
+            );
     }
+}
+
+/** Every `[!FX_PALETTE]` card in the plan, in order (cards nested in decision cards included). */
+function collectFxPalettes(blocks: PlanBlock[], out: FxPalette[] = []): FxPalette[] {
+    for (const block of blocks) {
+        if (block.type === 'palette' && block.variant === 'fx') {
+            out.push({ name: block.name, primary: block.primary.hex, secondary: block.secondary.hex });
+        }
+        if (block.type === 'decision' || block.type === 'palette' || block.type === 'fxStudio') collectFxPalettes(block.blocks, out);
+    }
+    return out;
 }
 
 /** Blue info card for a decision the user needs to make. */
@@ -211,6 +240,7 @@ export default function PlanDetail({ plan }: { plan: PlanDoc | null }) {
     const [filters, setFilters] = useState<PlanFilters>(DEFAULT_PLAN_FILTERS);
     /** Items the user opened or closed; the rest use their default (open unless done). */
     const [openOverrides, setOpenOverrides] = useState<Record<string, boolean>>({});
+    const fxPalettes = useMemo(() => (plan ? collectFxPalettes(plan.blocks) : []), [plan]);
     if (!plan) {
         return (
             <div className="flex items-center justify-center h-full text-muted text-sm">
@@ -246,22 +276,24 @@ export default function PlanDetail({ plan }: { plan: PlanDoc | null }) {
         </button>
     );
     return (
-        <div className="max-w-4xl select-text">
-            <div className="sticky top-0 z-10 bg-surface border-b border-border-custom px-6 pt-3 pb-3">
-                <div className="flex items-baseline justify-between gap-3">
-                    <h2 className="text-xl font-bold text-white">{plan.title}</h2>
-                    <p className="text-xs text-muted shrink-0">Added {plan.date}</p>
+        <FxStudioProvider palettes={fxPalettes}>
+            <div className="max-w-4xl select-text">
+                <div className="sticky top-0 z-10 bg-surface border-b border-border-custom px-6 pt-3 pb-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                        <h2 className="text-xl font-bold text-white">{plan.title}</h2>
+                        <p className="text-xs text-muted shrink-0">Added {plan.date}</p>
+                    </div>
+                    <div className="mt-2">
+                        <PlanFilterBar filters={filters} onChange={setFilters} hiddenCount={hiddenCount} trailing={expandToggle} />
+                    </div>
                 </div>
-                <div className="mt-2">
-                    <PlanFilterBar filters={filters} onChange={setFilters} hiddenCount={hiddenCount} trailing={expandToggle} />
+                <div className="px-6 pb-6 pt-4 flex flex-col gap-3">
+                    {sections.map((section, i) => {
+                        const key = sectionKey(plan.id, section, i);
+                        return <Section key={key} section={section} planId={plan.id} sectionId={key} openState={openState} />;
+                    })}
                 </div>
             </div>
-            <div className="px-6 pb-6 pt-4 flex flex-col gap-3">
-                {sections.map((section, i) => {
-                    const key = sectionKey(plan.id, section, i);
-                    return <Section key={key} section={section} planId={plan.id} sectionId={key} openState={openState} />;
-                })}
-            </div>
-        </div>
+        </FxStudioProvider>
     );
 }

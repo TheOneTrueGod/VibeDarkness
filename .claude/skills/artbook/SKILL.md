@@ -1,13 +1,21 @@
 ---
 name: artbook
-description: Makes an "artbook" - an inline SVG concept diagram of a gameplay feature (ability, attack pattern, unit, mechanic) drawn before implementation so the user can confirm the interpretation. Use when the user asks for an artbook, a diagram of what an ability or mechanic will look like, or when a new Minion Battles ability has spatial behaviour (hitbox shapes, aim, arcs, sequences) worth confirming before building. Implementation pauses until the user approves the artbook.
+description: Makes an "artbook" - visual concept art drawn before implementation so the user can confirm it. Two kinds - a mechanic artbook (inline SVG diagram of an ability, attack pattern, unit or mechanic) and a look artbook (colour palettes applied to animated SVG mock-ups of particle effects, spell circles, trails and units, published as an Ideas-tab browser plan). Use when the user asks for an artbook, a diagram of what an ability or mechanic will look like, colour palette options, or particle/VFX concepts, or when a new Minion Battles ability has spatial behaviour worth confirming before building. Implementation pauses until the user approves the artbook.
 ---
 
 # Artbook
 
-An **artbook** is a visual spec: a top-down sketch of how a feature looks and plays, drawn from
-the user's description *before* any code is written. It catches misreadings of shape, angle,
-timing and targeting while they are still cheap to fix.
+An **artbook** is a visual spec drawn from the user's description *before* any code is written. It
+catches misreadings while they are still cheap to fix. There are two kinds:
+
+| Kind | Answers | Lives in |
+|---|---|---|
+| **Mechanic artbook** | Shape, angle, timing, targeting: "how does it play?" | An inline SVG widget in chat (below) |
+| **Look artbook** | Colours and visual effects: "how does it feel?" | A browser plan in the Ideas tab, with animated SVG previews (see "Look artbooks") |
+
+Pick by the question. A new ability with a hitbox wants a mechanic artbook; a re-theme, a new tree
+identity, or "brainstorm some palettes / particle effects" wants a look artbook. A big feature can
+have both.
 
 ## Hard rule: pause until approved
 
@@ -66,6 +74,35 @@ Draw the mechanism, not a flowchart about it.
 - No inline widget available (e.g. another editor): write the SVG to a file in the session folder
   and send or link it, then pause the same way.
 - Put all explanation and questions in the chat reply, not inside the SVG.
+
+## Look artbooks (palettes and visual effects)
+
+The reference is plan `docs/ideas/plans/0004_2026-11-08_command-core-spirit-animal.md` (the
+Command Core spirit animal): five palettes, four particle styles, each shown in a ring, a projectile
+trail and off a unit, with the user picking the winner in the browser.
+
+1. **Ground it.** Read the tree's current theme in `themes/abilityThemes.ts`, the role rules in
+   `themes/AGENTS.md` (primary = mass, secondary = event), and list which hues other trees already
+   own, so each option can say what it collides with.
+2. **Write a browser plan** (**jp-browser-plan** for the file format) with:
+   - One `> [!FX_PALETTE] Name` card per palette (`primary:` / `secondary:` lines plus a short
+     note: the mood in a sentence, then the honest risk - which tree it blurs with, where it loses
+     contrast). Offer about five, including the shipped colours as a baseline.
+   - One `> [!FX_STUDIO] Title` block. It renders every FX palette in the plan against every
+     particle style in every context, with colour pickers and a dark / lit-ground toggle.
+   - `[!DECISION]` cards for the palette and the style, each with a recommendation, then items for
+     the engine work the choice unlocks.
+3. **Add styles or contexts** in `app/js/components/minionBattlesHomePage/Ideas/ParticleFxPreview.tsx`
+   when the existing ones don't cover the request: a style is one `STYLES` entry (keyframe stops plus
+   a shape), a context is a spawn rule in `makeParticles` plus a base drawing in `FxScene`. Keep
+   per-particle SVG filters out (use the soft radial gradients): hundreds of filtered, animated
+   particles stall the page. `Armory`-style static previews use `> [!PALETTE]` (`PalettePreview.tsx`).
+4. **Verify** the plan page renders (the Ideas tab is admin-only; a throwaway page under `tmp/` that
+   renders `PlanDetail` for the plan works without logging in), then point the user to
+   Ideas -> Plans and **pause** as for any artbook.
+5. **On a decision**, replace each `[!DECISION]` card with a `**Decided:**` line and mark the item
+   `[x]`. The chosen pair goes into the tree's theme; the chosen style becomes engine data, not a
+   one-off painter.
 
 ## Related
 

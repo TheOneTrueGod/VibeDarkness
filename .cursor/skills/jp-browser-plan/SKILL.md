@@ -50,8 +50,9 @@ The parser is deliberately small. Stick to:
 - `---` horizontal rules between priority sections.
 - **Decision cards:** a line `> [!DECISION] <question>`, followed by `>` lines for the body (context, `-` options; use a bare `>` for a blank line). The body is parsed with the same rules. The card ends at the first line that doesn't start with `>`. It renders as a blue info card with a question-mark icon on the left and a "Decision needed" label.
 - **Palette cards:** a line `> [!PALETTE] <name>`, then `>` lines. `primary: #rrggbb Label` and `secondary: #rrggbb Label` set the two colours. Other `>` lines are the note, parsed like a decision body. The card renders a tree badge, a Charge resource, and a core icon in those colours. It ends at the first line that doesn't start with `>`.
+- **FX palette cards and the particle studio:** `> [!FX_PALETTE] <name>` takes the same lines as a palette card and previews the pair on animated particle effects. One `> [!FX_STUDIO] <title>` block (optional `>` note lines) renders an interactive grid that applies every FX palette in the plan to each particle style in a ring, a projectile trail and off a unit (`ParticleFxPreview.tsx`; add styles to its `STYLES` list).
 
-Not supported (they render as plain text or break layout): tables, links, images, numbered lists, plain block quotes (only `[!DECISION]` and `[!PALETTE]` cards), code fences, and italics. If a plan needs one of these, extend `parsePlanMarkdown` / `PlanDetail` and add a case to `plansData.test.ts`. Don't work around it in the content.
+Not supported (they render as plain text or break layout): tables, links, images, numbered lists, plain block quotes (only `[!DECISION]`, `[!PALETTE]`, `[!FX_PALETTE]` and `[!FX_STUDIO]` blocks), code fences, and italics. If a plan needs one of these, extend `parsePlanMarkdown` / `PlanDetail` and add a case to `plansData.test.ts`. Don't work around it in the content.
 
 ## Required structure
 

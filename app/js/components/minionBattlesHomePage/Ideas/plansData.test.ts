@@ -68,7 +68,22 @@ describe('palette cards', () => {
                 primary: { hex: '#4f6d8c', label: 'Blue-steel' },
                 secondary: { hex: '#e7e5e4', label: 'Bone edge' },
                 blocks: [{ type: 'paragraph', text: 'Hot metal, then water.' }],
+                variant: 'armory',
             },
+            { type: 'paragraph', text: 'After' },
+        ]);
+    });
+
+    it('marks [!FX_PALETTE] cards as the fx variant', () => {
+        const [block] = parsePlanMarkdown('> [!FX_PALETTE] Verdant\n> primary: #166534 Moss\n> secondary: #bbf7d0 Mint');
+        expect(block).toMatchObject({ type: 'palette', name: 'Verdant', variant: 'fx', primary: { hex: '#166534' } });
+    });
+});
+
+describe('fx studio blocks', () => {
+    it('reads the title and the note, and stops at the first plain line', () => {
+        expect(parsePlanMarkdown('> [!FX_STUDIO] Particle studio\n> Pick a palette.\nAfter')).toEqual([
+            { type: 'fxStudio', title: 'Particle studio', blocks: [{ type: 'paragraph', text: 'Pick a palette.' }] },
             { type: 'paragraph', text: 'After' },
         ]);
     });

@@ -25,7 +25,25 @@ export type PlanBlock =
      * A primary/secondary colour pair (`> [!PALETTE] name`, then `primary:` / `secondary:` lines).
      * Other `>` lines are the note.
      */
-    | { type: 'palette'; name: string; primary: PlanPaletteColor; secondary: PlanPaletteColor; blocks: PlanBlock[] };
+    | {
+          type: 'palette';
+          name: string;
+          primary: PlanPaletteColor;
+          secondary: PlanPaletteColor;
+          blocks: PlanBlock[];
+          /**
+           * What the card previews. `armory` (`> [!PALETTE]`): tree badge, Charge and core icon. `fx`
+           * (`> [!FX_PALETTE]`): particle effects in a ring, a projectile trail and off a unit.
+           */
+          variant: PlanPaletteVariant;
+      }
+    /**
+     * `> [!FX_STUDIO] title`: an interactive grid that applies the plan's `[!FX_PALETTE]` cards to every
+     * particle style. Any following `>` lines are its note.
+     */
+    | { type: 'fxStudio'; title: string; blocks: PlanBlock[] };
+
+export type PlanPaletteVariant = 'armory' | 'fx';
 
 export interface PlanDoc {
     /** Permanent 4-digit id from the file's numeric prefix, e.g. `0001`. Used in URLs. */
@@ -44,7 +62,8 @@ const HEADING_RE = /^(#{1,6})\s+(.*)$/;
 const BULLET_RE = /^(\s*)[-*]\s+(.*)$/;
 const RULE_RE = /^\s*(-{3,}|\*{3,})\s*$/;
 const DECISION_RE = /^>\s?\[!DECISION\]\s*(.*)$/i;
-const PALETTE_RE = /^>\s?\[!PALETTE\]\s*(.*)$/i;
+const PALETTE_RE = /^>\s?\[!(FX_)?PALETTE\]\s*(.*)$/i;
+const FX_STUDIO_RE = /^>\s?\[!FX_STUDIO\]\s*(.*)$/i;
 const PALETTE_COLOR_RE = /^(primary|secondary):\s*(#[0-9a-fA-F]{6})\s*(.*)$/i;
 const QUOTE_RE = /^>\s?(.*)$/;
 const DONE_RE = /^\[x\]\s+(.*)$/i;
@@ -60,7 +79,8 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
     let paragraph: string[] = [];
     let list: { items: PlanListItem[]; stack: { indent: number; item: PlanListItem }[] } | null = null;
     let decision: { question: string; lines: string[] } | null = null;
-    let palette: { name: string; lines: string[] } | null = null;
+    let palette: { name: string; variant: PlanPaletteVariant; lines: string[] } | null = null;
+    let studio: { title: string; lines: string[] } | null = null;
 
     const flushParagraph = () => {
         if (paragraph.length > 0) blocks.push({ type: 'paragraph', text: paragraph.join(' ') });
@@ -98,21 +118,39 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
             primary,
             secondary,
             blocks: parsePlanMarkdown(body.join('\n')),
+            variant: palette.variant,
         });
         palette = null;
+    };
+    const flushStudio = () => {
+        if (studio) blocks.push({ type: 'fxStudio', title: studio.title, blocks: parsePlanMarkdown(studio.lines.join('\n')) });
+        studio = null;
     };
 
     for (const line of markdown.split(/\r?\n/)) {
         const paletteStart = PALETTE_RE.exec(line);
         const decisionStart = DECISION_RE.exec(line);
-        if (paletteStart || decisionStart) {
+        const studioStart = FX_STUDIO_RE.exec(line);
+        if (paletteStart || decisionStart || studioStart) {
             flushParagraph();
             flushList();
             flushDecision();
             flushPalette();
-            if (paletteStart) palette = { name: paletteStart[1].trim(), lines: [] };
+            flushStudio();
+            if (paletteStart) {
+                palette = { name: paletteStart[2].trim(), variant: paletteStart[1] ? 'fx' : 'armory', lines: [] };
+            }
             if (decisionStart) decision = { question: decisionStart[1].trim(), lines: [] };
+            if (studioStart) studio = { title: studioStart[1].trim(), lines: [] };
             continue;
+        }
+        if (studio) {
+            const quote = QUOTE_RE.exec(line);
+            if (quote) {
+                studio.lines.push(quote[1]);
+                continue;
+            }
+            flushStudio();
         }
         if (palette) {
             const quote = QUOTE_RE.exec(line);
@@ -178,6 +216,7 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
     flushList();
     flushDecision();
     flushPalette();
+    flushStudio();
     return blocks;
 }
 
