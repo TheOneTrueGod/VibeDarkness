@@ -67,6 +67,7 @@ import { DisplacerBoltAbility } from '../card_defs/dark_animals/0017_DisplacerBo
 import { FrenziedDisplacerBoltAbility } from '../card_defs/dark_animals/0020_FrenziedDisplacerBolt/0020Ability';
 import { HuskGraspAbility } from '../card_defs/11_enemy_husk/1101_HuskGrasp/1101Ability';
 import { MiasmaAbility } from '../card_defs/11_enemy_husk/1102_Miasma/1102Ability';
+import { DiseaseCloudAbility } from '../card_defs/11_enemy_husk/1103_DiseaseCloud/1103Ability';
 import { GaolersHookAbility_1201 } from '../card_defs/12_enemy_warden/1201_GaolersHook/1201Ability';
 import { ExecutionSlamAbility_1202 } from '../card_defs/12_enemy_warden/1202_ExecutionSlam/1202Ability';
 import { BulwarkAbility_1203 } from '../card_defs/12_enemy_warden/1203_Bulwark/1203Ability';
@@ -200,6 +201,7 @@ register(PhantomDecoyAbility);
 register(PhantomEchoAbility);
 register(HuskGraspAbility);
 register(MiasmaAbility);
+register(DiseaseCloudAbility);
 register(GaolersHookAbility_1201);
 register(ExecutionSlamAbility_1202);
 register(BulwarkAbility_1203);

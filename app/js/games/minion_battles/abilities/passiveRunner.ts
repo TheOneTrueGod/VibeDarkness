@@ -120,10 +120,12 @@ function spawnUnitsAroundCaster(caster: Unit, effect: PassiveSpawnUnitsEffect, e
     });
 }
 
-/** Cells within `cellRadius` (Chebyshev) of the caster's cell, row-major. */
-function cellSquareAround(caster: Unit, cellRadius: number): Array<{ col: number; row: number }> {
-    const centerCol = Math.floor(caster.x / CELL_SIZE);
-    const centerRow = Math.floor(caster.y / CELL_SIZE);
+type Point = { x: number; y: number };
+
+/** Cells within `cellRadius` (Chebyshev) of the anchor's cell, row-major. */
+function cellSquareAround(anchor: Point, cellRadius: number): Array<{ col: number; row: number }> {
+    const centerCol = Math.floor(anchor.x / CELL_SIZE);
+    const centerRow = Math.floor(anchor.y / CELL_SIZE);
     const cells: Array<{ col: number; row: number }> = [];
     for (let row = centerRow - cellRadius; row <= centerRow + cellRadius; row++) {
         for (let col = centerCol - cellRadius; col <= centerCol + cellRadius; col++) {
@@ -134,9 +136,9 @@ function cellSquareAround(caster: Unit, cellRadius: number): Array<{ col: number
 }
 
 /** Candidate cells for a place_terrain effect: a cell square around the caster, or a px circle. */
-function placeTerrainCandidates(caster: Unit, effect: PassivePlaceTerrainEffect): Array<{ col: number; row: number }> {
-    if (effect.cellRadius !== undefined) return cellSquareAround(caster, effect.cellRadius);
-    return rasterizeArea({ type: 'circle', x: caster.x, y: caster.y, radiusPx: effect.range ?? 0 });
+function placeTerrainCandidates(anchor: Point, effect: PassivePlaceTerrainEffect): Array<{ col: number; row: number }> {
+    if (effect.cellRadius !== undefined) return cellSquareAround(anchor, effect.cellRadius);
+    return rasterizeArea({ type: 'circle', x: anchor.x, y: anchor.y, radiusPx: effect.range ?? 0 });
 }
 
 /**
@@ -144,7 +146,7 @@ function placeTerrainCandidates(caster: Unit, effect: PassivePlaceTerrainEffect)
  * area did not already cover, in random order (engine RNG, so deterministic across clients).
  */
 function pickSpilloverCells(
-    caster: Unit,
+    anchor: Point,
     effect: PassivePlaceTerrainEffect,
     engine: EngineContext,
     layer: 'ground' | 'air',
@@ -154,7 +156,7 @@ function pickSpilloverCells(
 ): Array<{ col: number; row: number }> {
     if (!effect.spillover || needed <= 0) return [];
     const covered = new Set(mainArea.map(({ col, row }) => `${col},${row}`));
-    const pool = cellSquareAround(caster, effect.spillover.cellRadius).filter(
+    const pool = cellSquareAround(anchor, effect.spillover.cellRadius).filter(
         (cell) =>
             !covered.has(`${cell.col},${cell.row}`) &&
             isUsable(cell) &&
@@ -168,7 +170,17 @@ function pickSpilloverCells(
     return picked;
 }
 
-export function placeTerrain(caster: Unit, effect: PassivePlaceTerrainEffect, engine: EngineContext): void {
+/**
+ * Place `effect`'s terrain around `anchor` (default: the caster's position) on behalf of `caster`.
+ * The anchor is what a projectile landing, a thrown cloud or any non-self-centred cast passes in;
+ * ownership, team and the pulse visual still follow the caster. Returns the cells that got terrain.
+ */
+export function placeTerrain(
+    caster: Unit,
+    effect: PassivePlaceTerrainEffect,
+    engine: EngineContext,
+    anchor: Point = caster,
+): Array<{ col: number; row: number }> {
     const layer = effect.layer ?? 'ground';
     const expiresAtGameTime = effect.durationSec !== undefined ? engine.gameTime + effect.durationSec : undefined;
     const terrain = engine.terrainManager;
@@ -178,7 +190,7 @@ export function placeTerrain(caster: Unit, effect: PassivePlaceTerrainEffect, en
         !effect.skipImpassable ||
         !terrain ||
         terrain.isPassable(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2);
-    const mainArea = placeTerrainCandidates(caster, effect);
+    const mainArea = placeTerrainCandidates(anchor, effect);
     const candidates = mainArea.filter(isUsable);
 
     // 2. Cells already carrying this effect type are skipped, or refreshed and skipped.
@@ -197,8 +209,8 @@ export function placeTerrain(caster: Unit, effect: PassivePlaceTerrainEffect, en
         const aCy = a.row * CELL_SIZE + CELL_SIZE / 2;
         const bCx = b.col * CELL_SIZE + CELL_SIZE / 2;
         const bCy = b.row * CELL_SIZE + CELL_SIZE / 2;
-        const aDist = (aCx - caster.x) * (aCx - caster.x) + (aCy - caster.y) * (aCy - caster.y);
-        const bDist = (bCx - caster.x) * (bCx - caster.x) + (bCy - caster.y) * (bCy - caster.y);
+        const aDist = (aCx - anchor.x) * (aCx - anchor.x) + (aCy - anchor.y) * (aCy - anchor.y);
+        const bDist = (bCx - anchor.x) * (bCx - anchor.x) + (bCy - anchor.y) * (bCy - anchor.y);
         if (aDist !== bDist) return aDist - bDist;
         if (a.col !== b.col) return a.col - b.col;
         return a.row - b.row;
@@ -209,7 +221,7 @@ export function placeTerrain(caster: Unit, effect: PassivePlaceTerrainEffect, en
 
     // 4b. Spillover: top up a short placement with random free cells around the main area.
     const wanted = effect.count ?? 1;
-    toPlace.push(...pickSpilloverCells(caster, effect, engine, layer, mainArea, isUsable, wanted - toPlace.length));
+    toPlace.push(...pickSpilloverCells(anchor, effect, engine, layer, mainArea, isUsable, wanted - toPlace.length));
 
     // 5. Place terrain on each selected cell. Ground thorns keep their legacy id prefix.
     const idPrefix = layer === 'ground' && expiresAtGameTime === undefined ? 'thorn' : effect.effectType;
@@ -230,8 +242,8 @@ export function placeTerrain(caster: Unit, effect: PassivePlaceTerrainEffect, en
     // 6. Emit AuraPulse visual if at least one tile was placed.
     if (toPlace.length > 0 && effect.pulseRadius !== undefined) {
         engine.addEffect(new Effect({
-            x: caster.x,
-            y: caster.y,
+            x: anchor.x,
+            y: anchor.y,
             duration: 0.55,
             effectType: 'AuraPulse',
             effectData: {
@@ -240,6 +252,7 @@ export function placeTerrain(caster: Unit, effect: PassivePlaceTerrainEffect, en
             },
         }));
     }
+    return toPlace;
 }
 
 function processPassive(unit: Unit, passive: PassiveDef, dt: number, engine: EngineContext): void {

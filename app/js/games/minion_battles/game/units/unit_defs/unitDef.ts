@@ -483,7 +483,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         bodyColor: 0x4a5236,
         displayName: 'Husk',
         sprite: UNIT_SPRITE_URLS.husk,
-        bestiary: { abilityIds: ['1101', '1102'] },
+        bestiary: { abilityIds: ['1101', '1102', '1103'] },
         baseSpawn: ENEMY_HUSK,
         characterSpriteKey: 'husk',
         hp: 90,

@@ -102,15 +102,15 @@ export const ENEMY_THORNBINDER: EnemySpawnDef = {
 
 /**
  * Husk: slow, tough former castle resident. Grasp (1101) up close; Miasma (1102) leaves a gas
- * cloud wherever it walks. Usually placed with `unitAITreeId: 'sentryPatrol'` and a
- * `sentryPatrol` route so it walks its old rounds until disturbed.
+ * cloud wherever it walks; Disease Cloud (1103) lobs three 3x3 clouds beside a distant target to fence it in.
+ * Usually placed with `unitAITreeId: 'sentryPatrol'` and a `sentryPatrol` route so it walks its old rounds until disturbed.
  */
 export const ENEMY_HUSK: EnemySpawnDef = {
     characterId: 'husk',
     name: 'Husk',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
-    abilities: ['1101', '1102'],
+    abilities: ['1101', '1102', '1103'],
     aiSettings: { minRange: 0, maxRange: 70 },
     unitAITreeId: 'hunt',
 };
