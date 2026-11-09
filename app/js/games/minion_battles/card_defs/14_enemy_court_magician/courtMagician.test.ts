@@ -40,7 +40,7 @@ import {
 import { pickSwapCrystal } from './1406_MirrorSwap/1406Ability';
 import { HP_STEP_COMPONENT, hpStepBarMarks, peekHpStepState } from '../../game/units/components/hpStepComponent';
 import { assignUnitsToSlots, FORMATION_PRESETS, formationSlots } from '../../game/formations/formationDef';
-import { readRearrangePayload, REARRANGE_FORMATIONS } from './1401_Rearrange/1401Ability';
+import { pickRearrangeFormation, readRearrangePayload, REARRANGE_FORMATIONS } from './1401_Rearrange/1401Ability';
 import {
     SHARD_NOVA_ENRAGED_RING_COUNT,
     SHARD_NOVA_RING_COUNT,
@@ -247,6 +247,18 @@ describe('Rearrange landing strike', () => {
         // Facing east: the line runs north-south, in front of him.
         for (const s of slots) expect(s.x).toBeCloseTo(130);
         expect(new Set(slots.map((s) => s.y)).size).toBe(3);
+    });
+
+    it('varies the shape even when casts fall at a steady RNG rhythm (low bits of the engine LCG cycle)', () => {
+        const engine = setupEngine();
+        const seen = new Set<string>();
+        for (let i = 0; i < 40; i++) {
+            seen.add(pickRearrangeFormation(engine));
+            // A fixed number of other draws between casts used to pin the pick to one shape.
+            for (let k = 0; k < 4; k++) engine.generateRandomInteger(0, 359);
+        }
+        expect(seen.size).toBe(REARRANGE_FORMATIONS.length);
+        engine.destroy();
     });
 
     it('a landing crystal shocks a small area for 3 damage (40px + its radius)', () => {

@@ -48,6 +48,16 @@ export const REARRANGE_FORMATIONS: readonly FormationPresetId[] = [
     'ringAroundTarget',
 ];
 
+/**
+ * Pick a shape from the high bits of a 16-bit draw. The engine RNG is a power-of-two LCG whose LOW bits cycle
+ * with a short period, so `generateRandomInteger(0, 3)` taken at a steady rhythm (one Rearrange per fixed
+ * number of other draws) returned the same shape every time: the fight only ever showed one pattern.
+ */
+export function pickRearrangeFormation(eng: Pick<AbilityEngineContext, 'generateRandomInteger'>): FormationPresetId {
+    const draw = eng.generateRandomInteger(0, 0xffff);
+    return REARRANGE_FORMATIONS[Math.floor((draw / 0x10000) * REARRANGE_FORMATIONS.length)] ?? 'ringAroundCaster';
+}
+
 export const REARRANGE_GESTURE_SEC = 0.4;
 export const REARRANGE_GLIDE_SEC = 1.0;
 const GLIDE_END = REARRANGE_GESTURE_SEC + REARRANGE_GLIDE_SEC;
@@ -148,8 +158,7 @@ export const RearrangeAbility_1401: AbilityStatic = {
     beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
         const eng = engine as AbilityEngineContext;
         const aim = (targets[0] && resolveTargetToPoint(targets[0], eng)) ?? { x: caster.x + 1, y: caster.y };
-        const formation =
-            REARRANGE_FORMATIONS[eng.generateRandomInteger(0, REARRANGE_FORMATIONS.length - 1)] ?? 'ringAroundCaster';
+        const formation = pickRearrangeFormation(eng);
         const layout = { formation, casterX: caster.x, casterY: caster.y, targetX: aim.x, targetY: aim.y };
         const count = getBoundUnits(eng.units, caster, COURT_CRYSTAL_ID).length;
         const payload: RearrangePayload = { ...layout, slots: rearrangeSlots(layout, count, eng.terrainManager) };
