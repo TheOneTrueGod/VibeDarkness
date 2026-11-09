@@ -65,6 +65,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
 
                     commandPetAbility(sourcePets, POUNCE_ABILITY_ID, targets, eng, {
                         preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+                        owner: ctx.caster,
                     });
                 }),
             },

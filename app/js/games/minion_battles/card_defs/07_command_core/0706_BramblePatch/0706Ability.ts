@@ -6,6 +6,7 @@
 
 import type { AbilityRecoveryRule, AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { Effect } from '../../../game/effects/Effect';
+import { SPELL_CIRCLE_STYLE_COMMAND } from '../../../game/spellCircles/spellCircles';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { ActiveAbility } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
@@ -120,6 +121,10 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         start: 0,
         end: WINDUP,
         abilityPhase: AbilityPhase.Windup,
+        // The spirit gathers itself: the Command spell circle (motes rising off a pine ring) until the slam.
+        castBehaviours: [
+            { timingStart: 'start', timingEnd: 'end', behaviour: CastBehaviours.SpellCircle({ style: SPELL_CIRCLE_STYLE_COMMAND }) },
+        ],
     },
     {
         id: 'strike',

@@ -18,6 +18,7 @@ import { findMeleeAimPixelInTargets } from '../targeting';
 import type { TerrainType } from '../../terrain/TerrainType';
 import type { ProjectileModifierId } from '../../game/projectiles/ProjectileTravelModifiers';
 import type { SpriteProjectileConfig } from '../../game/projectiles/projectile_defs';
+import type { ProjectileParticleTrailDef } from '../../game/effects/projectileParticleTrails';
 import type { Unit } from '../../game/units/Unit';
 
 type DamageResolver = (ctx: CastBehaviourSetupContext) => number;
@@ -63,6 +64,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private radius: number = 5;
     private projectileType: string = 'default';
     private spriteConfig?: SpriteProjectileConfig;
+    private particleTrail?: ProjectileParticleTrailDef;
     private maxRange: number = 200;
     private baseDamage: number = 0;
     private resolveDamage: DamageResolver | null = null;
@@ -102,6 +104,12 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     withSpriteConfig(config: SpriteProjectileConfig): this {
         this.projectileType = 'sprite_projectile';
         this.spriteConfig = config;
+        return this;
+    }
+
+    /** Render-only particles shed in flight (see `ProjectileParticleTrailDef` and its presets). */
+    withParticleTrail(trail: ProjectileParticleTrailDef): this {
+        this.particleTrail = trail;
         return this;
     }
 
@@ -310,6 +318,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             arcHeight: this.arcHeight,
             rotationSpeed: this.rotationSpeed,
             spriteConfig: this.spriteConfig,
+            ...(this.particleTrail ? { particleTrail: this.particleTrail } : {}),
             passThroughEnemies: this.passThroughEnemies,
             pierce: this.pierce,
             hitPolicy: this.hitPolicy,

@@ -24,7 +24,7 @@ import { GRAVITY_VIOLET } from '../../effect_defs/aoeEffects';
 import {
     renderUnit,
     updateUnitHpBar,
-    getBodyColorForUnit,
+    paintUnitBody,
     syncUnitCharacterSpriteIfNeeded,
     CHARACTER_SPRITE_SCALE,
     getUnitDisplayWiggleRadius,
@@ -392,9 +392,7 @@ export class UnitRenderer {
             } else {
                 if (body) {
                     body.clear();
-                    body.circle(0, 0, unit.radius);
-                    body.fill(getBodyColorForUnit(unit));
-                    body.stroke({ color: 0x000000, width: 1 });
+                    paintUnitBody(body, unit);
                     if (isDebugOutlined) {
                         body.stroke({ color: 0xfacc15, width: 3 });
                         body.circle(0, 0, unit.radius + 4);

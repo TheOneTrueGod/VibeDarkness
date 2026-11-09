@@ -34,7 +34,7 @@ import type { RecoveryChargeType, AbilityTag } from './Ability';
 import { abilityHasTag } from './Ability';
 import type { ResolvedTarget } from '../game/types';
 import type { PetAITreeContext } from '../game/units/unitAI/pet/context';
-import { Effect } from '../game/effects/Effect';
+import { createCommandCue } from '../game/effects/commandCue';
 import { grantRecoveryChargeToAbility } from './abilityUses';
 import { applyHeal, DEFAULT_HEAL_PENALTY_PCT } from '../game/units/unitHeal';
 import type { AbilityEngineContext } from './AbilityEngineContext';
@@ -108,20 +108,26 @@ export function commandHeel(
         ctx.orderedMoveY = undefined;
         clearPetGuardWander(ctx);
 
-        // Visual: green pulse at the pet's position.
-        engine.addEffect(
-            new Effect({
-                x: pet.x,
-                y: pet.y,
-                duration: 0.5,
-                effectType: 'Pulse',
-                effectData: { colors: [0x22cc44, 0x11882b, 0x0a4a18] },
-            }),
-        );
     }
+    playCommandCues(owner, pets, engine);
+}
 
-    // Suppress "owner unused" lint — owner is the conceptual caller; included for future use.
-    void owner;
+// ---- Command cue ----
+
+/**
+ * Play the command cue (`game/effects/commandCue.ts`) from `owner` to each living pet. Every command in
+ * this module calls it once, so all orders share one look. No-op without an owner or `addEffect`.
+ */
+export function playCommandCues(
+    owner: Unit | undefined,
+    pets: readonly Unit[],
+    engine: { addEffect?(e: unknown): void },
+): void {
+    if (!owner || !engine.addEffect) return;
+    for (const pet of pets) {
+        if (!pet.isAlive()) continue;
+        engine.addEffect(createCommandCue(owner, pet));
+    }
 }
 
 // ---- commandPetAbility ----
@@ -133,6 +139,8 @@ export interface CommandPetAbilityOpts {
      * repeated commands always restore a use even when the ability is at 0.
      */
     preGrantCharge?: { chargeType: RecoveryChargeType; amount: number };
+    /** The commanding unit; when set, plays the command cue from it to each pet. */
+    owner?: Unit;
 }
 
 /**
@@ -161,11 +169,10 @@ export function commandPetAbility(
             targets,
         });
     }
+    playCommandCues(opts?.owner, pets, engine as { addEffect?(e: unknown): void });
 }
 
 // ---- Order: Attack / Order: Move ----
-
-const ORDER_ATTACK_BURST_COLORS = [0xff4444, 0xcc2222, 0x881111] as const;
 
 export interface OrderAttackEngineCtx {
     gameTime: number;
@@ -175,12 +182,13 @@ export interface OrderAttackEngineCtx {
 
 /**
  * Lock each pet onto `targetUnitId` with sticky ordered focus and enter engage.
- * Plays a subtle red burst on the pet.
+ * Plays the command cue from `owner` to each pet.
  */
 export function commandPetOrderAttack(
     pets: Unit[],
     targetUnitId: string,
     engine: OrderAttackEngineCtx,
+    owner?: Unit,
 ): void {
     for (const pet of pets) {
         if (!pet.isAlive()) continue;
@@ -192,17 +200,8 @@ export function commandPetOrderAttack(
         ctx.orderedMoveX = undefined;
         ctx.orderedMoveY = undefined;
         clearPetGuardWander(ctx);
-
-        engine.addEffect(
-            new Effect({
-                x: pet.x,
-                y: pet.y,
-                duration: 0.35,
-                effectType: 'Pulse',
-                effectData: { colors: [...ORDER_ATTACK_BURST_COLORS] },
-            }),
-        );
     }
+    playCommandCues(owner, pets, engine);
 }
 
 export interface OrderMoveEngineCtx {
@@ -222,6 +221,7 @@ export function commandPetOrderMove(
     pets: Unit[],
     dest: { x: number; y: number },
     engine: OrderMoveEngineCtx,
+    owner?: Unit,
 ): void {
     for (const pet of pets) {
         if (!pet.isAlive()) continue;
@@ -251,4 +251,5 @@ export function commandPetOrderMove(
             targetPixel: { x: dest.x, y: dest.y },
         });
     }
+    playCommandCues(owner, pets, engine);
 }

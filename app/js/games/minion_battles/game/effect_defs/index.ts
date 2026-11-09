@@ -68,6 +68,10 @@ import {
 } from './bloodMageEffects';
 import { CLAW_SLASH_EFFECT_TYPE, clawSlashEffectDef } from './clawSlashEffects';
 import { tempoOrbEffectDef, tempoSpeedLineEffectDef } from './tempoAuraEffects';
+import { moteEffectDef } from './moteEffects';
+import { MOTE_EFFECT_TYPE } from '../effects/motes';
+import { commandCueEffectDef, commandSpellCircleEffectDef, COMMAND_SPELL_CIRCLE_EFFECT_TYPE } from './commandEffects';
+import { COMMAND_CUE_EFFECT_TYPE } from '../effects/commandCue';
 import { TEMPO_ORB_EFFECT_TYPE, TEMPO_SPEED_LINE_EFFECT_TYPE } from '../effects/buffParticleAura';
 import {
     weaponDiscardArcEffectDef,
@@ -140,6 +144,9 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     [CLAW_SLASH_EFFECT_TYPE]: clawSlashEffectDef,
     [TEMPO_ORB_EFFECT_TYPE]: tempoOrbEffectDef,
     [TEMPO_SPEED_LINE_EFFECT_TYPE]: tempoSpeedLineEffectDef,
+    [MOTE_EFFECT_TYPE]: moteEffectDef,
+    [COMMAND_SPELL_CIRCLE_EFFECT_TYPE]: commandSpellCircleEffectDef,
+    [COMMAND_CUE_EFFECT_TYPE]: commandCueEffectDef,
     [WEAPON_ORBIT_EFFECT_TYPE]: weaponOrbitEffectDef,
     [STORM_SPELL_CIRCLE_EFFECT_TYPE]: stormSpellCircleEffectDef,
     [EARTH_SPELL_CIRCLE_EFFECT_TYPE]: earthSpellCircleEffectDef,

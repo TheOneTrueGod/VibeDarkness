@@ -79,7 +79,7 @@ export const OrderMoveAbility: AbilityStatic = defineAbility({
         if (!dest) return;
         const pets = resolveAbilitySourceUnits(OrderMoveAbility, caster, eng.units, dest);
         if (pets.length === 0) return;
-        commandPetOrderMove(pets, dest, eng);
+        commandPetOrderMove(pets, dest, eng, caster);
     },
 
     renderTargetingPreview(

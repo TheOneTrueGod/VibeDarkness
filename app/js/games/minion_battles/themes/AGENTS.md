@@ -13,7 +13,7 @@ The Armory (Quench) is the reference user.
 | **Shade** | Dark detail, derived from primary by the shade factor | Weapon grips, empty shot pips |
 | **Font** | Research card and pill text | Armory node card and pill text |
 
-A theme without `secondary` falls back to primary, and without `font` leaves text alone. Today only the Armory is two-tone; every other theme is primary-only and equals that tree's old border colour.
+A theme without `secondary` falls back to primary, and without `font` leaves text alone. The two-tone themes are Armory, Storm, Court Magic and Command (the spirit animal, Aurora: pine `#0f766e` / lime `#d9f99d`); the rest are primary-only and equal that tree's old border colour. A two-tone group whose card art is all PNG is listed in `RASTER_ART_GROUPS` in `svgPalette.test.ts`.
 
 ## Using a theme
 

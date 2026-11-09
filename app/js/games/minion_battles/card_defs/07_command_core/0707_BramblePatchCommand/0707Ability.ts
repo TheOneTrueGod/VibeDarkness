@@ -115,6 +115,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
         if (pets.length > 0) {
             commandPetAbility(pets, BRAMBLE_PATCH_STRIKE_ID, [], eng, {
                 preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+                owner: caster,
             });
         }
     },

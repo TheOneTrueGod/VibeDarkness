@@ -17,7 +17,8 @@
 import { Effect } from '../effects/Effect';
 import type { CastBoundData } from '../effects/castBound';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
-import { EARTH_THEME, LIGHT_THEME, STORM_THEME } from '../../themes/abilityThemes';
+import { COMMAND_THEME, EARTH_THEME, LIGHT_THEME, STORM_THEME } from '../../themes/abilityThemes';
+import { COMMAND_SPELL_CIRCLE_EFFECT_TYPE } from '../effect_defs/commandEffects';
 import { resolveAbilityTheme } from '../../themes/abilityTheme';
 import { WEAPON_ORBIT_EFFECT_TYPE } from '../effect_defs/weaponEffects';
 import { DEFAULT_WEAPON_ORBIT_RADIUS } from '../effect_defs/weaponOrbit';
@@ -72,10 +73,12 @@ export const SPELL_CIRCLE_STYLE_EARTH = 'earth';
 export const SPELL_CIRCLE_STYLE_EARTH_LIGHT = 'earth_light';
 export const SPELL_CIRCLE_STYLE_ARMORY = 'armory';
 export const SPELL_CIRCLE_STYLE_LIGHT = 'light';
+export const SPELL_CIRCLE_STYLE_COMMAND = 'command';
 
 const storm = resolveAbilityTheme(STORM_THEME);
 const earth = resolveAbilityTheme(EARTH_THEME);
 const light = resolveAbilityTheme(LIGHT_THEME);
+const command = resolveAbilityTheme(COMMAND_THEME);
 
 /**
  * Storm: a ring of lightning crackles into being around the caster, then bolts join it one pair at a
@@ -160,8 +163,26 @@ const ARMORY_STYLE: SpellCircleStyleDef = {
     radius: DEFAULT_WEAPON_ORBIT_RADIUS,
 };
 
+/**
+ * Command (the spirit animal): a pine ring with a turning lime rune band, shedding motes that rise off its
+ * rim in mirrored pairs. At the cast the ring flares and the motes leap away.
+ */
+const COMMAND_STYLE: SpellCircleStyleDef = {
+    id: SPELL_CIRCLE_STYLE_COMMAND,
+    effectType: COMMAND_SPELL_CIRCLE_EFFECT_TYPE,
+    radius: 1.2 * CELL_SIZE,
+    linger: 0.25,
+    data: {
+        ringColor: command.primaryNum,
+        runeColor: command.secondaryNum,
+        moteColor: command.secondaryNum,
+        glowColor: command.primaryNum,
+        moteCount: 13,
+    },
+};
+
 const STYLES = new Map<string, SpellCircleStyleDef>(
-    [STORM_STYLE, EARTH_STYLE, EARTH_LIGHT_STYLE, LIGHT_STYLE, ARMORY_STYLE].map((s) => [s.id, s]),
+    [STORM_STYLE, EARTH_STYLE, EARTH_LIGHT_STYLE, LIGHT_STYLE, ARMORY_STYLE, COMMAND_STYLE].map((s) => [s.id, s]),
 );
 
 /** Add or replace a style. Content registers its own styles at load (like conjured weapons). */

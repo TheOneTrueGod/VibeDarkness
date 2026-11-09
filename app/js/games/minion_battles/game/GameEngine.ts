@@ -85,13 +85,14 @@ import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager'
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
 import { CrowdSpacingManager } from './crowdSpacing/CrowdSpacingManager';
 import { PathfindingManager } from '../pathfinding/PathfindingManager';
-import { getUnitSpawnDef } from './units/unit_defs/unitDef';
+import { getUnitParticleAura, getUnitSpawnDef } from './units/unit_defs/unitDef';
 import { createAINav } from './units/unitAI/aiNav';
 import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
 import { BuffRenderEmitterSystem } from './effects/buffParticleAura';
 import { ProjectileAfterimageSystem } from './effects/projectileAfterimages';
+import { ProjectileParticleTrailSystem } from './effects/projectileParticleTrails';
 import { advanceUnitLocalClocks, collectUnitFocalRequests } from './time/actorClock';
 import {
     isITSPreviewComplete,
@@ -157,6 +158,7 @@ export class GameEngine implements EngineContext {
     /** Render-only buff visuals: particle auras and `Buff.renderEmit` (not serialized). */
     private readonly buffRenderEmitters = new BuffRenderEmitterSystem();
     private readonly projectileAfterimages = new ProjectileAfterimageSystem();
+    private readonly projectileParticleTrails = new ProjectileParticleTrailSystem();
 
     /**
      * Parallel order pause scheduled during a tick; committed in the **same** `fixedUpdate` after
@@ -961,11 +963,15 @@ export class GameEngine implements EngineContext {
             this.buffRenderEmitters.update(this.units, realDt, (fx) => {
                 fx.id = this.allocateEffectObjectId('fx');
                 this.state.effectManager.addEffect(fx);
-            }, { gameTime: this.gameTime, halted });
+            }, { gameTime: this.gameTime, halted }, (u) => getUnitParticleAura(u.characterId));
             this.projectileAfterimages.update(this.projectiles, realDt, (fx) => {
                 fx.id = this.allocateEffectObjectId('fx');
                 this.state.effectManager.addEffect(fx);
             }, this.gameTime);
+            this.projectileParticleTrails.update(this.projectiles, realDt, (fx) => {
+                fx.id = this.allocateEffectObjectId('fx');
+                this.state.effectManager.addEffect(fx);
+            });
         });
     }
 

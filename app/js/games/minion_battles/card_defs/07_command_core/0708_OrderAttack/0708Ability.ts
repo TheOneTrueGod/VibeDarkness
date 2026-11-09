@@ -74,7 +74,7 @@ export const OrderAttackAbility: AbilityStatic = defineAbility({
         if (!target || target.type !== 'unit' || !target.unitId) return;
         const pets = resolveAbilitySourceUnits(OrderAttackAbility, caster, eng.units);
         if (pets.length === 0) return;
-        commandPetOrderAttack(pets, target.unitId, eng);
+        commandPetOrderAttack(pets, target.unitId, eng, caster);
     },
 
     renderTargetingPreviewSelectedTargets: createUnitTargetPreview({

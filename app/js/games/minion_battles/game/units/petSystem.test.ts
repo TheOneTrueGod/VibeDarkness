@@ -6,6 +6,8 @@
  *   4. commandHeel — heals + sets heel state
  */
 import { describe, it, expect } from 'vitest';
+import type { Effect } from '../effects/Effect';
+import { COMMAND_CUE_EFFECT_TYPE } from '../effects/commandCue';
 import { Unit } from './Unit';
 import { EventBus } from '../EventBus';
 import { getPetsFromResearch } from '../../../../researchTrees/evaluator';
@@ -220,7 +222,7 @@ describe('commandHeel', () => {
         expect(ctx.targetUnitId).toBeUndefined();
     });
 
-    it('adds a Pulse VFX effect on each pet', () => {
+    it('plays the command cue from the owner to each pet', () => {
         const pet = makeUnit();
         const engine = makeEngineLike([pet]);
         commandHeel(makeUnit({ id: 'owner' }), [pet], engine, {
@@ -228,7 +230,9 @@ describe('commandHeel', () => {
             tetherRange: 30,
             durationSeconds: 10,
         });
-        expect(engine._effects.length).toBeGreaterThan(0);
+        const cues = (engine._effects as Effect[]).filter((e) => e.effectType === COMMAND_CUE_EFFECT_TYPE);
+        expect(cues).toHaveLength(1);
+        expect(cues[0]!.effectData).toMatchObject({ fromUnitId: 'owner', toUnitId: pet.id });
     });
 
     it('revives a dead pet at heal fraction HP and sets heel state', () => {

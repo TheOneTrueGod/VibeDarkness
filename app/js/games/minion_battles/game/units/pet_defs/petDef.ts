@@ -17,7 +17,7 @@ export interface PetDefEntry {
 const PET_DEFS: Record<string, PetDefEntry> = {
     dog: {
         id: 'dog',
-        name: 'Dog',
+        name: 'Spirit Dog',
         unitCharacterId: 'dog',
         engageLeashRange: 150,
         returnLeashRange: 300,

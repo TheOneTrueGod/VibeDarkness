@@ -32,6 +32,7 @@ import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { ProjectileModifierId } from './ProjectileTravelModifiers';
 import { isTraversableByModifiers, shouldCountTraversalDistance } from './ProjectileTravelModifiers';
 import type { SpriteProjectileConfig } from './projectile_defs';
+import type { ProjectileParticleTrailDef } from '../effects/projectileParticleTrails';
 import type { VisualEffectDef } from '../effects/visualEffectDef';
 import type { EngineContext } from '../EngineContext';
 import { applyVisualEffectDefs } from '../effects/applyVisualEffectDefs';
@@ -194,6 +195,8 @@ export class Projectile extends GameObject {
     rotation: number = 0;
     /** Sprite-based config for sprite_projectile type. Travels with the instance and is serialized. */
     spriteConfig?: SpriteProjectileConfig;
+    /** Render-only particles shed in flight (e.g. spirit motes). Travels with the instance and is serialized. */
+    particleTrail?: ProjectileParticleTrailDef;
     /** Optional behavior modifiers (e.g. stonephase terrain traversal rules). */
     modifiers: ProjectileModifierId[];
     /**
@@ -311,6 +314,7 @@ export class Projectile extends GameObject {
         arcHeight?: number;
         rotationSpeed?: number;
         spriteConfig?: SpriteProjectileConfig;
+        particleTrail?: ProjectileParticleTrailDef;
         modifiers?: ProjectileModifierId[];
         /** Terrain types the projectile stops at; see `Projectile.collidesWithTerrain`. */
         collidesWithTerrain?: TerrainType[];
@@ -360,6 +364,7 @@ export class Projectile extends GameObject {
         this.arcHeight = config.arcHeight;
         this.rotationSpeed = config.rotationSpeed;
         this.spriteConfig = config.spriteConfig;
+        if (config.particleTrail) this.particleTrail = config.particleTrail;
         this.modifiers = [...(config.modifiers ?? [])];
         this.collidesWithTerrain = [...(config.collidesWithTerrain ?? [])];
         this.rockHitsToBreak = config.rockHitsToBreak;
@@ -1010,6 +1015,7 @@ export class Projectile extends GameObject {
             trailType: this.trailType,
             projectileType: this.projectileType,
             spriteConfig: this.spriteConfig,
+            ...(this.particleTrail ? { particleTrail: this.particleTrail } : {}),
             modifiers: this.modifiers,
             ...(this.collidesWithTerrain.length > 0 ? { collidesWithTerrain: [...this.collidesWithTerrain] } : {}),
             ...(this.rockHitsToBreak !== undefined ? { rockHitsToBreak: this.rockHitsToBreak } : {}),
@@ -1084,6 +1090,7 @@ export class Projectile extends GameObject {
         proj.trailType = (data.trailType as 'bullet' | undefined) ?? undefined;
         proj.projectileType = (data.projectileType as string | undefined) ?? 'default';
         proj.spriteConfig = data.spriteConfig as SpriteProjectileConfig | undefined;
+        if (data.particleTrail) proj.particleTrail = data.particleTrail as ProjectileParticleTrailDef;
         proj.passThroughEnemies = (data.passThroughEnemies as boolean | undefined) ?? false;
         proj.hitShape = (data.hitShape as 'circle' | 'rect' | undefined) ?? 'circle';
         proj.rectStartWidth = data.rectStartWidth as number | undefined;

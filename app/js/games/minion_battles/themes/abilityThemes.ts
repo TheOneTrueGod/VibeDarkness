@@ -40,7 +40,18 @@ export const COURT_MAGIC_THEME: AbilityTheme = {
 export const EARTH_THEME: AbilityTheme = { id: 'earth', primary: '#b45309' };
 export const LIGHT_THEME: AbilityTheme = { id: 'light', primary: '#eab308' };
 export const GRAVITY_THEME: AbilityTheme = { id: 'gravity', primary: '#a855f7' };
-export const COMMAND_THEME: AbilityTheme = { id: 'command', primary: '#f59e0b' };
+/**
+ * Command (the spirit animal): a deep pine for mass (the spirit's halo, ring fills, research border) and a
+ * lime glow for the event (motes, rune dashes, projectile cores, command cues). Aurora, chosen in
+ * `docs/ideas/plans/0004_2026-11-08_command-core-spirit-animal.md`. Dark pine research text on the lime fill.
+ */
+export const COMMAND_THEME: AbilityTheme = {
+    id: 'command',
+    primary: '#0f766e',
+    secondary: '#d9f99d',
+    font: '#042f2e',
+    shadeFactor: 0.5,
+};
 export const BLOOD_MAGE_THEME: AbilityTheme = { id: 'blood_mage', primary: '#f87171' };
 export const WEAPON_THEME: AbilityTheme = { id: 'weapon', primary: '#9ca3af' };
 export const DARKNESS_THEME: AbilityTheme = { id: 'darkness', primary: '#6366f1' };

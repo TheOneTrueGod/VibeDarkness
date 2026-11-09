@@ -18,6 +18,7 @@
 
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { Effect } from './Effect';
+import { createMote, MOTE_PRESETS, type MoteSpec } from './motes';
 import type { Unit } from '../units/Unit';
 
 export const TEMPO_ORB_EFFECT_TYPE = 'TempoOrb';
@@ -49,10 +50,28 @@ export interface BuffAuraMovingSpec {
     widthPx: number;
 }
 
+/**
+ * Motes (see `motes.ts`): sparks that spawn inside the unit and rise off it, idle or moving. Moving units
+ * leave them behind, so no separate moving state is needed.
+ */
+export interface BuffAuraMotesSpec {
+    ratePerSec: number;
+    /** Spawn anywhere within this fraction of the unit's radius. */
+    spawnRadiusFrac: number;
+    spec: MoteSpec;
+}
+
+/**
+ * A render-only particle aura. Declared by a buff (`Buff.particleAura`) or by a unit def
+ * (`UnitDefEntry.particleAura`, for creatures that always shed particles, such as the spirit animal).
+ * A buff's aura wins over the unit def's.
+ */
 export interface BuffParticleAuraDef {
+    /** Colour of the idle orbs and speed lines. Motes carry their own colours. */
     color: number;
     idle?: BuffAuraIdleSpec;
     moving?: BuffAuraMovingSpec;
+    motes?: BuffAuraMotesSpec;
 }
 
 /** Named presets. */
@@ -71,6 +90,11 @@ export const BUFF_PARTICLE_AURA_PRESETS = {
             widthPx: 1.5,
         },
     }),
+    /** The spirit animal: Command-theme motes rising off the unit. */
+    spiritMotes: (): BuffParticleAuraDef => {
+        const spec = MOTE_PRESETS.spirit();
+        return { color: spec.color, motes: { ratePerSec: 9, spawnRadiusFrac: 0.75, spec } };
+    },
 } as const;
 
 /** Data stored on a TempoOrb effect. */
@@ -148,6 +172,7 @@ interface AuraState {
     lastX: number;
     lastY: number;
     accum: number;
+    moteAccum: number;
     rng: number;
     /** Frame stamp; states not touched this frame are dropped. */
     seen: number;
@@ -185,6 +210,9 @@ function firstAura(unit: Unit): BuffParticleAuraDef | undefined {
     return undefined;
 }
 
+/** Looks up a unit's own (def-level) aura; passed in so this module does not import the unit defs. */
+export type UnitParticleAuraResolver = (unit: Unit) => BuffParticleAuraDef | undefined;
+
 /** Per-engine render-side system for buff visuals (particle auras + `renderEmit`). Owned by `GameEngine`; never serialized. */
 export class BuffRenderEmitterSystem {
     private readonly states = new Map<string, AuraState>();
@@ -195,29 +223,31 @@ export class BuffRenderEmitterSystem {
         realDt: number,
         emit: (fx: Effect) => void,
         world: { gameTime: number; halted: boolean } = { gameTime: 0, halted: false },
+        unitAura?: UnitParticleAuraResolver,
     ): void {
         this.frame++;
         if (realDt <= 0) return;
         let ctx: BuffRenderEmitContext | undefined;
         for (const unit of units) {
-            if (!unit.active || !unit.isAlive() || unit.buffs.length === 0) continue;
+            if (!unit.active || !unit.isAlive()) continue;
             for (const b of unit.buffs) {
                 if (!b.renderEmit) continue;
                 ctx ??= { realDt, gameTime: world.gameTime, halted: world.halted, emit };
                 b.renderEmit(unit, ctx);
             }
-            const aura = firstAura(unit);
+            const aura = firstAura(unit) ?? unitAura?.(unit);
             if (!aura) continue;
             let state = this.states.get(unit.id);
             const last = state ? { x: state.lastX, y: state.lastY } : undefined;
             if (!state) {
-                state = { lastX: unit.x, lastY: unit.y, accum: 0, rng: hashSeed(unit.id), seen: this.frame };
+                state = { lastX: unit.x, lastY: unit.y, accum: 0, moteAccum: 0, rng: hashSeed(unit.id), seen: this.frame };
                 this.states.set(unit.id, state);
             }
             state.seen = this.frame;
             const motion = resolveAuraMotion(unit, last);
             state.lastX = unit.x;
             state.lastY = unit.y;
+            if (aura.motes) this.emitMotes(unit, aura.motes, realDt, state, emit);
 
             const rate = motion.moving ? aura.moving?.ratePerSec ?? 0 : aura.idle?.ratePerSec ?? 0;
             if (rate <= 0) continue;
@@ -235,6 +265,26 @@ export class BuffRenderEmitterSystem {
         for (const [id, s] of this.states) {
             if (s.seen !== this.frame) this.states.delete(id);
         }
+    }
+
+    private emitMotes(
+        unit: Unit,
+        motes: BuffAuraMotesSpec,
+        realDt: number,
+        state: AuraState,
+        emit: (fx: Effect) => void,
+    ): void {
+        state.moteAccum += motes.ratePerSec * realDt;
+        let n = 0;
+        const rand = () => nextRandom(state);
+        while (state.moteAccum >= 1 && n < MAX_EMITS_PER_FRAME) {
+            state.moteAccum -= 1;
+            n++;
+            const angle = rand() * Math.PI * 2;
+            const r = Math.sqrt(rand()) * unit.radius * motes.spawnRadiusFrac;
+            emit(createMote(unit.x + Math.cos(angle) * r, unit.y + Math.sin(angle) * r, motes.spec, rand));
+        }
+        if (state.moteAccum >= 1) state.moteAccum = state.moteAccum % 1;
     }
 
     private spawnOrb(unit: Unit, aura: BuffParticleAuraDef, spec: BuffAuraIdleSpec, state: AuraState): Effect {

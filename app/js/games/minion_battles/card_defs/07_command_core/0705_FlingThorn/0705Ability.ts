@@ -22,6 +22,9 @@ import {
 } from '../../../abilities/tooltipTokens';
 import { getCastElapsedAt } from '../../../game/time/actorClock';
 
+import { getThemeById } from '../../../themes/abilityTheme';
+import { PROJECTILE_PARTICLE_TRAIL_PRESETS } from '../../../game/effects/projectileParticleTrails';
+
 export const FLING_THORN_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}05`;
 
 const LOCK_TIME = 0.5;
@@ -32,7 +35,8 @@ const COOLDOWN_END = 3;
 const PROJECTILE_SPEED = 700;
 export const FLING_THORN_MAX_DISTANCE = 200;
 export const FLING_THORN_DAMAGE = 5;
-const THORN_COLOR = 0x86efac;
+/** The spirit's lime (Command secondary). */
+const THORN_COLOR = getThemeById('command').secondaryNum;
 const MAX_USES = 4;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 4 },
@@ -66,7 +70,8 @@ export const FlingThornAbility_0705: AbilityStatic = defineAbility({
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(PROJECTILE_SPEED)
                 .withMaxRange(FLING_THORN_MAX_DISTANCE)
-                .withBaseDamage(FLING_THORN_DAMAGE),
+                .withBaseDamage(FLING_THORN_DAMAGE)
+                .withParticleTrail(PROJECTILE_PARTICLE_TRAIL_PRESETS.spiritMotes()),
         },
         { id: 'cooldown', start: FIRE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],

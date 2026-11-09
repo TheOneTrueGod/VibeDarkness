@@ -1,17 +1,24 @@
 <svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Command Core (the spirit animal): Aurora theme. Pine disc (primary #0f766e), lime rim and motes (secondary #d9f99d). -->
   <defs>
     <filter id="commandGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
-    <radialGradient id="commandCoreFill" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#fcd34d" stop-opacity="0.55"/>
-      <stop offset="100%" stop-color="#b45309" stop-opacity="0.35"/>
+    <radialGradient id="commandCoreFill" cx="50%" cy="58%" r="55%">
+      <stop offset="0%" stop-color="#d9f99d" stop-opacity="0.45"/>
+      <stop offset="55%" stop-color="#0f766e" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#073b37" stop-opacity="1"/>
     </radialGradient>
   </defs>
-  <circle cx="32" cy="32" r="24" fill="url(#commandCoreFill)" stroke="#f59e0b" stroke-width="5" filter="url(#commandGlow)" opacity="0.9"/>
-  <ellipse cx="32" cy="32" rx="8" ry="8" fill="#f59e0b" opacity="0.4"/>
+  <circle cx="32" cy="32" r="24" fill="url(#commandCoreFill)" stroke="#d9f99d" stroke-width="4" filter="url(#commandGlow)"/>
+  <circle cx="32" cy="38" r="3.2" fill="#d9f99d" filter="url(#commandGlow)"/>
+  <circle cx="25" cy="30" r="2" fill="#d9f99d" opacity="0.85"/>
+  <circle cx="39" cy="29" r="2.2" fill="#d9f99d" opacity="0.85"/>
+  <circle cx="30" cy="22" r="1.5" fill="#ffffff" opacity="0.8"/>
+  <circle cx="36" cy="18" r="1.1" fill="#d9f99d" opacity="0.7"/>
+  <circle cx="27" cy="15" r="0.9" fill="#d9f99d" opacity="0.55"/>
 </svg>

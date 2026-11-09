@@ -20,6 +20,14 @@ const SVG_SOURCES = import.meta.glob('../card_defs/**/*.svg', {
  */
 const PER_FILE_ALLOW: Readonly<Record<string, readonly string[]>> = {};
 
+/**
+ * Two-tone groups whose card art is raster (PNG) only, so there is no SVG to guard yet. Each entry says why.
+ */
+const RASTER_ART_GROUPS: ReadonlySet<string> = new Set([
+    // Command: Pet and Sic 'em art are PNGs; the core icon lives under character_defs/items.
+    'command',
+]);
+
 const ALWAYS_ALLOWED = new Set(['#000000', '#ffffff', 'none', 'currentcolor', 'transparent']);
 
 /** `fill`, `stroke` and `stop-color`, as attributes or inside `style` / `<style>` declarations. */
@@ -71,6 +79,7 @@ describe('SVG palette guard', () => {
 
         describe(`${theme.id} (group ${group})`, () => {
             it('has SVGs to check', () => {
+                if (RASTER_ART_GROUPS.has(theme.id)) return;
                 expect(files.length).toBeGreaterThan(0);
             });
 

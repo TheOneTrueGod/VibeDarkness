@@ -13,6 +13,8 @@ import {
     darkCreatureIconFlashVFX,
 } from '../../deathEffects/darkCreatureDissolutionDef';
 import type { VisualEffectDef } from '../../effects/visualEffectDef';
+import { BUFF_PARTICLE_AURA_PRESETS, type BuffParticleAuraDef } from '../../effects/buffParticleAura';
+import { getThemeById } from '../../../themes/abilityTheme';
 import type { DeathSequenceDef } from '../../deathSequences/deathSequenceDef';
 import { ALPHA_WOLF_DEATH_SEQUENCE, DISPLACER_SPIRIT_DEATH_SEQUENCE } from '../../deathSequences/deathSequencePresets';
 import { DARK_CREATURE_CORRUPTION_TINT, DARK_CREATURE_ICON_TINT_ALPHA } from '../../deathEffects/darkCreatureVisualConstants';
@@ -146,12 +148,38 @@ export const PLAYER_CHARACTER_ID: PlayerUnitDefId = 'player';
  * Add a property here (not on Unit) when its value is the same for every spawn of a given character type.
  * Expose it via a typed accessor function and a getter on Unit (see `knockbackResistance` for the pattern).
  */
+/**
+ * A spirit-like presentation: the sprite is drawn with additive blending and tinted, so its light parts
+ * glow in `tint` and its black parts drop out, over a body disc that is only partly opaque. Made for
+ * white-on-black sprites (such as the dog). See `presets` below.
+ */
+export interface SpectralSpriteDef {
+    /** Colour the sprite's white parts glow in. */
+    tint: number;
+    bodyColor: number;
+    /** Opacity of the body disc under the silhouette (0..1). */
+    bodyAlpha: number;
+}
+
+/** A theme's spectral look: secondary silhouette over a translucent primary body. */
+export function themedSpectralSprite(themeId: string, bodyAlpha = 0.55): SpectralSpriteDef {
+    const theme = getThemeById(themeId);
+    return { tint: theme.secondaryNum, bodyColor: theme.primaryNum, bodyAlpha };
+}
+
 export interface UnitDefEntry {
     bodyColor: number;
     /** Name shown in the Bestiary and other UI. Required for every enemy (see unitDefRegistry.test). */
     displayName?: string;
     /** Art URL for icons (Bestiary, timeline). Required for every enemy. Values come from `UNIT_SPRITE_URLS`. */
     sprite?: string;
+    /** Draw the character sprite as a glowing silhouette over a translucent body (render-only). */
+    spectralSprite?: SpectralSpriteDef;
+    /**
+     * Render-only particles every unit of this character sheds (e.g. spirit motes). Same shape as
+     * `Buff.particleAura`; a buff's aura wins while the buff is on.
+     */
+    particleAura?: BuffParticleAuraDef;
     /**
      * Bestiary listing. Every enemy needs one unless `hidden: true`. The section comes from
      * `creatureType` (dark_creature -> Dark Creatures, beast/nature -> Beasts, otherwise Other).
@@ -466,18 +494,21 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         components: [componentSpec(SWARM_COMPONENT, { role: 'nest' })],
     },
     dog: {
-        bodyColor: 0x8a5a2b,
-        displayName: 'Dog',
+        // The spirit animal (Command Core): a tiny glowing dog shedding Command-theme motes.
+        bodyColor: getThemeById('command').primaryNum,
+        displayName: 'Spirit Dog',
         sprite: UNIT_SPRITE_URLS.dog,
+        spectralSprite: themedSpectralSprite('command'),
+        particleAura: BUFF_PARTICLE_AURA_PRESETS.spiritMotes(),
         bestiary: { abilityIds: ['0701'] },
         characterSpriteKey: 'dog',
         hp: 48,
         speed: 140,
-        size: 'Small',
+        size: 'Tiny',
         stamina: 2,
         perceptionRange: 250,
         creatureType: 'beast',
-        uiDescription: 'Loyal hound — fights close to its master, biting enemies that stray too near.',
+        uiDescription: 'Spirit animal — a loyal hound of light that fights close to its master, biting enemies that stray too near.',
     },
     husk: {
         bodyColor: 0x4a5236,
@@ -792,9 +823,7 @@ class DefaultUnitDef implements IUnitDef {
 
         // Body circle
         const body = new Graphics();
-        body.circle(0, 0, unit.radius);
-        body.fill(bodyColor);
-        body.stroke({ color: 0x000000, width: 1 });
+        paintUnitBody(body, unit, bodyColor);
         body.label = 'body';
         container.addChild(body);
 
@@ -985,6 +1014,32 @@ export function getUnitCrowdMassOverride(characterId: string): number | undefine
     return UNIT_DEFS[characterId as UnitDefId]?.crowdMass;
 }
 
+/**
+ * Paint a unit's body disc into `body` (does not clear it). Spectral characters get a translucent disc with
+ * a thin glowing rim; everyone else a solid disc with a black outline.
+ */
+export function paintUnitBody(body: Graphics, unit: Unit, bodyColor: number = getBodyColorForUnit(unit)): void {
+    body.circle(0, 0, unit.radius);
+    const spectral = getUnitSpectralSprite(unit.characterId);
+    if (spectral) {
+        body.fill({ color: spectral.bodyColor, alpha: spectral.bodyAlpha });
+        body.stroke({ color: spectral.tint, width: 1, alpha: 0.6 });
+        return;
+    }
+    body.fill(bodyColor);
+    body.stroke({ color: 0x000000, width: 1 });
+}
+
+/** Per-character spectral sprite look (undefined = draw the sprite normally). */
+export function getUnitSpectralSprite(characterId: string): SpectralSpriteDef | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.spectralSprite;
+}
+
+/** Per-character render-only particle aura (undefined = none). */
+export function getUnitParticleAura(characterId: string): BuffParticleAuraDef | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.particleAura;
+}
+
 /** Per-character `size` tier (undefined when the def sets none). */
 export function getUnitDefSize(characterId: string): UnitSize | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.size;
@@ -1075,6 +1130,11 @@ export function ensureUnitCharacterSprite(visual: Container, unit: Unit, texture
     }
     charSprite.width = spriteSize;
     charSprite.height = spriteSize;
+    const spectral = getUnitSpectralSprite(unit.characterId);
+    if (spectral) {
+        charSprite.blendMode = 'add';
+        charSprite.tint = spectral.tint;
+    }
     ensureDarkCreatureIconTint(visual, unit, texture);
 }
 

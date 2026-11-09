@@ -53,7 +53,7 @@ describe('research tree chrome', () => {
         expect(RESEARCH_TREE_COLOUR_EARTH).toBe('#b45309');
         expect(RESEARCH_TREE_COLOUR_LIGHT).toBe('#eab308');
         expect(RESEARCH_TREE_COLOUR_GRAVITY).toBe('#a855f7');
-        expect(RESEARCH_TREE_COLOUR_COMMAND).toBe('#f59e0b');
+        expect(RESEARCH_TREE_COLOUR_COMMAND).toBe('#0f766e');
         expect(RESEARCH_TREE_COLOUR_BLOOD_MAGE).toBe('#f87171');
         expect(RESEARCH_TREE_COLOUR_DARKNESS).toBe('#6366f1');
         expect(RESEARCH_TREE_COLOUR_GENERIC).toBe('#7dd3fc');
@@ -79,7 +79,6 @@ describe('research tree appearance', () => {
             [earthTree, '#b45309', RESEARCH_TREE_ICON_EARTH],
             [lightTree, '#eab308', RESEARCH_TREE_ICON_LIGHT],
             [gravityTree, '#a855f7', RESEARCH_TREE_ICON_GRAVITY],
-            [commandCoreTree, '#f59e0b', RESEARCH_TREE_ICON_COMMAND],
             [bloodMageTree, '#f87171', RESEARCH_TREE_ICON_BLOOD_MAGE],
             [darknessUpgradesTree, '#6366f1', RESEARCH_TREE_ICON_GENERIC],
             [trainingTree, '#7dd3fc', RESEARCH_TREE_ICON_GENERIC],
@@ -110,6 +109,15 @@ describe('research tree appearance', () => {
             color: '#000000',
             backgroundColor: '#e7e5e4',
             boxShadow: 'inset 0 0 0 2px #4f6d8c',
+        });
+    });
+
+    it('gives the Command tree its Aurora secondary fill and font', () => {
+        expect(resolveResearchTreeChrome(commandCoreTree)).toEqual({
+            colour: '#0f766e',
+            secondaryColour: '#d9f99d',
+            fontColour: '#042f2e',
+            icon: RESEARCH_TREE_ICON_COMMAND,
         });
     });
 

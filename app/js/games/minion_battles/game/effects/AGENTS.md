@@ -33,6 +33,17 @@ Spell circles (`game/spellCircles/spellCircles.ts`) are the main user: one style
 4. Construct it with `new Effect({ x, y, duration, effectType, effectData })` and call `engine.addEffect(effect)`.
 5. Keep it purely visual — no `engine` access inside the effect.
 
+### Motes (spirit particles)
+
+`motes.ts` is the shared "spirit" particle: a flickering spark with a soft halo that rises and drifts. Describe one with a `MoteSpec` (`themedMoteSpec(themeId)` / `MOTE_PRESETS`); spawn with `createMote` (a render-only `Mote` effect), or draw one inside a larger painter with `drawMote` so every mote matches. Users:
+
+- **Off a unit:** a `motes` entry on a particle aura (`BUFF_PARTICLE_AURA_PRESETS.spiritMotes()`), declared on a buff (`Buff.particleAura`) or on a unit def (`UnitDefEntry.particleAura`; the engine passes `getUnitParticleAura` to `BuffRenderEmitterSystem.update`). A buff's aura wins.
+- **Behind a projectile:** `ProjectileLaunch().withParticleTrail(PROJECTILE_PARTICLE_TRAIL_PRESETS.spiritMotes())`; the def is serialized on the projectile, and `projectileParticleTrails.ts` sheds motes along each frame's flight.
+- **Round a spell circle:** the `command` style (`SpellCircleCommand` in `effect_defs/commandEffects.ts`).
+- **A command:** `createCommandCue` (`commandCue.ts`), played for every pet command by `playCommandCues` in `abilities/petCommands.ts`.
+
+Concept art and the palette decision: `docs/ideas/plans/0004_2026-11-08_command-core-spirit-animal.md`.
+
 **Particle batching:** `ParticleImage` / `StoryHomingParticle` draw through a Pixi `ParticleContainer` in `game/GameRenderer/renderers/EffectRenderer.ts` (shared `darkBlob` texture). Other effect types that need nested Containers stay on the normal sprite path.
 
 ---
