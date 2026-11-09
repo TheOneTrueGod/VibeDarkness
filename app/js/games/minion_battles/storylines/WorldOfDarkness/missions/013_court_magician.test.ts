@@ -46,7 +46,7 @@ describe('CourtMagicianMission', () => {
         }
     });
 
-    it('spawns the magician at the centre inside six untouchable crystals, with the party on the west road', () => {
+    it('spawns the magician at the centre between two untouchable crystals, with the party on the west road', () => {
         const engine = initMission();
         const mage = engine.units.find((u) => u.characterId === 'court_magician')!;
         expect(mage).toBeDefined();

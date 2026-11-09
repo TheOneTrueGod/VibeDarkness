@@ -6,7 +6,7 @@
 import type { EngineContext } from '../../EngineContext';
 import type { Unit } from '../Unit';
 import type { UnitComponentHooks } from './unitComponentHooks';
-import { hpStepsLost, hpStepTriggersOf, peekHpStepState, type HpStepState, type HpStepTriggerDef } from './hpStepComponent';
+import { hpStepsReached, hpStepTriggersOf, peekHpStepState, type HpStepState, type HpStepTriggerDef } from './hpStepComponent';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { grantAbilityUses } from '../../../abilities/abilityUses';
 import { executeUnitAbility } from '../unitAbilityLifecycle';
@@ -14,16 +14,21 @@ import { executeUnitAbility } from '../unitAbilityLifecycle';
 /** Mark newly lost steps and queue casts. Exported for tests. */
 export function updateHpSteps(unit: Unit, state: HpStepState, triggers: readonly HpStepTriggerDef[]): void {
     for (const t of triggers) {
-        const steps = hpStepsLost(unit.hp, unit.maxHp, t.stepFraction);
+        const steps = hpStepsReached(unit.hp, unit.maxHp, t);
         if (steps > (state.reached[t.id] ?? 0)) {
+            const crossed = steps - (state.reached[t.id] ?? 0);
             state.reached[t.id] = steps;
-            if (!state.pending.includes(t.id)) state.pending.push(t.id);
+            // One cast per crossed step, or a single cast however many steps one hit crossed.
+            const queued = t.castPerStep ? crossed : 1;
+            for (let i = 0; i < queued; i++) {
+                if (t.castPerStep || !state.pending.includes(t.id)) state.pending.push(t.id);
+            }
         }
     }
 }
 
 function tryFire(unit: Unit, state: HpStepState, triggers: readonly HpStepTriggerDef[], engine: EngineContext): void {
-    for (const id of [...state.pending]) {
+    for (const id of new Set(state.pending)) {
         const t = triggers.find((tr) => tr.id === id);
         const ability = t ? getAbility(t.abilityId) : undefined;
         if (!t || !ability) {
@@ -31,7 +36,10 @@ function tryFire(unit: Unit, state: HpStepState, triggers: readonly HpStepTrigge
             continue;
         }
         if (t.deferWhileCasting?.some((a) => unit.activeAbilities.some((act) => act.abilityId === a))) continue;
-        state.pending = state.pending.filter((p) => p !== id);
+        // Never restart a cast that is still going (queued per-step casts fire one after another).
+        if (unit.activeAbilities.some((act) => act.abilityId === t.abilityId)) continue;
+        // Consume one queued cast.
+        state.pending.splice(state.pending.indexOf(id), 1);
         grantAbilityUses(unit, ability.id, 1);
         executeUnitAbility(unit, ability, [], engine);
     }

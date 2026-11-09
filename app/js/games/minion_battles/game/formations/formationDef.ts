@@ -51,6 +51,8 @@ export const FORMATION_PRESETS = {
     ringAroundCaster: { kind: 'ring', anchor: 'caster', radius: 90 },
     /** A wide ring around the target, so attacks come from every side. */
     ringAroundTarget: { kind: 'ring', anchor: 'target', radius: 170, rotationDeg: 30 },
+    /** A line across the caster's facing, a short way in front of him: a barrier the target has to go around. */
+    wallAcrossCaster: { kind: 'wall', anchor: 'caster', forwardOffset: 130, spacing: 70 },
     /** A tight wall just in front of the caster, facing the target (the Crystal Laser emitter). */
     wallFacingTarget: { kind: 'wall', anchor: 'caster', forwardOffset: 40, spacing: 18 },
 } as const satisfies Record<string, FormationShape>;

@@ -45,6 +45,8 @@ import {
     ENEMY_COURT_MAGICIAN,
     COURT_MAGICIAN_ENRAGE_THRESHOLD,
     COURT_MAGICIAN_SWAP_HP_STEP,
+    COURT_CRYSTAL_CONJURE_HP_STEP,
+    COURT_CRYSTAL_CONJURE_STEPS,
     ENEMY_SWARMLING,
     ALLY_LANTERNITE,
 } from '../../../constants/enemyConstants';
@@ -536,7 +538,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         bodyColor: 0x3b0764,
         displayName: 'Court Magician',
         sprite: UNIT_SPRITE_URLS.court_magician,
-        bestiary: { abilityIds: ['1401', '1402', '1403', '1405', '1406', '1490'] },
+        bestiary: { abilityIds: ['1401', '1402', '1403', '1405', '1406', '1407', '1490'] },
         baseSpawn: ENEMY_COURT_MAGICIAN,
         characterSpriteKey: 'court_magician',
         hp: 170,
@@ -554,6 +556,15 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         components: [
             componentSpec(HP_STEP_COMPONENT, {
                 triggers: [
+                    // Conjure Crystal (1407) first, so a swap in the same tick can pick the new crystal.
+                    {
+                        id: 'conjureCrystal',
+                        stepFraction: COURT_CRYSTAL_CONJURE_HP_STEP,
+                        maxSteps: COURT_CRYSTAL_CONJURE_STEPS,
+                        abilityId: '1407',
+                        showOnHpBar: true,
+                        castPerStep: true,
+                    },
                     {
                         id: 'mirrorSwap',
                         stepFraction: COURT_MAGICIAN_SWAP_HP_STEP,

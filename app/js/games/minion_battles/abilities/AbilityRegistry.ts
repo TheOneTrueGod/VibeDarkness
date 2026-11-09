@@ -77,6 +77,7 @@ import { CrystalRamAbility_1404 } from '../card_defs/14_enemy_court_magician/140
 import { BlinkAbility_1405 } from '../card_defs/14_enemy_court_magician/1405_Blink/1405Ability';
 import { MirrorSwapAbility_1406 } from '../card_defs/14_enemy_court_magician/1406_MirrorSwap/1406Ability';
 import { CrystalLaserAbility_1490 } from '../card_defs/14_enemy_court_magician/1490_CrystalLaser/1490Ability';
+import { ConjureCrystalAbility_1407 } from '../card_defs/14_enemy_court_magician/1407_ConjureCrystal/1407Ability';
 import { DogBiteAbility } from '../card_defs/07_command_core/0701_DogBite/0701Ability';
 import { PounceAbility } from '../card_defs/07_command_core/0702_Pounce/0702Ability';
 import { PetAbility } from '../card_defs/07_command_core/0703_Pet/0703Ability';
@@ -210,6 +211,7 @@ register(BlinkAbility_1405);
 register(MirrorSwapAbility_1406);
 register(CrystalLaserAbility_1490);
 register(DogBiteAbility);
+register(ConjureCrystalAbility_1407);
 register(PounceAbility);
 register(PetAbility);
 register(SicEmAbility);

@@ -24,7 +24,10 @@ import type { ResolvedTarget } from '../../game/types';
 import { ENEMY_COURT_CRYSTAL, ENEMY_COURT_MAGICIAN } from '../../constants/enemyConstants';
 import {
     BLINK_ABILITY_ID,
+    CONJURE_CRYSTAL_ABILITY_ID,
     COURT_CRYSTAL_ID,
+    CRYSTAL_LANDING_DAMAGE,
+    crystalLandingStrikeRadius,
     CRYSTAL_LANDING_PULSE_RADII,
     crystalLandingPulse,
     CRYSTAL_LASER_ABILITY_ID,
@@ -35,9 +38,9 @@ import {
     SHARD_NOVA_ABILITY_ID,
 } from './courtMagicianConstants';
 import { pickSwapCrystal } from './1406_MirrorSwap/1406Ability';
-import { HP_STEP_COMPONENT, peekHpStepState } from '../../game/units/components/hpStepComponent';
-import { assignUnitsToSlots } from '../../game/formations/formationDef';
-import { readRearrangePayload } from './1401_Rearrange/1401Ability';
+import { HP_STEP_COMPONENT, hpStepBarMarks, peekHpStepState } from '../../game/units/components/hpStepComponent';
+import { assignUnitsToSlots, FORMATION_PRESETS, formationSlots } from '../../game/formations/formationDef';
+import { readRearrangePayload, REARRANGE_FORMATIONS } from './1401_Rearrange/1401Ability';
 import {
     SHARD_NOVA_ENRAGED_RING_COUNT,
     SHARD_NOVA_RING_COUNT,
@@ -202,6 +205,75 @@ describe('Rearrange', () => {
     });
 });
 
+describe('Conjure Crystal', () => {
+    it('adds one crystal per 10% HP lost from 90% to 50%, then stops, and marks each step on the HP bar', () => {
+        const engine = setupEngine();
+        const mage = addMagician(engine, centre(15), centre(15));
+        const player = addPlayer(engine, centre(22));
+        expect(getAbility(CONJURE_CRYSTAL_ABILITY_ID)).toBeDefined();
+        expect(CARD_DEF_MAP.get(CONJURE_CRYSTAL_ABILITY_ID)).toBeDefined();
+        expect(crystalsOf(engine)).toHaveLength(0);
+
+        mage.takeDamage(Math.ceil(mage.maxHp * 0.15), player.id, engine.eventBus);
+        stepSeconds(engine, 1);
+        expect(crystalsOf(engine)).toHaveLength(1);
+
+        mage.takeDamage(Math.ceil(mage.maxHp * 0.2), player.id, engine.eventBus);
+        stepSeconds(engine, 1);
+        expect(crystalsOf(engine)).toHaveLength(3);
+
+        // Past the last step (50%) nothing more is conjured.
+        mage.takeDamage(Math.ceil(mage.maxHp * 0.3), player.id, engine.eventBus);
+        stepSeconds(engine, 1);
+        expect(crystalsOf(engine)).toHaveLength(5);
+        for (const c of crystalsOf(engine)) expect(c.teamId).toBe(mage.teamId);
+        engine.destroy();
+
+        const triggers = getUnitDefEntry('court_magician')!.components!;
+        expect(triggers.length).toBeGreaterThan(0);
+        expect(
+            hpStepBarMarks([{ id: 'x', stepFraction: 0.1, maxSteps: 5, abilityId: '1407', showOnHpBar: true }]),
+        ).toEqual([0.9, 0.8, 0.7, 0.6, 0.5]);
+    });
+});
+
+describe('Rearrange landing strike', () => {
+    it('offers a line across his facing as well as the ring around the target', () => {
+        expect(REARRANGE_FORMATIONS).toEqual(expect.arrayContaining(['wallAcrossCaster', 'ringAroundTarget']));
+        const slots = formationSlots(FORMATION_PRESETS.wallAcrossCaster, 3, {
+            caster: { x: 0, y: 0 },
+            target: { x: 100, y: 0 },
+        });
+        // Facing east: the line runs north-south, in front of him.
+        for (const s of slots) expect(s.x).toBeCloseTo(130);
+        expect(new Set(slots.map((s) => s.y)).size).toBe(3);
+    });
+
+    it('a landing crystal shocks a small area for 3 damage (40px + its radius)', () => {
+        const engine = setupEngine();
+        const mage = addMagician(engine, centre(15), centre(15));
+        addCrystals(engine, mage.x, mage.y);
+        const player = addPlayer(engine, centre(22));
+        const bystander = addPlayer(engine, centre(3), centre(3), 'Far');
+        engine.generateRandomInteger = () => REARRANGE_FORMATIONS.indexOf('ringAroundTarget');
+        cast(engine, mage, REARRANGE_ABILITY_ID, at(player, player.id));
+        stepTicks(engine, 1);
+        const payload = readRearrangePayload(mage.activeAbilities.find((a) => a.abilityId === REARRANGE_ABILITY_ID))!;
+        const slot = payload.slots[0]!;
+        const edge = crystalLandingStrikeRadius(crystalsOf(engine)[0]!.radius);
+        expect(edge).toBe(40 + crystalsOf(engine)[0]!.radius);
+        // Wait for the glide's last tick with the player parked on a slot; the bystander is far away.
+        const hpBefore = player.hp;
+        stepSeconds(engine, 1.6, () => {
+            player.x = slot.x;
+            player.y = slot.y;
+        });
+        expect(hpBefore - player.hp).toBeGreaterThanOrEqual(CRYSTAL_LANDING_DAMAGE);
+        expect(bystander.hp).toBe(bystander.maxHp);
+        engine.destroy();
+    });
+});
+
 describe('Rearrange over rock', () => {
     it('crystals float over rock on the way, and one landing on rock shatters it', () => {
         const engine = setupEngine();
@@ -209,6 +281,9 @@ describe('Rearrange over rock', () => {
         const crystals = addCrystals(engine, mage.x, mage.y);
         const player = addPlayer(engine, centre(22));
         const tm = engine.terrainManager!;
+        // Pin the shape (ring around the target) so the long glides this test needs do not depend on the seed.
+        const ringIndex = REARRANGE_FORMATIONS.indexOf('ringAroundTarget');
+        engine.generateRandomInteger = () => ringIndex;
         cast(engine, mage, REARRANGE_ABILITY_ID, at(player, player.id));
         stepTicks(engine, 1);
         const payload = readRearrangePayload(mage.activeAbilities.find((a) => a.abilityId === REARRANGE_ABILITY_ID))!;

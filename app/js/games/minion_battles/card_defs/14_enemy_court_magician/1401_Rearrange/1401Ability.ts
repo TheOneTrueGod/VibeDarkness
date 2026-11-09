@@ -1,8 +1,9 @@
 /**
  * Rearrange - Court Magician. He sweeps a hand and every crystal glides into a new shape around the
- * fight: a line pointing at a player, a cage around them, a guard ring around himself, or a wide ring
- * around them. The shape is picked at cast start and laid out from where he and his target stand, so
- * the next Shard Nova or Crystal Volley comes from somewhere new every time.
+ * fight: a line pointing at a player, a line across his facing, a cage around them, a guard ring around
+ * himself, or a wide ring around them. The shape is picked at cast start and laid out from where he and
+ * his target stand, so the next Shard Nova or Crystal Volley comes from somewhere new every time. Each
+ * crystal that lands shocks a small area (40px + its radius) for 3 damage; the glide previews those areas.
  */
 
 import type { AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
@@ -28,14 +29,20 @@ import type { CardDef } from '../../types';
 import {
     COURT_CRYSTAL_ID,
     COURT_ORCHID,
-    crystalLandingPulse,
+    COURT_TELEGRAPH_RED,
+    crystalLandingStrike,
+    crystalLandingStrikeRadius,
+    CRYSTAL_LANDING_DAMAGE,
     REARRANGE_ABILITY_ID,
 } from '../courtMagicianConstants';
+import type { EngineContext } from '../../../game/EngineContext';
+import { UNIT_SIZE_MAP } from '../../../game/units/unit_defs/unitConstants';
 import IMAGE from './rearrange.svg?raw';
 
 /** Shapes Rearrange picks from (the wall is reserved for Crystal Laser). */
 export const REARRANGE_FORMATIONS: readonly FormationPresetId[] = [
     'lineFromCaster',
+    'wallAcrossCaster',
     'boxAroundTarget',
     'ringAroundCaster',
     'ringAroundTarget',
@@ -108,7 +115,7 @@ const _base: AbilityStatic = defineAbility({
                         // Crystals float over rock on the way; one landing on rock shatters it.
                         flight: true,
                         slots: (ctx) => readRearrangePayload({ castPayload: ctx.castPayload })?.slots ?? [],
-                        onArrive: (ctx, unit) => ctx.engine.addEffect(crystalLandingPulse(unit)),
+                        onArrive: (ctx, unit) => crystalLandingStrike(ctx.engine as unknown as EngineContext, ctx.caster, unit),
                     }),
                 },
             ],
@@ -128,7 +135,8 @@ const _base: AbilityStatic = defineAbility({
     getRange: () => ({ minRange: 0, maxRange: REARRANGE_AI_RANGE }),
     getTooltipText(): string[] {
         return [
-            'Glide every crystal into a new shape: a line toward the target, a cage around them, or a ring around either of you',
+            'Glide every crystal into a new shape: a line toward the target, a line across his facing, a cage around them, or a ring around either of you',
+            `Each crystal that lands shocks the ground around it for {${CRYSTAL_LANDING_DAMAGE}} damage`,
         ];
     },
 });
@@ -154,7 +162,13 @@ export const RearrangeAbility_1401: AbilityStatic = {
         if (elapsed < 0 || elapsed >= GLIDE_END) return;
         const payload = readRearrangePayload(active);
         if (!payload) return;
+        // The landing area: where each crystal will touch down and hurt.
+        const strikeRadius = crystalLandingStrikeRadius(UNIT_SIZE_MAP.Tiny);
         for (const s of payload.slots) {
+            gr.circle(s.x, s.y, strikeRadius);
+            gr.fill({ color: COURT_TELEGRAPH_RED, alpha: 0.12 });
+            gr.circle(s.x, s.y, strikeRadius);
+            gr.stroke({ color: COURT_TELEGRAPH_RED, width: 1.5, alpha: 0.5 });
             gr.circle(s.x, s.y, 10);
             gr.stroke({ color: COURT_ORCHID, width: 1.5, alpha: 0.45 });
         }

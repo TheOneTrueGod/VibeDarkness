@@ -1,8 +1,9 @@
 /**
  * The Court Magician — castle boss fight (held in Chapter 0, Unused Missions, until it is placed).
  * Arena: the 0_0 dirt circle, entered from the west road like the Displacer fight. The magician waits
- * at the centre inside a hexagon of six dark crystals; he fights through them (Rearrange, Shard Nova,
- * Crystal Volley), blinks away when cornered and, enraged, stops time for the Crystal Laser.
+ * at the centre between two dark crystals and conjures more as he is hurt (one per 10% lost, down to
+ * 50%); he fights through them (Rearrange, Shard Nova, Crystal Volley), blinks away when cornered and,
+ * enraged, stops time for the Crystal Laser.
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
@@ -10,7 +11,7 @@ import { ObjectiveType } from '../../objectiveTypes';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import { DarknessLevel } from '../../../game/darknessLevels';
 import type { BattleObjectiveDef, EnemySpawnDef, LevelEvent, PlayerSpawnPoint } from '../../types';
-import { ENEMY_COURT_CRYSTAL, ENEMY_COURT_MAGICIAN } from '../../../constants/enemyConstants';
+import { COURT_CRYSTAL_START_COUNT, ENEMY_COURT_CRYSTAL, ENEMY_COURT_MAGICIAN } from '../../../constants/enemyConstants';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
@@ -43,12 +44,12 @@ function gridToWorld(col: number, row: number): { x: number; y: number } {
     return { x: col * CELL_SIZE + CELL_SIZE / 2, y: row * CELL_SIZE + CELL_SIZE / 2 };
 }
 
-/** Crystals the magician starts with. */
-export const COURT_CRYSTAL_COUNT = 6;
-/** Radius (tiles) of the starting crystal hexagon around the centre. */
+/** Crystals the magician starts with; he conjures up to five more as he loses health (Conjure Crystal, 1407). */
+export const COURT_CRYSTAL_COUNT = COURT_CRYSTAL_START_COUNT;
+/** Radius (tiles) of the starting crystal ring around the centre. */
 export const COURT_CRYSTAL_START_RADIUS_TILES = 4;
 
-/** Starting crystal tiles: a hexagon around the centre, points at 30°, 90°, ... (clear of the rocks). */
+/** Starting crystal tiles: an even ring around the centre (opposite sides for two). */
 export const COURT_CRYSTAL_START_TILES: readonly { col: number; row: number }[] = Array.from(
     { length: COURT_CRYSTAL_COUNT },
     (_, i) => {

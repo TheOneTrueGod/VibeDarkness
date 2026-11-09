@@ -145,13 +145,19 @@ export const ENEMY_IRON_WARDEN: EnemySpawnDef = {
 export const COURT_MAGICIAN_ENRAGE_THRESHOLD = 0.5;
 /** He casts Mirror Swap (1406) every time he loses this fraction of max HP. */
 export const COURT_MAGICIAN_SWAP_HP_STEP = 0.1;
+/** Crystals he starts with; Conjure Crystal (1407) adds one at each of the next `COURT_CRYSTAL_CONJURE_STEPS` steps. */
+export const COURT_CRYSTAL_START_COUNT = 2;
+/** He conjures one more crystal each time he loses this fraction of max HP... */
+export const COURT_CRYSTAL_CONJURE_HP_STEP = 0.1;
+/** ...for this many steps (90%, 80%, 70%, 60%, 50%). */
+export const COURT_CRYSTAL_CONJURE_STEPS = 5;
 
 export const ENEMY_COURT_MAGICIAN: EnemySpawnDef = {
     characterId: 'court_magician',
     name: 'Court Magician',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
-    abilities: ['1401', '1402', '1403', '1405', '1406', '1490'],
+    abilities: ['1401', '1402', '1403', '1405', '1406', '1407', '1490'],
     aiSettings: { minRange: 160, maxRange: 300 },
     unitTags: [UnitTag.Boss, UnitTag.CrowdSpacingAnchor],
     unitAITreeId: 'courtMagician',

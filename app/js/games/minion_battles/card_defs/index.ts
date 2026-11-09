@@ -23,6 +23,7 @@ import { CrystalVolleyCard_1403 } from './14_enemy_court_magician/1403_CrystalVo
 import { CrystalRamCard_1404 } from './14_enemy_court_magician/1404_CrystalRam/1404Ability';
 import { BlinkCard_1405 } from './14_enemy_court_magician/1405_Blink/1405Ability';
 import { MirrorSwapCard_1406 } from './14_enemy_court_magician/1406_MirrorSwap/1406Ability';
+import { ConjureCrystalCard_1407 } from './14_enemy_court_magician/1407_ConjureCrystal/1407Ability';
 import { CrystalLaserCard_1490 } from './14_enemy_court_magician/1490_CrystalLaser/1490Ability';
 import { AlphaWolfClawCard } from './dark_animals/0004_AlphaWolfClaw/0004Ability';
 import { AlphaWolfSummonCard } from './dark_animals/0005_AlphaWolfSummon/0005Ability';
@@ -130,6 +131,7 @@ const cardDefs: CardDef[] = [
     CrystalRamCard_1404,
     BlinkCard_1405,
     MirrorSwapCard_1406,
+    ConjureCrystalCard_1407,
     CrystalLaserCard_1490,
     AlphaWolfClawCard,
     AlphaWolfSummonCard,

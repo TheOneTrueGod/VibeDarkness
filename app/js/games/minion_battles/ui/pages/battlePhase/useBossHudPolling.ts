@@ -8,6 +8,7 @@ import { getEffectiveHardCcThreshold } from '../../../crowdControl/ccArmourState
 import { UnitTag } from '../../../game/units/unitTag';
 import { peekPhaseState, phasesOf } from '../../../game/units/components/phaseComponent';
 import { getPhaseHpThresholds } from '../../../game/units/components/phaseDef';
+import { hpStepBarMarks, hpStepTriggersOf } from '../../../game/units/components/hpStepComponent';
 import type { Unit } from '../../../game/units/Unit';
 
 /** Phase HUD data for a phased unit (null when the unit has no phases). */
@@ -20,7 +21,9 @@ function buildPhaseHud(b: Unit): NonNullable<BossHudSlice>['phase'] {
         label: index > 0 ? (phases[index - 1]?.label ?? null) : null,
         index,
         total: phases.length,
-        hpThresholds: getPhaseHpThresholds(phases),
+        hpThresholds: [
+            ...new Set([...getPhaseHpThresholds(phases), ...hpStepBarMarks(hpStepTriggersOf(b))]),
+        ].sort((a, b2) => b2 - a),
         banner: state?.transition?.banner ?? null,
     };
 }
