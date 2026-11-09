@@ -3,8 +3,15 @@ import type { GameEngine } from '../../game/GameEngine';
 import { Unit } from '../../game/units/Unit';
 import { createUnitFromSpawnConfig } from '../../game/units/index';
 import { UnitTag } from '../../game/units/unitTag';
+import { UNIT_SIZE_MAP } from '../../game/units/unit_defs/unitConstants';
 
 const DEFAULT_DUMMY_HP = 500;
+
+/**
+ * Dummy body radius, pinned so hitbox and spacing assertions do not move when the dog's def changes
+ * (the dog is the Command spirit animal, drawn Tiny; dummies keep the old Small body).
+ */
+export const TARGET_DUMMY_RADIUS = UNIT_SIZE_MAP.Small;
 
 function targetDummySpawnArgs(
     x: number,
@@ -26,6 +33,7 @@ function targetDummySpawnArgs(
             unitAITreeId: 'static_test_no_ai',
             /** Exact, unmoving position — hitbox/timing assertions depend on it; see UnitTag doc. */
             unitTags: [UnitTag.CrowdSpacingExempt],
+            radius: TARGET_DUMMY_RADIUS,
         },
         engine.eventBus,
         engine,
@@ -43,7 +51,7 @@ export function createTargetDummyAtWorld(
 }
 
 /**
- * Spawn a stationary dog target dummy with high HP at a grid cell (world position from terrain).
+ * Spawn a stationary target dummy (a dog body pinned to {@link TARGET_DUMMY_RADIUS}) with high HP at a grid cell (world position from terrain).
  * Uses explicit id `target_dummy` when no custom id is needed for lookups.
  */
 export function createTargetDummyAtGrid(

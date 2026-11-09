@@ -580,7 +580,7 @@ describe('Unit', () => {
 
         // No override: radius resolves from the def's size category, so def changes apply everywhere.
         expect(unit.radiusOverride).toBeUndefined();
-        expect(unit.radius).toBe(UNIT_SIZE_MAP.Small);
+        expect(unit.radius).toBe(UNIT_SIZE_MAP.Tiny);
 
         // Def-resolved radius is not baked into checkpoints.
         const json = unit.toJSON();
@@ -590,7 +590,7 @@ describe('Unit', () => {
         // A pre-migration checkpoint's baked radius no longer wins over the def.
         const restored = Unit.fromJSON({ ...json, radius: 20 }, eventBus);
         expect(restored.radiusOverride).toBeUndefined();
-        expect(restored.radius).toBe(UNIT_SIZE_MAP.Small);
+        expect(restored.radius).toBe(UNIT_SIZE_MAP.Tiny);
     });
 
     it('restores unit without movement', () => {
