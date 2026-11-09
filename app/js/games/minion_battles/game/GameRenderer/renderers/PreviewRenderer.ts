@@ -13,7 +13,8 @@ import {
     renderMeleeTrackingHighlights,
     resolveTargetToPoint,
     computeLungeAimState,
-    resolveAnchorPointFromCollected,
+    hasSelectAnchor,
+    resolveSelectAnchorPoint,
     resolveSelectPickForAim,
     constrainSelectAim,
     resolveTurnLimitReference,
@@ -284,17 +285,20 @@ function renderInvalidSelectTargetDef(
 function renderAnchoredSelectTargetDef(
     gr: IAbilityPreviewGraphics,
     selectDef: SelectTargetDef,
+    caster: Unit,
     collectedTargets: ResolvedTarget[],
     selectTargetDefs: SelectTargetDef[],
     mouseWorld: { x: number; y: number },
     engine: GameEngine,
     stroke: { color: number; width: number; alpha?: number } = { color: 0xc0c0c0, width: 2, alpha: 0.6 },
 ): void {
-    if (!selectDef.anchorLabel || selectDef.maxRangeFromAnchor == null) return;
-    const anchorPoint = resolveAnchorPointFromCollected(
+    if (!hasSelectAnchor(selectDef) || selectDef.maxRangeFromAnchor == null) return;
+    const anchorPoint = resolveSelectAnchorPoint(
         selectTargetDefs,
+        selectDef,
+        caster,
+        collectedTargetsByLabel(selectTargetDefs, collectedTargets),
         collectedTargets,
-        selectDef.anchorLabel,
         engine,
     );
     if (!anchorPoint) return;
@@ -831,10 +835,11 @@ export class PreviewRenderer {
                         renderInvalidSelectTargetDef(gr, ability, caster, interactiveDef, ts.mouseWorld, engine);
                     } else {
                         const selectTargetDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
-                        if (interactiveDef.anchorLabel && interactiveDef.maxRangeFromAnchor != null) {
+                        if (hasSelectAnchor(interactiveDef)) {
                             renderAnchoredSelectTargetDef(
                                 gr,
                                 interactiveDef,
+                                caster,
                                 ts.currentTargets,
                                 selectTargetDefs,
                                 ts.mouseWorld,
@@ -923,10 +928,11 @@ export class PreviewRenderer {
                     const collected = collectedTargetsByLabel(selectTargetDefs, plan.currentTargets);
                     if (isSelectAimRejected(ability, caster, nextSelectDef, plan.mouseWorld, collected, engine)) {
                         renderInvalidSelectTargetDef(gr, ability, caster, nextSelectDef, plan.mouseWorld, engine);
-                    } else if (nextSelectDef.anchorLabel && nextSelectDef.maxRangeFromAnchor != null) {
+                    } else if (hasSelectAnchor(nextSelectDef)) {
                         renderAnchoredSelectTargetDef(
                             gr,
                             nextSelectDef,
+                            caster,
                             plan.currentTargets,
                             selectTargetDefs,
                             plan.mouseWorld,

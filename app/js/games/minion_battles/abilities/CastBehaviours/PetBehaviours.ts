@@ -1,0 +1,121 @@
+/**
+ * Cast behaviours that move the caster's pet as part of the caster's own cast (the pet does not cast).
+ * The pet is the caster's nearest living pet (`resolveCasterPetAnchor`), picked once at the window start.
+ *
+ * - `PetRelocateBehaviour`: the pet moves very quickly from where it stands to the window's pixel target,
+ *   leaving a slash trail (e.g. Spirit Storm's reposition, after an anchored select step).
+ * - `PetSpinBehaviour`: the pet holds a tight loop round where it stands for the window (e.g. while Spirit
+ *   Storm pulses).
+ *
+ * Both take the pet's movement for the window (its walk goal is cleared each tick), so the pet AI cannot
+ * walk it away mid-cast.
+ */
+import type { Unit } from '../../game/units/Unit';
+import type { CastBehaviour, CastBehaviourBaseContext, CastBehaviourSetupContext, CastBehaviourTickContext } from '../castBehaviourTypes';
+import { resolveCasterPetAnchor } from '../targeting';
+import { createSlashTrail, type SlashTrailColors } from '../../game/effects/slashTrail';
+
+function getPet(ctx: CastBehaviourBaseContext, petId: string | undefined): Unit | null {
+    if (!petId) return null;
+    const pet = ctx.engine.getUnit(petId);
+    return pet?.isAlive() ? pet : null;
+}
+
+function holdPet(pet: Unit): void {
+    pet.clearMovement();
+    pet.claimAbilityMovement();
+    pet.invalidateMovementPath();
+}
+
+interface RelocatePayload {
+    petId: string;
+    sx: number;
+    sy: number;
+    tx: number;
+    ty: number;
+}
+
+/** Share of the window the move takes; the rest holds at the destination. */
+const RELOCATE_MOVE_SHARE = 0.8;
+
+export class PetRelocateBehaviour implements CastBehaviour {
+    private _trail: SlashTrailColors | null = null;
+
+    withSlashTrail(colors: SlashTrailColors): this {
+        this._trail = colors;
+        return this;
+    }
+
+    onSetup(ctx: CastBehaviourSetupContext): void {
+        ctx.setBehaviourPayload(null);
+        const pet = resolveCasterPetAnchor(ctx.caster, ctx.engine);
+        const t = ctx.target;
+        if (!pet || t.type !== 'pixel' || !t.position) return;
+        const payload: RelocatePayload = { petId: pet.id, sx: pet.x, sy: pet.y, tx: t.position.x, ty: t.position.y };
+        ctx.setBehaviourPayload(payload);
+        if (this._trail) {
+            ctx.engine.addEffect(
+                createSlashTrail({ x: pet.x, y: pet.y }, t.position, (ctx.windowSeconds ?? 0.15) * RELOCATE_MOVE_SHARE, this._trail),
+            );
+        }
+    }
+
+    onTick(ctx: CastBehaviourTickContext): void {
+        const payload = ctx.behaviourPayload as RelocatePayload | null;
+        if (!payload) return;
+        const pet = getPet(ctx, payload.petId);
+        if (!pet) return;
+        holdPet(pet);
+        const p = Math.min(1, ctx.windowProgress / RELOCATE_MOVE_SHARE);
+        const eased = 1 - (1 - p) * (1 - p);
+        pet.x = payload.sx + (payload.tx - payload.sx) * eased;
+        pet.y = payload.sy + (payload.ty - payload.sy) * eased;
+    }
+}
+
+interface SpinPayload {
+    petId: string;
+    cx: number;
+    cy: number;
+    seconds: number;
+}
+
+export class PetSpinBehaviour implements CastBehaviour {
+    private _radius = 7;
+    private _turnsPerSecond = 2.5;
+
+    /** Loop radius (px). */
+    withRadius(px: number): this {
+        this._radius = px;
+        return this;
+    }
+
+    withTurnsPerSecond(turns: number): this {
+        this._turnsPerSecond = turns;
+        return this;
+    }
+
+    onSetup(ctx: CastBehaviourSetupContext): void {
+        ctx.setBehaviourPayload(null);
+        const pet = resolveCasterPetAnchor(ctx.caster, ctx.engine);
+        if (!pet) return;
+        ctx.setBehaviourPayload({ petId: pet.id, cx: pet.x, cy: pet.y, seconds: ctx.windowSeconds ?? 1 } satisfies SpinPayload);
+    }
+
+    onTick(ctx: CastBehaviourTickContext): void {
+        const payload = ctx.behaviourPayload as SpinPayload | null;
+        if (!payload) return;
+        const pet = getPet(ctx, payload.petId);
+        if (!pet) return;
+        holdPet(pet);
+        const angle = ctx.windowProgress * payload.seconds * this._turnsPerSecond * Math.PI * 2;
+        // Ease into the loop so the first tick does not jump a full radius.
+        const r = this._radius * Math.min(1, ctx.windowProgress * 8);
+        pet.x = payload.cx + Math.cos(angle) * r;
+        pet.y = payload.cy + Math.sin(angle) * r;
+        if (ctx.isLastTick) {
+            pet.x = payload.cx;
+            pet.y = payload.cy;
+        }
+    }
+}

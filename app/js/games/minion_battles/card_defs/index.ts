@@ -72,6 +72,7 @@ import { PetCard } from './07_command_core/0703_Pet/0703Ability';
 import { SicEmCard } from './07_command_core/0704_SicEm/0704Ability';
 import { OrderAttackCard } from './07_command_core/0708_OrderAttack/0708Ability';
 import { OrderMoveCard } from './07_command_core/0709_OrderMove/0709Ability';
+import { SpiritStormCard } from './07_command_core/0713_SpiritStorm/0713Ability';
 import { BramblePatchCommandCard_0707 } from './07_command_core/0707_BramblePatchCommand/0707Ability';
 import { LightBlastCard } from './08_light_core/0801_LightBlast/0801Ability';
 import { LightImbuementCard } from './08_light_core/0802_LightImbuement/0802Card';
@@ -180,6 +181,7 @@ const cardDefs: CardDef[] = [
     SicEmCard,
     OrderAttackCard,
     OrderMoveCard,
+    SpiritStormCard,
     BramblePatchCommandCard_0707,
     LightBlastCard,
     LightImbuementCard,

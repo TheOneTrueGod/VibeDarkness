@@ -57,7 +57,7 @@ export const npcControlScenario: ScenarioDefinition = {
         const dummy = createUnitFromSpawnConfig(
             {
                 id: DUMMY_ID,
-                characterId: 'dog',
+                characterId: 'target_dummy',
                 name: 'Player Dummy',
                 hp: 500,
                 x: DUMMY_POS.x,

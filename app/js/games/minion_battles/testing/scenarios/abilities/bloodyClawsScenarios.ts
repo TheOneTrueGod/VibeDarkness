@@ -24,7 +24,6 @@ import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { getSelectTargetDefsFromTimings } from '../../../abilities/targeting';
 import { resolveItsSelectTargetForClick } from '../../../game/interaction/itsCanvasInput';
-import { TARGET_DUMMY_RADIUS } from '../../fixtures/targetDummies';
 import {
     BLOODY_CLAWS_FIRST_STRIKE_LUNGE,
     BLOODY_CLAWS_FOLLOW_UP_LUNGE,
@@ -92,9 +91,9 @@ function trackClawHits(engine: GameEngine, casterId: string): void {
 
 function addEnemy(engine: GameEngine, id: string, pos: { x: number; y: number }): void {
     const unit = createUnitFromSpawnConfig({
-        id, characterId: 'dog', name: id,
+        id, characterId: 'target_dummy', name: id,
         x: pos.x, y: pos.y, teamId: 'enemy', ownerId: 'ai',
-        hp: START_HP, unitAITreeId: 'static_test_no_ai', radius: TARGET_DUMMY_RADIUS,
+        hp: START_HP, unitAITreeId: 'static_test_no_ai',
     }, engine.eventBus);
     initializeAbilityRuntimeForUnit(unit);
     engine.addUnit(unit, 'initialGameSpawn');

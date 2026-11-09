@@ -451,7 +451,7 @@ export const lanterniteDefenderAttackScenario: ScenarioDefinition = {
         const enemy = createUnitFromSpawnConfig(
             {
                 id: 'test_enemy',
-                characterId: 'dog',
+                characterId: 'target_dummy',
                 name: 'Test Enemy',
                 hp: ENEMY_HP,
                 x: enemyPos.x,
@@ -562,7 +562,7 @@ export const lanterniteDefenderTracksMovingTargetScenario: ScenarioDefinition = 
         const enemy = createUnitFromSpawnConfig(
             {
                 id: 'test_enemy_moving',
-                characterId: 'dog',
+                characterId: 'target_dummy',
                 name: 'Test Enemy',
                 hp: ENEMY_HP,
                 x: enemyPos.x,

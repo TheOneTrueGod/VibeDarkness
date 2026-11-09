@@ -4,6 +4,7 @@ import type { CastBehaviourEntry } from './castBehaviourTypes';
 import {
     clampResolvedTargetToAbilityRange,
     clampSelectTarget,
+    hasSelectAnchor,
     constrainSelectAim,
     getSelectTargetDefsFromTimings,
     resolveTargetToPoint,
@@ -62,7 +63,7 @@ export function resolveCastBehaviourTarget(
 
     if (ability && engine) {
         const eng = engine as EngineWithGetUnit;
-        if (targetDef && isSelectTargetDef(targetDef) && targetDef.anchorLabel) {
+        if (targetDef && isSelectTargetDef(targetDef) && hasSelectAnchor(targetDef)) {
             const selectDefs = getSelectTargetDefsFromTimings(ability, unit, eng);
             const collectedOrdered = selectDefs
                 .map((d, i) => active.targetsByLabel?.[d.label] ?? active.targets[i])

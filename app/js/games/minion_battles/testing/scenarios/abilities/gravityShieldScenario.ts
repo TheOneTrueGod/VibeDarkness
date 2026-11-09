@@ -74,7 +74,7 @@ export const gravityShieldScenario: ScenarioDefinition = {
 
         const ally = createUnitFromSpawnConfig({
             id: ALLY_ID,
-            characterId: 'dog',
+            characterId: 'target_dummy',
             name: 'Ally',
             x: ALLY_POS.x,
             y: ALLY_POS.y,

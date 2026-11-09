@@ -74,7 +74,7 @@ function makeKnockbackTarget(): Unit {
         speed: 50,
         teamId: 'enemy',
         ownerId: 'ai',
-        characterId: 'dog',
+        characterId: 'target_dummy',
         name: 'Target',
     });
 }

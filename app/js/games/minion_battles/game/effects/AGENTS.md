@@ -44,6 +44,12 @@ Spell circles (`game/spellCircles/spellCircles.ts`) are the main user: one style
 
 Concept art and the palette decision: `docs/ideas/plans/0004_2026-11-08_command-core-spirit-animal.md`.
 
+Glow effects (motes, the spirit silhouette, cues, slashes, fields) pick colours with `themeGlowPair(theme)` (lighter = spark/core, darker = halo), not by role, so they stay bright-on-dark whichever role holds the light colour.
+
+**Spirit slash** (`slashTrail.ts`, painter `SpiritSlash`): a cut that grows along a fast straight dash, then fades; left by `DashStrikeBehaviour` and `PetRelocateBehaviour`. Not the Armory's `SlashTrail`.
+
+**Linked area field** (`linkedAreaField.ts`, painter `LinkedAreaField`): the visual for `LinkedAreaPulseBehaviour` — a circle round the caster, one round a linked unit, the band between; slow field motes, and a burst on each pulse share (the same shares the damage uses).
+
 **Particle batching:** `ParticleImage` / `StoryHomingParticle` draw through a Pixi `ParticleContainer` in `game/GameRenderer/renderers/EffectRenderer.ts` (shared `darkBlob` texture). Other effect types that need nested Containers stay on the normal sprite path.
 
 ---

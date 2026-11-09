@@ -22,12 +22,13 @@ const RESCAN_INTERVAL_ROUNDS = 0.25;
 
 /**
  * Pick the best engage ability for the locked target: highest aiSettings.priority among
- * usable in-range abilities, then longer maxRange. Falls back to basicAttackAbilityId.
+ * usable in-range abilities, then longer maxRange. Falls back to basicAttackAbilityId
+ * (pass null for no fallback).
  */
-function pickPetEngageAbility(
+export function pickPetEngageAbility(
     unit: Unit,
     target: Unit,
-    basicAttackAbilityId: string,
+    basicAttackAbilityId: string | null,
 ): AbilityStatic | null {
     const dist = distance(unit.x, unit.y, target.x, target.y);
     const candidates: { ability: AbilityStatic; priority: number; maxRange: number }[] = [];
@@ -52,7 +53,7 @@ function pickPetEngageAbility(
         return candidates[0]!.ability;
     }
 
-    return getAbility(basicAttackAbilityId) ?? null;
+    return basicAttackAbilityId ? getAbility(basicAttackAbilityId) ?? null : null;
 }
 
 export const pet_engage: AINode<'pet', PetNodeId> = {

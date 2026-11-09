@@ -1,6 +1,8 @@
 /**
- * Order: Move — special action. Zero-frame command that sends the nearest pet to a
- * destination. Cancels basic-attack casts; queues behind other abilities.
+ * Order: Move — special action. Zero-frame command that sends the nearest pet to a destination, which
+ * becomes its anchor: it wanders within its `anchorRadius` of that point until ordered again. Cancels
+ * basic-attack casts; queues behind other abilities. Its `guard` mode swaps the card for Guard (0712),
+ * which anchors the pet on the player instead.
  */
 
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
@@ -16,6 +18,7 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import type { AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { TerrainManager } from '../../../terrain/TerrainManager';
+import { GUARD_ABILITY_ID } from '../0712_Guard/0712Ability';
 
 export const ORDER_MOVE_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}09`;
 /** Command move range from the pet (px). */
@@ -52,6 +55,16 @@ export const OrderMoveAbility: AbilityStatic = defineAbility({
     targets: [{ type: 'pixel', label: 'Destination' }] as TargetDef[],
     abilityTimings: SPECIAL_TIMINGS,
     abilitySource: ORDER_MOVE_PET_SOURCE,
+    abilityModes: {
+        modes: ['move', 'guard'],
+        defaultMode: 'move',
+        modeLabels: { move: 'Move', guard: 'Guard' },
+        modeDescriptions: {
+            move: 'Send your spirit to a point; it stays near there.',
+            guard: 'Call your spirit back; it stays near you.',
+        },
+        modeAbilityIds: { guard: GUARD_ABILITY_ID },
+    },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {
         return { minRange: 0, maxRange: ORDER_MOVE_MAX_RANGE };
@@ -59,7 +72,7 @@ export const OrderMoveAbility: AbilityStatic = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            'Command your pet to move to a point.',
+            'Send your spirit to a point. It stays within {50}px of it until ordered again.',
             'Cancels {Basic Attack} casts; other abilities keep going.',
             'Zero-frame special — usable with another action.',
         ];

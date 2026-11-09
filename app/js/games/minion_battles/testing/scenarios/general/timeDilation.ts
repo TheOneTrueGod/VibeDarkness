@@ -74,7 +74,7 @@ function spawnStaticUnit(
     const unit = createUnitFromSpawnConfig(
         {
             id: opts.id,
-            characterId: 'dog',
+            characterId: 'target_dummy',
             name: opts.id,
             x: pos.x,
             y: pos.y,

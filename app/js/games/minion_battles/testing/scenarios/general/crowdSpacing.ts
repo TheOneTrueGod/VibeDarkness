@@ -82,7 +82,7 @@ function spawnStaticEnemy(
     const unit = createUnitFromSpawnConfig(
         {
             id: opts.id,
-            characterId: 'dog',
+            characterId: 'target_dummy',
             name: opts.name,
             x: opts.x,
             y: opts.y,

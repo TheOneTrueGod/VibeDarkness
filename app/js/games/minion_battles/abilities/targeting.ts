@@ -15,6 +15,7 @@ import { lungeStepDistance } from './stepLunge';
 import { isInteractiveTargetDef, isSelectTargetDef } from './timingTargetDef';
 import { isAbilityTimingInterval } from './abilityTimings';
 import { areEnemies, areAllies } from '../game/teams';
+import { getLivingPetsOfUnit } from '../game/units/petHelpers';
 
 /** The types of targets an ability can require. */
 export type TargetType = 'player' | 'unit' | 'pixel';
@@ -503,6 +504,50 @@ export function resolveAnchorPointFromCollected(
     return resolveTargetToPoint(collectedTargets[anchorIdx]!, engine);
 }
 
+/** True when this select step clamps its pixel pick around an anchor (an earlier pick or the caster's pet). */
+export function hasSelectAnchor(selectDef: SelectTargetDef): boolean {
+    return (selectDef.anchorLabel != null || selectDef.anchorUnit != null)
+        && selectDef.maxRangeFromAnchor != null
+        && selectDef.maxRangeFromAnchor > 0;
+}
+
+/** The caster's nearest living pet, for `anchorUnit: 'casterPet'`. Needs `engine.units`. */
+export function resolveCasterPetAnchor(caster: Unit, engine: unknown): Unit | null {
+    const units = (engine as { units?: readonly Unit[] }).units ?? [];
+    let best: Unit | null = null;
+    let bestD = Infinity;
+    for (const pet of getLivingPetsOfUnit(caster, units)) {
+        const d = (pet.x - caster.x) ** 2 + (pet.y - caster.y) ** 2;
+        if (d < bestD) {
+            bestD = d;
+            best = pet;
+        }
+    }
+    return best;
+}
+
+/**
+ * The point an anchored select step clamps around: the caster's pet (`anchorUnit`) or the earlier pick
+ * named by `anchorLabel`. Null when it cannot be resolved yet.
+ */
+export function resolveSelectAnchorPoint(
+    selectDefs: readonly SelectTargetDef[],
+    selectDef: SelectTargetDef,
+    caster: Unit,
+    collectedTargetsByLabel: Record<string, ResolvedTarget>,
+    collectedTargetsOrdered: ResolvedTarget[],
+    engine: { getUnit(id: string): { x: number; y: number } | undefined | null },
+): { x: number; y: number } | null {
+    if (selectDef.anchorUnit === 'casterPet') {
+        const pet = resolveCasterPetAnchor(caster, engine);
+        return pet ? { x: pet.x, y: pet.y } : null;
+    }
+    if (selectDef.anchorLabel == null) return null;
+    const labeledAnchor = collectedTargetsByLabel[selectDef.anchorLabel];
+    return (labeledAnchor ? resolveTargetToPoint(labeledAnchor, engine) : null)
+        ?? resolveAnchorPointFromCollected(selectDefs, collectedTargetsOrdered, selectDef.anchorLabel, engine);
+}
+
 /**
  * Clamp a select-target resolution — anchor-relative pixel picks or caster-range fallback.
  */
@@ -516,16 +561,16 @@ export function clampSelectTarget(
     engine: { getUnit(id: string): Unit | undefined | null },
     minDistanceFromAnchor = 0,
 ): ResolvedTarget {
-    if (
-        selectDef.anchorLabel != null
-        && selectDef.maxRangeFromAnchor != null
-        && selectDef.maxRangeFromAnchor > 0
-    ) {
+    if (hasSelectAnchor(selectDef)) {
         const selectDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
-        const labeledAnchor = collectedTargetsByLabel[selectDef.anchorLabel];
-        const anchorPoint =
-            (labeledAnchor ? resolveTargetToPoint(labeledAnchor, engine) : null)
-            ?? resolveAnchorPointFromCollected(selectDefs, collectedTargetsOrdered, selectDef.anchorLabel, engine);
+        const anchorPoint = resolveSelectAnchorPoint(
+            selectDefs,
+            selectDef,
+            caster,
+            collectedTargetsByLabel,
+            collectedTargetsOrdered,
+            engine,
+        );
         if (!anchorPoint) return target;
 
         const point = resolveTargetToPoint(target, engine) ?? anchorPoint;
@@ -536,7 +581,7 @@ export function clampSelectTarget(
             point.x,
             point.y,
             minDist,
-            selectDef.maxRangeFromAnchor,
+            selectDef.maxRangeFromAnchor!,
         );
         return { type: 'pixel', position: clamped };
     }

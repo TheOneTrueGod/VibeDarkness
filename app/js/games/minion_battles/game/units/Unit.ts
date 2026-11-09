@@ -37,6 +37,7 @@ import {
     getUnitComponentSpecs,
     getUnitTerrainCrushDamage,
     getUnitCrowdMassOverride,
+    isEtherealCharacter,
     PLAYER_CHARACTER_ID,
     resolvePlayerUnitRadius,
 } from './unit_defs/unitDef';
@@ -459,9 +460,12 @@ export class Unit extends GameObject {
         return this.terrainHazard !== null;
     }
 
-    /** Whether targeting, hitboxes, projectiles and damage must skip this unit (spawning or in a terrain hazard). */
+    /**
+     * Whether targeting, hitboxes, projectiles, damage, crowd spacing and pathing blockers must skip this unit:
+     * spawning, in a terrain hazard, or an ethereal character (a spirit; see `UnitDefEntry.ethereal`).
+     */
     isUntargetable(): boolean {
-        return this.isSpawning() || this.isInTerrainHazard();
+        return this.isSpawning() || this.isInTerrainHazard() || isEtherealCharacter(this.characterId);
     }
 
     /**

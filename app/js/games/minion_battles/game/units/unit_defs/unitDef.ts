@@ -14,7 +14,7 @@ import {
 } from '../../deathEffects/darkCreatureDissolutionDef';
 import type { VisualEffectDef } from '../../effects/visualEffectDef';
 import { BUFF_PARTICLE_AURA_PRESETS, type BuffParticleAuraDef } from '../../effects/buffParticleAura';
-import { getThemeById } from '../../../themes/abilityTheme';
+import { getThemeById, themeGlowPair } from '../../../themes/abilityTheme';
 import type { DeathSequenceDef } from '../../deathSequences/deathSequenceDef';
 import { ALPHA_WOLF_DEATH_SEQUENCE, DISPLACER_SPIRIT_DEATH_SEQUENCE } from '../../deathSequences/deathSequencePresets';
 import { DARK_CREATURE_CORRUPTION_TINT, DARK_CREATURE_ICON_TINT_ALPHA } from '../../deathEffects/darkCreatureVisualConstants';
@@ -128,6 +128,7 @@ export type EnemyUnitId =
     | 'lanternite_nest'
     | 'swarm_nest'
     | 'dog'
+    | 'target_dummy'
     | 'husk'
     | 'iron_warden'
     | 'court_magician'
@@ -161,10 +162,10 @@ export interface SpectralSpriteDef {
     bodyAlpha: number;
 }
 
-/** A theme's spectral look: secondary silhouette over a translucent primary body. */
+/** A theme's spectral look: a silhouette in its lighter colour over a translucent body in its darker one. */
 export function themedSpectralSprite(themeId: string, bodyAlpha = 0.55): SpectralSpriteDef {
-    const theme = getThemeById(themeId);
-    return { tint: theme.secondaryNum, bodyColor: theme.primaryNum, bodyAlpha };
+    const { light, dark } = themeGlowPair(getThemeById(themeId));
+    return { tint: light, bodyColor: dark, bodyAlpha };
 }
 
 export interface UnitDefEntry {
@@ -180,6 +181,11 @@ export interface UnitDefEntry {
      * `Buff.particleAura`; a buff's aura wins while the buff is on.
      */
     particleAura?: BuffParticleAuraDef;
+    /**
+     * Ethereal (a spirit): untargetable by everyone, takes no damage, ignored by hitboxes and projectiles,
+     * and has no unit collision (crowd spacing and pathing skip it). Feeds `Unit.isUntargetable()`.
+     */
+    ethereal?: boolean;
     /**
      * Bestiary listing. Every enemy needs one unless `hidden: true`. The section comes from
      * `creatureType` (dark_creature -> Dark Creatures, beast/nature -> Beasts, otherwise Other).
@@ -495,11 +501,12 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     dog: {
         // The spirit animal (Command Core): a tiny glowing dog shedding Command-theme motes.
-        bodyColor: getThemeById('command').primaryNum,
+        bodyColor: themeGlowPair(getThemeById('command')).dark,
         displayName: 'Spirit Dog',
         sprite: UNIT_SPRITE_URLS.dog,
         spectralSprite: themedSpectralSprite('command'),
         particleAura: BUFF_PARTICLE_AURA_PRESETS.spiritMotes(),
+        ethereal: true,
         bestiary: { abilityIds: ['0701'] },
         characterSpriteKey: 'dog',
         hp: 48,
@@ -509,6 +516,24 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         perceptionRange: 250,
         creatureType: 'beast',
         uiDescription: 'Spirit animal — a loyal hound of light that fights close to its master, biting enemies that stray too near.',
+    },
+    /**
+     * Test and Ability Test stand-in: the dog's old solid body (Small, targetable, collides). Fixtures use
+     * this instead of the dog so they do not follow the spirit animal's def (Tiny, ethereal).
+     */
+    target_dummy: {
+        bodyColor: 0x8a5a2b,
+        displayName: 'Target Dummy',
+        sprite: UNIT_SPRITE_URLS.dog,
+        bestiary: { abilityIds: [], hidden: true },
+        characterSpriteKey: 'dog',
+        hp: 48,
+        speed: 140,
+        size: 'Small',
+        stamina: 2,
+        perceptionRange: 250,
+        creatureType: 'beast',
+        uiDescription: 'A stand-in creature for ability tests.',
     },
     husk: {
         bodyColor: 0x4a5236,
@@ -1033,6 +1058,11 @@ export function paintUnitBody(body: Graphics, unit: Unit, bodyColor: number = ge
 /** Per-character spectral sprite look (undefined = draw the sprite normally). */
 export function getUnitSpectralSprite(characterId: string): SpectralSpriteDef | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.spectralSprite;
+}
+
+/** True when the character is ethereal (see `UnitDefEntry.ethereal`). */
+export function isEtherealCharacter(characterId: string): boolean {
+    return UNIT_DEFS[characterId as UnitDefId]?.ethereal === true;
 }
 
 /** Per-character render-only particle aura (undefined = none). */

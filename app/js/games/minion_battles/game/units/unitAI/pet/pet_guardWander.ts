@@ -1,7 +1,7 @@
 /**
- * Guard wander — pacing loop while a pet waits near its owner in pet_follow.
+ * Guard wander — pacing loop while a pet waits near its anchor (its owner, or an ordered point) in pet_follow.
  *
- * Picks a random point in a ring around the owner (> 1 unit radius, < tether range),
+ * Picks a random point in a ring around the anchor (> 1 unit radius, < tether range),
  * walks there, dwells briefly (0.5–1 s, deterministic per stop), then repeats.
  */
 
@@ -24,8 +24,14 @@ export function clearPetGuardWander(ctx: PetAITreeContext): void {
     ctx.guardDwellUntilGameTime = undefined;
 }
 
+/** What the pet wanders around: its owner, or the point it was ordered to. */
+export interface PetAnchor {
+    x: number;
+    y: number;
+}
+
 function guardTargetStillValid(
-    owner: Unit,
+    owner: PetAnchor,
     targetX: number,
     targetY: number,
     minDist: number,
@@ -42,7 +48,7 @@ function pickGuardDwellSeconds(context: AIContext): number {
 }
 
 function pickNewGuardTarget(
-    owner: Unit,
+    owner: PetAnchor,
     context: AIContext,
     ctx: PetAITreeContext,
     minDist: number,
@@ -69,12 +75,12 @@ function walkTowardGuardTarget(unit: Unit, context: AIContext, ctx: PetAITreeCon
 }
 
 /**
- * Run one guard-wander tick while the pet is within tether range of its owner.
+ * Run one guard-wander tick while the pet is within tether range of its anchor (`owner`: the owner unit or a point).
  * Returns false when the ring is too tight to wander (caller should idle in place).
  */
 export function runPetGuardWander(
     unit: Unit,
-    owner: Unit,
+    owner: PetAnchor,
     context: AIContext,
     ctx: PetAITreeContext,
     tetherRange: number,

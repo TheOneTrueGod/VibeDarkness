@@ -1,5 +1,8 @@
 import { MeleeAttackBehaviour } from './MeleeAttack';
 import { DashBehaviour } from './DashBehaviour';
+import { DashStrikeBehaviour } from './DashStrikeBehaviour';
+import { LinkedAreaPulseBehaviour } from './LinkedAreaPulseBehaviour';
+import { PetRelocateBehaviour, PetSpinBehaviour } from './PetBehaviours';
 import { InitAbilityNoteBehaviour } from './InitAbilityNoteBehaviour';
 import { ProjectileLaunchBehaviour } from './ProjectileLaunchBehaviour';
 import { InstantBehaviour, type InstantOptions } from './InstantBehaviour';
@@ -23,6 +26,14 @@ import type { CastBehaviourTickContext } from '../castBehaviourTypes';
 export const CastBehaviours = {
     MeleeAttack: (): MeleeAttackBehaviour => new MeleeAttackBehaviour(),
     Dash: (): DashBehaviour => new DashBehaviour(),
+    /** Blink beside a unit target and dash through it, hitting only it (see DashStrikeBehaviour). */
+    DashStrike: (): DashStrikeBehaviour => new DashStrikeBehaviour(),
+    /** Pulse damage over a circle round the caster, one round a linked unit, and the band between. */
+    LinkedAreaPulse: (): LinkedAreaPulseBehaviour => new LinkedAreaPulseBehaviour(),
+    /** Move the caster's pet to the window's pixel target. */
+    PetRelocate: (): PetRelocateBehaviour => new PetRelocateBehaviour(),
+    /** Hold the caster's pet in a tight spin for the window. */
+    PetSpin: (): PetSpinBehaviour => new PetSpinBehaviour(),
     /** Sets the caster's ability note at window open. Replaces doCardEffect initialization. */
     InitAbilityNote: (noteData: unknown): InitAbilityNoteBehaviour => new InitAbilityNoteBehaviour(noteData),
     /** Fires a projectile toward a pixel target at window open. Pair with ON_PROJECTILE_EXPIRED abilityEvents for on-hit effects. */
@@ -65,3 +76,4 @@ export const CastBehaviours = {
 };
 
 export { BaseAttackBehaviour } from './BaseAttackBehaviour';
+export { DashStrikeBehaviour } from './DashStrikeBehaviour';

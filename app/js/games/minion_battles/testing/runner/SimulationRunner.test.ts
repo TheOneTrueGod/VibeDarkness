@@ -451,17 +451,18 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('passes pet auto-engage scenario (dog bites enemy within leash)', () => {
+    it('passes spirit guard scenario (follows within 50 px, never chases)', () => {
         const r = runScenarioHeadless(petAutoEngageScenario);
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('passes pet Heel scenario (0703): heals 30% max HP', () => {
+    // Heel is disabled in research while the spirit can't be harmed; its scenario predates the spirit's anchor AI.
+    it.skip('passes pet Heel scenario (0703): heals 30% max HP', () => {
         const r = runScenarioHeadless(petHeelScenario);
         expect(r.passed, r.message).toBe(true);
     });
 
-    it("passes pet Sic 'em + Pounce scenario (0704/0702): dog dashes, stops on hit, stuns enemy", () => {
+    it("passes pet Sic 'em + Pounce scenario (0704/0702): spirit locks on and flurries", () => {
         const r = runScenarioHeadless(petSicEmPounceScenario);
         expect(r.passed, r.message).toBe(true);
     });

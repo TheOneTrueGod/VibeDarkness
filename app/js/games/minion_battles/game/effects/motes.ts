@@ -14,7 +14,7 @@
  */
 import type { Graphics } from 'pixi.js';
 import { Effect } from './Effect';
-import { getThemeById } from '../../themes/abilityTheme';
+import { getThemeById, themeGlowPair } from '../../themes/abilityTheme';
 
 export const MOTE_EFFECT_TYPE = 'Mote';
 
@@ -46,14 +46,14 @@ export interface MoteEffectData {
 }
 
 /**
- * A theme's motes: secondary sparks with a primary halo. Pass a theme id (`'command'`) so any tree can
+ * A theme's motes: sparks in its lighter colour with a halo in its darker one (`themeGlowPair`). Pass a theme id (`'command'`) so any tree can
  * shed its own colours.
  */
 export function themedMoteSpec(themeId: string, overrides: Partial<MoteSpec> = {}): MoteSpec {
-    const theme = getThemeById(themeId);
+    const { light, dark } = themeGlowPair(getThemeById(themeId));
     return {
-        color: theme.secondaryNum,
-        glowColor: theme.primaryNum,
+        color: light,
+        glowColor: dark,
         sizePx: 2,
         durationSec: 1.3,
         risePx: 26,

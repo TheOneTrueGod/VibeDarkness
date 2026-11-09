@@ -1,12 +1,10 @@
 /**
- * Pounce — the dog's command-triggered dash ability.
+ * Pounce — the spirit's command-triggered lunge (Sic 'em, 0704).
  *
- * Pet-only: no aiSettings, so the pet AI never auto-queues it. Only the player's
- * Sic 'em (0704) card causes the pet to use Pounce. Quick charge (~0.3 s windup)
- * then dash (~0.25 s) toward a pixel target, passing through up to 3 enemies and
- * stopping on the 4th hit. On each hit:
- * 3 damage, ~1 s stun, and tier-2 knockback opposite the dash direction (flung over
- * the dog's shoulder).
+ * Pet-only: no aiSettings, so the pet AI never auto-queues it. Only the player's Sic 'em card causes the
+ * pet to use Pounce. Short windup (the charge telegraph), then a dash toward a pixel target that stops on
+ * its first hit: that enemy takes damage and a short stun, and the spirit locks on to it — Spirit Flurry
+ * (0711) follows, four dash strikes over about a second.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../../abilities/Ability';
@@ -14,11 +12,9 @@ import { AbilityState } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { DashBehaviour } from '../../../abilities/CastBehaviours/DashBehaviour';
 import { tryApplyHardCcStun } from '../../../crowdControl/tryApplyHardCcStun';
-import { applyDirectionalKnockback } from '../../../crowdControl/knockbackKeywords';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
-import { getDirectionFromTo } from '../../../abilities/targetHelpers';
 import type { KnockbackEngineCtx } from '../../../crowdControl/knockbackKeywords';
 import { drawChargeCapsuleTimingTelegraph, resolveTerrainAwareMovementDisplacement } from '../../../abilities/previewHelpers';
 import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from '../../../buffs/DoubleDamageBuff';
@@ -29,6 +25,10 @@ import {
     type TooltipTokenBindings,
 } from '../../../abilities/tooltipTokens';
 import { getCastElapsedAt } from '../../../game/time/actorClock';
+
+import { commandPetAbility } from '../../../abilities/petCommands';
+import { SPIRIT_FLURRY_ABILITY_ID, SPIRIT_FLURRY_ANGLES } from '../0711_SpiritFlurry/0711Ability';
+import { SPIRIT_STRIKE_DAMAGE } from '../0710_SpiritStrike/0710Ability';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}02`;
 
@@ -45,16 +45,16 @@ export const MAX_DASH_DISTANCE = 100;
 export const POUNCE_COLLISION_STEP = 4;
 const DAMAGE = 10;
 const STUN_DURATION = 1.0;
-const KNOCKBACK_TIER = 2;
-/** Pass through this many hits; dash ends on the next one. */
-const STOP_AFTER_HITS = 4;
+/** Lock on: the dash ends on its first hit, and Spirit Flurry (0711) follows on that enemy. */
+const STOP_AFTER_HITS = 1;
 
 const TOOLTIP_LINES = [
-    'Leap through enemies, stopping on the {{STOP_AFTER_HITS}}th hit. Each hit deals {{DAMAGE}} damage, stuns for {{STUN_DURATION}}s, and flings the target backwards.',
+    'Lunge at a point. The first enemy hit takes {{DAMAGE}} damage and is stunned for {{STUN_DURATION}}s, then your spirit locks on and dashes through it {{FLURRY_STRIKES}} times for {{STRIKE_DAMAGE}} damage each.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
-    STOP_AFTER_HITS: { kind: 'plain', value: STOP_AFTER_HITS },
+    FLURRY_STRIKES: { kind: 'plain', value: SPIRIT_FLURRY_ANGLES.length },
+    STRIKE_DAMAGE: { kind: 'damage', base: SPIRIT_STRIKE_DAMAGE },
     DAMAGE: { kind: 'damage', base: DAMAGE },
     STUN_DURATION: { kind: 'plain', value: STUN_DURATION },
 };
@@ -78,12 +78,6 @@ const pounceDash = new DashBehaviour()
         filter: 'enemy',
     })
     .withOnHit((hitUnit, ctx) => {
-        // Compute the dash direction from caster toward target at hit time.
-        const payload = ctx.behaviourPayload as { endX?: number; endY?: number } | null;
-        const targetX = payload?.endX ?? ctx.caster.x + 1;
-        const targetY = payload?.endY ?? ctx.caster.y;
-        const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, targetX, targetY);
-
         const knockbackEngine: KnockbackEngineCtx = {
             gameTime: ctx.engine.gameTime,
             roundNumber: (ctx.engine as { roundNumber?: number }).roundNumber ?? 1,
@@ -91,16 +85,11 @@ const pounceDash = new DashBehaviour()
             interruptUnitAndRefundAbilities: (u) =>
                 (ctx.engine as { interruptUnitAndRefundAbilities?(u: Unit): void }).interruptUnitAndRefundAbilities?.(u),
         };
-
+        // Hold the victim in place for the flurry (no knockback: the spirit locks on instead).
         tryApplyHardCcStun(hitUnit, STUN_DURATION, ctx.engine.gameTime, knockbackEngine.roundNumber, ctx.engine.eventBus);
-        // Fling the victim backward over the dog's shoulder — opposite the dash direction.
-        applyDirectionalKnockback(
-            hitUnit,
-            KNOCKBACK_TIER,
-            { x: -dirX, y: -dirY },
-            { unitId: ctx.caster.id, abilityId: CARD_ID },
-            knockbackEngine,
-        );
+        commandPetAbility([ctx.caster], SPIRIT_FLURRY_ABILITY_ID, [{ type: 'unit', unitId: hitUnit.id }], ctx.engine, {
+            preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+        });
     });
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [

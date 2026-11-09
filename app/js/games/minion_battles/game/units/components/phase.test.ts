@@ -30,8 +30,8 @@ const P = TINY_BATTLE_PLAYER_ID;
 const TICKS_PER_SEC = 60;
 const cell = (n: number): number => n * CELL_SIZE + CELL_SIZE / 2;
 
-/** `dog` is the stock target-dummy character; phases are set on its def per test and removed afterwards. */
-const DUMMY_DEF = getUnitDefEntry('dog')!;
+/** `target_dummy` is the stock test character; phases are set on its def per test and removed afterwards. */
+const DUMMY_DEF = getUnitDefEntry('target_dummy')!;
 
 beforeEach(() => {
     DUMMY_DEF.phases = undefined;

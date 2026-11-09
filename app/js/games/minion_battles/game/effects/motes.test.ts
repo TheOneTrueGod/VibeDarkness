@@ -14,7 +14,7 @@ import { getUnitParticleAura, getUnitSpectralSprite } from '../units/unit_defs/u
 import { getSpellCircleStyle, SPELL_CIRCLE_STYLE_COMMAND } from '../spellCircles/spellCircles';
 import { COMMAND_SPELL_CIRCLE_EFFECT_TYPE, commandRingSlot } from '../effect_defs/commandEffects';
 import { playCommandCues } from '../../abilities/petCommands';
-import { getThemeById } from '../../themes/abilityTheme';
+import { getThemeById, themeGlowPair } from '../../themes/abilityTheme';
 
 describe('createMote', () => {
     it('starts at the spawn point and rises', () => {
@@ -29,9 +29,10 @@ describe('createMote', () => {
 
     it('uses the Command colours for the spirit preset', () => {
         const spec = MOTE_PRESETS.spirit();
-        const theme = getThemeById('command');
-        expect(spec.color).toBe(theme.secondaryNum);
-        expect(spec.glowColor).toBe(theme.primaryNum);
+        const { light, dark } = themeGlowPair(getThemeById('command'));
+        expect(spec.color).toBe(light);
+        expect(spec.glowColor).toBe(dark);
+        expect(light).toBe(0xd9f99d);
     });
 
     it('flickers between 0.35 and 1, and is steady at 0 Hz', () => {
@@ -62,7 +63,7 @@ function fakeUnit(over: Partial<Unit> = {}): Unit {
 describe('unit-def particle aura', () => {
     it('gives the spirit dog a mote aura and a spectral sprite', () => {
         expect(getUnitParticleAura('dog')?.motes).toBeDefined();
-        expect(getUnitSpectralSprite('dog')?.tint).toBe(getThemeById('command').secondaryNum);
+        expect(getUnitSpectralSprite('dog')?.tint).toBe(themeGlowPair(getThemeById('command')).light);
         expect(getUnitParticleAura('husk')).toBeUndefined();
     });
 
@@ -141,7 +142,7 @@ describe('Command spell circle', () => {
     it('is registered with the Command painter and colours', () => {
         const style = getSpellCircleStyle(SPELL_CIRCLE_STYLE_COMMAND);
         expect(style?.effectType).toBe(COMMAND_SPELL_CIRCLE_EFFECT_TYPE);
-        expect(style?.data?.ringColor).toBe(getThemeById('command').primaryNum);
+        expect(style?.data?.ringColor).toBe(themeGlowPair(getThemeById('command')).dark);
     });
 
     it('places rim motes in mirrored pairs about the vertical axis', () => {

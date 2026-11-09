@@ -214,8 +214,9 @@ export interface OrderMoveEngineCtx {
 const BASIC_ATTACK_TAG: AbilityTag = 'basicAttack';
 
 /**
- * Cancel active casts tagged `basicAttack` on each pet, then set the walk goal
- * to the world-pixel destination. Non-basic casts are left alone (movement queues via walkIntent).
+ * Order: Move. Cancel active casts tagged `basicAttack` on each pet, then make the destination the pet's
+ * anchor: it walks there and from then on wanders within its def's `anchorRadius` of it (see pet_follow).
+ * Non-basic casts are left alone (movement queues via walkIntent).
  */
 export function commandPetOrderMove(
     pets: Unit[],
@@ -234,22 +235,47 @@ export function commandPetOrderMove(
         }
 
         const ctx = pet.aiContext as PetAITreeContext;
-        ctx.aiState = 'pet_ordered_move';
-        ctx.orderedMoveX = dest.x;
-        ctx.orderedMoveY = dest.y;
+        ctx.aiState = 'pet_follow';
+        ctx.anchorX = dest.x;
+        ctx.anchorY = dest.y;
+        ctx.orderedMoveX = undefined;
+        ctx.orderedMoveY = undefined;
         ctx.targetUnitId = undefined;
         ctx.orderedFocus = false;
         ctx.heelUntilGameTime = undefined;
         clearPetGuardWander(ctx);
 
-        // Start walking now rather than waiting for the pet's next AI turn. If the destination
-        // turns out to be unreachable, pet_ordered_move drops the order.
+        // Start walking now rather than waiting for the pet's next AI turn.
         pet.setWalkGoal({
             kind: 'cell',
             col: Math.floor(dest.x / CELL_SIZE),
             row: Math.floor(dest.y / CELL_SIZE),
             targetPixel: { x: dest.x, y: dest.y },
         });
+    }
+    playCommandCues(owner, pets, engine);
+}
+
+/**
+ * Guard (Order: Move's other mode). Clear each pet's ordered anchor so it anchors on its owner again:
+ * it walks back and stays within its def's `anchorRadius` of the owner.
+ */
+export function commandPetGuard(
+    pets: Unit[],
+    engine: { addEffect?(e: unknown): void },
+    owner?: Unit,
+): void {
+    for (const pet of pets) {
+        if (!pet.isAlive()) continue;
+        const ctx = pet.aiContext as PetAITreeContext;
+        ctx.aiState = 'pet_follow';
+        ctx.anchorX = undefined;
+        ctx.anchorY = undefined;
+        ctx.orderedMoveX = undefined;
+        ctx.orderedMoveY = undefined;
+        ctx.targetUnitId = undefined;
+        ctx.orderedFocus = false;
+        clearPetGuardWander(ctx);
     }
     playCommandCues(owner, pets, engine);
 }

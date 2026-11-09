@@ -17,7 +17,7 @@ function makeUnit(overrides: Partial<ConstructorParameters<typeof Unit>[0]> = {}
         speed: 100,
         teamId: 'player',
         ownerId: 'ai',
-        characterId: 'dog',
+        characterId: 'target_dummy',
         name: 'Dog',
         ...overrides,
     });

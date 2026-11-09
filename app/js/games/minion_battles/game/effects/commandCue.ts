@@ -8,7 +8,7 @@
  * a theme (Command by default), so another commander family can reuse it with its own palette.
  */
 import { Effect } from './Effect';
-import { getThemeById } from '../../themes/abilityTheme';
+import { getThemeById, themeGlowPair } from '../../themes/abilityTheme';
 
 export const COMMAND_CUE_EFFECT_TYPE = 'CommandCue';
 
@@ -41,7 +41,7 @@ interface CueUnit {
  * pause plane (`pauseBehaviour: 'continue'`), since orders are usually given while the battle is paused.
  */
 export function createCommandCue(from: CueUnit, to: CueUnit, themeId = 'command'): Effect {
-    const theme = getThemeById(themeId);
+    const { light, dark } = themeGlowPair(getThemeById(themeId));
     const data: CommandCueEffectData = {
         fromUnitId: from.id,
         toUnitId: to.id,
@@ -49,8 +49,8 @@ export function createCommandCue(from: CueUnit, to: CueUnit, themeId = 'command'
         fromY: from.y,
         toX: to.x,
         toY: to.y,
-        moteColor: theme.secondaryNum,
-        glowColor: theme.primaryNum,
+        moteColor: light,
+        glowColor: dark,
         count: 7,
     };
     return new Effect({

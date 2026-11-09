@@ -1,6 +1,7 @@
 /**
  * Pet system ability-test scenarios.
- * Covers the core pet loop: auto-engage + return leash, Heel (0703), and Sic 'em / Pounce (0704/0702).
+ * Covers the spirit animal: guarding (anchored on the owner, never auto-engaging), Heel (0703, disabled in
+ * research), and Sic 'em / Pounce (0704/0702) locking on into Spirit Flurry (0711).
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -15,6 +16,12 @@ import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses'
 import type { PetAITreeContext } from '../../../game/units/unitAI/pet/context';
 import type { StunnedBuff } from '../../../buffs/StunnedBuff';
 import { petStateOf } from '../../../game/units/components/petComponent';
+import { getPetDef } from '../../../game/units/pet_defs/petDef';
+import { SPIRIT_FLURRY_ANGLES } from '../../../card_defs/07_command_core/0711_SpiritFlurry/0711Ability';
+import { SPIRIT_STRIKE_DAMAGE } from '../../../card_defs/07_command_core/0710_SpiritStrike/0710Ability';
+
+/** Pounce's own hit damage (0702). */
+const POUNCE_HIT_DAMAGE = 10;
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -35,7 +42,7 @@ function spawnDog(
             y: pos.y,
             teamId: 'player',
             ownerId: 'ai',
-            abilities: ['0701', '0702'],
+            abilities: [...getPetDef('dog')!.abilityIds],
             unitAITreeId: 'pet',
             aiSettings: { minRange: 0, maxRange: 50 },
         },
@@ -51,20 +58,20 @@ function spawnDog(
     return dog;
 }
 
-// ---- Scenario 1: Pet auto-engage + return leash ----
+// ---- Scenario 1: Spirit guards its owner ----
 
 /**
- * Dog auto-engages an enemy that is within the engage leash (150 px around the owner).
- * The player then walks far east so the dog exceeds the return leash (300 px); the dog
- * disengages and returns near the owner.
+ * The spirit is guarding (no ordered point), so its anchor is the owner. An enemy stands close by; the
+ * spirit never chases it. The player walks far east; the spirit follows and ends within its anchor
+ * radius (50 px, plus a little slack for the last step).
  *
  * Assertions:
- *   1. Dog damaged the enemy (≥ 2 HP — one Dog Bite).
- *   2. Dog ended within 150 px of the player after returning.
+ *   1. The enemy is untouched (no auto-engage).
+ *   2. The spirit ended within 60 px of the player.
  */
 export const petAutoEngageScenario: ScenarioDefinition = {
     id: 'pet_auto_engage',
-    title: 'Pet: dog engages enemy in leash, then returns when owner walks past return leash',
+    title: 'Spirit: guards its owner — follows within 50 px and never chases enemies',
     category: 'general',
     generalSection: 'Pets',
     maxDurationMs: 25000,
@@ -92,7 +99,7 @@ export const petAutoEngageScenario: ScenarioDefinition = {
         const enemy = createUnitFromSpawnConfig(
             {
                 id: 'enemy1',
-                characterId: 'dog',
+                characterId: 'target_dummy',
                 name: 'Target',
                 x: enemyPos.x,
                 y: enemyPos.y,
@@ -133,13 +140,9 @@ export const petAutoEngageScenario: ScenarioDefinition = {
         const dog = engine.getUnit('dog1');
         const player = engine.getLocalPlayerUnit()!;
         if (!enemy || !dog) return false;
-        // 1. Dog must have engaged and damaged enemy (at least one Dog Bite worth).
-        const engagedEnemy = enemy.maxHp - enemy.hp >= 2;
-        // 2. Dog must have returned near owner after return leash triggered.
-        const dx = dog.x - player.x;
-        const dy = dog.y - player.y;
-        const dogNearOwner = Math.sqrt(dx * dx + dy * dy) <= 150;
-        return engagedEnemy && dogNearOwner;
+        const untouched = enemy.hp === enemy.maxHp;
+        const dogNearOwner = Math.hypot(dog.x - player.x, dog.y - player.y) <= 60;
+        return untouched && dogNearOwner;
     },
 
     failureMessage(engine) {
@@ -196,7 +199,7 @@ export const petHeelScenario: ScenarioDefinition = {
         const enemy = createUnitFromSpawnConfig(
             {
                 id: 'enemy1',
-                characterId: 'dog',
+                characterId: 'target_dummy',
                 name: 'Target',
                 x: PLAYER_POS.x + 160,
                 y: PLAYER_POS.y,
@@ -252,7 +255,7 @@ export const petHeelScenario: ScenarioDefinition = {
  */
 export const petSicEmPounceScenario: ScenarioDefinition = {
     id: 'pet_sic_em_pounce',
-    title: "Sic 'em (0704) + Pounce (0702): dog dashes, stops on enemy, stuns and knocks back",
+    title: "Sic 'em (0704) + Pounce (0702): spirit lunges, locks on to the first enemy, then strikes it four times",
     category: 'general',
     generalSection: 'Pets',
     maxDurationMs: 15000,
@@ -278,7 +281,7 @@ export const petSicEmPounceScenario: ScenarioDefinition = {
         const enemy = createUnitFromSpawnConfig(
             {
                 id: 'enemy1',
-                characterId: 'dog',
+                characterId: 'target_dummy',
                 name: 'Target',
                 x: ENEMY_POS.x,
                 y: ENEMY_POS.y,
@@ -320,17 +323,9 @@ export const petSicEmPounceScenario: ScenarioDefinition = {
         const dog = engine.getUnit('dog1');
         if (!enemy || !dog) return false;
 
-        const ENEMY_ORIGINAL_Y = 5 * CELL + 50 + 130; // DOG_POS.y + 130
-
-        // Enemy should have taken Pounce damage (3).
-        const tookDamage = enemy.maxHp - enemy.hp >= 3;
-        // Dog should have stopped before passing through the enemy.
-        // If it didn't stop, it would reach DOG_POS.y + 180 = 430; enemy was at 380.
-        const dogStoppedEarly = dog.y <= ENEMY_ORIGINAL_Y + 30;
-        // Enemy was stunned OR displaced northward (opposite of southward dash).
-        const isStunned = enemy.buffs.some((b) => b._type === 'stun') as boolean;
-        const displacedNorth = enemy.y < ENEMY_ORIGINAL_Y; // enemy moved north = smaller y
-        return tookDamage && dogStoppedEarly && (isStunned || displacedNorth);
+        // Pounce's hit, then the lock-on: four Spirit Flurry strikes on the same enemy.
+        const expected = POUNCE_HIT_DAMAGE + SPIRIT_FLURRY_ANGLES.length * SPIRIT_STRIKE_DAMAGE;
+        return enemy.maxHp - enemy.hp >= expected;
     },
 
     failureMessage(engine) {

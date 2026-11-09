@@ -16,7 +16,7 @@ describe('createDamageTakenEffect', () => {
             speed: 80,
             teamId: 'enemy',
             ownerId: 'e1',
-            characterId: 'dog',
+            characterId: 'target_dummy',
             portraitId: 'warrior',
             name: 'Victim',
         });
@@ -43,7 +43,7 @@ describe('createDamageTakenEffect', () => {
             speed: 80,
             teamId: 'enemy',
             ownerId: 'e1',
-            characterId: 'dog',
+            characterId: 'target_dummy',
             portraitId: 'warrior',
             name: 'Victim',
         });

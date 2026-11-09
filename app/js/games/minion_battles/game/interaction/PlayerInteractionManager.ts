@@ -366,6 +366,12 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             return;
         }
 
+        // A special with nothing to pick (e.g. Guard) submits at once, like a self-cast primary.
+        if (ability.actionChannel === 'special' && getAbilityTargets(ability, caster, this.ctx.engine).length === 0) {
+            this.submitOrder(ability.id, []);
+            return;
+        }
+
         // Specials never enter ITS (zero-frame; no select timings). Combo / Entombed follow-ups do:
         // submitPlayerOrder commits any open ITS at its pause, then begins a new preview.
         if (ability.actionChannel !== 'special' && USE_SEQUENTIAL_TARGETING) {

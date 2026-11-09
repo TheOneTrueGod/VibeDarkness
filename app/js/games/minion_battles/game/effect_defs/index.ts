@@ -69,6 +69,10 @@ import {
 import { CLAW_SLASH_EFFECT_TYPE, clawSlashEffectDef } from './clawSlashEffects';
 import { tempoOrbEffectDef, tempoSpeedLineEffectDef } from './tempoAuraEffects';
 import { moteEffectDef } from './moteEffects';
+import { spiritSlashEffectDef } from './spiritSlashEffects';
+import { linkedAreaFieldEffectDef } from './linkedAreaEffects';
+import { LINKED_AREA_FIELD_EFFECT_TYPE } from '../effects/linkedAreaField';
+import { SPIRIT_SLASH_EFFECT_TYPE } from '../effects/slashTrail';
 import { MOTE_EFFECT_TYPE } from '../effects/motes';
 import { commandCueEffectDef, commandSpellCircleEffectDef, COMMAND_SPELL_CIRCLE_EFFECT_TYPE } from './commandEffects';
 import { COMMAND_CUE_EFFECT_TYPE } from '../effects/commandCue';
@@ -145,6 +149,8 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     [TEMPO_ORB_EFFECT_TYPE]: tempoOrbEffectDef,
     [TEMPO_SPEED_LINE_EFFECT_TYPE]: tempoSpeedLineEffectDef,
     [MOTE_EFFECT_TYPE]: moteEffectDef,
+    [SPIRIT_SLASH_EFFECT_TYPE]: spiritSlashEffectDef,
+    [LINKED_AREA_FIELD_EFFECT_TYPE]: linkedAreaFieldEffectDef,
     [COMMAND_SPELL_CIRCLE_EFFECT_TYPE]: commandSpellCircleEffectDef,
     [COMMAND_CUE_EFFECT_TYPE]: commandCueEffectDef,
     [WEAPON_ORBIT_EFFECT_TYPE]: weaponOrbitEffectDef,

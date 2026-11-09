@@ -25,7 +25,7 @@ import { peekPhaseState } from '../units/components/phaseComponent';
 
 const PUNCH = '0120';
 const SOLO = 'p1';
-const DUMMY_DEF = getUnitDefEntry('dog')!;
+const DUMMY_DEF = getUnitDefEntry('target_dummy')!;
 
 beforeAll(() => {
     if (globalThis.requestAnimationFrame === undefined) {

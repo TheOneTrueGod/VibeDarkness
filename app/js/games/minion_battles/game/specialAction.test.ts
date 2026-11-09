@@ -248,9 +248,10 @@ describe('Order: Attack / Order: Move abilities', () => {
         );
         expect(cancelled).toEqual(['0701']);
         const ctx = pet.aiContext as PetAITreeContext;
-        expect(ctx.aiState).toBe('pet_ordered_move');
-        expect(ctx.orderedMoveX).toBe(300);
-        expect(ctx.orderedMoveY).toBe(100);
+        // The destination becomes the pet's anchor; pet_follow walks there and wanders near it.
+        expect(ctx.aiState).toBe('pet_follow');
+        expect(ctx.anchorX).toBe(300);
+        expect(ctx.anchorY).toBe(100);
         expect(ctx.orderedFocus).toBe(false);
         // The pet starts walking to the exact ordered pixel straight away.
         expect(pet.walkIntent).toEqual({

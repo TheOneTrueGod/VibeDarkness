@@ -53,7 +53,7 @@ describe('research tree chrome', () => {
         expect(RESEARCH_TREE_COLOUR_EARTH).toBe('#b45309');
         expect(RESEARCH_TREE_COLOUR_LIGHT).toBe('#eab308');
         expect(RESEARCH_TREE_COLOUR_GRAVITY).toBe('#a855f7');
-        expect(RESEARCH_TREE_COLOUR_COMMAND).toBe('#0f766e');
+        expect(RESEARCH_TREE_COLOUR_COMMAND).toBe('#d9f99d');
         expect(RESEARCH_TREE_COLOUR_BLOOD_MAGE).toBe('#f87171');
         expect(RESEARCH_TREE_COLOUR_DARKNESS).toBe('#6366f1');
         expect(RESEARCH_TREE_COLOUR_GENERIC).toBe('#7dd3fc');
@@ -112,11 +112,11 @@ describe('research tree appearance', () => {
         });
     });
 
-    it('gives the Command tree its Aurora secondary fill and font', () => {
+    it('gives the Command tree a pine fill with white text (readable tooltips)', () => {
         expect(resolveResearchTreeChrome(commandCoreTree)).toEqual({
-            colour: '#0f766e',
-            secondaryColour: '#d9f99d',
-            fontColour: '#042f2e',
+            colour: '#d9f99d',
+            secondaryColour: '#0f766e',
+            fontColour: '#ffffff',
             icon: RESEARCH_TREE_ICON_COMMAND,
         });
     });

@@ -119,6 +119,13 @@ export function triggerAbilityEventFromAttack(params: {
     const ability = getAbility(attackingAbilityId);
     if (!ability) return [];
     const activeAbility = findMostRecentActiveAbility(caster, attackingAbilityId);
+    if (eventType === AbilityEventType.ON_ATTACK_HIT && hitResult === 'hit' && primaryTarget) {
+        engine.eventBus.emit('attack_hit', {
+            sourceUnitId,
+            targetUnitId: primaryTarget.id,
+            abilityId: attackingAbilityId,
+        });
+    }
     return triggerAbilityEvent({
         engine,
         caster,

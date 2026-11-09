@@ -24,6 +24,7 @@ export type GameEventType =
     | 'ability_used'
     | 'unit_fade_in'
     | 'projectile_hit'
+    | 'attack_hit'
     | 'terrain_stone_damaged'
     | 'nearby_stone_damaged'
     | 'recovery_charge_granted'
@@ -262,6 +263,17 @@ export interface ForcedMovementTerrainCollisionEvent {
     source: KnockbackSource;
 }
 
+/**
+ * A strike or projectile from an ability landed on a unit (not blocked, not fully shield-absorbed).
+ * Fired once per hit from `triggerAbilityEventFromAttack` (the ON_ATTACK_HIT path), so reactions to
+ * "X hit Y with ability Z" (e.g. a pet answering its owner's weapon hits) hook one place.
+ */
+export interface AttackHitEvent {
+    sourceUnitId: string;
+    targetUnitId: string;
+    abilityId: string;
+}
+
 export interface UnitSlamLandedEvent {
     unitId: string;
     position: { x: number; y: number };
@@ -333,6 +345,7 @@ export type GameEventDataMap = {
     ability_used: AbilityUsedEvent;
     unit_fade_in: UnitFadeInEvent;
     projectile_hit: ProjectileHitEvent;
+    attack_hit: AttackHitEvent;
     terrain_stone_damaged: TerrainStoneDamagedEvent;
     nearby_stone_damaged: NearbyStoneDamagedEvent;
     recovery_charge_granted: RecoveryChargeGrantedEvent;

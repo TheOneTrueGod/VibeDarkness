@@ -18,6 +18,8 @@ import { registerDamageLinkListeners } from './units/unitDamageLinks';
 import { runUnitComponentDeath } from './units/components/unitComponentHooks';
 import { getBodyColorForUnit, getCharacterSpriteKey, getUnitDefEntry, type UnitDefId } from './units/unit_defs/unitDef';
 import type { GameEngine } from './GameEngine';
+import { handlePetReactionsOnAttackHit } from './units/petReactions';
+import type { AbilityEngineContext } from '../abilities/AbilityEngineContext';
 
 export function wireCoreEventListeners(engine: GameEngine): void {
     engine.eventBus.clear();
@@ -29,6 +31,10 @@ export function wireCoreEventListeners(engine: GameEngine): void {
         eventBus: engine.eventBus,
         getUnit: (id) => engine.getUnit(id),
         getUnits: () => engine.units,
+    });
+    // Pets answering their owner's weapon hits (PetDefEntry.reactions).
+    engine.eventBus.on('attack_hit', (event) => {
+        handlePetReactionsOnAttackHit(engine as unknown as AbilityEngineContext, event);
     });
 
     // unit_died: apply deathSequence (or onDeathVisualEffects) and onDeathBehaviors from the unit def directly.

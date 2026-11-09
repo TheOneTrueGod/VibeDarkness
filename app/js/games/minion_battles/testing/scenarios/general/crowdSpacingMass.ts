@@ -377,7 +377,7 @@ export const crowdMassPushSpeedCapScenario: ScenarioDefinition = {
     buildEngine() {
         const engine = buildMassEngine(14, 5);
         spawnWaitingPlayer(engine, 0, 4, Math.ceil((CAP_TIME_SEC + 1) / TICK_SEC));
-        const pusher = spawnEnemy(engine, { id: CAP_PUSHER_ID, characterId: 'dog', at: centre(1, CAP_ROW) });
+        const pusher = spawnEnemy(engine, { id: CAP_PUSHER_ID, characterId: 'target_dummy', at: centre(1, CAP_ROW) });
         const slow = spawnEnemy(engine, { id: CAP_SLOW_ID, characterId: 'swarmling', at: centre(4, CAP_ROW) });
         pusher.setWalkGoal({ kind: 'cell', col: 13, row: CAP_ROW });
         capTracks.set(engine, {

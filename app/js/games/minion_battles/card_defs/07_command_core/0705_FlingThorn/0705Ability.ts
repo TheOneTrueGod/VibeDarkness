@@ -1,7 +1,7 @@
 /**
- * Fling Thorn — pet ranged pulse copied from Lanternite Strike. Quick windup, single-target
- * projectile. Granted by Mimic Thorn research; pet AI auto-uses it while engaging when the
- * locked target is in range. No player card.
+ * Fling Thorn — the spirit's thorn shotgun. Quick windup, then a fan of short-range thorns toward the
+ * target, each its own projectile. Granted by Mimic Thorn research; the pet AI fires it at the nearest
+ * enemy already in range (the spirit does not chase). No player card.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
@@ -22,7 +22,7 @@ import {
 } from '../../../abilities/tooltipTokens';
 import { getCastElapsedAt } from '../../../game/time/actorClock';
 
-import { getThemeById } from '../../../themes/abilityTheme';
+import { getThemeById, themeGlowPair } from '../../../themes/abilityTheme';
 import { PROJECTILE_PARTICLE_TRAIL_PRESETS } from '../../../game/effects/projectileParticleTrails';
 
 export const FLING_THORN_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}05`;
@@ -34,20 +34,24 @@ const FIRE_END = PREFIRE_TIME + 0.1;
 const COOLDOWN_END = 3;
 const PROJECTILE_SPEED = 700;
 export const FLING_THORN_MAX_DISTANCE = 200;
-export const FLING_THORN_DAMAGE = 5;
-/** The spirit's lime (Command secondary). */
-const THORN_COLOR = getThemeById('command').secondaryNum;
+/** Damage per thorn. */
+export const FLING_THORN_DAMAGE = 2;
+/** Aim offsets (degrees) of the thorns in the fan; one projectile each. */
+export const FLING_THORN_SPREAD = [-24, -12, 0, 12, 24] as const;
+/** The spirit's lime (the lighter Command colour). */
+const THORN_COLOR = themeGlowPair(getThemeById('command')).light;
 const MAX_USES = 4;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 4 },
 ];
 
 const TOOLTIP_LINES = [
-    'Fling a thorn pulse dealing {{DAMAGE}} damage',
+    'Spray {{COUNT}} thorns in a short fan, each dealing {{DAMAGE}} damage',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: FLING_THORN_DAMAGE },
+    COUNT: { kind: 'plain', value: FLING_THORN_SPREAD.length },
 };
 
 export const FlingThornAbility_0705: AbilityStatic = defineAbility({
@@ -67,11 +71,16 @@ export const FlingThornAbility_0705: AbilityStatic = defineAbility({
             start: PREFIRE_TIME,
             end: FIRE_END,
             abilityPhase: AbilityPhase.Active,
-            behaviour: CastBehaviours.ProjectileLaunch()
-                .withSpeed(PROJECTILE_SPEED)
-                .withMaxRange(FLING_THORN_MAX_DISTANCE)
-                .withBaseDamage(FLING_THORN_DAMAGE)
-                .withParticleTrail(PROJECTILE_PARTICLE_TRAIL_PRESETS.spiritMotes()),
+            castBehaviours: FLING_THORN_SPREAD.map((offset) => ({
+                timingStart: 'start' as const,
+                behaviour: CastBehaviours.ProjectileLaunch()
+                    .withSpeed(PROJECTILE_SPEED)
+                    .withMaxRange(FLING_THORN_MAX_DISTANCE)
+                    .withTravelFullRange()
+                    .withBaseDamage(FLING_THORN_DAMAGE)
+                    .withAimOffset(offset)
+                    .withParticleTrail(PROJECTILE_PARTICLE_TRAIL_PRESETS.spiritMotes()),
+            })),
         },
         { id: 'cooldown', start: FIRE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
@@ -110,12 +119,18 @@ export const FlingThornAbility_0705: AbilityStatic = defineAbility({
 
         const { dirX: ux, dirY: uy, dist } = getDirectionFromTo(caster.x, caster.y, target.x, target.y);
         if (dist === 0) return;
-        const lineLen = Math.min(FLING_THORN_MAX_DISTANCE, dist);
+        const lineLen = FLING_THORN_MAX_DISTANCE;
         const progress = elapsed < LOCK_TIME ? elapsed / LOCK_TIME : 1;
 
-        gr.moveTo(caster.x, caster.y);
-        gr.lineTo(caster.x + ux * lineLen, caster.y + uy * lineLen);
-        gr.stroke({ color: THORN_COLOR, width: 2, alpha: 0.3 + 0.5 * progress });
+        // One line per thorn in the fan.
+        for (const offset of FLING_THORN_SPREAD) {
+            const rad = (offset * Math.PI) / 180;
+            const dx = ux * Math.cos(rad) - uy * Math.sin(rad);
+            const dy = ux * Math.sin(rad) + uy * Math.cos(rad);
+            gr.moveTo(caster.x, caster.y);
+            gr.lineTo(caster.x + dx * lineLen, caster.y + dy * lineLen);
+            gr.stroke({ color: THORN_COLOR, width: offset === 0 ? 2 : 1.5, alpha: 0.25 + 0.45 * progress });
+        }
     },
 
     renderTargetingPreview(gr: IAbilityPreviewGraphics, caster: Unit): void {

@@ -87,7 +87,7 @@
       "speed": 140,
       "teamId": "enemy",
       "ownerId": "ai",
-      "characterId": "dog",
+      "characterId": "target_dummy",
       "name": "Target Dummy",
       "movement": null,
       "abilities": [],

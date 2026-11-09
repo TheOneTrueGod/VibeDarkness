@@ -114,6 +114,22 @@ Fling Thorn and the other Command projectiles take the P1.1 trail. Abilities tha
 
 Commanding the spirit is the third case of the player directing a token on the field: the Armory's orbit and dropped weapons, and the Court Magician's crystals in Rearrange are the other two. This item is an investigation: list how each one targets, orders and moves its token today, and propose one shared building block. Write it as its own browser plan before any code.
 
+### [x] P1.5 Revamp the spirit's abilities
+
+**Complexity:** Large
+
+**Done (2026-11-09):**
+
+- **Colours:** primary and secondary swapped (primary lime `#d9f99d`, secondary pine `#0f766e`, white research text) so tooltips read on a dark fill. Glow effects pick lime/pine by brightness (`themeGlowPair`).
+- **Ethereal spirit:** `UnitDefEntry.ethereal` feeds `Unit.isUntargetable()`: no enemy targeting, no damage, no collision. Tests and Ability Test scenarios use a new plain `target_dummy` def instead of the dog.
+- **Anchors:** the spirit never chases (`PetDefEntry.autoEngage: false`). It wanders within `anchorRadius` (50px) of its anchor: the point Order: Move last sent it to, or the player while guarding. It fires the Fling Thorn shotgun at enemies already in range.
+- **Orders:** Order: Attack is no longer granted. Order: Move has a **Guard** mode (`abilityModes.modeAbilityIds` → Guard, 0712) that anchors the spirit on the player. Target-less specials submit at once.
+- **Weapon-hit reaction:** a new `attack_hit` event fires from the one ON_ATTACK_HIT path. `PetDefEntry.reactions` (`ownerWeaponHit`) has the idle spirit cast **Spirit Strike** (0710): blink beside the hit enemy and dash through it for 3 (`DashStrikeBehaviour`, with a slash trail).
+- **Sic 'em:** Loyal Companion grants it (the Sic 'Em node is disabled). Pounce stops on its first hit, stuns, and the spirit locks on with **Spirit Flurry** (0711): four dash strikes from rotating angles over about a second.
+- **Heel:** node disabled.
+- **Mimic Thorn:** Fling Thorn is a five-thorn fan, 2 damage each (`ProjectileLaunch().withAimOffset`).
+- **Spirit Storm** (0713, new node): spell-circle windup, then pick a point within 140px of the spirit (`anchorUnit: 'casterPet'`); the spirit darts there and spins while a linked area (circle round each of you plus the band between) pulses 4 times for 4, each enemy hit once per pulse (`LinkedAreaPulseBehaviour`, `PetRelocateBehaviour`, `PetSpinBehaviour`).
+
 ---
 
 ## P2: Nice to do

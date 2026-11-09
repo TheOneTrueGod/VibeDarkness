@@ -25,7 +25,13 @@ export interface PetAITreeContext extends UnitAIContextBase {
     heelTetherRange?: number;
     /** gameTime when the pet last scanned for enemies. */
     lastScanTime?: number;
-    /** World-space guard wander destination around the owner. */
+    /**
+     * The point the pet was last ordered to (Order: Move). It wanders within its def's `anchorRadius` of it.
+     * Unset = guarding: the anchor is the owner.
+     */
+    anchorX?: number;
+    anchorY?: number;
+    /** World-space guard wander destination around the anchor. */
     guardTargetX?: number;
     guardTargetY?: number;
     /** gameTime until the pet finishes dwelling at the current guard point. */

@@ -41,15 +41,17 @@ export const EARTH_THEME: AbilityTheme = { id: 'earth', primary: '#b45309' };
 export const LIGHT_THEME: AbilityTheme = { id: 'light', primary: '#eab308' };
 export const GRAVITY_THEME: AbilityTheme = { id: 'gravity', primary: '#a855f7' };
 /**
- * Command (the spirit animal): a deep pine for mass (the spirit's halo, ring fills, research border) and a
- * lime glow for the event (motes, rune dashes, projectile cores, command cues). Aurora, chosen in
- * `docs/ideas/plans/0004_2026-11-08_command-core-spirit-animal.md`. Dark pine research text on the lime fill.
+ * Command (the spirit animal), Aurora: a lime glow for mass (the research border and chip) and a deep pine
+ * for the event fill, so research cards and ability tooltips are pine with light text. Glow effects (motes,
+ * the spirit's silhouette, the command cue) pick lime / pine by brightness via `themeGlowPair`, not by role.
+ * Chosen in `docs/ideas/plans/0004_2026-11-08_command-core-spirit-animal.md`; roles swapped for tooltip
+ * readability.
  */
 export const COMMAND_THEME: AbilityTheme = {
     id: 'command',
-    primary: '#0f766e',
-    secondary: '#d9f99d',
-    font: '#042f2e',
+    primary: '#d9f99d',
+    secondary: '#0f766e',
+    font: '#ffffff',
     shadeFactor: 0.5,
 };
 export const BLOOD_MAGE_THEME: AbilityTheme = { id: 'blood_mage', primary: '#f87171' };

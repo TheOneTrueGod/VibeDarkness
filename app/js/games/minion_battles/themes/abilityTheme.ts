@@ -91,3 +91,19 @@ export function getTwoToneAbilityTheme(abilityId: string): ResolvedAbilityTheme 
     const theme = getAbilityTheme(abilityId);
     return theme.source.secondary !== undefined ? theme : undefined;
 }
+
+/** Relative luminance (0..1) of a 0xRRGGBB colour, by the usual Rec. 709 weights (no gamma). */
+function luminance(n: number): number {
+    return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+}
+
+/**
+ * A theme's two colours sorted by brightness rather than role: `light` for sparks, glows and silhouettes,
+ * `dark` for halos, bodies and rings. Glow-style effects (motes, spectral sprites, the command cue) read it
+ * so they stay bright-on-dark whichever role holds the light colour.
+ */
+export function themeGlowPair(theme: ResolvedAbilityTheme): { light: number; dark: number } {
+    const a = theme.primaryNum;
+    const b = theme.secondaryNum;
+    return luminance(a) >= luminance(b) ? { light: a, dark: b } : { light: b, dark: a };
+}

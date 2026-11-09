@@ -10,6 +10,7 @@ export const COMMAND_CORE_NODE_SIC_EM = 'sic_em';
 export const COMMAND_CORE_NODE_MIMIC_THORN = 'mimic_thorn';
 export const COMMAND_CORE_NODE_MIMIC_BRAMBLES = 'mimic_brambles';
 export const COMMAND_CORE_NODE_EMPOWER_PET = 'empower_pet';
+export const COMMAND_CORE_NODE_SPIRIT_STORM = 'spirit_storm';
 
 /** Max levels for Empower Pet; each level grants +20 pet HP and +2 Dog Bite damage. */
 export const EMPOWER_PET_LEVELS = 5;
@@ -51,7 +52,7 @@ export const commandCoreTree: ResearchTreeDef = {
         {
             id: COMMAND_CORE_NODE_LOYAL_COMPANION,
             title: 'Loyal Companion',
-            description: 'A hound joins your side. It fights close to you, seeking out enemies that stray too near.',
+            description: "A spirit hound joins you. It can't be harmed, stays where you send it, and strikes whatever your weapon hits. Grants {Order: Move} and {Sic 'Em}.",
             flavorText: 'Some bonds are forged in silence, tested in blood.',
             order: 5,
             tier: 10,
@@ -72,13 +73,15 @@ export const commandCoreTree: ResearchTreeDef = {
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.ArmoryCore, toItemId: CORE_ITEM_IDS.CommandCore },
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.StormCore, toItemId: CORE_ITEM_IDS.CommandCore },
                 { type: 'grantPet', petId: 'dog' },
-                { type: 'addCard', cardId: '0708' },
                 { type: 'addCard', cardId: '0709' },
+                { type: 'addCard', cardId: '0704' },
             ],
         },
         {
             id: COMMAND_CORE_NODE_HEEL,
             title: 'Heel',
+            // Disabled while the spirit animal can't be harmed (nothing to heal); Guard covers the recall.
+            disabled: true,
             description: 'Command your dog to disengage and return to your side, recovering {25%} of its max HP.',
             order: 6,
             tier: 10,
@@ -96,6 +99,8 @@ export const commandCoreTree: ResearchTreeDef = {
         {
             id: COMMAND_CORE_NODE_SIC_EM,
             title: "Sic 'Em",
+            // Loyal Companion grants Sic 'Em now.
+            disabled: true,
             description: 'Order your dog to pounce on a target — it lunges from its current position, knocking the enemy back.',
             order: 7,
             tier: 10,
@@ -113,7 +118,7 @@ export const commandCoreTree: ResearchTreeDef = {
         {
             id: COMMAND_CORE_NODE_MIMIC_THORN,
             title: 'Mimic Thorn',
-            description: 'Your pet learns {Fling Thorn} — a short-range thorn pulse dealing {5} damage.',
+            description: 'Your spirit learns {Fling Thorn}: it sprays a short-range fan of thorns at enemies near it.',
             flavorText: 'It watched the glowing insects. It learned.',
             order: 20,
             tier: 11,
@@ -154,6 +159,26 @@ export const commandCoreTree: ResearchTreeDef = {
                 { type: 'grantPetAbility', petId: 'dog', abilityId: '0706' },
                 { type: 'addCard', cardId: '0707' },
             ],
+        },
+        {
+            id: COMMAND_CORE_NODE_SPIRIT_STORM,
+            title: 'Spirit Storm',
+            description: 'Gather a storm, send your spirit out, and pulse the ground round you both and the line between you.',
+            flavorText: 'Two ends of one storm.',
+            order: 25,
+            tier: 11,
+            position: { x: 870, y: 290 },
+            prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
+            ],
+            cost: {
+                attunement: COMMAND_SIC_ATTUNEMENT_COST,
+                vigor: COMMAND_SIC_VIGOR_COST,
+                metal: COMMAND_SIC_METAL_COST,
+            },
+            effects: [{ type: 'addCard', cardId: '0713' }],
         },
         {
             id: COMMAND_CORE_NODE_EMPOWER_PET,

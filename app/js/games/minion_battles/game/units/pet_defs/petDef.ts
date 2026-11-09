@@ -12,6 +12,25 @@ export interface PetDefEntry {
     abilityIds: string[];
     /** Ability id the pet AI auto-uses when engaging (basic attack). */
     basicAttackAbilityId: string;
+    /**
+     * When false, the pet never chases enemies on its own: it stays around its anchor (the point it was
+     * last ordered to, or its owner while guarding) and only fights through commands, reactions and
+     * ranged abilities with `aiSettings` that reach an enemy from where it stands. Default true.
+     */
+    autoEngage?: boolean;
+    /** How far (px) the pet may wander from its anchor. Default 50. */
+    anchorRadius?: number;
+    /**
+     * Abilities the pet casts in response to its owner's actions (see `game/units/petReactions.ts`).
+     * Each fires only while the pet is not busy with another cast.
+     */
+    reactions?: readonly PetReactionDef[];
+}
+
+/** `ownerWeaponHit`: the owner landed a hit with one of its weapon abilities; the pet casts `abilityId` at the hit unit. */
+export interface PetReactionDef {
+    on: 'ownerWeaponHit';
+    abilityId: string;
 }
 
 const PET_DEFS: Record<string, PetDefEntry> = {
@@ -21,8 +40,12 @@ const PET_DEFS: Record<string, PetDefEntry> = {
         unitCharacterId: 'dog',
         engageLeashRange: 150,
         returnLeashRange: 300,
-        abilityIds: ['0701', '0702'],
+        // Spirit Strike (0710) answers the owner's weapon hits; Spirit Flurry (0711) follows a Sic 'em pounce.
+        abilityIds: ['0701', '0702', '0710', '0711'],
         basicAttackAbilityId: '0701',
+        autoEngage: false,
+        anchorRadius: 50,
+        reactions: [{ on: 'ownerWeaponHit', abilityId: '0710' }],
     },
 };
 
