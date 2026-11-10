@@ -419,7 +419,7 @@ export default function CharacterEditor({
         }
     }, [api, permissionAccount?.role, resolvedCampaign?.id]);
 
-    const { handleResetResearch, handleResetResearchBySource, handleResearchNode } = useResearchActions({
+    const { handleResetResearch, handleResetResearchBySource, handleResearchNode, handleRemoveResearchNode } = useResearchActions({
         character,
         api,
         account,
@@ -648,6 +648,7 @@ export default function CharacterEditor({
             onResearchNode={handleResearchNode}
             onResetResearch={handleResetResearch}
             onResetResearchBySource={handleResetResearchBySource}
+            onRemoveResearchNode={handleRemoveResearchNode}
         />
     );
 

@@ -28,6 +28,7 @@ import {
     canPurchaseResearchGridEntry,
     canResearchOptionsForClick,
     collectEligibleResearchGridEntries,
+    collectLegacyResearchGridEntries,
     collectResearchGridEntries,
     collectResearchRequirementEntries,
     compareResearchNodesByTier,
@@ -36,6 +37,7 @@ import {
     formatRequirementClauseLabel,
     formatResearchLevelPill,
     hasUnmetResearchRequirements,
+    LEGACY_RESEARCH_NODE_DESCRIPTION,
     RESEARCH_CLICK_ADMIN,
     RESEARCH_CLICK_PURCHASE,
     RESEARCH_REQUIREMENT_OR_WORD,
@@ -527,5 +529,27 @@ describe('researchNodeClickHandler', () => {
             [TRAINING_TREE_ID, TRAINING_NODE_CORE, false],
             [TRAINING_TREE_ID, TRAINING_NODE_CORE, true],
         ]);
+    });
+});
+
+describe('collectLegacyResearchGridEntries', () => {
+    it('lists owned ids the tree no longer defines as <Legacy Node> cards', () => {
+        const owned = weaponsTree.nodes[0]!.id;
+        const entries = collectLegacyResearchGridEntries(
+            [weaponsTree],
+            { [WEAPONS_TREE_ID]: [owned, 'gone_node'] },
+            null,
+        );
+        expect(entries).toHaveLength(1);
+        expect(entries[0]!.tree.id).toBe(WEAPONS_TREE_ID);
+        expect(entries[0]!.node.id).toBe('gone_node');
+        expect(entries[0]!.node.description).toBe(LEGACY_RESEARCH_NODE_DESCRIPTION);
+        expect(entries[0]!.node.effects).toEqual([]);
+    });
+
+    it('respects the tree filter', () => {
+        expect(
+            collectLegacyResearchGridEntries([weaponsTree], { [WEAPONS_TREE_ID]: ['gone_node'] }, 'other_tree'),
+        ).toEqual([]);
     });
 });

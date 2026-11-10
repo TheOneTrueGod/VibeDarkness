@@ -6,6 +6,7 @@ import {
     getNodeResearchSources,
     hasResearchOfSource,
     RESEARCH_SOURCE_LABEL_JOIN,
+    removeResearchNode,
     stripResearchBySource,
 } from './researchSources';
 import { ResearchSource } from './types';
@@ -114,5 +115,40 @@ describe('countResearchSourceLevels', () => {
                 ResearchSource.Purchased,
             ),
         ).toBe(2);
+    });
+});
+
+describe('removeResearchNode', () => {
+    it('drops one node with its levels and sources, leaving the rest', () => {
+        const next = removeResearchNode(
+            { tree_a: ['keep', 'drop'], tree_b: ['drop'] },
+            { tree_a: { drop: 3, keep: 2 } },
+            { tree_a: { drop: [ResearchSource.Admin], keep: [ResearchSource.Purchased] } },
+            'tree_a',
+            'drop',
+        );
+        expect(next.researchTrees).toEqual({ tree_a: ['keep'], tree_b: ['drop'] });
+        expect(next.researchNodeLevels).toEqual({ tree_a: { keep: 2 } });
+        expect(next.researchSources).toEqual({ tree_a: { keep: [ResearchSource.Purchased] } });
+        expect(next.removedNodeIdsByTree).toEqual({ tree_a: ['drop'] });
+    });
+
+    it('removes a legacy id no tree defines and drops emptied level/source maps', () => {
+        const next = removeResearchNode(
+            { command_core: ['loyal_companion', 'heel'] },
+            { command_core: { heel: 1 } },
+            { command_core: { heel: [ResearchSource.Purchased] } },
+            'command_core',
+            'heel',
+        );
+        expect(next.researchTrees).toEqual({ command_core: ['loyal_companion'] });
+        expect(next.researchNodeLevels).toEqual({});
+        expect(next.researchSources).toEqual({});
+    });
+
+    it('reports nothing removed when the node was not owned', () => {
+        const next = removeResearchNode({ tree_a: ['keep'] }, undefined, undefined, 'tree_a', 'missing');
+        expect(next.researchTrees).toEqual({ tree_a: ['keep'] });
+        expect(next.removedNodeIdsByTree).toEqual({});
     });
 });

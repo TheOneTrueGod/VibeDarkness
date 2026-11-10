@@ -1,7 +1,7 @@
 /**
  * Pet system ability-test scenarios.
- * Covers the spirit animal: guarding (anchored on the owner, never auto-engaging), Heel (0703, disabled in
- * research), and Sic 'em / Pounce (0704/0702) locking on into Spirit Flurry (0711).
+ * Covers the spirit animal: guarding (anchored on the owner, never auto-engaging) and Sic 'em / Pounce
+ * (0704/0702) locking on into Spirit Flurry (0711).
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -159,92 +159,7 @@ export const petAutoEngageScenario: ScenarioDefinition = {
     },
 };
 
-// ---- Scenario 2: Heel heals and holds ----
-
-/**
- * A dog mid-engage transitions into the heel state when Heel (0703) is cast.
- * The dog heals 30% of max HP and moves within the heel tether range of the player.
- *
- * Also covers Pounce (0702) transitively — the dog has Pounce in its ability list.
- */
-export const petHeelScenario: ScenarioDefinition = {
-    id: 'pet_heel',
-    title: 'Heel (0703): heals 30% max HP and holds dog within tether range',
-    category: 'general',
-    generalSection: 'Pets',
-    maxDurationMs: 10000,
-
-    buildEngine() {
-        const engine = buildTinyBattleEngine({ gridW: 14, gridH: 10, localPlayerId: P, grass: true });
-
-        const PLAYER_POS = { x: 5 * CELL, y: 5 * CELL };
-
-        const player = spawnTinyPlayerUnit(engine, {
-            playerId: P,
-            x: PLAYER_POS.x,
-            y: PLAYER_POS.y,
-            abilities: ['0703'], // Heel
-        });
-
-        // Dog starts 80 px east, HP = 12/24 (50%). Manually in pet_engage targeting enemy1.
-        const dogPos = { x: PLAYER_POS.x + 80, y: PLAYER_POS.y };
-        const dog = spawnDog(engine, player, dogPos, { hp: 12 });
-        dog.aiContext = {
-            aiTree: 'pet',
-            aiState: 'pet_engage',
-            targetUnitId: 'enemy1',
-        } as PetAITreeContext;
-
-        // Enemy east of the dog — target for the dog's engage state.
-        const enemy = createUnitFromSpawnConfig(
-            {
-                id: 'enemy1',
-                characterId: 'target_dummy',
-                name: 'Target',
-                x: PLAYER_POS.x + 160,
-                y: PLAYER_POS.y,
-                teamId: 'enemy',
-                ownerId: 'ai',
-                abilities: [],
-                unitAITreeId: 'default',
-                aiSettings: { minRange: 0, maxRange: 30 },
-            },
-            engine.eventBus,
-            engine,
-        );
-        initializeAbilityRuntimeForUnit(enemy);
-        engine.addUnit(enemy, 'initialGameSpawn');
-
-        return engine;
-    },
-
-    getInitialOrders(engine) {
-        const player = engine.getLocalPlayerUnit()!;
-        // Cast Heel immediately (no targets).
-        return [{ unitId: player.id, abilityId: '0703', targets: [] }];
-    },
-
-    assertPass(engine) {
-        const dog = engine.getUnit('dog1');
-        const player = engine.getLocalPlayerUnit()!;
-        if (!dog) return false;
-        // Should have healed: floor(24 * 0.30) = 7, so 12 + 7 = 19.
-        const healed = dog.hp >= 19;
-        // Dog should have disengaged and moved within ~ 2× tether range (30 px) of the player.
-        const dist = Math.hypot(dog.x - player.x, dog.y - player.y);
-        const nearOwner = dist <= 61; // 2× HEEL_TETHER + 1px float slack
-        return healed && nearOwner;
-    },
-
-    failureMessage(engine) {
-        const dog = engine.getUnit('dog1');
-        const player = engine.getLocalPlayerUnit()!;
-        const dist = dog ? Math.hypot(dog.x - player.x, dog.y - player.y).toFixed(0) : '?';
-        return `dog hp=${dog?.hp}/${dog?.maxHp} (expected ≥18), dist-to-owner=${dist} px (expected ≤61)`;
-    },
-};
-
-// ---- Scenario 3: Sic 'em / Pounce ----
+// ---- Scenario 2: Sic 'em / Pounce ----
 
 /**
  * Player casts Sic 'em (0704) at a point beyond an enemy in the dog's southward dash lane.

@@ -92,6 +92,11 @@ export interface ResearchNodeCardProps {
     researchNodeLevels?: ResearchNodeLevels;
     /** Equipped items, so tag-targeted upgrades resolve onto this character's abilities. */
     equipment?: readonly string[];
+    /**
+     * Admin-only: when set (and the viewer is an admin), a small Remove button un-researches this node.
+     * Pass it only for nodes the character owns.
+     */
+    onAdminRemove?: () => void;
     className?: string;
 }
 
@@ -207,6 +212,7 @@ export default function ResearchNodeCard({
     researchTrees,
     researchNodeLevels,
     equipment,
+    onAdminRemove,
     className = '',
 }: ResearchNodeCardProps) {
     const { isAdmin } = useCurrentUser();
@@ -328,26 +334,12 @@ export default function ResearchNodeCard({
 
     const descClampLines = layout === 'comfortable' ? RESEARCH_NODE_COMFORTABLE_DESC_LINES : 3;
 
-    const tierTextClass =
-        tone === 'muted'
-            ? state === 'researched'
-                ? 'text-zinc-500'
-                : state === 'enabled'
-                  ? 'text-zinc-400'
-                  : 'text-zinc-600'
-            : state === 'researched'
-              ? 'text-green-700'
-              : state === 'enabled'
-                ? 'text-primary'
-                : state === 'blocked'
-                  ? 'text-zinc-500'
-                  : 'text-border-custom';
-
+    // Footer text (tier, id, source) inherits the card's primary text colour so it reads on every tree fill.
     const adminFooterBadgeClass =
-        'absolute bottom-1.5 text-[9px] font-mono leading-none pointer-events-none text-zinc-500';
+        'absolute bottom-1.5 text-[9px] font-mono leading-none pointer-events-none';
 
     const tierBadge = !isAdmin && showTier && node.tier != null && (
-        <span className={`absolute bottom-1.5 right-2 text-[10px] font-semibold leading-none pointer-events-none ${tierTextClass}`}>
+        <span className="absolute bottom-1.5 right-2 text-[10px] font-semibold leading-none pointer-events-none">
             Tier {node.tier}
         </span>
     );
@@ -454,7 +446,7 @@ export default function ResearchNodeCard({
             )}
             {isAdmin && layout === 'comfortable' && (
                 <div
-                    className={`grid ${RESEARCH_NODE_ADMIN_FOOTER_HEIGHT_CLASS} shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 text-[9px] font-mono leading-none text-zinc-500`}
+                    className={`grid ${RESEARCH_NODE_ADMIN_FOOTER_HEIGHT_CLASS} shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 text-[9px] font-mono leading-none`}
                 >
                     <span className="min-w-0 truncate text-left select-all">{node.id}</span>
                     <span
@@ -548,6 +540,20 @@ export default function ResearchNodeCard({
                     {adminSourceBadge}
                     {adminTierBadge}
                 </div>
+            )}
+            {isAdmin && onAdminRemove && (
+                <button
+                    type="button"
+                    data-testid={`${TestIds.researchNodeRemovePrefix}${node.id}`}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onAdminRemove();
+                    }}
+                    title={`Admin: un-research “${node.title}”`}
+                    className="absolute bottom-6 right-2 z-10 rounded border border-red-400/70 bg-red-950/80 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-red-100 hover:bg-red-800"
+                >
+                    Remove
+                </button>
             )}
             {flavorPortal}
         </div>

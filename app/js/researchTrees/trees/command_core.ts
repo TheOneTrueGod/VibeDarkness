@@ -5,7 +5,6 @@ import { RESEARCH_TREE_ICON_COMMAND } from '../researchTreeChrome';
 
 export const COMMAND_CORE_TREE_ID = 'command_core';
 export const COMMAND_CORE_NODE_LOYAL_COMPANION = 'loyal_companion';
-export const COMMAND_CORE_NODE_HEEL = 'heel';
 export const COMMAND_CORE_NODE_SIC_EM = 'sic_em';
 export const COMMAND_CORE_NODE_MIMIC_THORN = 'mimic_thorn';
 export const COMMAND_CORE_NODE_MIMIC_BRAMBLES = 'mimic_brambles';
@@ -20,10 +19,6 @@ export const EMPOWER_PET_MAX_BITE_DAMAGE_ADD = 10;
 export const COMMAND_LOYAL_ATTUNEMENT_COST = 10;
 export const COMMAND_LOYAL_VIGOR_COST = 9;
 export const COMMAND_LOYAL_METAL_COST = 2;
-
-export const COMMAND_HEEL_ATTUNEMENT_COST = 10;
-export const COMMAND_HEEL_VIGOR_COST = 8;
-export const COMMAND_HEEL_METAL_COST = 2;
 
 export const COMMAND_SIC_ATTUNEMENT_COST = 11;
 export const COMMAND_SIC_VIGOR_COST = 8;
@@ -78,25 +73,6 @@ export const commandCoreTree: ResearchTreeDef = {
             ],
         },
         {
-            id: COMMAND_CORE_NODE_HEEL,
-            title: 'Heel',
-            // Disabled while the spirit animal can't be harmed (nothing to heal); Guard covers the recall.
-            disabled: true,
-            description: 'Command your dog to disengage and return to your side, recovering {25%} of its max HP.',
-            order: 6,
-            tier: 10,
-            position: { x: 370, y: 160 },
-            prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
-            exclusiveWithNodeIds: [],
-            requirements: [],
-            cost: {
-                attunement: COMMAND_HEEL_ATTUNEMENT_COST,
-                vigor: COMMAND_HEEL_VIGOR_COST,
-                metal: COMMAND_HEEL_METAL_COST,
-            },
-            effects: [{ type: 'addCard', cardId: '0703' }],
-        },
-        {
             id: COMMAND_CORE_NODE_SIC_EM,
             title: "Sic 'Em",
             // Loyal Companion grants Sic 'Em now.
@@ -118,7 +94,7 @@ export const commandCoreTree: ResearchTreeDef = {
         {
             id: COMMAND_CORE_NODE_MIMIC_THORN,
             title: 'Mimic Thorn',
-            description: 'Your spirit learns {Fling Thorn}: it sprays a short-range fan of thorns at enemies near it.',
+            description: 'Order your spirit to {Fling Thorn}: a short-range fan of thorns sprayed wherever you aim it.',
             flavorText: 'It watched the glowing insects. It learned.',
             order: 20,
             tier: 11,
@@ -134,7 +110,10 @@ export const commandCoreTree: ResearchTreeDef = {
                 vigor: COMMAND_THORN_VIGOR_COST,
                 metal: COMMAND_THORN_METAL_COST,
             },
-            effects: [{ type: 'grantPetAbility', petId: 'dog', abilityId: '0705' }],
+            effects: [
+                { type: 'grantPetAbility', petId: 'dog', abilityId: '0705' },
+                { type: 'addCard', cardId: '0714' },
+            ],
         },
         {
             id: COMMAND_CORE_NODE_MIMIC_BRAMBLES,

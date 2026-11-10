@@ -12,7 +12,7 @@ import {
     prereqClosure,
 } from '../../../../../researchTrees/evaluator';
 import { getNodeMaxLevels } from '../../../../../researchTrees/passiveBonuses';
-import { stripResearchBySource } from '../../../../../researchTrees/researchSources';
+import { removeResearchNode, stripResearchBySource } from '../../../../../researchTrees/researchSources';
 import {
     canInteractWithDarknessUpgradeTree,
     DARKNESS_UPGRADES_TREE_ID,
@@ -235,6 +235,49 @@ export function useResearchActions({
         ],
     );
 
+    /** Admin: un-research one node (also legacy ids no tree defines any more). No refund, like the resets. */
+    const handleRemoveResearchNode = useCallback(
+        async (treeId: string, nodeId: string) => {
+            if (permissionAccount?.role !== 'admin') return;
+            const title = RESEARCH_TREES.find((t) => t.id === treeId)?.nodes.find((n) => n.id === nodeId)?.title ?? nodeId;
+            if (!window.confirm(`Remove “${title}” from this character's research?`)) return;
+
+            setSaving(true);
+            try {
+                const next = removeResearchNode(researchTrees, researchNodeLevels, researchSources, treeId, nodeId);
+                const nextEquipment = undoReplaceEquippedItemsForRemovedNodes(equipment, next.removedNodeIdsByTree);
+                const updatedChar = await api.updateCharacter(character.id, {
+                    ...buildEquipmentUpdate(nextEquipment),
+                    researchTrees: next.researchTrees,
+                    researchNodeLevels: next.researchNodeLevels,
+                    researchSources: next.researchSources,
+                });
+                setResearchTrees(updatedChar.researchTrees ?? next.researchTrees);
+                setResearchNodeLevels(updatedChar.researchNodeLevels ?? next.researchNodeLevels);
+                setResearchSources(updatedChar.researchSources ?? next.researchSources);
+                setEquipment(updatedChar.equipment ?? nextEquipment);
+                onSaved?.({ equipment: updatedChar.equipment ?? nextEquipment, name, portraitId: selectedPortraitId });
+            } catch (e) {
+                console.error('Failed to remove research node:', e);
+            } finally {
+                setSaving(false);
+            }
+        },
+        [
+            api,
+            buildEquipmentUpdate,
+            character.id,
+            equipment,
+            name,
+            onSaved,
+            permissionAccount?.role,
+            researchNodeLevels,
+            researchSources,
+            researchTrees,
+            selectedPortraitId,
+        ],
+    );
+
     const handleResearchNode = useCallback(
         async (treeId: string, nodeId: string, asAdmin = false) => {
             if (!resolvedCampaign?.resources) return;
@@ -361,5 +404,5 @@ export function useResearchActions({
         ],
     );
 
-    return { handleResetResearch, handleResetResearchBySource, handleResearchNode };
+    return { handleResetResearch, handleResetResearchBySource, handleResearchNode, handleRemoveResearchNode };
 }

@@ -48,7 +48,7 @@ function makeEnemy(x: number, y: number): Unit {
 }
 
 describe('pet_engage ability pick', () => {
-    it('queues Fling Thorn when target is in fling range', () => {
+    it('never queues the ordered Fling Thorn on its own, even with a target in fling range', () => {
         const pet = makeUnit({ x: 0, y: 0 });
         const enemy = makeEnemy(150, 0); // within FLING_THORN_MAX_DISTANCE, outside melee
         expect(150).toBeLessThanOrEqual(FLING_THORN_MAX_DISTANCE);
@@ -87,15 +87,11 @@ describe('pet_engage ability pick', () => {
         } as unknown as AIContext;
 
         pet_engage.actions.execute(pet, aiContext);
-        expect(queued.length).toBe(1);
-        expect(queued[0]!.abilityId).toBe(FLING_THORN_ABILITY_ID);
+        expect(queued.some((o) => o.abilityId === FLING_THORN_ABILITY_ID)).toBe(false);
     });
 
-    it('falls back to Dog Bite when target is out of fling range but in melee', () => {
+    it('queues Dog Bite in melee (Fling Thorn is never an auto pick)', () => {
         const pet = makeUnit({ x: 0, y: 0 });
-        // Drain fling uses so only bite remains viable at close range... actually at 40px both are in range;
-        // Fling has higher priority. Exhaust fling uses.
-        pet.abilityRuntime[FLING_THORN_ABILITY_ID]!.currentUses = 0;
 
         const enemy = makeEnemy(30, 0);
         const ctx = pet.aiContext as PetAITreeContext;

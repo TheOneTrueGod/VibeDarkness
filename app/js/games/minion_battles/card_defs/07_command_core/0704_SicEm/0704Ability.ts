@@ -8,7 +8,6 @@
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { resolveAbilitySourceUnits, commandPetAbility } from '../../../abilities/petCommands';
-import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from '../../../buffs/DoubleDamageBuff';
 import type { Unit } from '../../../game/units/Unit';
 import { type CardDef } from '../../types';
 import {
@@ -51,17 +50,6 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
                     const eng = ctx.engine;
                     const sourcePets = resolveAbilitySourceUnits(SicEmAbility, ctx.caster, eng.units, aimPoint);
                     if (sourcePets.length === 0) return;
-
-                    // Consume DoubleDamage buff from the player and transfer it to each pet as a Pounce buff.
-                    const ddIdx = ctx.caster.buffs.findIndex(
-                        (b) => b._type === DOUBLE_DAMAGE_BUFF_TYPE && (b as DoubleDamageBuff).abilityId === CARD_ID,
-                    );
-                    if (ddIdx >= 0) {
-                        ctx.caster.buffs.splice(ddIdx, 1);
-                        for (const pet of sourcePets) {
-                            pet.addBuff(new DoubleDamageBuff(POUNCE_ABILITY_ID), eng.gameTime, 1);
-                        }
-                    }
 
                     commandPetAbility(sourcePets, POUNCE_ABILITY_ID, targets, eng, {
                         preGrantCharge: { chargeType: 'commandCharge', amount: 1 },

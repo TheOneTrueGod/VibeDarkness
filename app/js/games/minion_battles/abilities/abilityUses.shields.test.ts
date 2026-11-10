@@ -60,14 +60,6 @@ describe('migrated ability use configs', () => {
         ]);
     });
 
-    it('gives Heel two uses with round-charge recovery', () => {
-        const config = getAbilityUseConfig('0703');
-        expect(config.maxUses).toBe(2);
-        expect(config.recoveries).toEqual([
-            { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-        ]);
-    });
-
     it("gives Sic 'em two uses that refill each round", () => {
         const config = getAbilityUseConfig('0704');
         expect(config.maxUses).toBe(2);

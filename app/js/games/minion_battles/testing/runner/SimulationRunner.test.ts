@@ -54,7 +54,7 @@ import {
     swarmlingSharedConstructionScenario,
     swarmlingContestsOccupiedNestScenario,
 } from '../scenarios/general/swarmlings';
-import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from '../scenarios/general/pets';
+import { petAutoEngageScenario, petSicEmPounceScenario } from '../scenarios/general/pets';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
 import { aiPlanHoldStabilityScenario } from '../scenarios/ai/ai_plan_hold_stability';
 import { aiTerrainInterruptScenario } from '../scenarios/ai/ai_terrain_interrupt';
@@ -453,12 +453,6 @@ describe('runScenarioHeadless', () => {
 
     it('passes spirit guard scenario (follows within 50 px, never chases)', () => {
         const r = runScenarioHeadless(petAutoEngageScenario);
-        expect(r.passed, r.message).toBe(true);
-    });
-
-    // Heel is disabled in research while the spirit can't be harmed; its scenario predates the spirit's anchor AI.
-    it.skip('passes pet Heel scenario (0703): heals 30% max HP', () => {
-        const r = runScenarioHeadless(petHeelScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

@@ -33,6 +33,8 @@ export interface CharacterResearchPanelProps {
     onResearchNode: (treeId: string, nodeId: string, asAdmin?: boolean) => void | Promise<void>;
     onResetResearch: (treeIds: string[]) => void | Promise<void>;
     onResetResearchBySource: (source: ResearchSource) => void | Promise<void>;
+    /** Admin: un-research one node (including legacy ids). */
+    onRemoveResearchNode?: (treeId: string, nodeId: string) => void | Promise<void>;
 }
 
 /** Upgrades tab right pane: admin grant panels plus the research tree / researched-nodes grid. */
@@ -60,6 +62,7 @@ export default function CharacterResearchPanel({
     onResearchNode,
     onResetResearch,
     onResetResearchBySource,
+    onRemoveResearchNode,
 }: CharacterResearchPanelProps) {
     return (
     <div className="flex-1 min-h-0 overflow-auto p-4">
@@ -149,6 +152,11 @@ export default function CharacterResearchPanel({
                             isAdmin ? () => void onResetResearchBySource(ResearchSource.Purchased) : undefined
                         }
                         onResetAdminResearch={() => void onResetResearchBySource(ResearchSource.Admin)}
+                        onRemoveNode={
+                            isAdmin && onRemoveResearchNode
+                                ? (treeId, nodeId) => void onRemoveResearchNode(treeId, nodeId)
+                                : undefined
+                        }
                     />
                 ) : null
             ) : (
@@ -174,6 +182,11 @@ export default function CharacterResearchPanel({
                 }
                 onResetAdminResearch={
                     isAdmin ? () => void onResetResearchBySource(ResearchSource.Admin) : undefined
+                }
+                onRemoveNode={
+                    isAdmin && onRemoveResearchNode
+                        ? (treeId, nodeId) => void onRemoveResearchNode(treeId, nodeId)
+                        : undefined
                 }
             />
         )}

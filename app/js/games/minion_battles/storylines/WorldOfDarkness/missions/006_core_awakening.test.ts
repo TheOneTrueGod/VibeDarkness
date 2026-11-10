@@ -26,7 +26,6 @@ import {
     MISC_NODE_CHARGED_CORE,
 } from '../../../../../researchTrees/trees/misc';
 import {
-    COMMAND_CORE_NODE_HEEL,
     COMMAND_CORE_NODE_SIC_EM,
     COMMAND_CORE_NODE_LOYAL_COMPANION,
     COMMAND_CORE_TREE_ID,
@@ -64,8 +63,7 @@ describe('listTier10RootCoreCandidates', () => {
     it('only includes prereq-free nodes at the core awakening tier', () => {
         const candidates = listTier10RootCoreCandidates();
         expect(candidates.length).toBeGreaterThan(0);
-        // Heel / Sic 'Em are tier 10 but have prereqs — must not appear.
-        expect(candidates.some((c) => c.nodeId === COMMAND_CORE_NODE_HEEL)).toBe(false);
+        // Sic 'Em is tier 10 but has a prereq — must not appear.
         expect(candidates.some((c) => c.nodeId === COMMAND_CORE_NODE_SIC_EM)).toBe(false);
         expect(
             candidates.some((c) => c.treeId === EARTH_TREE_ID && c.nodeId === EARTH_NODE_EARTH_CORE),

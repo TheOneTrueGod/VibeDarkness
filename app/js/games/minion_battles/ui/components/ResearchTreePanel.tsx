@@ -38,6 +38,7 @@ import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeC
 import { getItemDef } from '../../character_defs/items';
 import {
 	collectEligibleResearchGridEntries,
+	collectLegacyResearchGridEntries,
 	collectResearchGridEntries,
 	collectResearchRequirementEntries,
 	ELIGIBLE_RESEARCH_HEADING,
@@ -359,6 +360,8 @@ export interface ResearchTreeContentProps {
 	onResetResearch: (treeIds: string[]) => void;
 	onResetPurchasedResearch?: () => void;
 	onResetAdminResearch?: () => void;
+	/** Admin: un-research one owned node (shows a Remove button on owned cards). */
+	onRemoveNode?: (treeId: string, nodeId: string) => void;
 }
 
 export function ResearchTreeContent({
@@ -379,6 +382,7 @@ export function ResearchTreeContent({
 	onResetResearch,
 	onResetPurchasedResearch,
 	onResetAdminResearch,
+	onRemoveNode,
 }: ResearchTreeContentProps) {
 	const ctx = useMemo(() => {
 		const safeAccount = account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 };
@@ -667,6 +671,9 @@ export function ResearchTreeContent({
 										}
 										selectionReason={selectionReason}
 										requirementBadges={requirementBadges}
+										onAdminRemove={
+											onRemoveNode && currentLevel > 0 ? () => onRemoveNode(tree.id, n.id) : undefined
+										}
 									/>
 								</div>
 							);
@@ -737,6 +744,11 @@ export function ResearchTreeContent({
 										}
 										selectionReason={selectionReason}
 										requirementBadges={[]}
+										onAdminRemove={
+											onRemoveNode && currentLevel > 0
+												? () => onRemoveNode(ref.fromTreeId, ref.nodeId)
+												: undefined
+										}
 									/>
 								</div>
 							);
@@ -768,6 +780,11 @@ export interface ResearchedNodesGridProps {
 	isAdmin?: boolean;
 	onResetPurchasedResearch?: () => void;
 	onResetAdminResearch?: () => void;
+	/**
+	 * Admin: un-research one owned node. Also lists owned ids the tree no longer defines as
+	 * `<Legacy Node>` cards in Possessed research, so they can be removed.
+	 */
+	onRemoveNode?: (treeId: string, nodeId: string) => void;
 }
 
 const EMPTY_CAMPAIGN_RESOURCES: CampaignResources = ZERO_CAMPAIGN_RESOURCES;
@@ -784,6 +801,7 @@ function ResearchGridCards({
 	onResearchNode,
 	isAdmin = false,
 	showPrereqRow = true,
+	onRemoveNode,
 }: {
 	entries: ReturnType<typeof collectResearchGridEntries>;
 	researchedByTreeId: Record<string, Set<string>>;
@@ -796,6 +814,7 @@ function ResearchGridCards({
 	onResearchNode?: ResearchNodeClickHandler;
 	isAdmin?: boolean;
 	showPrereqRow?: boolean;
+	onRemoveNode?: (treeId: string, nodeId: string) => void;
 }) {
 	return (
 		<div className="flex flex-wrap gap-3">
@@ -848,6 +867,11 @@ function ResearchGridCards({
 							tree,
 							researchedByTreeId,
 						)}
+						onAdminRemove={
+							onRemoveNode && researchedByTreeId[tree.id]?.has(node.id)
+								? () => onRemoveNode(tree.id, node.id)
+								: undefined
+						}
 					/>
 				);
 			})}
@@ -872,6 +896,7 @@ export function ResearchedNodesGrid({
 	isAdmin = false,
 	onResetPurchasedResearch,
 	onResetAdminResearch,
+	onRemoveNode,
 }: ResearchedNodesGridProps) {
 	const researchedByTreeId = useMemo(() => researchedSetsByTreeId(researchTrees), [researchTrees]);
 	const researchCtx = useMemo((): ResearchContext => {
@@ -886,10 +911,12 @@ export function ResearchedNodesGrid({
 		() => collectEligibleResearchGridEntries(availableTrees, filterTreeId, researchCtx, isAdmin),
 		[availableTrees, filterTreeId, isAdmin, researchCtx],
 	);
-	const possessed = useMemo(
-		() => collectResearchGridEntries(availableTrees, researchTrees, filterTreeId, true, isAdmin),
-		[availableTrees, filterTreeId, isAdmin, researchTrees],
-	);
+	const possessed = useMemo(() => {
+		const owned = collectResearchGridEntries(availableTrees, researchTrees, filterTreeId, true, isAdmin);
+		// Admins also see owned ids the tree no longer defines, so they can remove them.
+		if (!isAdmin) return owned;
+		return [...owned, ...collectLegacyResearchGridEntries(availableTrees, researchTrees, filterTreeId)];
+	}, [availableTrees, filterTreeId, isAdmin, researchTrees]);
 	const unowned = useMemo(() => {
 		if (!showUnowned) return [];
 		const allUnowned = collectResearchGridEntries(availableTrees, researchTrees, filterTreeId, false, isAdmin);
@@ -960,6 +987,7 @@ export function ResearchedNodesGrid({
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
 						isAdmin={isAdmin}
+						onRemoveNode={onRemoveNode}
 					/>
 				</div>
 			)}

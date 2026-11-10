@@ -161,3 +161,39 @@ export function stripResearchBySource(
         removedNodeIdsByTree,
     };
 }
+
+/**
+ * Drop one node (every level, every source) from one tree. Used by the admin Remove button, including for
+ * legacy ids the tree no longer defines. Other nodes are untouched, even ones that list this as a prereq.
+ */
+export function removeResearchNode(
+    researchTrees: Record<string, string[]>,
+    researchNodeLevels: ResearchNodeLevels | undefined,
+    researchSources: ResearchNodeSources | undefined,
+    treeId: string,
+    nodeId: string,
+): StrippedResearchState {
+    const nextTrees: Record<string, string[]> = {};
+    for (const [id, nodeIds] of Object.entries(researchTrees)) {
+        nextTrees[id] = id === treeId ? (nodeIds ?? []).filter((n) => n !== nodeId) : [...(nodeIds ?? [])];
+    }
+    const nextLevels: ResearchNodeLevels = {};
+    for (const [id, levels] of Object.entries(researchNodeLevels ?? {})) {
+        const copy = { ...levels };
+        if (id === treeId) delete copy[nodeId];
+        if (Object.keys(copy).length > 0) nextLevels[id] = copy;
+    }
+    const nextSources: ResearchNodeSources = {};
+    for (const [id, sources] of Object.entries(researchSources ?? {})) {
+        const copy = { ...sources };
+        if (id === treeId) delete copy[nodeId];
+        if (Object.keys(copy).length > 0) nextSources[id] = copy;
+    }
+    const owned = (researchTrees[treeId] ?? []).includes(nodeId);
+    return {
+        researchTrees: nextTrees,
+        researchNodeLevels: nextLevels,
+        researchSources: nextSources,
+        removedNodeIdsByTree: owned ? { [treeId]: [nodeId] } : {},
+    };
+}

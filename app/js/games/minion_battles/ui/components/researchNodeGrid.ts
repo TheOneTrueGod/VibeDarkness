@@ -185,6 +185,44 @@ export function collectResearchGridEntries(
     return sortResearchGridEntries(entries);
 }
 
+/** Description shown on a card for a node the character owns but the tree no longer defines. */
+export const LEGACY_RESEARCH_NODE_DESCRIPTION = '<Legacy Node>';
+
+/** A display-only stand-in for an owned node id the tree no longer defines (free, no effects). */
+export function legacyResearchNode(nodeId: string): ResearchNodeDef {
+    return {
+        id: nodeId,
+        title: nodeId,
+        description: LEGACY_RESEARCH_NODE_DESCRIPTION,
+        order: Number.MAX_SAFE_INTEGER,
+        prereqNodeIds: [],
+        exclusiveWithNodeIds: [],
+        requirements: [],
+        cost: {},
+        effects: [],
+    };
+}
+
+/**
+ * Owned node ids that no tree node matches any more (removed nodes still saved on the character), as
+ * stand-in cards so admins can see and remove them. Trees outside `availableTrees` are skipped.
+ */
+export function collectLegacyResearchGridEntries(
+    availableTrees: ResearchTreeDef[],
+    researchTrees: Record<string, string[]>,
+    filterTreeId: string | null,
+): ResearchGridEntry[] {
+    const entries: ResearchGridEntry[] = [];
+    for (const tree of availableTrees) {
+        if (filterTreeId !== null && tree.id !== filterTreeId) continue;
+        const known = new Set(tree.nodes.map((n) => n.id));
+        for (const nodeId of researchTrees[tree.id] ?? []) {
+            if (!known.has(nodeId)) entries.push({ tree, node: legacyResearchNode(nodeId) });
+        }
+    }
+    return entries;
+}
+
 export function researchGridEntryKey(entry: ResearchGridEntry): string {
     return `${entry.tree.id}:${entry.node.id}`;
 }

@@ -31,6 +31,8 @@ export const TestIds = {
     researchNodeCardPrefix: 'research-node-card-',
     researchNodeRequirements: 'research-node-requirements',
     researchNodeSource: 'research-node-source',
+    /** Admin Remove button on a research node card; suffix is the node id. */
+    researchNodeRemovePrefix: 'research-node-remove-',
     researchNodeTreeIcon: 'research-node-tree-icon',
     researchTreeListIcon: 'research-tree-list-icon',
     storyChoiceResearchTreeIcon: 'story-choice-research-tree-icon',
