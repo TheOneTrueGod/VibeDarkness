@@ -283,7 +283,11 @@ export function ResearchTreeList({
 				const isSelected = t.id === activeTreeId;
 				const hasPurchases = purchasedCount >= 1;
 				const dimmed = dimmedTreeIds?.has(t.id) ?? false;
-				const chrome = resolveResearchTreeChrome(t);
+				const resolvedChrome = resolveResearchTreeChrome(t);
+				// Secondary background (and its paired font colour) only once the character has points in the tree.
+				const chrome = hasPurchases
+					? resolvedChrome
+					: { ...resolvedChrome, secondaryColour: undefined, fontColour: undefined };
 				const showRowReset =
 					canResetResearch && hasPurchases && typeof onResetResearchTree === 'function';
 				return (
