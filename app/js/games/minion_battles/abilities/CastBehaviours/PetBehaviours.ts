@@ -4,14 +4,22 @@
  *
  * - `PetRelocateBehaviour`: the pet moves very quickly from where it stands to the window's pixel target,
  *   leaving a slash trail (e.g. Spirit Storm's reposition, after an anchored select step).
- * - `PetSpinBehaviour`: the pet holds a tight loop round where it stands for the window (e.g. while Spirit
- *   Storm pulses).
+ * - `PetSpinBehaviour`: the pet spins in a tight loop round where it stands for the window (e.g. while
+ *   Spirit Storm pulses). The loop is a render-only offset (`getUnitRenderOffsets`): the pet's real
+ *   position stays on its spot, so anything centred on the pet (hit areas, fields) stays centred.
  *
  * Both take the pet's movement for the window (its walk goal is cleared each tick), so the pet AI cannot
  * walk it away mid-cast.
  */
 import type { Unit } from '../../game/units/Unit';
-import type { CastBehaviour, CastBehaviourBaseContext, CastBehaviourSetupContext, CastBehaviourTickContext } from '../castBehaviourTypes';
+import type {
+    CastBehaviour,
+    CastBehaviourBaseContext,
+    CastBehaviourRenderContext,
+    CastBehaviourSetupContext,
+    CastBehaviourTickContext,
+    UnitRenderOffset,
+} from '../castBehaviourTypes';
 import { resolveCasterPetAnchor } from '../targeting';
 import { createSlashTrail, type SlashTrailColors } from '../../game/effects/slashTrail';
 
@@ -107,15 +115,24 @@ export class PetSpinBehaviour implements CastBehaviour {
         if (!payload) return;
         const pet = getPet(ctx, payload.petId);
         if (!pet) return;
+        // Pin the pet on its spot; the loop itself is drawn by getUnitRenderOffsets.
         holdPet(pet);
-        const angle = ctx.windowProgress * payload.seconds * this._turnsPerSecond * Math.PI * 2;
-        // Ease into the loop so the first tick does not jump a full radius.
-        const r = this._radius * Math.min(1, ctx.windowProgress * 8);
-        pet.x = payload.cx + Math.cos(angle) * r;
-        pet.y = payload.cy + Math.sin(angle) * r;
-        if (ctx.isLastTick) {
-            pet.x = payload.cx;
-            pet.y = payload.cy;
-        }
+        pet.x = payload.cx;
+        pet.y = payload.cy;
+    }
+
+    /** Offset of the loop at `windowProgress`; eases in and out so the pet does not jump a full radius. */
+    spinOffset(windowProgress: number, seconds: number): { x: number; y: number } {
+        if (windowProgress >= 1) return { x: 0, y: 0 };
+        const angle = windowProgress * seconds * this._turnsPerSecond * Math.PI * 2;
+        const r = this._radius * Math.min(1, windowProgress * 8, (1 - windowProgress) * 8);
+        return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
+    }
+
+    getUnitRenderOffsets(ctx: CastBehaviourRenderContext): readonly UnitRenderOffset[] | null {
+        const payload = ctx.behaviourPayload as SpinPayload | null;
+        if (!payload) return null;
+        const offset = this.spinOffset(ctx.windowProgress, payload.seconds);
+        return [{ unitId: payload.petId, ...offset }];
     }
 }

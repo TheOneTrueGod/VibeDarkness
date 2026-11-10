@@ -1,7 +1,10 @@
 /**
- * Bramble Patch — player command card. Owns the ITS timeline: windup → confirmRadius
- * (preview blast at the nearest pet). Commands the pet into strike 0706 at cast start so
+ * Bramble Patch — player command card. Owns the ITS timeline: windup → confirm (preview the slam's
+ * tiles at the nearest pet) → the pet's slam. Commands the pet into strike 0706 at cast start so
  * the pet's windup (and movement root) runs in parallel with this telegraph.
+ *
+ * The confirm opens `CONFIRM_LEAD` before the pet's windup ends, so the player confirms (or undoes)
+ * before the brambles land, not after.
  * Mimic Brambles research grants this card and the pet strike ability.
  */
 
@@ -12,9 +15,11 @@ import type { Unit } from '../../../game/units/Unit';
 import { type CardDef } from '../../types';
 import {
     BRAMBLE_PATCH_RADIUS,
+    BRAMBLE_PATCH_SHAPE,
     BRAMBLE_PATCH_STRIKE_ID,
     BRAMBLE_PATCH_KNOCKBACK_TIER,
     BRAMBLE_PATCH_WINDUP,
+    drawBramblePatchTelegraph,
 } from '../0706_BramblePatch/0706Ability';
 import { defineAbility } from '../../../abilities/defineAbility';
 import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abilities/Ability';
@@ -30,8 +35,13 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 
 /** Re-export for callers that historically imported windup from the command card. */
 export const BRAMBLE_PATCH_COMMAND_WINDUP = BRAMBLE_PATCH_WINDUP;
-const CONFIRM_END = BRAMBLE_PATCH_WINDUP + 1 / 60;
-const CAST_ACTIVE_END = CONFIRM_END + 0.1;
+/** How long before the slam the confirm pause opens (s). */
+export const BRAMBLE_PATCH_CONFIRM_LEAD = 0.15;
+/** Owner-cast time at which the confirm pause opens. */
+export const BRAMBLE_PATCH_CONFIRM_AT = BRAMBLE_PATCH_WINDUP - BRAMBLE_PATCH_CONFIRM_LEAD;
+const CONFIRM_END = BRAMBLE_PATCH_CONFIRM_AT + 1 / 60;
+/** The player's cast stays active until just after the pet's slam lands. */
+const CAST_ACTIVE_END = BRAMBLE_PATCH_WINDUP + 0.1;
 const COOLDOWN_END = CAST_ACTIVE_END + 0.4;
 
 const BRAMBLE_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const };
@@ -40,12 +50,12 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     {
         id: 'windup',
         start: 0,
-        end: BRAMBLE_PATCH_WINDUP,
+        end: BRAMBLE_PATCH_CONFIRM_AT,
         abilityPhase: AbilityPhase.Windup,
     },
     {
         id: 'confirm',
-        start: BRAMBLE_PATCH_WINDUP,
+        start: BRAMBLE_PATCH_CONFIRM_AT,
         end: CONFIRM_END,
         abilityPhase: AbilityPhase.Active,
         doNotRefund: true,
@@ -53,6 +63,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
             kind: 'confirmRadius',
             label: 'Confirm radius',
             radius: BRAMBLE_PATCH_RADIUS,
+            tileShape: BRAMBLE_PATCH_SHAPE,
             allowMiss: true,
         },
     },
@@ -133,20 +144,11 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
         const ox = payload?.previewX ?? caster.x;
         const oy = payload?.previewY ?? caster.y;
         const elapsed = getCastElapsedAt(activeAbility, gameTime);
-        if (elapsed >= BRAMBLE_PATCH_WINDUP) {
-            gr.circle(ox, oy, BRAMBLE_PATCH_RADIUS);
-            gr.stroke({ color: 0x86efac, width: 2, alpha: 0.85 });
-            return;
-        }
-        const borderAlpha = 0.25 + 0.55 * Math.min(1, elapsed / BRAMBLE_PATCH_WINDUP);
-        gr.circle(ox, oy, BRAMBLE_PATCH_RADIUS);
-        gr.stroke({ color: 0xef4444, width: 2, alpha: borderAlpha });
-        const ringT = elapsed / BRAMBLE_PATCH_WINDUP;
-        const ringRadius = ringT * BRAMBLE_PATCH_RADIUS;
-        if (ringRadius > 2) {
-            gr.circle(ox, oy, ringRadius);
-            gr.stroke({ color: 0xfca5a5, width: 3, alpha: 0.45 + 0.45 * ringT });
-        }
+        drawBramblePatchTelegraph(
+            gr,
+            { x: ox, y: oy },
+            elapsed >= BRAMBLE_PATCH_CONFIRM_AT ? null : elapsed / BRAMBLE_PATCH_CONFIRM_AT,
+        );
     },
 });
 

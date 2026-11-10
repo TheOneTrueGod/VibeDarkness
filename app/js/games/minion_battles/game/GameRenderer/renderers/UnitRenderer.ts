@@ -173,6 +173,8 @@ export class UnitRenderer {
             : Math.min(0.1, (nowMs - this.lastWiggleRealTimeMs) / 1000);
         this.lastWiggleRealTimeMs = nowMs;
 
+        const castRenderOffsets = collectCastRenderOffsets(engine);
+
         for (const unit of units) {
             let visual = this.unitVisuals.get(unit.id);
             if (!visual) {
@@ -186,69 +188,9 @@ export class UnitRenderer {
                 }
             }
 
-            let renderOffsetX = 0;
-            let renderOffsetY = 0;
-            for (const activeAbility of unit.activeAbilities) {
-                const ability = getAbility(activeAbility.abilityId);
-                if (!ability?.getCasterRenderOffset) continue;
-                const offset = ability.getCasterRenderOffset(unit, activeAbility, engine.gameTime, engine);
-                if (!offset) continue;
-                renderOffsetX += offset.x;
-                renderOffsetY += offset.y;
-            }
-            for (const activeAbility of unit.activeAbilities) {
-                if (!activeAbility.castBehaviourPayloads) continue;
-                const ability = getAbility(activeAbility.abilityId);
-                if (!ability) continue;
-                const intervals = normalizeAbilityTimingsToIntervals(
-                    resolveAbilityTimingEntries(ability, unit, engine),
-                );
-                for (let iIdx = 0; iIdx < intervals.length; iIdx++) {
-                    const interval = intervals[iIdx]!;
-                    const effectiveBehaviours = getEffectiveCastBehaviours(interval);
-                    if (!effectiveBehaviours) continue;
-                    for (let bIdx = 0; bIdx < effectiveBehaviours.length; bIdx++) {
-                        const entry = effectiveBehaviours[bIdx]!;
-                        if (!entry.behaviour.getCasterRenderOffset) continue;
-                        const elapsed = getCastElapsed(unit, activeAbility, engine);
-                        const windowStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
-                        const windowEnd = entry.timingEnd !== undefined
-                            ? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)
-                            : windowStart;
-                        const windowLen = windowEnd - windowStart;
-                        const rawProgress = windowLen > 0 ? (elapsed - windowStart) / windowLen : 0;
-                        const windowProgress = Math.max(0, Math.min(1, rawProgress));
-                        if (elapsed < windowStart - 0.05 || elapsed > windowEnd + 0.05) continue;
-                        const behaviourKey = `${interval.id}_${bIdx}`;
-                        const behaviourPayload = activeAbility.castBehaviourPayloads[behaviourKey];
-                        const target = resolveCastBehaviourTarget(
-                            entry,
-                            interval,
-                            activeAbility,
-                            unit,
-                            ability,
-                            engine,
-                        );
-                        if (!target) continue;
-                        const offset = entry.behaviour.getCasterRenderOffset({
-                            caster: unit,
-                            abilityId: activeAbility.abilityId,
-                            target,
-                            allTargets: activeAbility.targets,
-                            castPayload: activeAbility.castPayload,
-                            behaviourPayload,
-                            setBehaviourPayload: () => { },
-                            engine,
-                            gameTime: engine.gameTime,
-                            windowProgress,
-                        });
-                        if (offset) {
-                            renderOffsetX += offset.x;
-                            renderOffsetY += offset.y;
-                        }
-                    }
-                }
-            }
+            const castOffset = castRenderOffsets.get(unit.id);
+            let renderOffsetX = castOffset?.x ?? 0;
+            let renderOffsetY = castOffset?.y ?? 0;
 
             // Knockback air arc: quadratic Y lift during the airborne phase only.
             let knockupYOffset = 0;
@@ -753,4 +695,74 @@ export class UnitRenderer {
         for (const ghost of this.constructionGhostVisuals.values()) ghost.destroy();
         this.constructionGhostVisuals.clear();
     }
+}
+
+/**
+ * Render-only offsets from casts, keyed by unit id: each ability's `getCasterRenderOffset` and each
+ * active cast behaviour's `getCasterRenderOffset` (the caster) and `getUnitRenderOffsets` (any unit the
+ * behaviour moves visually, e.g. a pet spinning on its spot). Positions in the simulation never change.
+ */
+function collectCastRenderOffsets(engine: GameEngine): Map<string, { x: number; y: number }> {
+    const out = new Map<string, { x: number; y: number }>();
+    const add = (unitId: string, x: number, y: number): void => {
+        const cur = out.get(unitId);
+        if (cur) {
+            cur.x += x;
+            cur.y += y;
+        } else {
+            out.set(unitId, { x, y });
+        }
+    };
+    for (const unit of engine.units) {
+        for (const activeAbility of unit.activeAbilities) {
+            const ability = getAbility(activeAbility.abilityId);
+            if (!ability) continue;
+            if (ability.getCasterRenderOffset) {
+                const offset = ability.getCasterRenderOffset(unit, activeAbility, engine.gameTime, engine);
+                if (offset) add(unit.id, offset.x, offset.y);
+            }
+            if (!activeAbility.castBehaviourPayloads) continue;
+            const intervals = normalizeAbilityTimingsToIntervals(
+                resolveAbilityTimingEntries(ability, unit, engine),
+            );
+            for (let iIdx = 0; iIdx < intervals.length; iIdx++) {
+                const interval = intervals[iIdx]!;
+                const effectiveBehaviours = getEffectiveCastBehaviours(interval);
+                if (!effectiveBehaviours) continue;
+                for (let bIdx = 0; bIdx < effectiveBehaviours.length; bIdx++) {
+                    const entry = effectiveBehaviours[bIdx]!;
+                    const behaviour = entry.behaviour;
+                    if (!behaviour.getCasterRenderOffset && !behaviour.getUnitRenderOffsets) continue;
+                    const elapsed = getCastElapsed(unit, activeAbility, engine);
+                    const windowStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
+                    const windowEnd = entry.timingEnd !== undefined
+                        ? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)
+                        : windowStart;
+                    const windowLen = windowEnd - windowStart;
+                    const rawProgress = windowLen > 0 ? (elapsed - windowStart) / windowLen : 0;
+                    const windowProgress = Math.max(0, Math.min(1, rawProgress));
+                    if (elapsed < windowStart - 0.05 || elapsed > windowEnd + 0.05) continue;
+                    const behaviourPayload = activeAbility.castBehaviourPayloads[`${interval.id}_${bIdx}`];
+                    const target = resolveCastBehaviourTarget(entry, interval, activeAbility, unit, ability, engine);
+                    if (!target) continue;
+                    const ctx = {
+                        caster: unit,
+                        abilityId: activeAbility.abilityId,
+                        target,
+                        allTargets: activeAbility.targets,
+                        castPayload: activeAbility.castPayload,
+                        behaviourPayload,
+                        setBehaviourPayload: () => { },
+                        engine,
+                        gameTime: engine.gameTime,
+                        windowProgress,
+                    };
+                    const own = behaviour.getCasterRenderOffset?.(ctx);
+                    if (own) add(unit.id, own.x, own.y);
+                    for (const o of behaviour.getUnitRenderOffsets?.(ctx) ?? []) add(o.unitId, o.x, o.y);
+                }
+            }
+        }
+    }
+    return out;
 }

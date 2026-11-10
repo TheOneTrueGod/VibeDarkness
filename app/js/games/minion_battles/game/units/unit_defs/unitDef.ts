@@ -64,7 +64,8 @@ export type SpawnAnimationDef =
 type HpBarSize = 'large' | 'small' | 'hidden';
 
 function getHpBarSize(unit: Unit): HpBarSize {
-    if (hidesWorldHpBar(unit)) return 'hidden';
+    // Ethereal units (spirits) take no damage, so they get no bar and no name label.
+    if (hidesWorldHpBar(unit) || isEtherealCharacter(unit.characterId)) return 'hidden';
     if (unit.teamId === 'player') return 'large';
     return 'small';
 }

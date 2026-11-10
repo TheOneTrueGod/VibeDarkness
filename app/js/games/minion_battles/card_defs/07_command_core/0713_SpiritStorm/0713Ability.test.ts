@@ -11,7 +11,7 @@ import {
 import { PetRelocateBehaviour, PetSpinBehaviour } from '../../../abilities/CastBehaviours/PetBehaviours';
 import { resolveCasterPetAnchor } from '../../../abilities/targeting';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
-import type { CastBehaviour, CastBehaviourSetupContext, CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
+import type { CastBehaviour, CastBehaviourRenderContext, CastBehaviourSetupContext, CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
 import type { ResolvedTarget } from '../../../game/types';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { SPIRIT_STORM_ABILITY_ID, SPIRIT_STORM_PULSES } from './0713Ability';
@@ -109,7 +109,7 @@ describe('spirit movement in the storm', () => {
         expect(spirit.y).toBeCloseTo(40);
     });
 
-    it('spins the spirit in a tight loop and leaves it where it started', () => {
+    it('spins the spirit as a render offset so its real position (and the storm) stays centred', () => {
         const caster = makeUnit('caster', 0, 0, 'player');
         const spirit = withSpirit(caster, 100, 100);
         let maxOffset = 0;
@@ -120,12 +120,16 @@ describe('spirit movement in the storm', () => {
         const base = { caster, abilityId: 'x', target: none, allTargets: [none], castPayload: {}, setBehaviourPayload: (d: unknown) => { payload = d; }, engine };
         spin.onSetup({ ...base, behaviourPayload: undefined, windowSeconds: 1.6 } as CastBehaviourSetupContext);
         for (let i = 1; i <= 40; i++) {
-            spin.onTick({ ...base, behaviourPayload: payload, windowProgress: i / 40, prevWindowProgress: (i - 1) / 40, isFirstTick: i === 1, isLastTick: i === 40 } as CastBehaviourTickContext);
-            maxOffset = Math.max(maxOffset, Math.hypot(spirit.x - 100, spirit.y - 100));
+            const windowProgress = i / 40;
+            spin.onTick({ ...base, behaviourPayload: payload, windowProgress, prevWindowProgress: (i - 1) / 40, isFirstTick: i === 1, isLastTick: i === 40 } as CastBehaviourTickContext);
+            expect(spirit.x).toBe(100);
+            expect(spirit.y).toBe(100);
+            const offsets = spin.getUnitRenderOffsets({ ...base, behaviourPayload: payload, windowProgress, gameTime: 0 } as CastBehaviourRenderContext)!;
+            expect(offsets[0]!.unitId).toBe('spirit');
+            maxOffset = Math.max(maxOffset, Math.hypot(offsets[0]!.x, offsets[0]!.y));
         }
         expect(maxOffset).toBeGreaterThan(5);
         expect(maxOffset).toBeLessThanOrEqual(7.0001);
-        expect(spirit.x).toBeCloseTo(100);
-        expect(spirit.y).toBeCloseTo(100);
+        expect(spin.spinOffset(1, 1.6)).toEqual({ x: 0, y: 0 });
     });
 });

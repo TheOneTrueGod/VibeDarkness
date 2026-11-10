@@ -108,4 +108,17 @@ export interface CastBehaviour {
         context: CastBehaviourBaseContext,
     ): void;
     getCasterRenderOffset?(context: CastBehaviourRenderContext): { x: number; y: number } | null;
+    /**
+     * Render-only offsets for other units this behaviour moves visually (e.g. the caster's pet spinning
+     * round its spot while the caster casts). Their simulation positions do not change, so anything
+     * anchored on them (hit areas, effects) stays put.
+     */
+    getUnitRenderOffsets?(context: CastBehaviourRenderContext): readonly UnitRenderOffset[] | null;
+}
+
+/** A render-only offset for one unit (see `CastBehaviour.getUnitRenderOffsets`). */
+export interface UnitRenderOffset {
+    unitId: string;
+    x: number;
+    y: number;
 }

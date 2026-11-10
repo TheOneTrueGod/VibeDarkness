@@ -21,7 +21,8 @@ import {
     getSelectStepLungeDistance,
     selectConfirmAim,
 } from '../../../abilities/targeting';
-import { drawClampedLine, drawFacingIndicator } from '../../../abilities/previewHelpers';
+import { drawClampedLine, drawFacingIndicator, drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
+import { cellsAroundPoint } from '../../../hitboxes/TileAreaHitboxSpec';
 import { resolveAbilitySourceUnits } from '../../../abilities/abilitySourceUnits';
 import { getUnitAtPosition } from '../../../abilities/targeting';
 import { areEnemies } from '../../teams';
@@ -86,6 +87,9 @@ function renderLungeIndicator(
  * Candidates are sorted by distance to the effective aim point before highlight slicing.
  */
 /** Draw confirm-radius preview at ability source (pet when abilitySource is pet). */
+/** Green confirm telegraph (same colours as the confirm circle). */
+const CONFIRM_TILE_STYLE = { color: 0x86efac, lineWidth: 2, fillAlpha: 0.14, strokeAlpha: 0.8 };
+
 function renderConfirmRadiusTargetDef(
     gr: IAbilityPreviewGraphics,
     ability: AbilityStatic,
@@ -95,6 +99,10 @@ function renderConfirmRadiusTargetDef(
 ): void {
     const sources = resolveAbilitySourceUnits(ability, caster, engine.units);
     const origin = sources[0] ?? caster;
+    if (def.tileShape) {
+        drawTileAreaTelegraph(gr, cellsAroundPoint(origin, def.tileShape), CONFIRM_TILE_STYLE);
+        return;
+    }
     gr.circle(origin.x, origin.y, def.radius);
     gr.stroke({ color: 0x86efac, width: 2, alpha: 0.75 });
     gr.circle(origin.x, origin.y, def.radius);

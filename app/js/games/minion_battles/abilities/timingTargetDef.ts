@@ -3,6 +3,7 @@ import type { Unit } from '../game/units/Unit';
 import type { ResolvedTarget } from '../game/types';
 import type { SelectStepLunge } from './stepLunge';
 import type { UnitTag } from '../game/units/unitTag';
+import type { TileOffset } from '../hitboxes/TileAreaHitboxSpec';
 
 /** AI auto-resolution for a select step (see `buildAiSelectTargets`). */
 export type SelectTargetAiHint =
@@ -153,6 +154,11 @@ export interface ConfirmRadiusTargetDef {
     label: string;
     /** Preview circle radius in world px. */
     radius: number;
+    /**
+     * Tile footprint to preview instead of the circle: these offsets around the source's tile (e.g. a
+     * `tileShapes.disc` shared with the ability's tile-based payoff, so the preview shows the exact tiles).
+     */
+    tileShape?: readonly TileOffset[];
     /** When true (default), any click confirms. */
     allowMiss?: boolean;
 }
