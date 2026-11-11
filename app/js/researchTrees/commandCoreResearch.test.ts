@@ -15,7 +15,7 @@ import {
 } from './trees/command_core';
 
 describe('command core research', () => {
-    it('getPetAbilitiesFromResearch returns Fling Thorn for Mimic Thorn', () => {
+    it('getPetAbilitiesFromResearch returns Fling Thorns for Mimic Thorn', () => {
         const research = {
             [COMMAND_CORE_TREE_ID]: [COMMAND_CORE_NODE_LOYAL_COMPANION, COMMAND_CORE_NODE_MIMIC_THORN],
         };

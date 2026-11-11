@@ -79,6 +79,11 @@ export class PetRelocateBehaviour implements CastBehaviour {
         pet.x = payload.sx + (payload.tx - payload.sx) * eased;
         pet.y = payload.sy + (payload.ty - payload.sy) * eased;
     }
+
+    getHeldUnitIds(behaviourPayload: unknown): readonly string[] {
+        const payload = behaviourPayload as RelocatePayload | null | undefined;
+        return payload ? [payload.petId] : [];
+    }
 }
 
 interface SpinPayload {
@@ -134,5 +139,10 @@ export class PetSpinBehaviour implements CastBehaviour {
         if (!payload) return null;
         const offset = this.spinOffset(ctx.windowProgress, payload.seconds);
         return [{ unitId: payload.petId, ...offset }];
+    }
+
+    getHeldUnitIds(behaviourPayload: unknown): readonly string[] {
+        const payload = behaviourPayload as SpinPayload | null | undefined;
+        return payload ? [payload.petId] : [];
     }
 }

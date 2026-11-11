@@ -94,7 +94,7 @@ export const commandCoreTree: ResearchTreeDef = {
         {
             id: COMMAND_CORE_NODE_MIMIC_THORN,
             title: 'Mimic Thorn',
-            description: 'Order your spirit to {Fling Thorn}: a short-range fan of thorns sprayed wherever you aim it.',
+            description: 'Order your spirit to {Fling Thorns}: a quick spray of short-range thorns wherever you aim it.',
             flavorText: 'It watched the glowing insects. It learned.',
             order: 20,
             tier: 11,

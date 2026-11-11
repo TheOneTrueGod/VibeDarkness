@@ -14,7 +14,7 @@ function makeUnit(id: string, x: number, y: number, characterId: string): Unit {
     return new Unit({ id, x, y, hp: 100, maxHp: 100, speed: 100, teamId: 'player', ownerId: 'p1', characterId, name: id });
 }
 
-describe('Fling Thorn command 0714', () => {
+describe('Fling Thorns command 0714', () => {
     it('aims round the spirit: an anchored select clamped to the thorn range', () => {
         const ability = getAbility(FLING_THORN_COMMAND_ID)!;
         const defs = getInteractiveTargetDefsFromTimings(ability);
@@ -28,7 +28,7 @@ describe('Fling Thorn command 0714', () => {
         expect(ability.abilitySource).toEqual({ type: 'pet', selector: 'nearest' });
     });
 
-    it("orders the owner's spirit to fire Fling Thorn at the picked point", () => {
+    it("orders the owner's spirit to fire Fling Thorns at the picked point", () => {
         const owner = makeUnit('owner', 0, 0, 'hero');
         const spirit = makeUnit('spirit', 60, 0, 'dog');
         petStateOf(spirit).ownerUnitId = owner.id;

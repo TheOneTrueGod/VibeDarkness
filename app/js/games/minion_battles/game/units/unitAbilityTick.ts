@@ -167,69 +167,120 @@ function fireIntervalEntry(
     }
 
     // --- castBehaviours onSetup / activeCastBehaviours registration ---
+    // Entries that start later than the interval (a numeric, '%' or 'end' timingStart) wait for
+    // startDeferredCastBehaviours, which starts them on the tick their start time is crossed.
     const effectiveBehaviours = getEffectiveCastBehaviours(interval);
     if (effectiveBehaviours) {
         for (let bIdx = 0; bIdx < effectiveBehaviours.length; bIdx++) {
             const entry = effectiveBehaviours[bIdx]!;
-            const behaviourKey = `${interval.id}_${bIdx}`;
-            const resolvedStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
-            const resolvedEnd = entry.timingEnd !== undefined
-                ? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)
-                : null;
-
-            const target = resolveCastBehaviourTarget(entry, interval, active, unit, ability, engine);
-
-            if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
-
-            const setupCtx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext = {
-                caster: unit,
-                abilityId: active.abilityId,
-                abilityMode: resolveActiveAbilityMode(active, ability),
-                target,
-                allTargets: active.targets,
-                castPayload: active.castPayload,
-                behaviourPayload: active.castBehaviourPayloads[behaviourKey],
-                setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
-                engine,
-                onProjectileHit: interval.onProjectileHit,
-                windowSeconds: Math.max(0, (resolvedEnd ?? interval.end) - resolvedStart),
-            };
-            if (!active.setupFiredBehaviourKeys) active.setupFiredBehaviourKeys = new Set();
-            if (!active.setupFiredBehaviourKeys.has(behaviourKey)) {
-                active.setupFiredBehaviourKeys.add(behaviourKey);
-                entry.behaviour.onSetup?.(setupCtx);
-            }
-
-            if (resolvedEnd !== null) {
-                unit.activeCastBehaviours.set(behaviourKey, {
-                    entry,
-                    intervalStart: resolvedStart,
-                    intervalEnd: resolvedEnd,
-                    caster: unit,
-                    active,
-                    targetDef: interval.targetDef,
-                    onProjectileHit: interval.onProjectileHit,
-                    fireOnHitAtFirstTick: !entry.behaviour.handlesOnProjectileHit && (interval.onProjectileHit?.length ?? 0) > 0,
-                });
-            } else {
-                const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
-                    caster: unit,
-                    abilityId: active.abilityId,
-                    abilityMode: resolveActiveAbilityMode(active, ability),
-                    target,
-                    allTargets: active.targets,
-                    castPayload: active.castPayload,
-                    behaviourPayload: active.castBehaviourPayloads[behaviourKey],
-                    setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
-                    engine,
-                    windowProgress: 0,
-                    prevWindowProgress: 0,
-                    isFirstTick: true,
-                    isLastTick: true,
-                };
-                entry.behaviour.onTick?.(tickCtx);
-            }
+            if (castBehaviourStartsLate(entry, interval) !== null) continue;
+            startCastBehaviourEntry(interval, entry, bIdx, active, unit, ability, engine);
         }
+    }
+}
+
+/** The entry's start time when it is later than its interval's start (started by startDeferredCastBehaviours), else null. */
+function castBehaviourStartsLate(entry: CastBehaviourEntry, interval: AbilityTimingInterval): number | null {
+    const resolvedStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
+    return resolvedStart > interval.start + BOUNDARY_EPSILON ? resolvedStart : null;
+}
+
+/**
+ * Start the cast behaviour entries whose own start time (past their interval's start) falls in
+ * (prevTime, currentTime]: run onSetup, then register the sustained window or run the one-shot tick.
+ * This is what staggers one-shot entries inside one interval, e.g. `timingStart: i * 0.2` launches.
+ * `setupFiredBehaviourKeys` (serialized) keeps each entry to one start across snapshot restores.
+ */
+function startDeferredCastBehaviours(
+    intervals: AbilityTimingInterval[],
+    active: ActiveAbility,
+    unit: Unit,
+    ability: AbilityStatic,
+    engine: EngineContext,
+    prevTime: number,
+    currentTime: number,
+): void {
+    for (const interval of intervals) {
+        const behaviours = getEffectiveCastBehaviours(interval);
+        if (!behaviours) continue;
+        for (let bIdx = 0; bIdx < behaviours.length; bIdx++) {
+            const entry = behaviours[bIdx]!;
+            const start = castBehaviourStartsLate(entry, interval);
+            if (start === null) continue;
+            if (!(prevTime < start && start <= currentTime + BOUNDARY_EPSILON)) continue;
+            if (active.setupFiredBehaviourKeys?.has(`${interval.id}_${bIdx}`)) continue;
+            startCastBehaviourEntry(interval, entry, bIdx, active, unit, ability, engine);
+        }
+    }
+}
+
+/** onSetup for one cast behaviour entry, then its sustained registration or its one-shot tick. */
+function startCastBehaviourEntry(
+    interval: AbilityTimingInterval,
+    entry: CastBehaviourEntry,
+    bIdx: number,
+    active: ActiveAbility,
+    unit: Unit,
+    ability: AbilityStatic,
+    engine: EngineContext,
+): void {
+    const behaviourKey = `${interval.id}_${bIdx}`;
+    const resolvedStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
+    const resolvedEnd = entry.timingEnd !== undefined
+        ? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)
+        : null;
+
+    const target = resolveCastBehaviourTarget(entry, interval, active, unit, ability, engine);
+
+    if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
+
+    const setupCtx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext = {
+        caster: unit,
+        abilityId: active.abilityId,
+        abilityMode: resolveActiveAbilityMode(active, ability),
+        target,
+        allTargets: active.targets,
+        castPayload: active.castPayload,
+        behaviourPayload: active.castBehaviourPayloads[behaviourKey],
+        setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
+        engine,
+        onProjectileHit: interval.onProjectileHit,
+        windowSeconds: Math.max(0, (resolvedEnd ?? interval.end) - resolvedStart),
+    };
+    if (!active.setupFiredBehaviourKeys) active.setupFiredBehaviourKeys = new Set();
+    if (!active.setupFiredBehaviourKeys.has(behaviourKey)) {
+        active.setupFiredBehaviourKeys.add(behaviourKey);
+        entry.behaviour.onSetup?.(setupCtx);
+    }
+
+    if (resolvedEnd !== null) {
+        unit.activeCastBehaviours.set(behaviourKey, {
+            entry,
+            intervalStart: resolvedStart,
+            intervalEnd: resolvedEnd,
+            caster: unit,
+            active,
+            targetDef: interval.targetDef,
+            onProjectileHit: interval.onProjectileHit,
+            fireOnHitAtFirstTick: !entry.behaviour.handlesOnProjectileHit && (interval.onProjectileHit?.length ?? 0) > 0,
+        });
+    } else {
+        const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
+            caster: unit,
+            abilityId: active.abilityId,
+            abilityMode: resolveActiveAbilityMode(active, ability),
+            target,
+            allTargets: active.targets,
+            castPayload: active.castPayload,
+            behaviourPayload: active.castBehaviourPayloads[behaviourKey],
+            setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
+            engine,
+            windowProgress: 0,
+            prevWindowProgress: 0,
+            isFirstTick: true,
+            isLastTick: true,
+        };
+        entry.behaviour.onTick?.(tickCtx);
     }
 }
 
@@ -514,6 +565,9 @@ export function tickUnitActiveAbilities(
                 }
             }
         }
+
+        // castBehaviours whose own start time is crossed this tick (staggered one-shots, late windows).
+        startDeferredCastBehaviours(intervals, active, unit, ability, engine, prevTime, currentTime);
 
         // castBehaviours: interval exit (sustained)
         for (const interval of intervals) {

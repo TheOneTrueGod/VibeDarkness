@@ -11,6 +11,7 @@ import { areAllies } from '../teams';
 import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
 import { runUnitAI, getUnitAITree } from '../units/unitAI';
+import { isUnitHeldByCast } from '../units/castHold';
 import { tickSpawnAnimation } from '../units/spawnAnimation';
 import { tickTerrainHazard } from '../terrainHazards/drowning';
 import { getUnitTravelSpeedPx, tickUnitFrozenUpkeep } from '../units/unitMovementTick';
@@ -373,10 +374,12 @@ export class UnitManager {
         tickPerformanceTracker.measure([PERF_UNITS_CROWD_SPACING], () => {
             engine.crowdSpacingManager.tick(this.units, engine.terrainManager, dt, engine.gameTime);
         });
-        // Phase 3: AI decisions (all positions settled). Once per tick; frozen units do not think.
+        // Phase 3: AI decisions (all positions settled). Once per tick; frozen units do not think, and
+        // neither do units another unit's cast is holding (e.g. a pet pinned by its owner's Spirit Storm).
         tickPerformanceTracker.measure([PERF_UNITS_AI], () => {
             for (const unit of this.units) {
                 if (!unit.active || unit.localFrozen || unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive() || unit.isSpawning()) continue;
+                if (isUnitHeldByCast(unit, this.units)) continue;
                 const tree = getUnitAITree(unit.unitAITreeId);
                 if (tree) runUnitAI(unit, tree, aiContext);
                 unit.pendingInterrupts.clear();

@@ -1,6 +1,6 @@
 /**
- * Fling Thorn — player command card. The player picks an aim point round the spirit (an anchored select,
- * `anchorUnit: 'casterPet'`), and the spirit fires its thorn fan (0705) that way. Same pattern as
+ * Fling Thorns — player command card. The player picks an aim point round the spirit (an anchored select,
+ * `anchorUnit: 'casterPet'`), and the spirit flings its thorns (0705) that way. Same pattern as
  * Sic 'em (0704 → Pounce 0702) and Bramble Patch (0707 → 0706). With no living spirit the cast fizzles.
  * Mimic Thorn research grants this card and the spirit's 0705.
  */
@@ -17,11 +17,11 @@ import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abil
 import { resolveCasterPetAnchor } from '../../../abilities/targeting';
 import { nullHitbox } from '../../../hitboxes';
 import {
-    drawFlingThornFan,
+    drawFlingThornsCone,
     FLING_THORN_ABILITY_ID,
+    FLING_THORN_COUNT,
     FLING_THORN_DAMAGE,
     FLING_THORN_MAX_DISTANCE,
-    FLING_THORN_SPREAD,
 } from '../0705_FlingThorn/0705Ability';
 
 export const FLING_THORN_COMMAND_ID = `${formatGroupId(AbilityGroupId.Command)}14`;
@@ -32,7 +32,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 const CAST_DURATION = 0.1;
-const COOLDOWN_DURATION = 0.4;
+/** Recovery on the owner, so the spirit's windup and thorns play out during the command. */
+const COOLDOWN_DURATION = 0.6;
 
 const FLING_THORN_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const };
 
@@ -81,7 +82,7 @@ const FLING_THORN_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns
 
 export const FlingThornCommandAbility_0714 = defineAbility({
     id: FLING_THORN_COMMAND_ID,
-    name: 'Fling Thorn',
+    name: 'Fling Thorns',
     image: FLING_THORN_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -98,11 +99,11 @@ export const FlingThornCommandAbility_0714 = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Order your spirit to spray {${FLING_THORN_SPREAD.length}} thorns in a short fan toward the target point, each dealing {${FLING_THORN_DAMAGE}} damage.`,
+            `Order your spirit to fling {${FLING_THORN_COUNT}} thorns in quick succession toward the target point, each dealing {${FLING_THORN_DAMAGE}} damage.`,
         ];
     },
 
-    // The fan from the spirit toward the pointer (the anchored select draws the clamped aim line).
+    // The thorn cone from the spirit toward the pointer (the anchored select draws the clamped aim line).
     renderTargetingPreviewSelectedTargets(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
@@ -113,7 +114,7 @@ export const FlingThornCommandAbility_0714 = defineAbility({
     ): void {
         const pet = engine ? resolveCasterPetAnchor(caster, engine) : null;
         if (!pet) return;
-        drawFlingThornFan(gr, pet, mouseWorld, 0.7);
+        drawFlingThornsCone(gr, pet, mouseWorld, 0.7);
     },
 });
 

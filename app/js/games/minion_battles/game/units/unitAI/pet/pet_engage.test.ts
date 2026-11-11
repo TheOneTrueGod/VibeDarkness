@@ -48,7 +48,7 @@ function makeEnemy(x: number, y: number): Unit {
 }
 
 describe('pet_engage ability pick', () => {
-    it('casts nothing from max distance: no Fling Thorn on its own, and no out-of-range bite', () => {
+    it('casts nothing from max distance: no Fling Thorns on its own, and no out-of-range bite', () => {
         const pet = makeUnit({ x: 0, y: 0 });
         const enemy = makeEnemy(150, 0); // within FLING_THORN_MAX_DISTANCE, outside melee
         expect(150).toBeLessThanOrEqual(FLING_THORN_MAX_DISTANCE);
@@ -91,7 +91,7 @@ describe('pet_engage ability pick', () => {
         expect(queued).toEqual([]);
     });
 
-    it('queues Dog Bite in melee (Fling Thorn is never an auto pick)', () => {
+    it('queues Dog Bite in melee (Fling Thorns is never an auto pick)', () => {
         const pet = makeUnit({ x: 0, y: 0 });
 
         const enemy = makeEnemy(30, 0);

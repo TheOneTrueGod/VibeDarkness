@@ -114,6 +114,12 @@ export interface CastBehaviour {
      * anchored on them (hit areas, effects) stays put.
      */
     getUnitRenderOffsets?(context: CastBehaviourRenderContext): readonly UnitRenderOffset[] | null;
+    /**
+     * Units this behaviour drives while its window runs (e.g. the caster's pet, relocated or pinned for a
+     * spin), read from the behaviour's payload. A held unit is busy: its AI does not run and pet reactions
+     * skip it, so it starts no cast of its own until the window ends. See `isUnitHeldByCast`.
+     */
+    getHeldUnitIds?(behaviourPayload: unknown): readonly string[];
 }
 
 /** A render-only offset for one unit (see `CastBehaviour.getUnitRenderOffsets`). */

@@ -16,10 +16,14 @@ import { petStateOf } from './components/petComponent';
 import { getPetDef } from './pet_defs/petDef';
 import { commandPetAbility } from '../../abilities/petCommands';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
+import { isUnitHeldByCast } from './castHold';
 
-/** A pet is busy while any cast is still running (its cooldown included). */
-export function isPetBusy(pet: Unit): boolean {
-    return pet.activeAbilities.length > 0;
+/**
+ * A pet is busy while any cast of its own is still running (its cooldown included), or while its
+ * owner's cast holds it (e.g. Spirit Storm's relocate and spin; see `isUnitHeldByCast`).
+ */
+export function isPetBusy(pet: Unit, units: readonly Unit[]): boolean {
+    return pet.activeAbilities.length > 0 || isUnitHeldByCast(pet, units);
 }
 
 /** Handle one `attack_hit`: fire every matching `ownerWeaponHit` reaction. */
@@ -29,7 +33,7 @@ export function handlePetReactionsOnAttackHit(engine: AbilityEngineContext, even
     const target = engine.getUnit(event.targetUnitId);
     if (!target?.isAlive()) return;
     for (const pet of getLivingPetsOfUnit(owner, engine.units)) {
-        if (isPetBusy(pet)) continue;
+        if (isPetBusy(pet, engine.units)) continue;
         const defId = petStateOf(pet).defId;
         const reactions = defId ? getPetDef(defId)?.reactions ?? [] : [];
         for (const reaction of reactions) {

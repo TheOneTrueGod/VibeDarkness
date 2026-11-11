@@ -66,6 +66,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private spriteConfig?: SpriteProjectileConfig;
     private particleTrail?: ProjectileParticleTrailDef;
     private aimOffsetDeg = 0;
+    private randomSpreadDeg = 0;
     private maxRange: number = 200;
     private baseDamage: number = 0;
     private resolveDamage: DamageResolver | null = null;
@@ -110,10 +111,20 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
 
     /**
      * Rotate the aim by this many degrees (positive = clockwise on screen). Several launches with spread
-     * offsets on one interval make a shotgun fan (e.g. Fling Thorn). Applies to both target and fixed aims.
+     * offsets on one interval make a shotgun fan. Applies to both target and fixed aims.
      */
     withAimOffset(deg: number): this {
         this.aimOffsetDeg = deg;
+        return this;
+    }
+
+    /**
+     * Rotate the aim by a random angle in [-halfAngleDeg, +halfAngleDeg] each launch, rolled from the
+     * engine's seeded RNG (deterministic across clients). Stacks with `withAimOffset`. Several launches
+     * staggered across a window (numeric `timingStart` offsets) make a spray, e.g. Fling Thorns.
+     */
+    withRandomAimSpread(halfAngleDeg: number): this {
+        this.randomSpreadDeg = halfAngleDeg;
         return this;
     }
 
@@ -292,8 +303,13 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             travelDistance = this.travelFullRange ? this.maxRange : Math.min(toTarget.dist, this.maxRange);
         }
 
-        if (this.aimOffsetDeg !== 0) {
-            const rad = (this.aimOffsetDeg * Math.PI) / 180;
+        let offsetDeg = this.aimOffsetDeg;
+        if (this.randomSpreadDeg > 0) {
+            const roll = engine.generateRandomInteger(0, 10000) / 10000;
+            offsetDeg += (roll * 2 - 1) * this.randomSpreadDeg;
+        }
+        if (offsetDeg !== 0) {
+            const rad = (offsetDeg * Math.PI) / 180;
             const cos = Math.cos(rad);
             const sin = Math.sin(rad);
             const rx = dirX * cos - dirY * sin;

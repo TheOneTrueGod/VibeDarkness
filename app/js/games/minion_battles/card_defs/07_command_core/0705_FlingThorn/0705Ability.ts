@@ -1,8 +1,9 @@
 /**
- * Fling Thorn — the spirit's thorn shotgun. Quick windup, then a fan of short-range thorns toward the
- * aim point, each its own projectile.
+ * Fling Thorns — the spirit's thorn spray. A small Command spell circle winds up round the spirit, then
+ * it flings its thorns one after another toward the aim point, each at a random angle inside a short
+ * cone (like the SMG), and holds a beat afterwards so the spray reads.
  *
- * Pet-only and ordered: no aiSettings, so the pet AI never fires it on its own. The player's Fling Thorn
+ * Pet-only and ordered: no aiSettings, so the pet AI never fires it on its own. The player's Fling Thorns
  * card (0714) picks an aim point round the spirit and commands it (like Sic 'em → Pounce). Restored only
  * by the commandCharge that card pre-grants. Granted (with the card) by Mimic Thorn research.
  */
@@ -26,20 +27,30 @@ import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 import { getThemeById, themeGlowPair } from '../../../themes/abilityTheme';
 import { PROJECTILE_PARTICLE_TRAIL_PRESETS } from '../../../game/effects/projectileParticleTrails';
+import { SPELL_CIRCLE_STYLE_COMMAND } from '../../../game/spellCircles/spellCircles';
+import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 
 export const FLING_THORN_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}05`;
 
-const LOCK_TIME = 0.5;
-const PREFIRE_TIME = 0.4;
-/** Short window so ProjectileLaunch (fires at window open) lands the shot at PREFIRE_TIME. */
-const FIRE_END = PREFIRE_TIME + 0.1;
-const COOLDOWN_END = FIRE_END + 0.3;
-const PROJECTILE_SPEED = 700;
+/** Spell circle windup on the spirit before the first thorn. */
+const WINDUP = 0.6;
+const PREFIRE_TIME = WINDUP;
+/** Number of thorns, one projectile each. */
+export const FLING_THORN_COUNT = 5;
+/** Seconds between consecutive thorns. */
+const THORN_INTERVAL = 0.2;
+/** Each thorn's random aim offset lies in [-spread, +spread] degrees. */
+export const FLING_THORN_SPREAD_DEG = 18;
+/** Padding past the last thorn so the fixed-tick sampler can't step over it (see defineGunAbility). */
+const FIRE_END = WINDUP + (FLING_THORN_COUNT - 1) * THORN_INTERVAL + 0.05;
+/** Recovery after the last thorn, so the spray is seen before the spirit moves on. */
+const COOLDOWN_END = FIRE_END + 0.6;
+const PROJECTILE_SPEED = 650;
 export const FLING_THORN_MAX_DISTANCE = 200;
 /** Damage per thorn. */
 export const FLING_THORN_DAMAGE = 2;
-/** Aim offsets (degrees) of the thorns in the fan; one projectile each. */
-export const FLING_THORN_SPREAD = [-24, -12, 0, 12, 24] as const;
+/** A small circle, sized to the spirit rather than a hero cast. */
+const SPELL_CIRCLE_RADIUS = 0.8 * CELL_SIZE;
 /** The spirit's lime (the lighter Command colour). */
 const THORN_COLOR = themeGlowPair(getThemeById('command')).light;
 const MAX_USES = 1;
@@ -48,16 +59,16 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 const TOOLTIP_LINES = [
-    'Spray {{COUNT}} thorns in a short fan, each dealing {{DAMAGE}} damage',
+    'Fling {{COUNT}} thorns in quick succession across a short cone, each dealing {{DAMAGE}} damage',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: FLING_THORN_DAMAGE },
-    COUNT: { kind: 'plain', value: FLING_THORN_SPREAD.length },
+    COUNT: { kind: 'plain', value: FLING_THORN_COUNT },
 };
 
-/** Draw the thorn fan from `from` toward `aim`: one line per thorn, FLING_THORN_MAX_DISTANCE long. */
-export function drawFlingThornFan(
+/** Draw the thorn cone from `from` toward `aim`: a centre line and the two spread edges, FLING_THORN_MAX_DISTANCE long. */
+export function drawFlingThornsCone(
     gr: IAbilityPreviewGraphics,
     from: { x: number; y: number },
     aim: { x: number; y: number },
@@ -65,19 +76,19 @@ export function drawFlingThornFan(
 ): void {
     const { dirX: ux, dirY: uy, dist } = getDirectionFromTo(from.x, from.y, aim.x, aim.y);
     if (dist === 0) return;
-    for (const offset of FLING_THORN_SPREAD) {
+    for (const offset of [-FLING_THORN_SPREAD_DEG, 0, FLING_THORN_SPREAD_DEG]) {
         const rad = (offset * Math.PI) / 180;
         const dx = ux * Math.cos(rad) - uy * Math.sin(rad);
         const dy = ux * Math.sin(rad) + uy * Math.cos(rad);
         gr.moveTo(from.x, from.y);
         gr.lineTo(from.x + dx * FLING_THORN_MAX_DISTANCE, from.y + dy * FLING_THORN_MAX_DISTANCE);
-        gr.stroke({ color: THORN_COLOR, width: offset === 0 ? 2 : 1.5, alpha });
+        gr.stroke({ color: THORN_COLOR, width: offset === 0 ? 2 : 1.5, alpha: offset === 0 ? alpha : alpha * 0.6 });
     }
 }
 
 export const FlingThornAbility_0705: AbilityStatic = defineAbility({
     id: FLING_THORN_ABILITY_ID,
-    name: 'Fling Thorn',
+    name: 'Fling Thorns',
     image: '',
     resourceCost: null,
     rechargeTurns: 0,
@@ -85,21 +96,34 @@ export const FlingThornAbility_0705: AbilityStatic = defineAbility({
     recoveries: RECOVERIES,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
-        { id: 'aim', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'charge', start: LOCK_TIME, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Active, doNotRefund: true },
+        {
+            id: 'windup',
+            start: 0,
+            end: WINDUP,
+            abilityPhase: AbilityPhase.Windup,
+            castBehaviours: [
+                {
+                    timingStart: 'start',
+                    timingEnd: 'end',
+                    behaviour: CastBehaviours.SpellCircle({ style: SPELL_CIRCLE_STYLE_COMMAND, radius: SPELL_CIRCLE_RADIUS }),
+                },
+            ],
+        },
         {
             id: 'fire',
-            start: PREFIRE_TIME,
+            start: WINDUP,
             end: FIRE_END,
             abilityPhase: AbilityPhase.Active,
-            castBehaviours: FLING_THORN_SPREAD.map((offset) => ({
-                timingStart: 'start' as const,
+            doNotRefund: true,
+            // Staggered launches (numeric offsets from the window start), each with its own random angle.
+            castBehaviours: Array.from({ length: FLING_THORN_COUNT }, (_, i) => ({
+                timingStart: i * THORN_INTERVAL,
                 behaviour: CastBehaviours.ProjectileLaunch()
                     .withSpeed(PROJECTILE_SPEED)
                     .withMaxRange(FLING_THORN_MAX_DISTANCE)
                     .withTravelFullRange()
                     .withBaseDamage(FLING_THORN_DAMAGE)
-                    .withAimOffset(offset)
+                    .withRandomAimSpread(FLING_THORN_SPREAD_DEG)
                     .withParticleTrail(PROJECTILE_PARTICLE_TRAIL_PRESETS.spiritMotes()),
             })),
         },
@@ -136,7 +160,6 @@ export const FlingThornAbility_0705: AbilityStatic = defineAbility({
             : getPixelTargetPosition(activeAbility.targets, 0);
         if (!target) return;
 
-        const progress = elapsed < LOCK_TIME ? elapsed / LOCK_TIME : 1;
-        drawFlingThornFan(gr, caster, target, 0.25 + 0.45 * progress);
+        drawFlingThornsCone(gr, caster, target, 0.25 + 0.45 * (elapsed / WINDUP));
     },
 });
