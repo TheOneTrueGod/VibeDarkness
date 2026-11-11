@@ -10,7 +10,7 @@ import {
     type ResearchContext,
 } from '../../../../researchTrees/evaluator';
 import { getResearchNode } from '../../../../researchTrees/list';
-import { getNodeLevel } from '../../../../researchTrees/passiveBonuses';
+import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
 import { ResearchSource, type ResearchNodeDef, type ResearchTreeDef } from '../../../../researchTrees/types';
 
 /** Fallback when a node has no `tier` so sort order stays stable. */
@@ -228,8 +228,9 @@ export function researchGridEntryKey(entry: ResearchGridEntry): string {
 }
 
 /**
- * Unowned nodes whose prereqs and non-cost requirements are met.
- * Already-purchased nodes (including multi-level) stay in possessed, not here.
+ * Nodes whose next rank can be researched (prereqs and non-cost requirements met): unowned nodes, plus
+ * owned multi-rank nodes below their max rank (rank N owned → rank N+1 is eligible; the card shows the
+ * next rank's cost). Owned nodes also stay in possessed; fully ranked nodes appear only there.
  * Equipment-tagged trees (Weapons) sort after all others.
  */
 export function collectEligibleResearchGridEntries(
@@ -257,7 +258,7 @@ export function collectEligibleResearchGridEntries(
                 ctx.character.researchTrees,
                 ctx.character.researchNodeLevels,
             );
-            if (currentLevel > 0) continue;
+            if (currentLevel >= getNodeMaxLevels(node)) continue;
             if (node.exclusiveWithNodeIds.some((exId) => allResearchedNodeIds.has(exId))) continue;
             if (!node.prereqNodeIds.every((id) => researchedSet.has(id))) continue;
             if (!meetsAll(node.requirements, ctxEffective, researchedByTree)) continue;

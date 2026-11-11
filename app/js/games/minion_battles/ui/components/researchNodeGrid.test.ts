@@ -316,6 +316,20 @@ describe('collectEligibleResearchGridEntries', () => {
         expect(ids).not.toContain(TRAINING_NODE_CORE);
     });
 
+    it('offers the next rank of an owned multi-rank node until it is maxed', () => {
+        const ctxAt = (level: number) => {
+            const ctx = makeCtx({ [TRAINING_TREE_ID]: [TRAINING_NODE_CORE, TRAINING_NODE_HEALTHY] });
+            ctx.character = fromCampaignCharacterData({
+                ...ctx.character,
+                researchNodeLevels: { [TRAINING_TREE_ID]: { [TRAINING_NODE_HEALTHY]: level } },
+            } as unknown as Parameters<typeof fromCampaignCharacterData>[0]);
+            return collectEligibleResearchGridEntries([trainingTree], TRAINING_TREE_ID, ctx).map((e) => e.node.id);
+        };
+        expect(ctxAt(1)).toContain(TRAINING_NODE_HEALTHY);
+        expect(ctxAt(TRAINING_HEALTHY_LEVELS - 1)).toContain(TRAINING_NODE_HEALTHY);
+        expect(ctxAt(TRAINING_HEALTHY_LEVELS)).not.toContain(TRAINING_NODE_HEALTHY);
+    });
+
     it('excludes nodes that fail non-cost requirements', () => {
         const ids = eligibleIds({}, { knowledge: false, core: true });
         expect(ids).not.toContain(TRAINING_NODE_CORE);
