@@ -20,7 +20,6 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import { createPetSourcedMovementPreview } from '../../../abilities/previewHelpers';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import { nullHitbox } from '../../../hitboxes';
-import sicEmIconUrl from './sic_em.png';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}04`;
 const MAX_USES = 2;
@@ -64,7 +63,16 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'cooldown', start: CAST_DURATION, end: CAST_DURATION + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
 ];
 
-const SICE_EM_IMAGE = `<img src="${sicEmIconUrl}" width="56" height="56" alt="" style="object-fit: contain; display: block; margin: 0 auto;" />`;
+/** Snarling jaws in the Command Core palette (teal disc, lime line art, white accent). */
+const SICE_EM_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="32" r="28" fill="#0f766e"/>
+  <path d="M15 22 Q32 15 49 22 L46 41 Q32 47 18 41 Z" fill="#042f2e"/>
+  <path d="M13 21 Q32 13 51 21 L49 26 Q32 20 15 26 Z" fill="#d9f99d"/>
+  <path d="M17 25 L20 36 L23 24 Z M24 23 L27 33 L30 22 Z M34 22 L37 33 L40 23 Z M41 24 L44 36 L47 25 Z" fill="#d9f99d"/>
+  <path d="M15 42 Q32 50 49 42 L48 46 Q32 54 16 46 Z" fill="#d9f99d"/>
+  <path d="M20 43 L23 35 L26 44 Z M28 45 L31 37 L34 45 Z M38 44 L41 35 L44 43 Z" fill="#d9f99d"/>
+  <path d="M29 22 L32 38 L35 22 Z" fill="#ffffff"/>
+</svg>`;
 
 const SIC_EM_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const, requireFree: true as const };
 
