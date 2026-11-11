@@ -15,9 +15,11 @@ import { CAST_PRIORITY } from '../../../game/units/castPriority';
 import type { Unit } from '../../../game/units/Unit';
 import { type CardDef } from '../../types';
 import {
-    BRAMBLE_PATCH_RADIUS,
-    BRAMBLE_PATCH_SHAPE,
+    BRAMBLE_PATCH_HALF_WIDTH,
     BRAMBLE_PATCH_STRIKE_ID,
+    bramblePatchHalfWidth,
+    bramblePatchRadius,
+    bramblePatchShape,
     BRAMBLE_PATCH_KNOCKBACK_TIER,
     BRAMBLE_PATCH_WINDUP,
     drawBramblePatchTelegraph,
@@ -47,37 +49,51 @@ const COOLDOWN_END = CAST_ACTIVE_END + 0.4;
 
 const BRAMBLE_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const, requireFree: true as const };
 
-const ABILITY_TIMINGS: AbilityTimingInterval[] = [
-    {
-        id: 'windup',
-        start: 0,
-        end: BRAMBLE_PATCH_CONFIRM_AT,
-        abilityPhase: AbilityPhase.Windup,
-    },
-    {
-        id: 'confirm',
-        start: BRAMBLE_PATCH_CONFIRM_AT,
-        end: CONFIRM_END,
-        abilityPhase: AbilityPhase.Active,
-        doNotRefund: true,
-        targetDef: {
-            kind: 'confirmRadius',
-            label: 'Confirm radius',
-            radius: BRAMBLE_PATCH_RADIUS,
-            tileShape: BRAMBLE_PATCH_SHAPE,
-            allowMiss: true,
+/** The card's timeline; the confirm step shows a slam of `halfWidth` (3x3 base, 5x5 with Overgrowth). */
+function buildBramblePatchCommandTimings(halfWidth: number): AbilityTimingInterval[] {
+    return [
+        {
+            id: 'windup',
+            start: 0,
+            end: BRAMBLE_PATCH_CONFIRM_AT,
+            abilityPhase: AbilityPhase.Windup,
         },
-    },
-    {
-        id: 'resolve',
-        start: CONFIRM_END,
-        end: CAST_ACTIVE_END,
-        abilityPhase: AbilityPhase.Active,
-        doNotRefund: true,
-        // Pet was already commanded at cast start; this window only finishes the player timeline.
-    },
-    { id: 'cooldown', start: CAST_ACTIVE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
-];
+        {
+            id: 'confirm',
+            start: BRAMBLE_PATCH_CONFIRM_AT,
+            end: CONFIRM_END,
+            abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
+            targetDef: {
+                kind: 'confirmRadius',
+                label: 'Confirm radius',
+                radius: bramblePatchRadius(halfWidth),
+                tileShape: bramblePatchShape(halfWidth),
+                allowMiss: true,
+            },
+        },
+        {
+            id: 'resolve',
+            start: CONFIRM_END,
+            end: CAST_ACTIVE_END,
+            abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
+            // Pet was already commanded at cast start; this window only finishes the player timeline.
+        },
+        { id: 'cooldown', start: CAST_ACTIVE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
+    ];
+}
+
+/** Built once per size, so casts of the same size share one timeline. */
+const timingsByHalfWidth = new Map<number, AbilityTimingInterval[]>();
+function bramblePatchCommandTimings(halfWidth: number): AbilityTimingInterval[] {
+    let timings = timingsByHalfWidth.get(halfWidth);
+    if (!timings) {
+        timings = buildBramblePatchCommandTimings(halfWidth);
+        timingsByHalfWidth.set(halfWidth, timings);
+    }
+    return timings;
+}
 
 /** Thorny brambles sprouting from the ground, in the Command Core palette (teal disc, lime line art, white buds). */
 const BRAMBLE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -100,11 +116,15 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
     recoveries: RECOVERIES,
     prefireTime: BRAMBLE_PATCH_WINDUP,
     targets: [],
-    abilityTimings: ABILITY_TIMINGS,
+    abilityTimings: bramblePatchCommandTimings(BRAMBLE_PATCH_HALF_WIDTH),
+    // The owner carries the spirit's 0706 research modifier too, so the confirm matches the slam.
+    getAbilityTimings(caster) {
+        return bramblePatchCommandTimings(bramblePatchHalfWidth(caster));
+    },
     abilitySource: BRAMBLE_PET_SOURCE,
 
-    getRange(_caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: BRAMBLE_PATCH_RADIUS };
+    getRange(caster: Unit): { minRange: number; maxRange: number } {
+        return { minRange: 0, maxRange: bramblePatchRadius(bramblePatchHalfWidth(caster)) };
     },
 
     getTooltipText(): string[] {
@@ -155,6 +175,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
             gr,
             { x: ox, y: oy },
             elapsed >= BRAMBLE_PATCH_CONFIRM_AT ? null : elapsed / BRAMBLE_PATCH_CONFIRM_AT,
+            bramblePatchHalfWidth(caster),
         );
     },
 });

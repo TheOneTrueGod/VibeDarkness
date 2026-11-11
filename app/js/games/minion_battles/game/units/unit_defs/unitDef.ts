@@ -193,6 +193,11 @@ export interface UnitDefEntry {
      */
     rootedWhileCasting?: boolean;
     /**
+     * Draw the cast-state ring inside the body: a red ring fills while a cast winds up and strikes, then a
+     * thinner pale-red ring drains over its cooldown; no ring when ready. See `units/castStateRing.ts`.
+     */
+    castStateRing?: boolean;
+    /**
      * Bestiary listing. Every enemy needs one unless `hidden: true`. The section comes from
      * `creatureType` (dark_creature -> Dark Creatures, beast/nature -> Beasts, otherwise Other).
      */
@@ -514,6 +519,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         particleAura: BUFF_PARTICLE_AURA_PRESETS.spiritMotes(),
         ethereal: true,
         rootedWhileCasting: true,
+        castStateRing: true,
         bestiary: { abilityIds: ['0701'] },
         characterSpriteKey: 'dog',
         hp: 48,
@@ -1065,6 +1071,11 @@ export function paintUnitBody(body: Graphics, unit: Unit, bodyColor: number = ge
 /** Per-character spectral sprite look (undefined = draw the sprite normally). */
 export function getUnitSpectralSprite(characterId: string): SpectralSpriteDef | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.spectralSprite;
+}
+
+/** True when the character shows the cast-state ring (see `UnitDefEntry.castStateRing`). */
+export function hasCastStateRing(characterId: string): boolean {
+    return UNIT_DEFS[characterId as UnitDefId]?.castStateRing === true;
 }
 
 /** True when the character can't walk while casting (see `UnitDefEntry.rootedWhileCasting`). */

@@ -4,7 +4,7 @@ import { TerrainLayerManager } from '../TerrainLayerManager';
 import { Unit } from '../units/Unit';
 import { DEFAULT_UNIT_RADIUS } from '../units/unit_defs/unitConstants';
 import type { TeamId } from '../teams';
-import { TERRAIN_EFFECT_DEFS, type ThornsDef } from './terrainEffectDefs';
+import { getThornWearStage, TERRAIN_EFFECT_DEFS, type ThornsDef } from './terrainEffectDefs';
 import { triggerThorns, unitIsHurtByThorns } from './thorns';
 
 function unit(characterId: string): Unit {
@@ -23,7 +23,7 @@ function unit(characterId: string): Unit {
     });
 }
 
-const base = { enterDamage: 1, landDamage: 2, consumeOnTrigger: false };
+const base = { enterDamage: 1, landDamage: 2 };
 const engine = () => ({ gameTime: 0, terrainLayers: new TerrainLayerManager(), eventBus: new EventBus() });
 
 describe('unitIsHurtByThorns', () => {
@@ -51,5 +51,50 @@ describe('triggerThorns', () => {
     it('registers thorns defs for both shipped types', () => {
         expect(TERRAIN_EFFECT_DEFS.bramble_slow!.thorns).toBeDefined();
         expect(TERRAIN_EFFECT_DEFS.dark_thorn!.thorns).toBeDefined();
+    });
+});
+
+describe('thorn uses', () => {
+    function placeThorn(layers: TerrainLayerManager, effectType: string, params: Record<string, unknown> = {}) {
+        layers.add({
+            id: 't',
+            layer: 'ground',
+            effectType,
+            placedAtGameTime: 0,
+            area: { type: 'cell', col: 0, row: 0 },
+            params,
+        });
+        return () => layers.allEffects.get('t');
+    }
+
+    it('dark thorns and lanternite thorns break on their first prick', () => {
+        for (const [type, victim] of [['dark_thorn', 'player'], ['bramble_slow', 'dark_wolf']] as const) {
+            const eng = engine();
+            const current = placeThorn(eng.terrainLayers, type);
+            expect(triggerThorns(current()!, unit(victim), 'enter', eng)).toBe(true);
+            expect(current()).toBeUndefined();
+        }
+    });
+
+    it('a placement with thornUses 5 survives four pricks and breaks on the fifth, wearing as it goes', () => {
+        const eng = engine();
+        const shared = { slowMult: 0.5, thornUses: 5 };
+        const current = placeThorn(eng.terrainLayers, 'bramble_slow', shared);
+        const stages: number[] = [];
+        for (let i = 0; i < 4; i++) {
+            expect(triggerThorns(current()!, unit('dark_wolf'), 'enter', eng)).toBe(true);
+            stages.push(getThornWearStage(current()!, 4));
+        }
+        expect(stages).toEqual([1, 2, 3, 4]);
+        expect(shared).toEqual({ slowMult: 0.5, thornUses: 5 }); // other cells sharing the params are untouched
+        triggerThorns(current()!, unit('dark_wolf'), 'enter', eng);
+        expect(current()).toBeUndefined();
+    });
+
+    it('units the thorns ignore do not wear them', () => {
+        const eng = engine();
+        const current = placeThorn(eng.terrainLayers, 'bramble_slow', { thornUses: 5 });
+        expect(triggerThorns(current()!, unit('player'), 'enter', eng)).toBe(false);
+        expect(getThornWearStage(current()!, 4)).toBe(0);
     });
 });

@@ -9,7 +9,8 @@
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
-import { AbilityPhase } from '../../../abilities/abilityTimings';
+import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
+import { getCasterAbilityModifier, getRepeatCount } from '../../../abilities/abilityModifierScales';
 import type { ActiveAbility } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
@@ -42,9 +43,9 @@ const THORN_INTERVAL = 0.1;
 /** Each thorn's random aim offset lies in [-spread, +spread] degrees. */
 export const FLING_THORN_SPREAD_DEG = 18;
 /** Padding past the last thorn so the fixed-tick sampler can't step over it (see defineGunAbility). */
-const FIRE_END = WINDUP + (FLING_THORN_COUNT - 1) * THORN_INTERVAL + 0.05;
+const FIRE_PADDING = 0.05;
 /** Recovery after the last thorn, so the spray is seen before the spirit moves on. */
-const COOLDOWN_END = FIRE_END + 0.6;
+const COOLDOWN_SECONDS = 0.6;
 const PROJECTILE_SPEED = 650;
 export const FLING_THORN_MAX_DISTANCE = 200;
 /** Damage per thorn. */
@@ -86,16 +87,10 @@ export function drawFlingThornsCone(
     }
 }
 
-export const FlingThornAbility_0705: AbilityStatic = defineAbility({
-    id: FLING_THORN_ABILITY_ID,
-    name: 'Fling Thorns',
-    image: '',
-    resourceCost: null,
-    rechargeTurns: 0,
-    maxUses: MAX_USES,
-    recoveries: RECOVERIES,
-    prefireTime: PREFIRE_TIME,
-    abilityTimings: [
+/** The cast's timeline for `thornCount` thorns, `THORN_INTERVAL` apart. */
+function buildFlingThornTimings(thornCount: number): AbilityTimingInterval[] {
+    const fireEnd = WINDUP + (thornCount - 1) * THORN_INTERVAL + FIRE_PADDING;
+    return [
         {
             id: 'windup',
             start: 0,
@@ -112,11 +107,11 @@ export const FlingThornAbility_0705: AbilityStatic = defineAbility({
         {
             id: 'fire',
             start: WINDUP,
-            end: FIRE_END,
+            end: fireEnd,
             abilityPhase: AbilityPhase.Active,
             doNotRefund: true,
             // Staggered launches (numeric offsets from the window start), each with its own random angle.
-            castBehaviours: Array.from({ length: FLING_THORN_COUNT }, (_, i) => ({
+            castBehaviours: Array.from({ length: thornCount }, (_, i) => ({
                 timingStart: i * THORN_INTERVAL,
                 behaviour: CastBehaviours.ProjectileLaunch()
                     .withSpeed(PROJECTILE_SPEED)
@@ -127,8 +122,35 @@ export const FlingThornAbility_0705: AbilityStatic = defineAbility({
                     .withParticleTrail(PROJECTILE_PARTICLE_TRAIL_PRESETS.spiritMotes()),
             })),
         },
-        { id: 'cooldown', start: FIRE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
-    ],
+        { id: 'cooldown', start: fireEnd, end: fireEnd + COOLDOWN_SECONDS, abilityPhase: AbilityPhase.Cooldown },
+    ];
+}
+
+/** Built once per thorn count, so every cast with the same count shares one timeline. */
+const timingsByThornCount = new Map<number, AbilityTimingInterval[]>();
+function flingThornTimings(thornCount: number): AbilityTimingInterval[] {
+    let timings = timingsByThornCount.get(thornCount);
+    if (!timings) {
+        timings = buildFlingThornTimings(thornCount);
+        timingsByThornCount.set(thornCount, timings);
+    }
+    return timings;
+}
+
+export const FlingThornAbility_0705: AbilityStatic = defineAbility({
+    id: FLING_THORN_ABILITY_ID,
+    name: 'Fling Thorns',
+    image: '',
+    resourceCost: null,
+    rechargeTurns: 0,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
+    prefireTime: PREFIRE_TIME,
+    abilityTimings: flingThornTimings(FLING_THORN_COUNT),
+    // Extra thorns (`repeatCountFlat`, Thorn Volley) keep the same pace, so the cast runs longer.
+    getAbilityTimings(caster) {
+        return flingThornTimings(getRepeatCount(FLING_THORN_COUNT, getCasterAbilityModifier(caster, FLING_THORN_ABILITY_ID)));
+    },
     // Aimed by the owner's card (a pixel target); no aiSettings — only that card fires it.
     targets: [],
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: FLING_THORN_MAX_DISTANCE }),

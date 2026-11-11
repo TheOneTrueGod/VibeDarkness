@@ -12,28 +12,85 @@ export interface TerrainEffectVisualDef {
      * these values over `durationSec`, then the visual is destroyed. Omit to vanish instantly.
      */
     exit?: { durationSec: number; endScale: number; endAlpha: number };
+    /**
+     * Worn looks for a thorn effect that survives several triggers, least to most worn. The renderer
+     * picks one with `getThornWearStage` (gameplay `terrainEffectDefs.ts`); stage 0 is `svgString`.
+     */
+    wornSvgStrings?: readonly string[];
+}
+
+interface ThornVineColours {
+    /** The main vine. */
+    vine: string;
+    /** The thinner vine beneath it. */
+    underVine: string;
+    /** The thorn hooks. */
+    thorn: string;
+}
+
+const DARK_THORN_COLOURS: ThornVineColours = { vine: '#7c3aed', underVine: '#5b21b6', thorn: '#a78bfa' };
+const BRAMBLE_COLOURS: ThornVineColours = { vine: '#22c55e', underVine: '#16a34a', thorn: '#4ade80' };
+
+/** Number of worn looks after the untouched one. */
+export const THORN_WEAR_STAGES = 4;
+
+/** The thorn hooks, in the order they fall off. */
+const THORN_HOOKS = ['M24,9 C26,6 28,8 26,11', 'M10,13 C12,10 14,11 12,14', 'M30,15 C32,12 34,13 32,16'];
+/** A fallen hook lying flat under the vine, one per lost hook (same order). */
+const FALLEN_HOOKS = ['M23,18 l3,-1', 'M9,18 l3,1', 'M31,19 l3,-1'];
+
+/**
+ * A thorny vine tile at `stage` of wear (0 = untouched, THORN_WEAR_STAGES = nearly gone). The hooks
+ * drop off one at a time and lie faded under the vine, then the vines thin, dim and snap. Kept
+ * low-key so a worn patch reads as "thinning", not as a new effect.
+ */
+function thornVineSvg(c: ThornVineColours, stage: number): string {
+    const hooksLost = Math.min(THORN_HOOKS.length, stage);
+    const vineAlpha = [1, 0.95, 0.88, 0.78, 0.65][stage] ?? 0.65;
+    const vineWidth = stage >= 3 ? 1.2 : 1.5;
+    // The main vine stays whole until the last stage, then snaps in the middle.
+    const vine = stage >= 4
+        ? `<path d="M2,15 C8,8 12,18 17,11" stroke="${c.vine}" stroke-width="${vineWidth}" fill="none" stroke-linecap="round" stroke-opacity="${vineAlpha}"/>
+  <path d="M22,8 C26,5 29,15 36,12" stroke="${c.vine}" stroke-width="${vineWidth}" fill="none" stroke-linecap="round" stroke-opacity="${vineAlpha}"/>`
+        : `<path d="M2,15 C8,8 12,18 18,10 C24,2 28,16 36,12" stroke="${c.vine}" stroke-width="${vineWidth}" fill="none" stroke-linecap="round" stroke-opacity="${vineAlpha}"/>`;
+    // The under-vine breaks first (stage 3), then shrinks to a stub.
+    const underVine = stage >= 4
+        ? `<path d="M5,18 C10,12 14,18 18,15" stroke="${c.underVine}" stroke-width="0.8" fill="none" stroke-linecap="round" stroke-opacity="${vineAlpha}"/>`
+        : stage >= 3
+            ? `<path d="M5,18 C10,12 16,19 20,15" stroke="${c.underVine}" stroke-width="1" fill="none" stroke-linecap="round" stroke-opacity="${vineAlpha}"/>
+  <path d="M25,12 C29,10 33,17 38,13" stroke="${c.underVine}" stroke-width="1" fill="none" stroke-linecap="round" stroke-opacity="${vineAlpha}"/>`
+            : `<path d="M5,18 C10,12 16,19 22,14 C28,9 33,17 38,13" stroke="${c.underVine}" stroke-width="1" fill="none" stroke-linecap="round" stroke-opacity="${vineAlpha}"/>`;
+    const hooks = THORN_HOOKS.slice(hooksLost)
+        .map((d) => `<path d="${d}" stroke="${c.thorn}" stroke-width="1" fill="none" stroke-opacity="${vineAlpha}"/>`)
+        .join(' ');
+    // Fallen hooks fade as the patch wears on; gone entirely by the last stage.
+    const fallenAlpha = stage >= 4 ? 0 : 0.45;
+    const fallen = FALLEN_HOOKS.slice(0, hooksLost)
+        .map((d) => `<path d="${d}" stroke="${c.thorn}" stroke-width="0.8" fill="none" stroke-linecap="round" stroke-opacity="${fallenAlpha}"/>`)
+        .join(' ');
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20">
+  ${fallen}
+  ${vine}
+  ${underVine}
+  ${hooks}
+</svg>`;
+}
+
+/** The THORN_WEAR_STAGES worn looks for a vine colour scheme (stages 1..N). */
+function thornVineWornSvgs(c: ThornVineColours): string[] {
+    return Array.from({ length: THORN_WEAR_STAGES }, (_, i) => thornVineSvg(c, i + 1));
 }
 
 export const TERRAIN_EFFECT_VISUAL_DEFS: Record<string, TerrainEffectVisualDef> = {
     dark_thorn: {
         layer: 'ground',
-        svgString: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20">
-  <path d="M2,15 C8,8 12,18 18,10 C24,2 28,16 36,12" stroke="#7c3aed" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-  <path d="M5,18 C10,12 16,19 22,14 C28,9 33,17 38,13" stroke="#5b21b6" stroke-width="1" fill="none" stroke-linecap="round"/>
-  <path d="M10,13 C12,10 14,11 12,14" stroke="#a78bfa" stroke-width="1" fill="none"/>
-  <path d="M24,9 C26,6 28,8 26,11" stroke="#a78bfa" stroke-width="1" fill="none"/>
-  <path d="M30,15 C32,12 34,13 32,16" stroke="#a78bfa" stroke-width="1" fill="none"/>
-</svg>`,
+        svgString: thornVineSvg(DARK_THORN_COLOURS, 0),
+        wornSvgStrings: thornVineWornSvgs(DARK_THORN_COLOURS),
     },
     bramble_slow: {
         layer: 'ground',
-        svgString: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20">
-  <path d="M2,15 C8,8 12,18 18,10 C24,2 28,16 36,12" stroke="#22c55e" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-  <path d="M5,18 C10,12 16,19 22,14 C28,9 33,17 38,13" stroke="#16a34a" stroke-width="1" fill="none" stroke-linecap="round"/>
-  <path d="M10,13 C12,10 14,11 12,14" stroke="#4ade80" stroke-width="1" fill="none"/>
-  <path d="M24,9 C26,6 28,8 26,11" stroke="#4ade80" stroke-width="1" fill="none"/>
-  <path d="M30,15 C32,12 34,13 32,16" stroke="#4ade80" stroke-width="1" fill="none"/>
-</svg>`,
+        svgString: thornVineSvg(BRAMBLE_COLOURS, 0),
+        wornSvgStrings: thornVineWornSvgs(BRAMBLE_COLOURS),
     },
     miasma: {
         layer: 'air',

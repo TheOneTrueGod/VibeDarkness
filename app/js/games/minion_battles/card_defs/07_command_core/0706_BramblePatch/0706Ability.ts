@@ -3,8 +3,8 @@
  * Owns the slam windup (pet rooted) then Thorn Stomp–style payoff. Restored only by
  * commandCharge from the owner card.
  *
- * Tile-based, like the Thornbinder: the slam snaps to the pet's tile and covers a fixed tile disc round it
- * (`BRAMBLE_PATCH_SHAPE`). Damage, thorns and every preview (pet windup, owner telegraph, confirm step)
+ * Tile-based: the slam snaps to the pet's tile and covers a square round it (3x3, 5x5 with Overgrowth's
+ * `tileAreaRadiusFlat`). Each bramble survives `BRAMBLE_PATCH_THORN_USES` triggers. Damage, thorns and every preview (pet windup, owner telegraph, confirm step)
  * read `resolveBramblePatchCells`, so the telegraph shows exactly the tiles that get thorns.
  */
 
@@ -17,7 +17,8 @@ import type { Unit } from '../../../game/units/Unit';
 import type { KnockbackSource } from '../../../game/units/unitTypes';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { damageEnemiesInTiles, placeJitteredGroundThorns } from '../../../abilities/targetHelpers';
-import { cellsAroundPoint, tileShapes } from '../../../hitboxes/TileAreaHitboxSpec';
+import { cellsAroundPoint, tileShapes, type TileOffset } from '../../../hitboxes/TileAreaHitboxSpec';
+import { getCasterAbilityModifier, getTileAreaHalfWidth } from '../../../abilities/abilityModifierScales';
 import { tileCentre, worldToTile, type TileCoord } from '../../../abilities/tileAreaHelpers';
 import { drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
 import { TELEGRAPH_STYLES, type TelegraphStyle } from '../../../abilities/telegraphStyles';
@@ -33,13 +34,33 @@ import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 export const BRAMBLE_PATCH_STRIKE_ID = `${formatGroupId(AbilityGroupId.Command)}06`;
 
-/** Blast radius (px): the VFX size and the tile disc radius below. */
-export const BRAMBLE_PATCH_RADIUS = 95;
-/**
- * Tile footprint of the slam: every tile whose centre is within BRAMBLE_PATCH_RADIUS of the pet's tile
- * centre (5x5 minus the corners, 21 tiles) — the same disc as the Thornbinder's bramble.
- */
-export const BRAMBLE_PATCH_SHAPE = tileShapes.disc(BRAMBLE_PATCH_RADIUS / CELL_SIZE);
+/** Half-width of the slam's square, in tiles: 1 = 3x3 round the spirit's tile. */
+export const BRAMBLE_PATCH_HALF_WIDTH = 1;
+
+/** Half-width for `unit`'s slam: the base plus research `tileAreaRadiusFlat` (Overgrowth makes it 5x5). */
+export function bramblePatchHalfWidth(unit: Pick<Unit, 'abilityModifiers'> | undefined): number {
+    return getTileAreaHalfWidth(BRAMBLE_PATCH_HALF_WIDTH, getCasterAbilityModifier(unit, BRAMBLE_PATCH_STRIKE_ID));
+}
+
+const shapeByHalfWidth = new Map<number, TileOffset[]>();
+/** Tile footprint of a slam of this half-width: a (2h+1) x (2h+1) square. Shared per size. */
+export function bramblePatchShape(halfWidth: number): TileOffset[] {
+    let shape = shapeByHalfWidth.get(halfWidth);
+    if (!shape) {
+        shape = tileShapes.square(halfWidth);
+        shapeByHalfWidth.set(halfWidth, shape);
+    }
+    return shape;
+}
+
+/** Radius (px) reaching the edge of the square: the VFX size and the thorns' edge-first expiry. */
+export function bramblePatchRadius(halfWidth: number): number {
+    return (halfWidth + 0.5) * CELL_SIZE;
+}
+
+/** The base (3x3) footprint and radius. */
+export const BRAMBLE_PATCH_SHAPE = bramblePatchShape(BRAMBLE_PATCH_HALF_WIDTH);
+export const BRAMBLE_PATCH_RADIUS = bramblePatchRadius(BRAMBLE_PATCH_HALF_WIDTH);
 
 /** Centre of the tile a slam from `at` lands on. */
 export function bramblePatchCentre(at: { x: number; y: number }): { x: number; y: number } {
@@ -47,8 +68,8 @@ export function bramblePatchCentre(at: { x: number; y: number }): { x: number; y
 }
 
 /** The tiles a slam from `at` covers (damage, thorns and previews share this). */
-export function resolveBramblePatchCells(at: { x: number; y: number }): TileCoord[] {
-    return cellsAroundPoint(at, BRAMBLE_PATCH_SHAPE);
+export function resolveBramblePatchCells(at: { x: number; y: number }, halfWidth = BRAMBLE_PATCH_HALF_WIDTH): TileCoord[] {
+    return cellsAroundPoint(at, bramblePatchShape(halfWidth));
 }
 
 /** Windup telegraph (red, fading in) and the green "about to land" look. */
@@ -56,8 +77,13 @@ export const BRAMBLE_PATCH_WINDUP_STYLE: TelegraphStyle = TELEGRAPH_STYLES.dange
 export const BRAMBLE_PATCH_LANDING_STYLE: TelegraphStyle = { color: 0x86efac, lineWidth: 2, fillAlpha: 0.14, strokeAlpha: 0.8 };
 
 /** Draw the slam's tiles from `at`, fading the windup style in over `windupT` (0→1). */
-export function drawBramblePatchTelegraph(gr: IAbilityPreviewGraphics, at: { x: number; y: number }, windupT: number | null): void {
-    const cells = resolveBramblePatchCells(at);
+export function drawBramblePatchTelegraph(
+    gr: IAbilityPreviewGraphics,
+    at: { x: number; y: number },
+    windupT: number | null,
+    halfWidth = BRAMBLE_PATCH_HALF_WIDTH,
+): void {
+    const cells = resolveBramblePatchCells(at, halfWidth);
     if (windupT === null) {
         drawTileAreaTelegraph(gr, cells, BRAMBLE_PATCH_LANDING_STYLE);
         return;
@@ -80,6 +106,8 @@ export const BRAMBLE_PATCH_WINDUP = 1.0;
  */
 export const BRAMBLE_PATCH_THORN_EFFECT_TYPE = 'bramble_slow';
 const SLOW_MULT = 0.52;
+/** Shadow creatures a bramble can prick before it is torn away (`thornUses`; 1 for other thorns). */
+export const BRAMBLE_PATCH_THORN_USES = 5;
 const THORN_CLEAR_BEFORE_NEXT_SEC = 0.15;
 const DURATION_JITTER_IN_SECONDS = 1;
 
@@ -108,7 +136,9 @@ interface EngineLike {
 export function applyBramblePatchStrike(engine: EngineLike, caster: Unit): void {
     // Snap the slam to the pet's tile: everything below is tile-based.
     const center = bramblePatchCentre(caster);
-    const cells = resolveBramblePatchCells(center);
+    const halfWidth = bramblePatchHalfWidth(caster);
+    const radius = bramblePatchRadius(halfWidth);
+    const cells = resolveBramblePatchCells(center, halfWidth);
     const knockbackCtx = knockbackCtxFromEngine(engine);
     const knockbackSource: KnockbackSource = { unitId: caster.id, abilityId: BRAMBLE_PATCH_STRIKE_ID };
 
@@ -141,13 +171,13 @@ export function applyBramblePatchStrike(engine: EngineLike, caster: Unit): void 
         engine,
         caster,
         center,
-        radius: BRAMBLE_PATCH_RADIUS,
+        radius,
         effectType: BRAMBLE_PATCH_THORN_EFFECT_TYPE,
         placedAtGameTime: engine.gameTime,
         baseExpiresAtGameTime: baseExpiresAt,
         durationJitterInSeconds: DURATION_JITTER_IN_SECONDS,
         ownerAbilityId: BRAMBLE_PATCH_STRIKE_ID,
-        params: { slowMult: SLOW_MULT },
+        params: { slowMult: SLOW_MULT, thornUses: BRAMBLE_PATCH_THORN_USES },
         idPrefix: `bramblepatch-${caster.id}-${engine.gameTime}`,
         cells,
     });
@@ -157,7 +187,7 @@ export function applyBramblePatchStrike(engine: EngineLike, caster: Unit): void 
         y: center.y,
         duration: 0.6,
         effectType: 'BrambleExplosion',
-        effectRadius: BRAMBLE_PATCH_RADIUS,
+        effectRadius: radius,
     }));
 }
 
@@ -205,11 +235,11 @@ export const BramblePatchStrikeAbility_0706: AbilityStatic = defineAbility({
     // No aiSettings — only commanded via 0707.
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
-    getRange: () => ({ minRange: 0, maxRange: BRAMBLE_PATCH_RADIUS }),
+    getRange: (caster: Unit) => ({ minRange: 0, maxRange: bramblePatchRadius(bramblePatchHalfWidth(caster)) }),
 
     getTooltipText(): string[] {
         return [
-            'Slam the ground, dealing damage and leaving lanternite-style bramble that slows movement and damages shadow creatures.',
+            `Slam the ground, dealing damage and leaving lanternite-style bramble that slows movement and pricks shadow creatures. Each bramble lasts {${BRAMBLE_PATCH_THORN_USES}} pricks.`,
             `{Knockback ${BRAMBLE_PATCH_KNOCKBACK_TIER}}`,
         ];
     },
@@ -221,6 +251,6 @@ export const BramblePatchStrikeAbility_0706: AbilityStatic = defineAbility({
         gameTime: number,
     ): void {
         const elapsed = getCastElapsedAt(activeAbility, gameTime);
-        drawBramblePatchTelegraph(gr, caster, elapsed >= WINDUP ? null : elapsed / WINDUP);
+        drawBramblePatchTelegraph(gr, caster, elapsed >= WINDUP ? null : elapsed / WINDUP, bramblePatchHalfWidth(caster));
     },
 });

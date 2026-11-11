@@ -1,5 +1,7 @@
 import type { Unit } from './Unit';
 import { peekPetState } from './components/petComponent';
+import type { AbilityModifier } from '../../../../researchTrees/types';
+import { mergeAbilityModifierInto } from '../../../../researchTrees/abilityModifierMerge';
 
 /** All pets linked to the owner (living or dead). */
 export function getPetsOfUnit(owner: Unit, units: readonly Unit[]): Unit[] {
@@ -17,4 +19,20 @@ export function getPetOwner(pet: Unit, units: readonly Unit[]): Unit | undefined
     if (!ownerUnitId) return undefined;
     const owner = units.find((u) => u.id === ownerUnitId);
     return owner?.isAlive() ? owner : undefined;
+}
+
+/**
+ * Give a pet its owner's research modifiers for the abilities the pet has (e.g. Thorn Volley on Fling
+ * Thorns, Frenzied Flurry on Spirit Flurry), merged on top of the pet's own. Call once when the pet spawns.
+ */
+export function inheritOwnerAbilityModifiers(pet: Unit, owner: Unit): void {
+    const merged: Record<string, AbilityModifier> = { ...pet.abilityModifiers };
+    for (const abilityId of pet.abilities) {
+        const fromOwner = owner.abilityModifiers[abilityId];
+        if (!fromOwner) continue;
+        const entry: AbilityModifier = { ...(merged[abilityId] ?? {}) };
+        mergeAbilityModifierInto(entry, fromOwner);
+        merged[abilityId] = entry;
+    }
+    pet.abilityModifiers = merged;
 }

@@ -75,6 +75,7 @@ import { computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbiliti
 import { expandAttachedAbilityIds } from './questPrepLoadout';
 import { PassiveStatKey } from '../../../researchTrees/types';
 import { getPetDef } from '../game/units/pet_defs/petDef';
+import { inheritOwnerAbilityModifiers } from '../game/units/petHelpers';
 import { AbilityGroupId, formatGroupId } from '../card_defs/AbilityGroupId';
 import { getAbilityTagsForId } from '../abilities/Ability';
 import { expandAbilityIdsForResearchModifiers } from '../abilities/abilityModifierHelpers';
@@ -522,6 +523,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     'initialGameSpawn',
                 );
                 if (!pet) continue;
+                // Research on the pet's abilities (e.g. Thorn Volley, Frenzied Flurry) lives on the owner.
+                inheritOwnerAbilityModifiers(pet, unit);
                 pet.maxHp = petMaxHp;
                 pet.hp = petMaxHp;
                 if (biteDamageFlat > 0) {
@@ -529,7 +532,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                         ...pet.abilityModifiers,
                         [dogBiteAbilityId]: {
                             ...(pet.abilityModifiers[dogBiteAbilityId] ?? {}),
-                            damageFlat: biteDamageFlat,
+                            damageFlat: (pet.abilityModifiers[dogBiteAbilityId]?.damageFlat ?? 0) + biteDamageFlat,
                         },
                     };
                 }

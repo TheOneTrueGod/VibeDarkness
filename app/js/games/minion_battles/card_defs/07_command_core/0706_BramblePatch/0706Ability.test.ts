@@ -9,6 +9,7 @@ import type { TeamId } from '../../../game/teams';
 import {
     BRAMBLE_PATCH_STRIKE_ID,
     BRAMBLE_PATCH_THORN_EFFECT_TYPE,
+    BRAMBLE_PATCH_THORN_USES,
     BRAMBLE_PATCH_WINDUP,
     applyBramblePatchStrike,
 } from './0706Ability';
@@ -64,5 +65,33 @@ describe('Bramble Patch strike 0706', () => {
         ]);
         expect(ability!.getAbilityStates(BRAMBLE_PATCH_WINDUP)).toEqual([]);
         expect(ability!.prefireTime).toBe(BRAMBLE_PATCH_WINDUP);
+    });
+
+    function slam(pet: Unit) {
+        const terrainLayers = new TerrainLayerManager();
+        applyBramblePatchStrike({
+            units: [pet],
+            gameTime: 0,
+            eventBus: new EventBus(),
+            terrainLayers,
+            lightLevelEnabled: false,
+            globalLightLevel: 0,
+            terrainManager: null,
+            addEffect: () => {},
+            getAllLightSources: () => [],
+            generateRandomInteger: () => 0,
+        }, pet);
+        return Array.from(terrainLayers.allEffects.values());
+    }
+
+    it('covers a 3x3 square round the spirit, and 5x5 with Overgrowth', () => {
+        expect(slam(makePet())).toHaveLength(9);
+        const upgraded = makePet();
+        upgraded.abilityModifiers = { [BRAMBLE_PATCH_STRIKE_ID]: { tileAreaRadiusFlat: 1 } };
+        expect(slam(upgraded)).toHaveLength(25);
+    });
+
+    it(`gives each bramble ${BRAMBLE_PATCH_THORN_USES} uses`, () => {
+        expect(slam(makePet()).every((e) => e.params.thornUses === BRAMBLE_PATCH_THORN_USES)).toBe(true);
     });
 });

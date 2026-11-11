@@ -28,6 +28,7 @@ import { nullHitbox } from '../../../hitboxes';
 import type { CardDef } from '../../types';
 import type { Unit } from '../../../game/units/Unit';
 import { getThemeById, themeGlowPair } from '../../../themes/abilityTheme';
+import { getLocalPlayerUnitFromGameState } from '../../../abilities/abilityModifierHelpers';
 
 export const SPIRIT_STORM_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}13`;
 
@@ -139,17 +140,19 @@ export const SpiritStormAbility: AbilityStatic = defineAbility({
         return { minRange: 0, maxRange: SPIRIT_STORM_REPOSITION_RANGE };
     },
 
-    getTooltipText(): string[] {
+    getTooltipText(gameState?: unknown): string[] {
+        // Storm Surge research: damageFlat per pulse (areaMult is shown by the targeting preview).
+        const damage = spiritStormPulse.pulseDamage(getLocalPlayerUnitFromGameState(gameState), SPIRIT_STORM_ABILITY_ID);
         return [
             `Gather a storm, then send your spirit up to {${SPIRIT_STORM_REPOSITION_RANGE}}px.`,
-            `The area round you, round your spirit, and between you pulses {${SPIRIT_STORM_PULSES}} times for {${SPIRIT_STORM_DAMAGE}} damage. Each pulse hits an enemy once.`,
+            `The area round you, round your spirit, and between you pulses {${SPIRIT_STORM_PULSES}} times for {${damage}} damage. Each pulse hits an enemy once.`,
         ];
     },
 
     flavorText: 'Two ends of one storm.',
 
     renderTargetingPreview(gr: IAbilityPreviewGraphics, caster: Unit): void {
-        gr.circle(caster.x, caster.y, SPIRIT_STORM_RADIUS);
+        gr.circle(caster.x, caster.y, spiritStormPulse.scaledSize(caster, SPIRIT_STORM_ABILITY_ID).radius);
         gr.stroke({ color: glow.light, width: 1.5, alpha: 0.5 });
     },
 });

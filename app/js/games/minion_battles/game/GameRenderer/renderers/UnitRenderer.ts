@@ -35,6 +35,8 @@ import { getSpawnRenderState } from '../../units/spawnVisuals';
 import { getDrowningRenderState, type DrowningRenderState } from '../../terrainHazards/drowning';
 import { DisplayWiggle } from '../displayWiggle';
 import { shouldShowJuggernautRing, syncJuggernautRing } from './juggernautRing';
+import { syncCastStateRing } from './castStateRingVisual';
+import { getCastStateRing } from '../../units/castStateRing';
 import { hitStunShakeOffset } from './hitStunShake';
 import { getBuffVisualRenderer } from '../../../buffs/buffVisuals';
 import type { DamageTakenEvent, UnitFadeInEvent } from '../../EventBus';
@@ -331,6 +333,7 @@ export class UnitRenderer {
                 if (glow) glow.visible = false;
                 if (playerRing) playerRing.visible = false;
                 syncJuggernautRing(visual, unit, false);
+                syncCastStateRing(visual, unit.radius, null);
             } else {
                 if (body) {
                     body.clear();
@@ -357,6 +360,8 @@ export class UnitRenderer {
                     unit,
                     shouldShowJuggernautRing(unit, engine.gameTime, areEnemies(localTeamId, unit.teamId)),
                 );
+                // Acting / recovering / ready ring inside the body (`UnitDefEntry.castStateRing`).
+                syncCastStateRing(visual, unit.radius, unit.isAlive() ? getCastStateRing(unit, engine) : null);
                 if (showHpBar) updateUnitHpBar(visual, unit);
             }
 

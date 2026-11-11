@@ -3,6 +3,7 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { rasterizeArea, type TerrainEffectRecord } from '../../TerrainLayerManager';
 import type { GameEngine } from '../../GameEngine';
 import { TERRAIN_EFFECT_VISUAL_DEFS, type TerrainEffectVisualDef } from '../terrainEffectDefs';
+import { getThornWearStage } from '../../terrainEffects/terrainEffectDefs';
 
 const Z_TERRAIN_EFFECTS = 10.5;
 
@@ -31,8 +32,9 @@ export class TerrainEffectRenderer {
     private terrainEffectsContainer: Container = new Container();
     private effectVisuals: Map<string, EffectVisual> = new Map();
     private exitingVisuals: ExitingVisual[] = [];
-    private textureCache: Map<string, Texture> = new Map();
-    private pendingLoads: Map<string, Promise<Texture>> = new Map();
+    /** Per effect type: the untouched texture, then one per worn look (`wornSvgStrings`). */
+    private textureCache: Map<string, Texture[]> = new Map();
+    private pendingLoads: Map<string, Promise<Texture[]>> = new Map();
 
     constructor(private readonly gameContainer: Container) {
         this.terrainEffectsContainer.zIndex = Z_TERRAIN_EFFECTS;
@@ -51,8 +53,10 @@ export class TerrainEffectRenderer {
         for (const [id, record] of activeEffects) {
             const def = TERRAIN_EFFECT_VISUAL_DEFS[record.effectType];
             if (!def) continue;
-            // Key by revision so a carved record's stale sprites are dropped and rebuilt.
-            const visualKey = `${id}@${record.revision ?? 0}`;
+            // Key by revision (carved records) and wear stage (worn thorns), so stale sprites are rebuilt.
+            const wornCount = def.wornSvgStrings?.length ?? 0;
+            const stage = wornCount > 0 ? getThornWearStage(record, wornCount) : 0;
+            const visualKey = `${id}@${record.revision ?? 0}#${stage}`;
             activeIds.add(visualKey);
 
             const existing = this.effectVisuals.get(visualKey);
@@ -61,7 +65,7 @@ export class TerrainEffectRenderer {
                 continue;
             }
 
-            const texture = this.textureCache.get(record.effectType);
+            const texture = this.textureCache.get(record.effectType)?.[stage];
             if (texture) {
                 const visual = this.createEffectVisual(id, record, def.layer, texture);
                 if (visual) {
@@ -69,11 +73,14 @@ export class TerrainEffectRenderer {
                     this.applyLifetimeFade(visual, record, def, engine.gameTime);
                 }
             } else if (!this.pendingLoads.has(record.effectType)) {
-                const dataUrl = 'data:image/svg+xml;base64,' + btoa(def.svgString);
-                const load = (Assets.load(dataUrl) as Promise<Texture>).then((tex) => {
-                    this.textureCache.set(record.effectType, tex);
+                // Every stage loads together, so a worn swap never waits on a texture.
+                const svgs = [def.svgString, ...(def.wornSvgStrings ?? [])];
+                const load = Promise.all(
+                    svgs.map((svg) => Assets.load('data:image/svg+xml;base64,' + btoa(svg)) as Promise<Texture>),
+                ).then((textures) => {
+                    this.textureCache.set(record.effectType, textures);
                     this.pendingLoads.delete(record.effectType);
-                    return tex;
+                    return textures;
                 });
                 this.pendingLoads.set(record.effectType, load);
             }
@@ -83,7 +90,7 @@ export class TerrainEffectRenderer {
             if (activeIds.has(key)) continue;
             this.effectVisuals.delete(key);
             const exit = TERRAIN_EFFECT_VISUAL_DEFS[visual.effectType]?.exit;
-            // A revision bump (record still alive) is a rebuild, not a removal: swap instantly.
+            // A revision or wear bump (record still alive) is a rebuild, not a removal: swap instantly.
             if (exit && !activeEffects.has(visual.recordId)) {
                 this.exitingVisuals.push({ visual, exit, elapsedSec: 0, fromScale: visual.scale, fromAlpha: visual.alpha });
             } else {

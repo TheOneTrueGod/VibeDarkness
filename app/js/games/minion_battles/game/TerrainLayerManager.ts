@@ -441,11 +441,14 @@ export class TerrainLayerManager implements DeployableProvider {
         if (expiresAtGameTime > record.expiresAtGameTime) record.expiresAtGameTime = expiresAtGameTime;
     }
 
-    /** Mutate effect params in-place. Does not change cell ownership. */
+    /**
+     * Update effect params (copy-on-write: one placement's cells may share a params object, so the
+     * record gets its own copy). Does not change cell ownership.
+     */
     updateEffectParams(id: string, newParams: Partial<Record<string, unknown>>): void {
         const record = this.effectRegistry.get(id);
         if (!record) return;
-        Object.assign(record.params, newParams);
+        record.params = { ...record.params, ...newParams };
     }
 
     // -------------------------------------------------------------------------

@@ -93,13 +93,21 @@ describe('cast behaviour timingStart offsets', () => {
         const aim: ResolvedTarget = { type: 'pixel', position: { x: 350, y: 200 } };
         executeUnitAbility(player, ability, [aim], engine);
 
-        const counts: number[] = [];
-        step(engine, 2.0, () => counts.push(engine.projectiles.length));
-        const peak = Math.max(...counts);
-        expect(peak).toBeGreaterThan(0);
-        // Every thorn-count change is a single new thorn.
-        const increases = counts.map((c, i) => c - (counts[i - 1] ?? 0)).filter((d) => d > 0);
-        expect(increases.every((d) => d === 1)).toBe(true);
-        expect(increases.reduce((a, b) => a + b, 0)).toBe(FLING_THORN_COUNT);
+        // New thorns per tick, by identity: an early thorn can expire on the same tick a later one launches.
+        const seen = new Set<unknown>();
+        const launchedPerTick: number[] = [];
+        step(engine, 2.0, () => {
+            let fresh = 0;
+            for (const p of engine.projectiles) {
+                if (!seen.has(p)) {
+                    seen.add(p);
+                    fresh++;
+                }
+            }
+            launchedPerTick.push(fresh);
+        });
+        const launches = launchedPerTick.filter((n) => n > 0);
+        expect(launches.every((n) => n === 1)).toBe(true);
+        expect(seen.size).toBe(FLING_THORN_COUNT);
     });
 });

@@ -22,15 +22,53 @@ export type CreatureFilter = { only: readonly CreatureType[] } | { except: reado
 
 /**
  * Thorn behaviour for a ground effect type: a grounded unit that ENTERS the cell (or LANDS on it
- * from the air) takes damage; standing on it does nothing. See `terrainEffects/thorns.ts`.
+ * from the air) takes damage; standing on it does nothing. Each trigger uses the thorns up a little;
+ * after `uses` triggers they are removed. See `terrainEffects/thorns.ts`.
  */
 export interface ThornsDef {
     /** Units the thorns can hurt; everyone else walks over them untouched (and doesn't consume them). */
     hurts: CreatureFilter;
     enterDamage: number;
     landDamage: number;
-    /** When true, the effect is removed after it damages a unit. */
-    consumeOnTrigger: boolean;
+    /**
+     * Triggers (damaging a unit) before the effect is removed; omit for thorns that never wear out.
+     * A placement may override it per cell with `params.thornUses` (Bramble Patch: 5).
+     */
+    uses?: number;
+}
+
+/** Per-cell override of `ThornsDef.uses`, set by the placing ability. */
+export const THORN_USES_PARAM = 'thornUses';
+/** Per-cell count of triggers so far (mutable state, serialized with the params). */
+export const THORN_HITS_TAKEN_PARAM = 'thornHitsTaken';
+
+interface ThornRecordLike {
+    effectType: string;
+    params?: Record<string, unknown>;
+}
+
+/** Triggers this thorn cell survives in total, or undefined when it never wears out. */
+export function getThornUses(record: ThornRecordLike): number | undefined {
+    const override = record.params?.[THORN_USES_PARAM];
+    if (typeof override === 'number') return override;
+    return getTerrainEffectDef(record.effectType)?.thorns?.uses;
+}
+
+/** Triggers this thorn cell has taken so far. */
+export function getThornHitsTaken(record: ThornRecordLike): number {
+    const taken = record.params?.[THORN_HITS_TAKEN_PARAM];
+    return typeof taken === 'number' ? taken : 0;
+}
+
+/**
+ * Which of `stageCount` worn looks to show: 0 = untouched, `stageCount` = most worn. Spreads the
+ * stages over the hits before the last (5 uses, 4 stages: hits 1-4 show stages 1-4).
+ */
+export function getThornWearStage(record: ThornRecordLike, stageCount: number): number {
+    const uses = getThornUses(record);
+    const taken = getThornHitsTaken(record);
+    if (uses === undefined || uses <= 1 || taken <= 0 || stageCount <= 0) return 0;
+    return Math.min(stageCount, Math.ceil((taken * stageCount) / (uses - 1)));
 }
 
 /** Damage when a grounded unit steps onto thorns. */
@@ -92,7 +130,7 @@ export const TERRAIN_EFFECT_DEFS: Readonly<Record<string, TerrainEffectDef>> = {
             hurts: { only: ['dark_creature'] },
             enterDamage: THORN_ENTER_DAMAGE,
             landDamage: THORN_LAND_DAMAGE,
-            consumeOnTrigger: true,
+            uses: 1,
         },
         blockedOn: ROCK_AND_WATER_TERRAIN,
     },
@@ -103,7 +141,7 @@ export const TERRAIN_EFFECT_DEFS: Readonly<Record<string, TerrainEffectDef>> = {
             hurts: { except: ['dark_creature'] },
             enterDamage: DARK_THORN_ENTER_DAMAGE,
             landDamage: DARK_THORN_LAND_DAMAGE,
-            consumeOnTrigger: true,
+            uses: 1,
         },
         blockedOn: ROCK_AND_WATER_TERRAIN,
     },

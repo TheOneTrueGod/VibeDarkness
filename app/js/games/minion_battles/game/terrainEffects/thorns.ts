@@ -1,6 +1,6 @@
 /**
  * Def-driven thorn hazards. Any ground effect whose `TerrainEffectDef` has a `thorns` block hurts
- * matching grounded units when they enter its cell or land on it, and is optionally consumed.
+ * matching grounded units when they enter its cell or land on it, and wears out after its uses.
  * To add a variant: add a def entry with `thorns` (terrainEffectDefs.ts) plus a visual entry
  * (GameRenderer/terrainEffectDefs.ts).
  */
@@ -8,7 +8,14 @@
 import type { Unit } from '../units/Unit';
 import type { TerrainEffectRecord } from '../TerrainLayerManager';
 import { getCreatureType } from '../units/unit_defs/unitDef';
-import { getTerrainEffectDef, type CreatureFilter, type ThornsDef } from './terrainEffectDefs';
+import {
+    getTerrainEffectDef,
+    getThornHitsTaken,
+    getThornUses,
+    THORN_HITS_TAKEN_PARAM,
+    type CreatureFilter,
+    type ThornsDef,
+} from './terrainEffectDefs';
 import type { TileTransitionEngine } from './tileTransitions';
 
 /** True when a terrain hazard's creature filter includes this unit. */
@@ -25,7 +32,7 @@ export function unitIsHurtByThorns(thorns: ThornsDef, unit: Unit): boolean {
 
 /** @returns true if the thorns damaged the unit. */
 export function triggerThorns(
-    effect: Pick<TerrainEffectRecord, 'id' | 'effectType' | 'ownerUnitId'>,
+    effect: Pick<TerrainEffectRecord, 'id' | 'effectType' | 'ownerUnitId'> & Partial<Pick<TerrainEffectRecord, 'params'>>,
     unit: Unit,
     kind: 'enter' | 'land',
     engine: TileTransitionEngine,
@@ -36,6 +43,18 @@ export function triggerThorns(
     if (!unitIsHurtByThorns(thorns, unit)) return false;
     const amount = kind === 'enter' ? thorns.enterDamage : thorns.landDamage;
     unit.takeDamage(amount, effect.ownerUnitId ?? null, engine.eventBus);
-    if (thorns.consumeOnTrigger) engine.terrainLayers.remove(effect.id);
+    wearThorns(effect, engine);
     return true;
+}
+
+/** Count one trigger against the cell's uses; remove it once they run out. */
+function wearThorns(
+    effect: Pick<TerrainEffectRecord, 'id' | 'effectType'> & Partial<Pick<TerrainEffectRecord, 'params'>>,
+    engine: TileTransitionEngine,
+): void {
+    const uses = getThornUses(effect);
+    if (uses === undefined) return;
+    const taken = getThornHitsTaken(effect) + 1;
+    if (taken >= uses) engine.terrainLayers.remove(effect.id);
+    else engine.terrainLayers.updateEffectParams(effect.id, { [THORN_HITS_TAKEN_PARAM]: taken });
 }

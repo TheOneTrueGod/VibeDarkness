@@ -276,18 +276,6 @@ export default function QuestBankTooltip({
                                 if (isActive) {
                                     return (
                                         <div key={q.id} className="flex items-center justify-between gap-2">
-                                            <button
-                                                type="button"
-                                                data-testid={TestIds.questContinue}
-                                                title={`Continue “${q.title}”`}
-                                                onClick={() => {
-                                                    onStartQuest?.(q.id, { mode: 'continue' });
-                                                    onDismiss();
-                                                }}
-                                                className={`${QUEST_ACTION_BTN} min-w-0 truncate bg-primary text-secondary hover:opacity-90`}
-                                            >
-                                                Continue “{q.title}”
-                                            </button>
                                             {onAbandonQuest && (
                                                 <button
                                                     type="button"
@@ -308,6 +296,18 @@ export default function QuestBankTooltip({
                                                     Abandon
                                                 </button>
                                             )}
+                                            <button
+                                                type="button"
+                                                data-testid={TestIds.questContinue}
+                                                title={`Continue “${q.title}”`}
+                                                onClick={() => {
+                                                    onStartQuest?.(q.id, { mode: 'continue' });
+                                                    onDismiss();
+                                                }}
+                                                className={`${QUEST_ACTION_BTN} ml-auto min-w-0 truncate bg-primary text-secondary hover:opacity-90`}
+                                            >
+                                                Continue “{q.title}”
+                                            </button>
                                         </div>
                                     );
                                 }
@@ -346,7 +346,7 @@ export default function QuestBankTooltip({
                                             onDismiss();
                                         }}
                                         title={`Start “${q.title}”`}
-                                        className={`${QUEST_ACTION_BTN} min-w-0 truncate bg-primary text-secondary hover:opacity-90`}
+                                        className={`${QUEST_ACTION_BTN} ml-auto min-w-0 truncate bg-primary text-secondary hover:opacity-90`}
                                     >
                                         Start “{q.title}”
                                     </button>

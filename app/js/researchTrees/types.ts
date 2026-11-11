@@ -59,6 +59,21 @@ export interface AbilityModifier {
     durationMult?: number;
     /** Multiplier applied to the ability's reach / cone outer radius. Merged by product. */
     rangeMult?: number;
+    /**
+     * Multiplier applied to the ability's area (so its radii and widths grow by the square root). Merged by
+     * product. Read with `getAreaRadiusScale` (`abilities/abilityModifierHelpers.ts`).
+     */
+    areaMult?: number;
+    /**
+     * Extra repeats of the ability's repeated element (dash strikes, thorns, pulses...). Each ability decides
+     * how its timeline absorbs them (e.g. Spirit Flurry keeps its total time, Fling Thorns runs longer).
+     */
+    repeatCountFlat?: number;
+    /**
+     * Extra tiles on each side of a tile-based area (3x3 -> 5x5 per +1). Additive merge. Read with
+     * `getTileAreaHalfWidth` (`abilities/abilityModifierScales.ts`).
+     */
+    tileAreaRadiusFlat?: number;
     /** Knockback tier granted or raised on this ability (take max when merging). */
     knockbackTier?: number;
     /** Tags to add to this ability for this unit (e.g. 'Entombed'). String to avoid circular imports — use AbilityTag values. */

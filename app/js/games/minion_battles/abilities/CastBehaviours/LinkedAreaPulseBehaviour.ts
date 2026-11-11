@@ -8,6 +8,9 @@
  * motes across the area, and a large burst at each pulse, on the same shares the damage uses. Both ends
  * follow the live positions of the caster and the linked unit.
  *
+ * Research modifiers for the cast's ability apply: `damageFlat` adds to each pulse, and `areaMult` scales
+ * the area (radii and band width by its square root).
+ *
  * First user: Spirit Storm (0713). Reusable for any "between us" area (tethers, beams with ends).
  */
 import type { Unit } from '../../game/units/Unit';
@@ -20,6 +23,7 @@ import type {
 import { tryDamageOrBlock } from '../blockingHelpers';
 import { areEnemies } from '../../game/teams';
 import { createLinkedAreaField, type LinkedAreaFieldColors } from '../../game/effects/linkedAreaField';
+import { getAreaRadiusScale, getCasterAbilityModifier } from '../abilityModifierScales';
 
 export interface Point {
     x: number;
@@ -57,6 +61,9 @@ export function linkedAreaPulseShare(k: number, count: number): number {
 }
 
 type LinkFn = (ctx: CastBehaviourBaseContext) => Unit | null;
+
+/** Anything carrying research modifiers (a unit), or nothing (base numbers). */
+type ModifierHolder = Parameters<typeof getCasterAbilityModifier>[0];
 
 interface PulsePayload {
     fired: number;
@@ -107,14 +114,24 @@ export class LinkedAreaPulseBehaviour implements CastBehaviour {
         return this._pulses;
     }
 
+    /** Radius and band half-width after the caster's `areaMult` for this ability. */
+    scaledSize(caster: ModifierHolder, abilityId: string): { radius: number; lineHalfWidth: number } {
+        const scale = getAreaRadiusScale(getCasterAbilityModifier(caster, abilityId));
+        return { radius: this._radius * scale, lineHalfWidth: this._lineHalfWidth * scale };
+    }
+
+    /** Damage per pulse after the caster's `damageFlat` for this ability. */
+    pulseDamage(caster: ModifierHolder, abilityId: string): number {
+        return this._damage + (getCasterAbilityModifier(caster, abilityId)?.damageFlat ?? 0);
+    }
+
     /** The area right now, from the caster and the live linked unit. */
     resolveArea(ctx: CastBehaviourBaseContext): LinkedArea {
         const link = this._link(ctx);
         return {
             a: { x: ctx.caster.x, y: ctx.caster.y },
             b: link?.isAlive() ? { x: link.x, y: link.y } : null,
-            radius: this._radius,
-            lineHalfWidth: this._lineHalfWidth,
+            ...this.scaledSize(ctx.caster, ctx.abilityId),
         };
     }
 
@@ -127,8 +144,7 @@ export class LinkedAreaPulseBehaviour implements CastBehaviour {
             createLinkedAreaField({
                 caster: ctx.caster,
                 link,
-                radius: this._radius,
-                lineHalfWidth: this._lineHalfWidth,
+                ...this.scaledSize(ctx.caster, ctx.abilityId),
                 seconds: ctx.windowSeconds ?? 1.6,
                 pulseShares: shares,
                 colors: this._field,
@@ -160,7 +176,7 @@ export class LinkedAreaPulseBehaviour implements CastBehaviour {
                 attackerY: ctx.caster.y,
                 attackerId: ctx.caster.id,
                 abilityId: ctx.abilityId,
-                damage: this._damage,
+                damage: this.pulseDamage(ctx.caster, ctx.abilityId),
                 attackType: 'melee',
             });
         }

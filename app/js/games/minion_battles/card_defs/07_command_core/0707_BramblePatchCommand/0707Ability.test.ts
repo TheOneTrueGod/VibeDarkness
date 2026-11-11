@@ -6,7 +6,9 @@ import {
     BRAMBLE_PATCH_RADIUS,
     BRAMBLE_PATCH_SHAPE,
     BRAMBLE_PATCH_WINDUP,
+    bramblePatchShape,
 } from '../0706_BramblePatch/0706Ability';
+import type { Unit } from '../../../game/units/Unit';
 import { BRAMBLE_PATCH_CONFIRM_AT } from './0707Ability';
 
 describe('Bramble Patch command 0707', () => {
@@ -40,5 +42,14 @@ describe('Bramble Patch command 0707', () => {
         expect(ability?.recoveries).toEqual([
             { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
         ]);
+    });
+
+    it('confirms a 5x5 square when the owner has Overgrowth', () => {
+        const ability = getAbility('0707')!;
+        const owner = { abilityModifiers: { '0706': { tileAreaRadiusFlat: 1 } } } as unknown as Unit;
+        const defs = getInteractiveTargetDefsFromTimings(ability, owner);
+        expect(isConfirmRadiusTargetDef(defs[0]!) && defs[0].tileShape).toBe(bramblePatchShape(2));
+        expect(bramblePatchShape(2)).toHaveLength(25);
+        expect(BRAMBLE_PATCH_SHAPE).toHaveLength(9);
     });
 });

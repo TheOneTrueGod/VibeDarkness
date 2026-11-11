@@ -10,6 +10,25 @@ export const COMMAND_CORE_NODE_MIMIC_THORN = 'mimic_thorn';
 export const COMMAND_CORE_NODE_MIMIC_BRAMBLES = 'mimic_brambles';
 export const COMMAND_CORE_NODE_EMPOWER_PET = 'empower_pet';
 export const COMMAND_CORE_NODE_SPIRIT_STORM = 'spirit_storm';
+export const COMMAND_CORE_NODE_STORM_SURGE = 'storm_surge';
+export const COMMAND_CORE_NODE_FRENZIED_FLURRY = 'frenzied_flurry';
+export const COMMAND_CORE_NODE_THORN_VOLLEY = 'thorn_volley';
+export const COMMAND_CORE_NODE_OVERGROWTH = 'overgrowth';
+
+/** Storm Surge: Spirit Storm damage per pulse and area. */
+export const STORM_SURGE_DAMAGE_FLAT = 2;
+export const STORM_SURGE_AREA_MULT = 1.3;
+/** Frenzied Flurry: extra Spirit Flurry strikes after a Sic 'em pounce (same total time). */
+export const FRENZIED_FLURRY_EXTRA_HITS = 2;
+/** Thorn Volley: extra Fling Thorns thorns (the spray runs longer). */
+export const THORN_VOLLEY_EXTRA_THORNS = 3;
+/** Overgrowth: extra tiles on each side of Bramble Patch (3x3 -> 5x5). */
+export const OVERGROWTH_TILE_RADIUS_FLAT = 1;
+
+const SPIRIT_STORM_ABILITY_ID = '0713';
+const SPIRIT_FLURRY_ABILITY_ID = '0711';
+const FLING_THORN_ABILITY_ID = '0705';
+const BRAMBLE_PATCH_ABILITY_ID = '0706';
 
 /** Max levels for Empower Pet; each level grants +20 pet HP and +2 Dog Bite damage. */
 export const EMPOWER_PET_LEVELS = 5;
@@ -35,6 +54,11 @@ export const COMMAND_BRAMBLES_METAL_COST = 2;
 export const COMMAND_EMPOWER_ATTUNEMENT_COST = 10;
 export const COMMAND_EMPOWER_VIGOR_COST = 10;
 export const COMMAND_EMPOWER_METAL_COST = 3;
+
+export const COMMAND_STORM_SURGE_COST = { attunement: 10, vigor: 12, metal: 2 };
+export const COMMAND_FRENZIED_FLURRY_COST = { attunement: 10, vigor: 11, metal: 3 };
+export const COMMAND_THORN_VOLLEY_COST = { attunement: 11, vigor: 12, metal: 2 };
+export const COMMAND_OVERGROWTH_COST = { attunement: 10, vigor: 12, metal: 3 };
 
 export const commandCoreTree: ResearchTreeDef = {
     id: COMMAND_CORE_TREE_ID,
@@ -181,6 +205,95 @@ export const commandCoreTree: ResearchTreeDef = {
                 [PassiveStatKey.PetMaxHealth]: { add: EMPOWER_PET_MAX_HEALTH_ADD },
                 [PassiveStatKey.Ability0701Damage]: { add: EMPOWER_PET_MAX_BITE_DAMAGE_ADD },
             },
+        },
+        {
+            id: COMMAND_CORE_NODE_FRENZIED_FLURRY,
+            title: 'Frenzied Flurry',
+            description: `After a {Sic 'Em} pounce, your spirit strikes +{${FRENZIED_FLURRY_EXTRA_HITS}} more times in the same span.`,
+            flavorText: 'Once it has the scent, it does not let go.',
+            order: 40,
+            tier: 12,
+            position: { x: 620, y: 290 },
+            prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
+            ],
+            cost: COMMAND_FRENZIED_FLURRY_COST,
+            effects: [],
+            abilityResearchModifiers: [
+                {
+                    abilitySpecification: { type: 'abilityId', abilityId: SPIRIT_FLURRY_ABILITY_ID },
+                    repeatCountFlat: FRENZIED_FLURRY_EXTRA_HITS,
+                },
+            ],
+        },
+        {
+            id: COMMAND_CORE_NODE_THORN_VOLLEY,
+            title: 'Thorn Volley',
+            description: `{Fling Thorns} throws +{${THORN_VOLLEY_EXTRA_THORNS}} more thorns, so the spray lasts longer.`,
+            flavorText: 'The insects never ran out. Neither does it.',
+            order: 41,
+            tier: 12,
+            position: { x: 870, y: 160 },
+            prereqNodeIds: [COMMAND_CORE_NODE_MIMIC_THORN],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_MIMIC_THORN] },
+            ],
+            cost: COMMAND_THORN_VOLLEY_COST,
+            effects: [],
+            abilityResearchModifiers: [
+                {
+                    abilitySpecification: { type: 'abilityId', abilityId: FLING_THORN_ABILITY_ID },
+                    repeatCountFlat: THORN_VOLLEY_EXTRA_THORNS,
+                },
+            ],
+        },
+        {
+            id: COMMAND_CORE_NODE_STORM_SURGE,
+            title: 'Storm Surge',
+            description: `{Spirit Storm} deals +{${STORM_SURGE_DAMAGE_FLAT}} damage per pulse and covers {${Math.round((STORM_SURGE_AREA_MULT - 1) * 100)}%} more area.`,
+            flavorText: 'The storm remembers every time it was called.',
+            order: 42,
+            tier: 12,
+            position: { x: 1120, y: 290 },
+            prereqNodeIds: [COMMAND_CORE_NODE_SPIRIT_STORM],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_SPIRIT_STORM] },
+            ],
+            cost: COMMAND_STORM_SURGE_COST,
+            effects: [],
+            abilityResearchModifiers: [
+                {
+                    abilitySpecification: { type: 'abilityId', abilityId: SPIRIT_STORM_ABILITY_ID },
+                    damageFlat: STORM_SURGE_DAMAGE_FLAT,
+                    areaMult: STORM_SURGE_AREA_MULT,
+                },
+            ],
+        },
+        {
+            id: COMMAND_CORE_NODE_OVERGROWTH,
+            title: 'Overgrowth',
+            description: '{Bramble Patch} covers a {5x5} area instead of 3x3.',
+            flavorText: 'Where the spirit stamps, the forest floor remembers how to bite.',
+            order: 43,
+            tier: 12,
+            position: { x: 870, y: 420 },
+            prereqNodeIds: [COMMAND_CORE_NODE_MIMIC_BRAMBLES],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_MIMIC_BRAMBLES] },
+            ],
+            cost: COMMAND_OVERGROWTH_COST,
+            effects: [],
+            abilityResearchModifiers: [
+                {
+                    abilitySpecification: { type: 'abilityId', abilityId: BRAMBLE_PATCH_ABILITY_ID },
+                    tileAreaRadiusFlat: OVERGROWTH_TILE_RADIUS_FLAT,
+                },
+            ],
         },
     ],
 };

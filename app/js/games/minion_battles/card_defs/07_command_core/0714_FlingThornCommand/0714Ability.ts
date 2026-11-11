@@ -17,6 +17,8 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { resolveCasterPetAnchor } from '../../../abilities/targeting';
 import { nullHitbox } from '../../../hitboxes';
+import { getCasterAbilityModifier, getRepeatCount } from '../../../abilities/abilityModifierScales';
+import { getLocalPlayerUnitFromGameState } from '../../../abilities/abilityModifierHelpers';
 import {
     drawFlingThornsCone,
     FLING_THORN_ABILITY_ID,
@@ -99,9 +101,12 @@ export const FlingThornCommandAbility_0714 = defineAbility({
         return { minRange: 0, maxRange: FLING_THORN_MAX_DISTANCE };
     },
 
-    getTooltipText(): string[] {
+    getTooltipText(gameState?: unknown): string[] {
+        // Thorn Volley research: the spirit inherits its owner's Fling Thorns modifier (`repeatCountFlat`).
+        const owner = getLocalPlayerUnitFromGameState(gameState);
+        const count = getRepeatCount(FLING_THORN_COUNT, getCasterAbilityModifier(owner, FLING_THORN_ABILITY_ID));
         return [
-            `Order your spirit to fling {${FLING_THORN_COUNT}} thorns in quick succession toward the target point, each dealing {${FLING_THORN_DAMAGE}} damage.`,
+            `Order your spirit to fling {${count}} thorns in quick succession toward the target point, each dealing {${FLING_THORN_DAMAGE}} damage.`,
         ];
     },
 

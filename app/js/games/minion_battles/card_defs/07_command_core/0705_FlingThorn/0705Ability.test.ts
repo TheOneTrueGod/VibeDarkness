@@ -3,7 +3,13 @@ import { getAbility } from '../../../abilities/AbilityRegistry';
 import { FLING_THORN_ABILITY_ID, FLING_THORN_COUNT, FLING_THORN_DAMAGE, FLING_THORN_SPREAD_DEG } from './0705Ability';
 import { ProjectileLaunchBehaviour } from '../../../abilities/CastBehaviours/ProjectileLaunchBehaviour';
 import { SpellCircleBehaviour } from '../../../abilities/CastBehaviours/SpellCircleBehaviour';
-import type { AbilityTimingInterval } from '../../../abilities/abilityTimings';
+import {
+    AbilityPhase,
+    normalizeAbilityTimingsToIntervals,
+    resolveAbilityTimingEntries,
+    type AbilityTimingInterval,
+} from '../../../abilities/abilityTimings';
+import { Unit } from '../../../game/units/Unit';
 
 describe('Fling Thorns 0705', () => {
     it('is a pet-only ordered shot: no aiSettings, restored by commandCharge', () => {
@@ -32,5 +38,27 @@ describe('Fling Thorns 0705', () => {
         }
         // A visible recovery after the last thorn.
         expect(cooldown!.end - cooldown!.start).toBeGreaterThanOrEqual(0.5);
+    });
+
+    it('Thorn Volley (repeatCountFlat): three more thorns at the same pace, so the cast runs longer', () => {
+        const ability = getAbility(FLING_THORN_ABILITY_ID)!;
+        const timingsFor = (repeatCountFlat?: number) => {
+            const u = new Unit({
+                id: 's', x: 0, y: 0, hp: 50, maxHp: 50, speed: 140, teamId: 'player', ownerId: 'p1',
+                characterId: 'dog', name: 's',
+            });
+            if (repeatCountFlat) u.abilityModifiers = { [FLING_THORN_ABILITY_ID]: { repeatCountFlat } };
+            return normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, u));
+        };
+        const fireOf = (ivs: AbilityTimingInterval[]) => ivs.find((it) => it.abilityPhase === AbilityPhase.Active)!;
+        const gapOf = (fire: AbilityTimingInterval) =>
+            (fire.castBehaviours![1]!.timingStart as number) - (fire.castBehaviours![0]!.timingStart as number);
+        const base = timingsFor();
+        const more = timingsFor(3);
+        const gap = gapOf(fireOf(base));
+        expect(fireOf(more).castBehaviours).toHaveLength(FLING_THORN_COUNT + 3);
+        expect(gapOf(fireOf(more))).toBeCloseTo(gap);
+        expect(fireOf(more).end - fireOf(base).end).toBeCloseTo(3 * gap);
+        expect(Math.max(...more.map((it) => it.end)) - Math.max(...base.map((it) => it.end))).toBeCloseTo(3 * gap);
     });
 });
