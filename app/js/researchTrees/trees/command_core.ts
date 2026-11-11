@@ -100,10 +100,9 @@ export const commandCoreTree: ResearchTreeDef = {
             tier: 11,
             position: { x: 620, y: 160 },
             prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
-            exclusiveWithNodeIds: [COMMAND_CORE_NODE_MIMIC_BRAMBLES],
+            exclusiveWithNodeIds: [],
             requirements: [
                 { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
-                { type: 'notResearched', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_MIMIC_BRAMBLES },
             ],
             cost: {
                 attunement: COMMAND_THORN_ATTUNEMENT_COST,
@@ -124,10 +123,9 @@ export const commandCoreTree: ResearchTreeDef = {
             tier: 11,
             position: { x: 620, y: 420 },
             prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
-            exclusiveWithNodeIds: [COMMAND_CORE_NODE_MIMIC_THORN],
+            exclusiveWithNodeIds: [],
             requirements: [
                 { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
-                { type: 'notResearched', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_MIMIC_THORN },
             ],
             cost: {
                 attunement: COMMAND_BRAMBLES_ATTUNEMENT_COST,

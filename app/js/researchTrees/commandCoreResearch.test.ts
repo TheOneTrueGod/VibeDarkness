@@ -8,6 +8,7 @@ import {
     COMMAND_CORE_NODE_MIMIC_BRAMBLES,
     COMMAND_CORE_NODE_MIMIC_THORN,
     COMMAND_CORE_TREE_ID,
+    commandCoreTree,
     EMPOWER_PET_LEVELS,
     EMPOWER_PET_MAX_BITE_DAMAGE_ADD,
     EMPOWER_PET_MAX_HEALTH_ADD,
@@ -27,6 +28,22 @@ describe('command core research', () => {
             [COMMAND_CORE_TREE_ID]: [COMMAND_CORE_NODE_LOYAL_COMPANION, COMMAND_CORE_NODE_MIMIC_BRAMBLES],
         };
         expect(getPetAbilitiesFromResearch(research).get('dog')).toEqual(['0706']);
+    });
+
+    it('Mimic Thorn and Mimic Brambles can both be researched', () => {
+        for (const id of [COMMAND_CORE_NODE_MIMIC_THORN, COMMAND_CORE_NODE_MIMIC_BRAMBLES]) {
+            const node = commandCoreTree.nodes.find((n) => n.id === id)!;
+            expect(node.exclusiveWithNodeIds).toEqual([]);
+            expect(node.requirements.some((r) => r.type === 'notResearched')).toBe(false);
+        }
+        const research = {
+            [COMMAND_CORE_TREE_ID]: [
+                COMMAND_CORE_NODE_LOYAL_COMPANION,
+                COMMAND_CORE_NODE_MIMIC_THORN,
+                COMMAND_CORE_NODE_MIMIC_BRAMBLES,
+            ],
+        };
+        expect(getPetAbilitiesFromResearch(research).get('dog')).toEqual(['0705', '0706']);
     });
 
     it('Empower Pet scales pet HP and Dog Bite damage per level', () => {

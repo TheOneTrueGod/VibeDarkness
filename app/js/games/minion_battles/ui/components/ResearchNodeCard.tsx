@@ -350,8 +350,11 @@ export default function ResearchNodeCard({
         </span>
     );
 
+    // The admin Remove button sits at the right end of the admin details row; the tier shifts left of it.
+    const showAdminRemove = isAdmin && onAdminRemove != null;
+
     const adminTierBadge = isAdmin && layout !== 'comfortable' && node.tier != null && (
-        <span className={`${adminFooterBadgeClass} right-2`}>
+        <span className={`${adminFooterBadgeClass} ${showAdminRemove ? 'right-14' : 'right-2'}`}>
             Tier {node.tier}
         </span>
     );
@@ -446,7 +449,7 @@ export default function ResearchNodeCard({
             )}
             {isAdmin && layout === 'comfortable' && (
                 <div
-                    className={`grid ${RESEARCH_NODE_ADMIN_FOOTER_HEIGHT_CLASS} shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 text-[9px] font-mono leading-none`}
+                    className={`grid ${RESEARCH_NODE_ADMIN_FOOTER_HEIGHT_CLASS} shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 text-[9px] font-mono leading-none ${showAdminRemove ? 'pr-14' : ''}`}
                 >
                     <span className="min-w-0 truncate text-left select-all">{node.id}</span>
                     <span
@@ -541,16 +544,17 @@ export default function ResearchNodeCard({
                     {adminTierBadge}
                 </div>
             )}
-            {isAdmin && onAdminRemove && (
+            {showAdminRemove && (
                 <button
                     type="button"
                     data-testid={`${TestIds.researchNodeRemovePrefix}${node.id}`}
                     onClick={(event) => {
                         event.stopPropagation();
-                        onAdminRemove();
+                        onAdminRemove?.();
                     }}
                     title={`Admin: un-research “${node.title}”`}
-                    className="absolute bottom-6 right-2 z-10 rounded border border-red-400/70 bg-red-950/80 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-red-100 hover:bg-red-800"
+                    // Same row as the admin details: the comfortable footer is h-3 at the card's py-2 inset.
+                    className={`absolute z-10 flex h-3 items-center rounded-sm border border-red-400/70 bg-red-950/80 px-1 text-[9px] font-semibold leading-none text-red-100 hover:bg-red-800 ${layout === 'comfortable' ? 'bottom-2 right-3' : 'bottom-1 right-2'}`}
                 >
                     Remove
                 </button>
