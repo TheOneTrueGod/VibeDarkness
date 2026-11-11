@@ -1,8 +1,9 @@
 /**
  * pet_engage — Chase the locked target and attack it.
  *
- * Prefers any owned ability with aiSettings that is usable and in range (e.g. Fling Thorn
- * from Mimic Thorn research). Falls back to basicAttackAbilityId (Dog Bite) otherwise.
+ * Prefers any owned ability with aiSettings that is usable and in range, else basicAttackAbilityId (Dog
+ * Bite) when it is usable and in range. With nothing in range it only chases, closing in before it attacks
+ * (never casting from max distance).
  * Backs off to pet_return when too far from the owner, retreats to pet_heel when heeled,
  * and falls back to pet_follow when the target dies.
  */
@@ -20,10 +21,16 @@ import { petStateOf } from '../../components/petComponent';
 
 const RESCAN_INTERVAL_ROUNDS = 0.25;
 
+/** The range (px) the AI may use `ability` from: its aiSettings, else its getRange. */
+function engageRange(ability: AbilityStatic, unit: Unit): { minRange: number; maxRange: number } {
+    return ability.aiSettings ?? ability.getRange?.(unit) ?? { minRange: 0, maxRange: 0 };
+}
+
 /**
  * Pick the best engage ability for the locked target: highest aiSettings.priority among
- * usable in-range abilities, then longer maxRange. Falls back to basicAttackAbilityId
- * (pass null for no fallback).
+ * usable in-range abilities, then longer maxRange. Falls back to basicAttackAbilityId when it is
+ * usable and the target is in its range (pass null for no fallback). Null when nothing can hit the
+ * target from here, so the caller keeps closing in.
  */
 export function pickPetEngageAbility(
     unit: Unit,
@@ -53,7 +60,10 @@ export function pickPetEngageAbility(
         return candidates[0]!.ability;
     }
 
-    return basicAttackAbilityId ? getAbility(basicAttackAbilityId) ?? null : null;
+    const basic = basicAttackAbilityId ? getAbility(basicAttackAbilityId) : undefined;
+    if (!basic || !canUseAbilityNow(unit, basic) || !meetsTagRequirements(unit, basic)) return null;
+    const { minRange, maxRange } = engageRange(basic, unit);
+    return dist >= minRange && dist <= maxRange ? basic : null;
 }
 
 export const pet_engage: AINode<'pet', PetNodeId> = {

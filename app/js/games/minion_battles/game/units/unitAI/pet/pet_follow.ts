@@ -7,8 +7,10 @@
  *
  * - `autoEngage` (default true): every SCAN_INTERVAL_ROUNDS it checks for enemies within engageLeashRange
  *   of the owner and transitions to pet_engage.
- * - `autoEngage: false` (the spirit animal): it never chases. While idle it fires any usable ability with
- *   `aiSettings` (e.g. the Fling Thorn shotgun) at the nearest enemy already in that ability's range.
+ * - `autoEngage: false`: it never chases. While idle it fires any usable ability with `aiSettings` at the
+ *   nearest enemy already in that ability's range.
+ * - `engageWhileGuarding` (the spirit animal): as `autoEngage`, but only while guarding (no ordered point).
+ *   Pets start every mission guarding.
  */
 
 import type { Unit } from '../../Unit';
@@ -55,7 +57,8 @@ export const pet_follow: AINode<'pet', PetNodeId> = {
             const owner = ownerId ? context.getUnit(ownerId) ?? null : null;
             const ownerAlive = owner?.isAlive() ?? false;
             const petDef = petStateOf(unit).defId ? getPetDef(petStateOf(unit).defId!) : null;
-            const autoEngage = petDef?.autoEngage !== false;
+            const guarding = ctx.anchorX === undefined || ctx.anchorY === undefined;
+            const autoEngage = petDef?.autoEngage !== false || (guarding && petDef?.engageWhileGuarding === true);
 
             if (autoEngage) {
                 // Scan for enemies near the owner

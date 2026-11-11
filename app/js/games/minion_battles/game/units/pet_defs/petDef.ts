@@ -18,6 +18,12 @@ export interface PetDefEntry {
      * ranged abilities with `aiSettings` that reach an enemy from where it stands. Default true.
      */
     autoEngage?: boolean;
+    /**
+     * With `autoEngage: false`: while guarding (no ordered point, so the anchor is the owner), still engage
+     * enemies within `engageLeashRange` of the owner. Sent to a point with Order: Move, the pet holds there
+     * and does not chase. Default false.
+     */
+    engageWhileGuarding?: boolean;
     /** How far (px) the pet may wander from its anchor. Default 50. */
     anchorRadius?: number;
     /**
@@ -43,7 +49,10 @@ const PET_DEFS: Record<string, PetDefEntry> = {
         // Spirit Strike (0710) answers the owner's weapon hits; Spirit Flurry (0711) follows a Sic 'em pounce.
         abilityIds: ['0701', '0702', '0710', '0711'],
         basicAttackAbilityId: '0701',
+        // Guarding (the mission start, or after Guard) it follows its owner and attacks enemies near them;
+        // sent to a point with Order: Move it holds there instead.
         autoEngage: false,
+        engageWhileGuarding: true,
         anchorRadius: 50,
         reactions: [{ on: 'ownerWeaponHit', abilityId: '0710' }],
     },

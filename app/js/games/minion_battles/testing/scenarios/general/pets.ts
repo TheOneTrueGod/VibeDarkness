@@ -13,7 +13,6 @@ import {
 } from '../../harness/buildTinyBattleEngine';
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
-import type { PetAITreeContext } from '../../../game/units/unitAI/pet/context';
 import type { StunnedBuff } from '../../../buffs/StunnedBuff';
 import { petStateOf } from '../../../game/units/components/petComponent';
 import { getPetDef } from '../../../game/units/pet_defs/petDef';
@@ -61,17 +60,17 @@ function spawnDog(
 // ---- Scenario 1: Spirit guards its owner ----
 
 /**
- * The spirit is guarding (no ordered point), so its anchor is the owner. An enemy stands close by; the
- * spirit never chases it. The player walks far east; the spirit follows and ends within its anchor
- * radius (50 px, plus a little slack for the last step).
+ * The spirit starts the mission guarding (no ordered point), so its anchor is the owner. An enemy stands
+ * close by: the spirit engages and bites it. The player then walks far east; the spirit breaks off (return
+ * leash) and follows, ending within its anchor radius (50 px, plus a little slack for the last step).
  *
  * Assertions:
- *   1. The enemy is untouched (no auto-engage).
+ *   1. The enemy took damage (guarding engages enemies near the owner).
  *   2. The spirit ended within 60 px of the player.
  */
 export const petAutoEngageScenario: ScenarioDefinition = {
     id: 'pet_auto_engage',
-    title: 'Spirit: guards its owner — follows within 50 px and never chases enemies',
+    title: 'Spirit: guards its owner — attacks nearby enemies, then follows within 50 px',
     category: 'general',
     generalSection: 'Pets',
     maxDurationMs: 25000,
@@ -140,9 +139,9 @@ export const petAutoEngageScenario: ScenarioDefinition = {
         const dog = engine.getUnit('dog1');
         const player = engine.getLocalPlayerUnit()!;
         if (!enemy || !dog) return false;
-        const untouched = enemy.hp === enemy.maxHp;
+        const bitten = enemy.hp < enemy.maxHp;
         const dogNearOwner = Math.hypot(dog.x - player.x, dog.y - player.y) <= 60;
-        return untouched && dogNearOwner;
+        return bitten && dogNearOwner;
     },
 
     failureMessage(engine) {

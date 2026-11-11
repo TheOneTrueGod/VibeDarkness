@@ -8,7 +8,8 @@ import { Unit } from './Unit';
 import { EventBus } from '../EventBus';
 import { findEnemies } from './unitAI/utils';
 import type { PetAITreeContext } from './unitAI/pet/context';
-import { resolvePetAnchor } from './unitAI/pet/pet_follow';
+import { pet_follow, resolvePetAnchor } from './unitAI/pet/pet_follow';
+import type { AIContext } from './unitAI/types';
 import { commandPetGuard, commandPetOrderMove } from '../../abilities/petCommands';
 import { handlePetReactionsOnAttackHit } from './petReactions';
 import { DashStrikeBehaviour } from '../../abilities/CastBehaviours/DashStrikeBehaviour';
@@ -64,12 +65,56 @@ describe('anchor orders', () => {
         expect(resolvePetAnchor(ctx, owner)).toBe(owner);
     });
 
-    it('the spirit def never auto-engages and wanders within 50px', () => {
+    it('the spirit def engages only while guarding and wanders within 50px', () => {
         const def = getPetDef('dog')!;
         expect(def.autoEngage).toBe(false);
+        expect(def.engageWhileGuarding).toBe(true);
         expect(def.anchorRadius).toBe(50);
     });
+
+    it('guarding (how every mission starts) it engages an enemy near its owner', () => {
+        const owner = makeUnit('owner', 0, 0, 'player');
+        const spirit = makeSpirit(owner, 30, 0);
+        const enemy = makeUnit('enemy', 120, 0, 'enemy');
+        const ctx = spirit.aiContext as PetAITreeContext;
+        expect(resolvePetAnchor(ctx, owner)).toBe(owner);
+        pet_follow.actions.execute(spirit, followContext([owner, spirit, enemy]));
+        expect(ctx.aiState).toBe('pet_engage');
+        expect(ctx.targetUnitId).toBe('enemy');
+    });
+
+    it('sent to a point with Order: Move it holds there and does not chase', () => {
+        const owner = makeUnit('owner', 0, 0, 'player');
+        const spirit = makeSpirit(owner, 30, 0);
+        const enemy = makeUnit('enemy', 120, 0, 'enemy');
+        commandPetOrderMove([spirit], { x: 30, y: 0 }, { gameTime: 0, gameTick: 0 });
+        const ctx = spirit.aiContext as PetAITreeContext;
+        pet_follow.actions.execute(spirit, followContext([owner, spirit, enemy]));
+        expect(ctx.aiState).toBe('pet_follow');
+        expect(ctx.targetUnitId).toBeUndefined();
+    });
 });
+
+function followContext(units: Unit[]): AIContext {
+    const nav = {
+        chaseUnit: () => {}, moveToCell: () => {}, moveToPoint: () => {}, stop: () => {},
+        isReachable: () => true, hasLineOfWalk: () => true, isWalking: () => false,
+    };
+    return {
+        gameTime: 1,
+        gameTick: 60,
+        getUnit: (id: string) => units.find((u) => u.id === id),
+        getUnits: () => units,
+        queueOrder: () => {},
+        emitTurnEnd: () => {},
+        nav,
+        WORLD_WIDTH: 2000,
+        WORLD_HEIGHT: 2000,
+        terrainManager: null,
+        generateRandomInteger: (min: number) => min,
+        eventBus: new EventBus(),
+    } as unknown as AIContext;
+}
 
 function reactionEngine(units: Unit[]) {
     const queued: { tick: number; order: { unitId: string; abilityId: string; targets: ResolvedTarget[] } }[] = [];

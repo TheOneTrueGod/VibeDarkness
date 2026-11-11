@@ -451,7 +451,7 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('passes spirit guard scenario (follows within 50 px, never chases)', () => {
+    it('passes spirit guard scenario (attacks a nearby enemy, then follows within 50 px)', () => {
         const r = runScenarioHeadless(petAutoEngageScenario);
         expect(r.passed, r.message).toBe(true);
     });
