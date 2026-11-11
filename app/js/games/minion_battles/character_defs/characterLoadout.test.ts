@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { activeResearchByPlayer, activeResearchNodeLevelsByPlayer, resolveCharacterLoadout } from './characterLoadout';
+import { CORE_ITEM_IDS } from './items';
+import { COMMAND_CORE_TREE_ID } from '../../../researchTrees/trees/command_core';
 
 const BASIC_CORE = '004';
 const EARTH_CORE = '019';
@@ -18,6 +20,19 @@ describe('resolveCharacterLoadout', () => {
         expect(abilityIds).not.toContain('throw_rock');
         expect(abilityIds).not.toContain('0103');
         expect(activeResearchTrees.weapons).toEqual(['throw_charged_rock']);
+    });
+
+    it('core research cards are on the bar but are not weapon abilities (only weapon items and weapon research)', () => {
+        // Regression: Command Core cards (Spirit Storm etc.) counted as weapons, so their hits fired
+        // the spirit's Spirit Strike reaction.
+        const { abilityIds, weaponAbilityIds } = resolveCharacterLoadout([CORE_ITEM_IDS.CommandCore, STICK], {
+            [COMMAND_CORE_TREE_ID]: ['loyal_companion', 'mimic_thorn', 'mimic_brambles', 'spirit_storm'],
+        });
+        for (const card of ['0704', '0707', '0709', '0713', '0714']) {
+            expect(abilityIds).toContain(card);
+            expect(weaponAbilityIds).not.toContain(card);
+        }
+        expect(weaponAbilityIds).toContain('0103');
     });
 
     it('Stick equipped with stored rocks research gives 0103 and no rock throw', () => {

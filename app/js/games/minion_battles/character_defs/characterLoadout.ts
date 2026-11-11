@@ -61,7 +61,10 @@ export interface CharacterLoadout {
     activeResearchTrees: Record<string, string[]>;
     battleEquipmentIds: string[];
     abilityIds: string[];
-    /** Weapon-item cards after the same replacement passes as `abilityIds`, kept only if they remain on the bar. */
+    /**
+     * Weapon-item cards plus weapon-research cards, after the same remove/replace passes as `abilityIds`, kept
+     * only if they remain on the bar. Cards that non-weapon research adds are never weapon abilities.
+     */
     weaponAbilityIds: string[];
 }
 
@@ -74,10 +77,13 @@ function applyCardEffectsPhase(
     abilities: string[],
     activeResearchTrees: Record<string, string[]>,
     predicate: TreePredicate,
+    opts: { addCards?: boolean } = {},
 ): string[] {
     let out = [...abilities];
-    for (const cardId of getDirectCardsFromResearch(activeResearchTrees, predicate)) {
-        if (!out.includes(cardId)) out.push(cardId);
+    if (opts.addCards !== false) {
+        for (const cardId of getDirectCardsFromResearch(activeResearchTrees, predicate)) {
+            if (!out.includes(cardId)) out.push(cardId);
+        }
     }
     const removed = getRemovedCardsFromResearch(activeResearchTrees, predicate);
     if (removed.size > 0) out = out.filter((id) => !removed.has(id));
@@ -114,7 +120,9 @@ export function resolveCharacterLoadout(
 
     let weaponAbilities = weaponSeedAbilityIds(battleEquipmentIds);
     weaponAbilities = applyCardEffectsPhase(weaponAbilities, activeResearchTrees, isWeaponTree);
-    weaponAbilities = applyCardEffectsPhase(weaponAbilities, activeResearchTrees, isNonWeaponTree);
+    // Non-weapon research (cores, training) may remove or replace weapon cards, but the cards it adds are
+    // not weapons: a Command Core card on the bar must not count as a weapon hit (pet reactions, conjuring).
+    weaponAbilities = applyCardEffectsPhase(weaponAbilities, activeResearchTrees, isNonWeaponTree, { addCards: false });
     const onBar = new Set(abilities);
     const weaponAbilityIds = weaponAbilities.filter((id) => onBar.has(id));
 
