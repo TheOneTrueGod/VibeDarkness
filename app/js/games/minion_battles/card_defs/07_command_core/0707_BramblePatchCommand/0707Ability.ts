@@ -79,10 +79,15 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'cooldown', start: CAST_ACTIVE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
 ];
 
+/** Thorny brambles sprouting from the ground, in the Command Core palette (teal disc, lime line art, white buds). */
 const BRAMBLE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="32" cy="32" r="22" fill="#0a1a0a" stroke="#1a3d1a" stroke-width="2"/>
-  <circle cx="32" cy="32" r="14" fill="none" stroke="#4ade80" stroke-width="2" opacity="0.8"/>
-  <path d="M32 18 L34 28 L32 26 L30 28 Z M46 32 L36 34 L38 32 L36 30 Z M32 46 L30 36 L32 38 L34 36 Z M18 32 L28 30 L26 32 L28 34 Z" fill="#86efac"/>
+  <circle cx="32" cy="32" r="28" fill="#0f766e"/>
+  <path d="M12 46 Q32 40 52 46" stroke="#042f2e" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M20 45 C17 36 24 32 20 22 M32 43 C36 34 28 28 32 15 M44 45 C47 36 40 32 44 22" stroke="#d9f99d" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M19 37 l-5 -2 l4 -2 Z M22 29 l5 -2 l-3 -3 Z M34 36 l5 -1 l-3 -3 Z M29 28 l-5 -1 l3 -3 Z M33 21 l5 -2 l-3 -3 Z M45 37 l5 -2 l-4 -2 Z M42 29 l-5 -2 l3 -3 Z" fill="#d9f99d"/>
+  <circle cx="32" cy="15" r="2.5" fill="#ffffff"/>
+  <circle cx="20" cy="22" r="2" fill="#ffffff"/>
+  <circle cx="44" cy="22" r="2" fill="#ffffff"/>
 </svg>`;
 
 export const BramblePatchCommandAbility_0707 = defineAbility({
