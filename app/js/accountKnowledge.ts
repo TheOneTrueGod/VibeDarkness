@@ -70,6 +70,9 @@ export const KNOWLEDGE_TUTORIAL_LIGHT = 'TutorialLight';
 /** Tutorial: Stacked Units. Carries the tutorial shown the first time an enemy unit stack is on screen. */
 export const KNOWLEDGE_TUTORIAL_STACKED_UNITS = 'TutorialStackedUnits';
 
+/** Tutorial: Crystals. Carries the mission-3 tutorial on crystal light damaging creatures of darkness. */
+export const KNOWLEDGE_TUTORIAL_CRYSTALS = 'TutorialCrystals';
+
 /** What a piece of knowledge is about; drives the pill icon and the admin grant filters. */
 export type AccountKnowledgeType = 'resource' | 'equipment' | 'systems' | 'progression' | 'tutorial' | 'other';
 
@@ -199,6 +202,13 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
         type: 'tutorial',
         tier: 1,
         description: 'Recorded by the tutorial shown the first time an enemy unit stack is on screen.',
+    },
+    {
+        key: KNOWLEDGE_TUTORIAL_CRYSTALS,
+        label: 'Tutorial: Crystals',
+        type: 'tutorial',
+        tier: 1,
+        description: 'Recorded by the mission-3 tutorial on crystal light damaging creatures of darkness.',
     },
 ];
 

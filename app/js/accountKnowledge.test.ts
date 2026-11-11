@@ -13,7 +13,9 @@ import {
     KNOWLEDGE_TYPE_DEFS,
     KNOWLEDGE_SYSTEM_UPGRADES,
     KNOWLEDGE_TUTORIAL_BATTLE_BASICS,
+    KNOWLEDGE_TUTORIAL_CRYSTALS,
     KNOWLEDGE_TUTORIAL_LIGHT,
+    KNOWLEDGE_TUTORIAL_STACKED_UNITS,
 } from './accountKnowledge';
 
 describe('account knowledge registry', () => {
@@ -38,6 +40,8 @@ describe('account knowledge registry', () => {
             KNOWLEDGE_COMPLETED_CHAPTER_1,
             KNOWLEDGE_TUTORIAL_BATTLE_BASICS,
             KNOWLEDGE_TUTORIAL_LIGHT,
+            KNOWLEDGE_TUTORIAL_STACKED_UNITS,
+            KNOWLEDGE_TUTORIAL_CRYSTALS,
         ];
         for (const k of ACCOUNT_KNOWLEDGE) {
             expect(k.tier, k.key).toBe(tierOne.includes(k.key) ? 1 : 2);

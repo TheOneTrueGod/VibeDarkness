@@ -1,6 +1,7 @@
 /** World of Darkness tutorials. Registered in `storylines/tutorialRegistry.ts`; see `tutorials/tutorialTypes.ts`. */
 import {
     KNOWLEDGE_TUTORIAL_BATTLE_BASICS,
+    KNOWLEDGE_TUTORIAL_CRYSTALS,
     KNOWLEDGE_TUTORIAL_LIGHT,
     KNOWLEDGE_TUTORIAL_STACKED_UNITS,
 } from '../../../../accountKnowledge';
@@ -8,6 +9,7 @@ import type { TutorialDef } from '../../tutorials/tutorialTypes';
 import { ENEMY_DARK_WOLF } from '../../constants/enemyConstants';
 import { DARK_AWAKENING } from './missions/001_dark_awakening';
 import { TOWARDS_THE_LIGHT } from './missions/002_towards_the_light';
+import { LIGHT_EMPOWERED } from './missions/003_light_empowered';
 
 const PUNCH_ABILITY_ID = '0120';
 const THROW_TORCH_ABILITY_ID = '0601';
@@ -56,6 +58,21 @@ export const TUTORIAL_LIGHT: TutorialDef = {
     ],
 };
 
+/** Mission 3 opening: the party starts in the crystal cave. Crystal DayLight burns dark creatures. */
+export const TUTORIAL_CRYSTALS: TutorialDef = {
+    id: 'crystals_intro',
+    knowledgeKey: KNOWLEDGE_TUTORIAL_CRYSTALS,
+    title: 'Crystals',
+    trigger: { type: 'battleStart', missionId: LIGHT_EMPOWERED.missionId },
+    steps: [
+        {
+            text: 'These crystals shine with a pure light. Creatures of darkness that stand in it are burned and take damage.',
+            pointAt: { type: 'specialTile', defId: 'Crystal' },
+            advance: { type: 'next' },
+        },
+    ],
+};
+
 /** The first time an enemy unit stack is on screen (first met in The Lonely Castle). */
 export const TUTORIAL_STACKED_UNITS: TutorialDef = {
     id: 'stacked_units',
@@ -76,5 +93,6 @@ export const TUTORIAL_STACKED_UNITS: TutorialDef = {
 export const WORLD_OF_DARKNESS_TUTORIALS: readonly TutorialDef[] = [
     TUTORIAL_FIRST_BATTLE,
     TUTORIAL_LIGHT,
+    TUTORIAL_CRYSTALS,
     TUTORIAL_STACKED_UNITS,
 ];
