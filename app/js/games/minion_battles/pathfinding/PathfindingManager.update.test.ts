@@ -414,4 +414,18 @@ describe('PathfindingManager.update', () => {
         // (exact count depends on whether direct line-of-sight to target)
         expect(tm.pathQuery.goalFieldCount).toBeLessThanOrEqual(2);
     });
+
+    it('plans a path for an ethereal unit (the spirit dog is untargetable but still walks)', () => {
+        const engine = buildEngine();
+        const spirit = addWalker(engine, 'spirit', 4, 4, 'player');
+        spirit.characterId = 'dog';
+        expect(spirit.isUntargetable()).toBe(true);
+        const goal = { col: 14, row: 4 };
+
+        spirit.setWalkGoal({ kind: 'cell', ...goal });
+        managerTick(engine);
+
+        expect(spirit.movement).not.toBeNull();
+        expect(spirit.movement!.path[spirit.movement!.path.length - 1]).toEqual(goal);
+    });
 });

@@ -34,8 +34,10 @@ interface UseInteractiveTargetingProgressParams {
     hudEffectCanvasRef?: RefObject<HudEffectCanvasHandle | null>;
 }
 
-const ENDED_EARLY_NOTICE_PRESET: Record<'interrupted' | 'fizzled' | 'caster_died', BattleNoticePresetId> = {
+const ENDED_EARLY_NOTICE_PRESET: Record<'interrupted' | 'fizzled' | 'preempted' | 'caster_died', BattleNoticePresetId> = {
     interrupted: 'cast_interrupted',
+    // A higher-priority order replaced the cast: shown to the player as an interrupt.
+    preempted: 'cast_interrupted',
     fizzled: 'cast_fizzled',
     caster_died: 'caster_defeated',
 };

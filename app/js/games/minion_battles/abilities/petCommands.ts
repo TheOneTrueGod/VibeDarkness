@@ -40,6 +40,7 @@ import { applyHeal, DEFAULT_HEAL_PENALTY_PCT } from '../game/units/unitHeal';
 import type { AbilityEngineContext } from './AbilityEngineContext';
 import { clearPetGuardWander } from '../game/units/unitAI/pet/pet_guardWander';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
+import { canPreempt } from '../game/units/castPriority';
 export { resolveAbilitySourceUnits } from './abilitySourceUnits';
 
 // ---- resolveAbilitySourceUnits ----
@@ -141,12 +142,25 @@ export interface CommandPetAbilityOpts {
     preGrantCharge?: { chargeType: RecoveryChargeType; amount: number };
     /** The commanding unit; when set, plays the command cue from it to each pet. */
     owner?: Unit;
+    /**
+     * Cast priority to stamp on each queued order (`BattleOrder.castPriority`; a `CAST_PRIORITY` level, see
+     * `game/units/castPriority.ts`). When set, a pet that this priority cannot preempt right now is skipped:
+     * no charge is granted and no order is queued. `applyOrderLogic` checks again when the order applies.
+     */
+    priority?: number;
+    /**
+     * Parent `abilityId` this command follows up on the same pet (`BattleOrder.followUpOf`, e.g. Pounce →
+     * Spirit Flurry). The priority check leaves that running cast out, so the follow-up replaces its parent.
+     */
+    followUpOf?: string;
 }
 
 /**
  * Queue `abilityId` with `targets` on each of the given pets at `engine.gameTick + 1`.
  * Pattern mirrors AlphaWolfSummon: the pet starts its cast on the very next simulation tick.
- * Pass `opts.preGrantCharge` to restore a use before queuing (needed for commandCharge abilities).
+ * Pass `opts.preGrantCharge` to restore a use before queuing (needed for commandCharge abilities), and
+ * `opts.priority` to stamp a cast priority (pets it cannot preempt are skipped), and `opts.followUpOf` when
+ * the order continues a running cast that it should replace.
  */
 export function commandPetAbility(
     pets: Unit[],
@@ -158,8 +172,12 @@ export function commandPetAbility(
     if (!engine.state?.orderMgr || engine.gameTick === undefined) return;
     const { orderMgr } = engine.state;
     const currentTick = engine.gameTick;
+    const priority = opts?.priority;
+    const followUpOf = opts?.followUpOf;
+    const commanded: Unit[] = [];
     for (const pet of pets) {
         if (!pet.isAlive()) continue;
+        if (priority !== undefined && !canPreempt(pet, priority, engine.units, engine, followUpOf)) continue;
         if (opts?.preGrantCharge) {
             grantRecoveryChargeToAbility(pet, abilityId, opts.preGrantCharge.chargeType, opts.preGrantCharge.amount);
         }
@@ -167,9 +185,12 @@ export function commandPetAbility(
             unitId: pet.id,
             abilityId,
             targets,
+            ...(priority !== undefined ? { castPriority: priority } : {}),
+            ...(followUpOf !== undefined ? { followUpOf } : {}),
         });
+        commanded.push(pet);
     }
-    playCommandCues(opts?.owner, pets, engine as { addEffect?(e: unknown): void });
+    playCommandCues(opts?.owner, commanded, engine as { addEffect?(e: unknown): void });
 }
 
 // ---- Order: Attack / Order: Move ----

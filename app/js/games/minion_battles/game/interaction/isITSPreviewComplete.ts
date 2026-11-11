@@ -24,7 +24,7 @@ export interface SequentialTargetingPreviewCast {
      */
     resumeCastStartTime?: number;
     /** Set once (first `cast_ended_early` event for this preview cast); the preview then plays forward to a stop point. */
-    endedEarly?: { atTick: number; reason: 'interrupted' | 'fizzled'; source?: KnockbackSource };
+    endedEarly?: { atTick: number; reason: 'interrupted' | 'fizzled' | 'preempted'; source?: KnockbackSource };
 }
 
 /**

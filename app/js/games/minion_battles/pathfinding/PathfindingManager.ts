@@ -96,7 +96,9 @@ export class PathfindingManager {
         for (let k = 0; k < n; k++) {
             const unit = units[(start + k) % n];
 
-            if (!unit.active || !unit.isAlive() || unit.isUntargetable()) continue;
+            // Spawning and terrain-hazard units can't walk. Not `isUntargetable()`: that also covers ethereal
+            // units (the spirit dog), which can't be targeted but still walk.
+            if (!unit.active || !unit.isAlive() || unit.isSpawning() || unit.isInTerrainHazard()) continue;
 
             const intent = unit.walkIntent;
             if (!intent) continue;

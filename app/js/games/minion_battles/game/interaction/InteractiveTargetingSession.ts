@@ -194,7 +194,7 @@ export class InteractiveTargetingSession {
      * event), or a dead caster.
      */
     getPreviewCastEndedEarly(engine: GameEngine): {
-        reason: 'interrupted' | 'fizzled' | 'caster_died';
+        reason: 'interrupted' | 'fizzled' | 'preempted' | 'caster_died';
         atTick: number | null;
         source?: KnockbackSource;
     } | null {

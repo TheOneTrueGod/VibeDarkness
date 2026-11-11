@@ -86,7 +86,12 @@ import {
 } from './abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteSharedConstructionScenario, lanterniteDefenderAttackScenario, lanterniteDefenderTracksMovingTargetScenario, lanterniteNestThornSpreadScenario } from './general/lanternites';
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from './general/lanterniteDeath';
-import { petAutoEngageScenario, petSicEmPounceScenario } from './general/pets';
+import {
+    petAutoEngageScenario,
+    petBusyBlocksCommandScenario,
+    petCommandPreemptsBiteScenario,
+    petSicEmPounceScenario,
+} from './general/pets';
 import {
     swarmlingHuntAndBiteScenario,
     swarmlingSharedConstructionScenario,
@@ -285,6 +290,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     shotgunHitsDummyScenario,
     petAutoEngageScenario,
     petSicEmPounceScenario,
+    petCommandPreemptsBiteScenario,
+    petBusyBlocksCommandScenario,
     aiPlanHoldStabilityScenario,
     aiTerrainInterruptScenario,
     aiReplanStaggerScenario,

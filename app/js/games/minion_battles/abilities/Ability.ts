@@ -370,6 +370,14 @@ export function resolveAbilityInterruptPolicy(ability: Pick<AbilityStatic, 'inte
 }
 
 /** The shape every static ability class must implement. */
+/** `AbilityStatic.abilitySource`: the ability originates from the caster's pet(s). */
+export interface PetAbilitySource {
+    readonly type: 'pet';
+    readonly selector: 'nearest' | 'all';
+    /** Only free pets (effective cast priority below `Major`) count as sources. */
+    readonly requireFree?: true;
+}
+
 export interface AbilityStatic {
     /** Unique ability ID. */
     readonly id: string;
@@ -493,8 +501,11 @@ export interface AbilityStatic {
      * (via `createPetSourcedMovementPreview`), not from the caster. If the command orders a dash
      * on the source unit, import max distance and collision step from the delegate ability (e.g.
      * Pounce 0702) and use terrain-aware preview helpers — not `createPixelTargetPreview`.
+     * - `requireFree: true` — only **free** pets count (not `isUnitBusy`, see `game/units/castPriority.ts`):
+     *   'nearest' is then the nearest free pet, 'all' every free pet. Pass the engine to
+     *   `resolveAbilitySourceUnits` so it can tell.
      */
-    readonly abilitySource?: { type: 'pet'; selector: 'nearest' | 'all' };
+    readonly abilitySource?: PetAbilitySource;
     /**
      * Time in seconds before the ability's main effect typically fires (windup / telegraph end).
      * Cast behaviours (`castBehaviours` on `abilityTimings` intervals) do the work; use this (or interval

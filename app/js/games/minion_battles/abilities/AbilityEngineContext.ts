@@ -54,7 +54,7 @@ export interface AbilityEngineContext {
         orderMgr: {
             queueOrder(
                 atTick: number,
-                order: { unitId: string; abilityId: string; targets: ResolvedTarget[] },
+                order: { unitId: string; abilityId: string; targets: ResolvedTarget[]; castPriority?: number; followUpOf?: string },
             ): void;
             /** True when `unitId` has an order queued for this tick or later. */
             hasAnyPendingOrderForUnit?(unitId: string): boolean;

@@ -10,6 +10,7 @@ import { getAbilityResourceCosts, type AbilityModesConfig, type AbilityStatic } 
 import { getAbilityModifier, getLocalPlayerUnitFromGameState } from '../../abilities/abilityModifierHelpers';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
+import { getAbilityTooltipLines } from '../../abilities/abilityTooltipLines';
 import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abilityUseChargeAnimation';
 import { ChargeIcon } from './ChargeIcon';
 import { RECOVERY_CHARGE_DEFINITIONS, recoveryGlossaryEntries } from './recoveryChargeDefinitions';
@@ -118,7 +119,7 @@ export default function AbilitySlot({
         onSelect();
     }, [isDisabled, isMobile, showMobileDescription, onSelect, onMobileDescriptionToggle]);
 
-    const tooltipLines = ability.getTooltipText(gameState);
+    const tooltipLines = getAbilityTooltipLines(ability, gameState);
     // Display-only: getAbilityResourceCosts() also drives real affordability/spend/refund
     // logic (unit.getResource(...)), and HP isn't a generic Resource — append it here
     // purely for the card badge, never feed this array back into the economy pipeline.

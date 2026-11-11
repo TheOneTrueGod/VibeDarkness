@@ -54,7 +54,12 @@ import {
     swarmlingSharedConstructionScenario,
     swarmlingContestsOccupiedNestScenario,
 } from '../scenarios/general/swarmlings';
-import { petAutoEngageScenario, petSicEmPounceScenario } from '../scenarios/general/pets';
+import {
+    petAutoEngageScenario,
+    petBusyBlocksCommandScenario,
+    petCommandPreemptsBiteScenario,
+    petSicEmPounceScenario,
+} from '../scenarios/general/pets';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
 import { aiPlanHoldStabilityScenario } from '../scenarios/ai/ai_plan_hold_stability';
 import { aiTerrainInterruptScenario } from '../scenarios/ai/ai_terrain_interrupt';
@@ -458,6 +463,16 @@ describe('runScenarioHeadless', () => {
 
     it("passes pet Sic 'em + Pounce scenario (0704/0702): spirit locks on and flurries", () => {
         const r = runScenarioHeadless(petSicEmPounceScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes cast priority scenario: commanding Fling Thorns mid-bite preempts the bite', () => {
+        const r = runScenarioHeadless(petCommandPreemptsBiteScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes cast priority scenario: a spirit held by Spirit Storm ignores a Fling Thorns command', () => {
+        const r = runScenarioHeadless(petBusyBlocksCommandScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

@@ -13,6 +13,8 @@ import AbilitySlot from '../AbilitySlot';
 import { battleAbilityCardTestId } from '../../../../../testing/testIds';
 import AbilityTooltip from '../AbilityTooltip';
 import { getAbilityUseConfig, type RecoveryChargeType } from '../../../abilities/abilityUses';
+import { getAbilityTooltipLines } from '../../../abilities/abilityTooltipLines';
+import { asCastPriorityEngine } from '../../../abilities/abilitySourceUnits';
 import { recoveryGlossaryEntries } from '../recoveryChargeDefinitions';
 import { getAbilityBarLayoutKey, splitAbilityRows } from '../../../abilities/abilityBarLayout';
 import { abilityCardHudAnchorId, registerHudAnchor, unregisterHudAnchor } from '../hudAnchors';
@@ -102,6 +104,8 @@ export default function RowSlotAbilities({
     onHoverAbility,
     turnIndicator,
 }: RowSlotAbilitiesProps) {
+    // Busy / free pets for `requireFree` cards (the engine is passed as `gameState`).
+    const priorityEngine = asCastPriorityEngine(gameState);
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(getUsesMobileCardLayout);
     const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
@@ -235,10 +239,11 @@ export default function RowSlotAbilities({
             currentUses: card.runtime.currentUses,
             isMyTurn,
             allUnits,
+            engine: priorityEngine,
             conditionalCancelContext,
         });
         onHoverAbility(disabledReason == null ? card.ability : null);
-    }, [hoveredCardId, handCards, playerUnit, isMyTurn, allUnits, conditionalCancelContext, onHoverAbility]);
+    }, [hoveredCardId, handCards, playerUnit, isMyTurn, allUnits, priorityEngine, conditionalCancelContext, onHoverAbility]);
 
     // Register card top-center page positions as HUD flight targets, keyed by charge type so
     // particles only fly to cards that actually recover that resource.
@@ -370,6 +375,7 @@ export default function RowSlotAbilities({
             currentUses: card.runtime.currentUses,
             isMyTurn,
             allUnits,
+            engine: priorityEngine,
             conditionalCancelContext,
         });
         const isHovered = hoveredCardId === card.abilityId;
@@ -498,7 +504,7 @@ export default function RowSlotAbilities({
             {isMobile && mobileDescAbility && (
                 <AbilityTooltip
                     title={mobileDescAbility.name}
-                    lines={mobileDescAbility.getTooltipText(gameState)}
+                    lines={getAbilityTooltipLines(mobileDescAbility, gameState)}
                     flavorText={mobileDescAbility.flavorText}
                     extraKeywordEntries={recoveryGlossaryEntries(
                         mobileDescUseConfig?.recoveries ?? [],

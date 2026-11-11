@@ -6,6 +6,7 @@
  */
 
 import { setAbilityTagResolver, type AbilityStatic } from './Ability';
+import { setCastPriorityAbilityLookup } from '../game/units/castPriority';
 import { ThrowRock } from '../card_defs/0107_ThrowRock/0107Ability';
 import { ThrowChargedRock } from '../card_defs/0108_ThrowChargedRock/0108Ability';
 import { ThrowKnife } from '../card_defs/0109_ThrowKnife/0109Ability';
@@ -264,6 +265,7 @@ register(ChainLightningAbility_1303);
 register(ThunderclapAbility_1304);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
+setCastPriorityAbilityLookup((id) => ABILITY_MAP.get(id));
 
 /** Look up an ability by its ID. */
 export function getAbility(id: string): AbilityStatic | undefined {

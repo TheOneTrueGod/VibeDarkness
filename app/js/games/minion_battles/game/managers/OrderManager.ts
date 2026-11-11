@@ -19,6 +19,8 @@ import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { refundAbilityCost } from '../../abilities/Ability';
 import { unitAbilityHasTag } from '../../abilities/abilityUses';
 import { resolveWaitOrderWindow } from '../../abilities/WaitAbility';
+import { canPreempt } from '../units/castPriority';
+import { preemptUnitAbilities } from '../units/unitAbilityLifecycle';
 
 function specialActionKey(special: BattleOrderSpecialAction | undefined): string {
     if (!special) return '';
@@ -433,6 +435,15 @@ export class OrderManager {
             this.queueOrder(this.ctx.gameTick + 1, order);
             return;
         }
+        // Cast priority (see units/castPriority.ts): an order carrying `castPriority` starts only when it is
+        // strictly greater than the unit's effective priority, and then ends every running cast first. A
+        // dropped order has no effect at all (no movement, wait or fingerprint). Orders without
+        // `castPriority` skip this entirely. A follow-up order (`followUpOf`) leaves its parent cast out of
+        // the check, so it replaces the parent even at equal priority.
+        if (order.castPriority !== undefined) {
+            if (!canPreempt(unit, order.castPriority, this.ctx.units, this.ctx, order.followUpOf)) return;
+            preemptUnitAbilities(unit, this.ctx);
+        }
         if (!this.resolveConditionalCancelIfNeeded(unit, order)) return;
 
         // Missing-pick decision (see isMissingPickOrderAcceptable). Resolved here, at the top of the batch
@@ -491,7 +502,7 @@ export class OrderManager {
         const ability = getAbility(order.abilityId);
         if (!ability) return;
 
-        unit.executeAbility(ability, order.targets, this.ctx, order.abilityMode);
+        unit.executeAbility(ability, order.targets, this.ctx, order.abilityMode, order.castPriority);
 
         // Populate targetsByLabel (non-serialized, new-style targeting) from the order payload.
         // Re-map each value to the corresponding entry in active.targets (which are shallow

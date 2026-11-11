@@ -38,7 +38,7 @@ const PREFIRE_TIME = WINDUP;
 /** Number of thorns, one projectile each. */
 export const FLING_THORN_COUNT = 5;
 /** Seconds between consecutive thorns. */
-const THORN_INTERVAL = 0.2;
+const THORN_INTERVAL = 0.1;
 /** Each thorn's random aim offset lies in [-spread, +spread] degrees. */
 export const FLING_THORN_SPREAD_DEG = 18;
 /** Padding past the last thorn so the fixed-tick sampler can't step over it (see defineGunAbility). */

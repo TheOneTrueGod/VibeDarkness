@@ -52,6 +52,7 @@ import {
     cancelUnitActiveAbility,
     executeUnitAbility,
     interruptUnitAbilities,
+    preemptUnitAbilities,
     unitRoundStart,
 } from './unitAbilityLifecycle';
 import type { HoverFlightState } from './hoverFlight';
@@ -652,6 +653,9 @@ export class Unit extends GameObject {
     /** Stun / hard-CC interrupt. Same pipeline as knockback interrupts (see `interruptUnitAbilities`). */
     interruptAllAbilities(engine: EngineContext): void { interruptUnitAbilities(this, engine); }
 
+    /** End every running cast for a higher-priority claim, no refund (see `preemptUnitAbilities`, `castPriority.ts`). */
+    preemptAllAbilities(engine: EngineContext): void { preemptUnitAbilities(this, engine); }
+
     tickActiveAbilities(dt: number, engine: EngineContext, onNaturalCompletion: () => void): void {
         tickUnitActiveAbilities(this, dt, engine, onNaturalCompletion);
     }
@@ -689,7 +693,8 @@ export class Unit extends GameObject {
         targets: ResolvedTarget[],
         engine: EngineContext,
         orderAbilityMode?: string,
-    ): void { executeUnitAbility(this, ability, targets, engine, orderAbilityMode); }
+        castPriority?: number,
+    ): void { executeUnitAbility(this, ability, targets, engine, orderAbilityMode, castPriority); }
 
     /** Set the ability note (overwrites any existing). Used by abilities during execution. */
     setAbilityNote(note: { abilityId: string; abilityNote: unknown } | null): void {

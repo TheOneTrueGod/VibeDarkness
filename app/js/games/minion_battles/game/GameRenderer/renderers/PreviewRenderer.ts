@@ -23,7 +23,7 @@ import {
 } from '../../../abilities/targeting';
 import { drawClampedLine, drawFacingIndicator, drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
 import { cellsAroundPoint } from '../../../hitboxes/TileAreaHitboxSpec';
-import { resolveAbilitySourceUnits } from '../../../abilities/abilitySourceUnits';
+import { resolveMidCastSourceUnit } from '../../../abilities/abilitySourceUnits';
 import { getUnitAtPosition } from '../../../abilities/targeting';
 import { areEnemies } from '../../teams';
 import type { TeamId } from '../../teams';
@@ -31,7 +31,7 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import type { AssetRegistry } from '../AssetRegistry';
 import type { OverlayRenderer } from './OverlayRenderer';
 import type { AbilityStatic, AbilityTelegraph, IAbilityPreviewGraphics } from '../../../abilities/Ability';
-import { asTelegraphPayload } from '../../../abilities/telegraphTracking';
+import { asTelegraphPayload, telegraphWindupProgress } from '../../../abilities/telegraphTracking';
 import { LitClippingPreviewGraphics } from './LitClippingPreviewGraphics';
 import type { ResolvedTarget, GhostPlanData, ActiveAbility } from '../../types';
 import type { ConfirmRadiusTargetDef, SelectTargetDef } from '../../../abilities/timingTargetDef';
@@ -97,8 +97,8 @@ function renderConfirmRadiusTargetDef(
     def: ConfirmRadiusTargetDef,
     engine: GameEngine,
 ): void {
-    const sources = resolveAbilitySourceUnits(ability, caster, engine.units);
-    const origin = sources[0] ?? caster;
+    // Mid-cast: the pet this cast committed is busy with its order, so skip the free-pet filter.
+    const origin = resolveMidCastSourceUnit(ability, caster, engine.units);
     if (def.tileShape) {
         drawTileAreaTelegraph(gr, cellsAroundPoint(origin, def.tileShape), CONFIRM_TILE_STYLE);
         return;
@@ -767,8 +767,9 @@ export class PreviewRenderer {
         const targetX = payload.telegraphTargetX;
         const targetY = payload.telegraphTargetY;
 
-        const elapsed = getCastElapsedAt(active, gameTime);
-        const progress = prefireTime > 0 ? Math.min(1, elapsed / prefireTime) : 1;
+        // Windup only: once the attack goes through, the telegraph is gone (not drawn through strike/cooldown).
+        const progress = telegraphWindupProgress(prefireTime, getCastElapsedAt(active, gameTime));
+        if (progress === null) return;
         const telegraphAlpha = telegraph.alpha ?? 1;
 
         if (telegraph.kind === 'shrinkingCircle') {

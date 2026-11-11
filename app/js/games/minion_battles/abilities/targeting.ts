@@ -16,6 +16,9 @@ import { isInteractiveTargetDef, isSelectTargetDef } from './timingTargetDef';
 import { isAbilityTimingInterval } from './abilityTimings';
 import { areEnemies, areAllies } from '../game/teams';
 import { getLivingPetsOfUnit } from '../game/units/petHelpers';
+import { isUnitBusy } from '../game/units/castPriority';
+import { isUnitHeldByCastOf } from '../game/units/castHold';
+import { asCastPriorityEngine } from './abilitySourceUnits';
 
 /** The types of targets an ability can require. */
 export type TargetType = 'player' | 'unit' | 'pixel';
@@ -511,12 +514,32 @@ export function hasSelectAnchor(selectDef: SelectTargetDef): boolean {
         && selectDef.maxRangeFromAnchor > 0;
 }
 
-/** The caster's nearest living pet, for `anchorUnit: 'casterPet'`. Needs `engine.units`. */
-export function resolveCasterPetAnchor(caster: Unit, engine: unknown): Unit | null {
+/** Options for {@link resolveCasterPetAnchor}. */
+export interface CasterPetAnchorOptions {
+    /**
+     * Only a **free** pet (not `isUnitBusy`, see `game/units/castPriority.ts`). A pet one of the caster's own
+     * casts already holds (e.g. the spirit its Spirit Storm moved) is the caster's, so it is returned first.
+     * Needs `engine.gameTime` for the busy check; without it every living pet counts.
+     */
+    requireFree?: boolean;
+}
+
+/**
+ * The caster's nearest living pet (to the caster), for `anchorUnit: 'casterPet'` and pet-moving cast
+ * behaviours. Needs `engine.units`. With `requireFree`, see {@link CasterPetAnchorOptions}.
+ */
+export function resolveCasterPetAnchor(caster: Unit, engine: unknown, opts?: CasterPetAnchorOptions): Unit | null {
     const units = (engine as { units?: readonly Unit[] }).units ?? [];
+    let pets = getLivingPetsOfUnit(caster, units);
+    if (opts?.requireFree) {
+        const ours = pets.find((p) => isUnitHeldByCastOf(p, caster));
+        if (ours) return ours;
+        const ctx = asCastPriorityEngine(engine);
+        if (ctx) pets = pets.filter((p) => !isUnitBusy(p, units, ctx));
+    }
     let best: Unit | null = null;
     let bestD = Infinity;
-    for (const pet of getLivingPetsOfUnit(caster, units)) {
+    for (const pet of pets) {
         const d = (pet.x - caster.x) ** 2 + (pet.y - caster.y) ** 2;
         if (d < bestD) {
             bestD = d;
@@ -539,7 +562,8 @@ export function resolveSelectAnchorPoint(
     engine: { getUnit(id: string): { x: number; y: number } | undefined | null },
 ): { x: number; y: number } | null {
     if (selectDef.anchorUnit === 'casterPet') {
-        const pet = resolveCasterPetAnchor(caster, engine);
+        // The pet the cast would use (the nearest free one), else the nearest, so the clamp still has a centre.
+        const pet = resolveCasterPetAnchor(caster, engine, { requireFree: true }) ?? resolveCasterPetAnchor(caster, engine);
         return pet ? { x: pet.x, y: pet.y } : null;
     }
     if (selectDef.anchorLabel == null) return null;

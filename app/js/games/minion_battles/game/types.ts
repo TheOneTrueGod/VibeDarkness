@@ -296,6 +296,19 @@ export interface BattleOrder {
     endTurn?: boolean;
     /** Per-cast ability mode committed at order time (e.g. push/pull). Serialized with orders. */
     abilityMode?: string;
+    /**
+     * Cast priority this order starts at (a `CAST_PRIORITY` level, see `game/units/castPriority.ts`). When set,
+     * the order only starts if it is strictly greater than the unit's effective priority, and is stamped onto
+     * the cast ({@link ActiveAbility.castPriority}). Omitted: today's behaviour. Serialized with orders.
+     */
+    castPriority?: number;
+    /**
+     * Follow-up of a running cast: the parent `abilityId` on the same unit (e.g. Pounce → Spirit Flurry). The
+     * `castPriority` gate leaves that parent cast out when computing the unit's effective priority, so the
+     * follow-up replaces its parent even at equal priority; the preempt then ends the parent with any other
+     * running casts. No effect when the parent isn't running. Serialized with orders, omitted when undefined.
+     */
+    followUpOf?: string;
 }
 
 /** A confirmed battle order (endTurn: true) that has been finalized by the player. */
@@ -415,6 +428,12 @@ export interface ActiveAbility {
      * so mid-cast recovery preserves the mode behaviours read via ctx.abilityMode.
      */
     abilityMode?: string;
+    /**
+     * Priority this cast started at, stamped from {@link BattleOrder.castPriority}. Undefined counts as `Minor`.
+     * Effective priority (cooldown cap, held units) is derived in `game/units/castPriority.ts`. Serialized,
+     * omitted when undefined.
+     */
+    castPriority?: number;
     /** Per-behaviour per-cast runtime state. Keyed by `${intervalId}_${behaviourIndex}`. Serialized (Set/Map-safe, see castBehaviourStateSerialization.ts). */
     castBehaviourPayloads?: Record<string, unknown>;
     /**

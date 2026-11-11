@@ -297,7 +297,11 @@ export interface CastEndedEarlyEvent {
     abilityId: string;
     /** `ActiveAbility.startTime` of the cast that ended (identifies the cast instance). */
     castStartTime: number;
-    reason: 'interrupted' | 'fizzled';
+    /**
+     * `interrupted`: stun / knockback pipeline. `fizzled`: an illegal select pick. `preempted`: a
+     * higher-priority order replaced the cast (`preemptUnitAbilities`, see `units/castPriority.ts`).
+     */
+    reason: 'interrupted' | 'fizzled' | 'preempted';
     /** What happened to the cast: removed (`cancelled`), snapped to cooldown, or a cooldown-phase cast ended. */
     outcome: 'cancelled' | 'skippedToCooldown' | 'ended';
     /** Derived from unit state at emit time (knockback source while in knockback); omitted otherwise. */

@@ -1,6 +1,9 @@
 /**
  * Cast behaviours that move the caster's pet as part of the caster's own cast (the pet does not cast).
- * The pet is the caster's nearest living pet (`resolveCasterPetAnchor`), picked once at the window start.
+ * The pet is the caster's nearest **free** living pet (`resolveCasterPetAnchor` with `requireFree`, see
+ * `game/units/castPriority.ts`), picked once at the window start; a pet the caster's own cast already holds
+ * comes first, so a later window keeps the same pet. With no free pet the behaviour does nothing.
+ * Holding a pet counts as `Major` (`isUnitHeldByCast`), so a busy pet is never taken.
  *
  * - `PetRelocateBehaviour`: the pet moves very quickly from where it stands to the window's pixel target,
  *   leaving a slash trail (e.g. Spirit Storm's reposition, after an anchored select step).
@@ -9,7 +12,8 @@
  *   position stays on its spot, so anything centred on the pet (hit areas, fields) stays centred.
  *
  * Both take the pet's movement for the window (its walk goal is cleared each tick), so the pet AI cannot
- * walk it away mid-cast.
+ * walk it away mid-cast. `PetRelocateBehaviour` first preempts the pet's own casts (a free pet runs only
+ * `Minor` ones, e.g. a bite), so the hold never overlaps a cast of the pet's own.
  */
 import type { Unit } from '../../game/units/Unit';
 import type {
@@ -21,6 +25,7 @@ import type {
     UnitRenderOffset,
 } from '../castBehaviourTypes';
 import { resolveCasterPetAnchor } from '../targeting';
+import type { EngineContext } from '../../game/EngineContext';
 import { createSlashTrail, type SlashTrailColors } from '../../game/effects/slashTrail';
 
 function getPet(ctx: CastBehaviourBaseContext, petId: string | undefined): Unit | null {
@@ -56,9 +61,10 @@ export class PetRelocateBehaviour implements CastBehaviour {
 
     onSetup(ctx: CastBehaviourSetupContext): void {
         ctx.setBehaviourPayload(null);
-        const pet = resolveCasterPetAnchor(ctx.caster, ctx.engine);
+        const pet = resolveCasterPetAnchor(ctx.caster, ctx.engine, { requireFree: true });
         const t = ctx.target;
         if (!pet || t.type !== 'pixel' || !t.position) return;
+        if (pet.activeAbilities.length > 0) pet.preemptAllAbilities(ctx.engine as unknown as EngineContext);
         const payload: RelocatePayload = { petId: pet.id, sx: pet.x, sy: pet.y, tx: t.position.x, ty: t.position.y };
         ctx.setBehaviourPayload(payload);
         if (this._trail) {
@@ -110,7 +116,7 @@ export class PetSpinBehaviour implements CastBehaviour {
 
     onSetup(ctx: CastBehaviourSetupContext): void {
         ctx.setBehaviourPayload(null);
-        const pet = resolveCasterPetAnchor(ctx.caster, ctx.engine);
+        const pet = resolveCasterPetAnchor(ctx.caster, ctx.engine, { requireFree: true });
         if (!pet) return;
         ctx.setBehaviourPayload({ petId: pet.id, cx: pet.x, cy: pet.y, seconds: ctx.windowSeconds ?? 1 } satisfies SpinPayload);
     }

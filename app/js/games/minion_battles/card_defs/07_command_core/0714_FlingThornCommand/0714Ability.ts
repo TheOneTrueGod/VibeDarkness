@@ -8,6 +8,7 @@
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { resolveAbilitySourceUnits, commandPetAbility } from '../../../abilities/petCommands';
+import { CAST_PRIORITY } from '../../../game/units/castPriority';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
 import { type CardDef } from '../../types';
@@ -35,7 +36,7 @@ const CAST_DURATION = 0.1;
 /** Recovery on the owner, so the spirit's windup and thorns play out during the command. */
 const COOLDOWN_DURATION = 0.6;
 
-const FLING_THORN_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const };
+const FLING_THORN_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const, requireFree: true as const };
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     {
@@ -60,10 +61,11 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
                     const targets = ctx.allTargets;
                     const t = targets[0];
                     const aimPoint = t?.type === 'pixel' && t.position ? t.position : undefined;
-                    const pets = resolveAbilitySourceUnits(FlingThornCommandAbility_0714, ctx.caster, ctx.engine.units, aimPoint);
+                    const pets = resolveAbilitySourceUnits(FlingThornCommandAbility_0714, ctx.caster, ctx.engine.units, aimPoint, ctx.engine);
                     if (pets.length === 0) return;
                     commandPetAbility(pets, FLING_THORN_ABILITY_ID, targets, ctx.engine, {
                         preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+                        priority: CAST_PRIORITY.Major,
                         owner: ctx.caster,
                     });
                 }),
@@ -112,7 +114,7 @@ export const FlingThornCommandAbility_0714 = defineAbility({
         _units: Unit[],
         engine?: unknown,
     ): void {
-        const pet = engine ? resolveCasterPetAnchor(caster, engine) : null;
+        const pet = engine ? resolveCasterPetAnchor(caster, engine, { requireFree: true }) : null;
         if (!pet) return;
         drawFlingThornsCone(gr, pet, mouseWorld, 0.7);
     },

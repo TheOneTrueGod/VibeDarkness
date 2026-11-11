@@ -12,7 +12,10 @@ import { PetRelocateBehaviour, PetSpinBehaviour } from '../../../abilities/CastB
 import { resolveCasterPetAnchor } from '../../../abilities/targeting';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import type { CastBehaviour, CastBehaviourRenderContext, CastBehaviourSetupContext, CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
-import type { ResolvedTarget } from '../../../game/types';
+import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
+import { CAST_PRIORITY } from '../../../game/units/castPriority';
+import { isUnitHeldByCast } from '../../../game/units/castHold';
+import { FLING_THORN_ABILITY_ID } from '../0705_FlingThorn/0705Ability';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { SPIRIT_STORM_ABILITY_ID, SPIRIT_STORM_PULSES } from './0713Ability';
 
@@ -131,5 +134,53 @@ describe('spirit movement in the storm', () => {
         expect(maxOffset).toBeGreaterThan(5);
         expect(maxOffset).toBeLessThanOrEqual(7.0001);
         expect(spin.spinOffset(1, 1.6)).toEqual({ x: 0, y: 0 });
+    });
+});
+
+describe('Spirit Storm needs a free spirit', () => {
+    function castOn(spirit: Unit, abilityId: string, castPriority?: number): void {
+        spirit.activeAbilities.push({
+            abilityId, startTime: 0, targets: [], castBehaviourPayloads: {}, evadeFired: false,
+            ...(castPriority !== undefined ? { castPriority } : {}),
+        } as unknown as ActiveAbility);
+    }
+
+    it('sources from the nearest free spirit', () => {
+        expect(getAbility(SPIRIT_STORM_ABILITY_ID)!.abilitySource).toEqual({ type: 'pet', selector: 'nearest', requireFree: true });
+    });
+
+    it('leaves a spirit mid–Fling Thorns windup alone: no relocate, no spin, storm on the player only', () => {
+        const caster = makeUnit('caster', 0, 0, 'player');
+        const spirit = withSpirit(caster, 60, 0);
+        castOn(spirit, FLING_THORN_ABILITY_ID, CAST_PRIORITY.Major);
+        const units = [caster, spirit];
+        const bus = new EventBus();
+        const ended: string[] = [];
+        bus.on('cast_ended_early', (e) => ended.push(e.abilityId));
+
+        run(new PetRelocateBehaviour(), caster, units, { type: 'pixel', position: { x: 160, y: 40 } }, bus, 10);
+        expect(spirit.x).toBe(60);
+        expect(spirit.y).toBe(0);
+        expect(spirit.activeAbilities.map((a) => a.abilityId)).toEqual([FLING_THORN_ABILITY_ID]);
+        expect(ended).toEqual([]);
+        expect(isUnitHeldByCast(spirit, units)).toBe(false);
+
+        const engine = { units, gameTime: 0, getUnit: (id: string) => units.find((u) => u.id === id) };
+        expect(resolveCasterPetAnchor(caster, engine, { requireFree: true })).toBeNull();
+    });
+
+    it('preempts a bite on a free spirit, then relocates it', () => {
+        const caster = makeUnit('caster', 0, 0, 'player');
+        const spirit = withSpirit(caster, 60, 0);
+        castOn(spirit, '0701');
+        const bus = new EventBus();
+        const ended: { abilityId: string; reason: string }[] = [];
+        bus.on('cast_ended_early', (e) => ended.push({ abilityId: e.abilityId, reason: e.reason }));
+
+        run(new PetRelocateBehaviour(), caster, [caster, spirit], { type: 'pixel', position: { x: 160, y: 40 } }, bus, 10);
+        expect(spirit.activeAbilities).toEqual([]);
+        expect(ended).toEqual([{ abilityId: '0701', reason: 'preempted' }]);
+        expect(spirit.x).toBeCloseTo(160);
+        expect(spirit.y).toBeCloseTo(40);
     });
 });

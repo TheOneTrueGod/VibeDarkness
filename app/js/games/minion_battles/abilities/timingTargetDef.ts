@@ -91,7 +91,8 @@ export interface SelectTargetDef {
     anchorLabel?: string;
     /**
      * Anchor this step's pixel pick on a unit instead of an earlier pick: `'casterPet'` is the caster's
-     * nearest living pet (e.g. Spirit Storm repositions the spirit within range of where it stands).
+     * nearest free living pet (falling back to the nearest pet when none is free; e.g. Spirit Storm repositions
+     * the spirit within range of where it stands).
      * Resolved live, so the clamp follows the pet if it moved during the windup. Use with
      * `maxRangeFromAnchor`; wins over `anchorLabel` when both are set.
      */

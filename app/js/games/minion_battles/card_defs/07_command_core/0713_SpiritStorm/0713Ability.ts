@@ -8,7 +8,9 @@
  *    circle round the spirit, and the band between them. Each pulse hits each enemy once, even one inside
  *    several parts. A field of slow motes fills the area; each pulse lands with a burst.
  *
- * Without a living spirit the storm is just the circle round the player.
+ * Needs a free spirit (`abilitySource.requireFree`). If none is free when the reposition starts (a busy one
+ * is left alone), the storm is just the circle round the player. A free spirit that is biting has the bite
+ * preempted before it is moved.
  * Built from engine blocks: `SpellCircle`, `PetRelocateBehaviour`, `PetSpinBehaviour`, `LinkedAreaPulseBehaviour`.
  */
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
@@ -54,7 +56,7 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 const glow = themeGlowPair(getThemeById('command'));
 
 export const spiritStormPulse = new LinkedAreaPulseBehaviour()
-    .withLink((ctx) => resolveCasterPetAnchor(ctx.caster, ctx.engine))
+    .withLink((ctx) => resolveCasterPetAnchor(ctx.caster, ctx.engine, { requireFree: true }))
     .withRadius(SPIRIT_STORM_RADIUS)
     .withLineWidth(SPIRIT_STORM_LINE_WIDTH)
     .withPulses(SPIRIT_STORM_PULSES)
@@ -131,6 +133,7 @@ export const SpiritStormAbility: AbilityStatic = defineAbility({
     prefireTime: SPIRIT_STORM_WINDUP,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
+    abilitySource: { type: 'pet', selector: 'nearest', requireFree: true },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {
         return { minRange: 0, maxRange: SPIRIT_STORM_REPOSITION_RANGE };

@@ -8,6 +8,7 @@
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { resolveAbilitySourceUnits, commandPetAbility } from '../../../abilities/petCommands';
+import { CAST_PRIORITY } from '../../../game/units/castPriority';
 import type { Unit } from '../../../game/units/Unit';
 import { type CardDef } from '../../types';
 import {
@@ -48,11 +49,12 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
                     const aimPoint = t?.type === 'pixel' && t.position ? t.position : undefined;
 
                     const eng = ctx.engine;
-                    const sourcePets = resolveAbilitySourceUnits(SicEmAbility, ctx.caster, eng.units, aimPoint);
+                    const sourcePets = resolveAbilitySourceUnits(SicEmAbility, ctx.caster, eng.units, aimPoint, eng);
                     if (sourcePets.length === 0) return;
 
                     commandPetAbility(sourcePets, POUNCE_ABILITY_ID, targets, eng, {
                         preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+                        priority: CAST_PRIORITY.Major,
                         owner: ctx.caster,
                     });
                 }),
@@ -64,7 +66,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
 
 const SICE_EM_IMAGE = `<img src="${sicEmIconUrl}" width="56" height="56" alt="" style="object-fit: contain; display: block; margin: 0 auto;" />`;
 
-const SIC_EM_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const };
+const SIC_EM_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const, requireFree: true as const };
 
 export const SicEmAbility = defineAbility({
     id: CARD_ID,

@@ -227,6 +227,29 @@ export function interruptUnitAbilities(unit: Unit, engine: EngineContext): void 
 }
 
 /**
+ * Preemption: a higher-priority order is replacing whatever the unit is doing (see
+ * `units/castPriority.ts`; the caller has already checked `canPreempt`). Ends **every** running cast,
+ * cooldowns included, with no refund and no interrupt-policy lookup. Each ended cast fires
+ * `ON_CAST_END`, runs behaviour `onInterrupt` and emits `cast_ended_early` with reason `preempted`
+ * (outcome `ended` for a cooldown-phase cast, `cancelled` otherwise). The ability note is cleared.
+ */
+export function preemptUnitAbilities(unit: Unit, engine: EngineContext): void {
+    if (unit.activeAbilities.length === 0) return;
+    for (const active of unit.activeAbilities) {
+        const ability = getAbility(active.abilityId);
+        if (ability) {
+            const elapsed = Math.max(0, getCastElapsed(unit, active, engine));
+            const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));
+            const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
+            fireCastEndEarly(unit, active, ability, engine, 'preempted', isCooldownPhase(phase) ? 'ended' : 'cancelled');
+        }
+        cleanupCastBehavioursForAbility(unit, active, engine);
+    }
+    unit.activeAbilities = [];
+    unit.clearAbilityNote();
+}
+
+/**
  * Ends a cast whose select pick became illegal before its interval entered (a fizzle, detected by
  * `validatePick` in the tick). It follows the before-cooldown rules of the interrupt pipeline:
  * `beforeCooldown: 'skipToCooldown'` (when the ability has a cooldown) snaps the cast to cooldown with
@@ -264,6 +287,8 @@ export function executeUnitAbility(
     targets: ResolvedTarget[],
     engine: EngineContext,
     orderAbilityMode?: string,
+    /** Stamped on the new cast as `ActiveAbility.castPriority` (from `BattleOrder.castPriority`); omitted when undefined. */
+    castPriority?: number,
 ): void {
     ensureAbilityRuntimeState(unit, ability.id);
     if (!canUseAbilityNow(unit, ability)) return;
@@ -302,6 +327,7 @@ export function executeUnitAbility(
         ...(orderAbilityMode !== undefined || ability.abilityModes?.defaultMode !== undefined
             ? { abilityMode: orderAbilityMode ?? ability.abilityModes!.defaultMode }
             : {}),
+        ...(castPriority !== undefined ? { castPriority } : {}),
     };
     unit.pendingComboCount = undefined;
     ability.beginActiveCast?.(engine, unit, active.targets, active);

@@ -8,7 +8,10 @@ import '../../abilities/AbilityRegistry';
 import { Unit } from './Unit';
 import { petStateOf } from './components/petComponent';
 import { isUnitHeldByCast } from './castHold';
-import { handlePetReactionsOnAttackHit, isPetBusy } from './petReactions';
+import { handlePetReactionsOnAttackHit } from './petReactions';
+import { CAST_PRIORITY, canPreempt } from './castPriority';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import { AbilityPhase, normalizeAbilityTimingsToIntervals } from '../../abilities/abilityTimings';
 import { PetRelocateBehaviour, PetSpinBehaviour } from '../../abilities/CastBehaviours/PetBehaviours';
 import type { CastBehaviour } from '../../abilities/castBehaviourTypes';
 import type { ActiveAbility } from '../types';
@@ -44,11 +47,11 @@ describe('units held by a cast', () => {
     it('a spinning or relocating pet is held, and busy; a free pet is not', () => {
         const a = scene();
         expect(isUnitHeldByCast(a.spirit, a.units)).toBe(false);
-        expect(isPetBusy(a.spirit, a.units)).toBe(false);
+        expect(canPreempt(a.spirit, CAST_PRIORITY.Minor, a.units, { gameTime: 0 })).toBe(true);
 
         hold(a.owner, new PetSpinBehaviour(), { petId: 'spirit', cx: 60, cy: 0, seconds: 1.6 });
         expect(isUnitHeldByCast(a.spirit, a.units)).toBe(true);
-        expect(isPetBusy(a.spirit, a.units)).toBe(true);
+        expect(canPreempt(a.spirit, CAST_PRIORITY.Minor, a.units, { gameTime: 0 })).toBe(false);
         expect(isUnitHeldByCast(a.enemy, a.units)).toBe(false);
 
         const b = scene();
@@ -72,6 +75,33 @@ describe('units held by a cast', () => {
 
         queued.length = 0;
         hold(owner, new PetSpinBehaviour(), { petId: spirit.id, cx: 60, cy: 0, seconds: 1.6 });
+        handlePetReactionsOnAttackHit(engine, hit);
+        expect(queued).toEqual([]);
+    });
+
+    it('a spirit in its bite cooldown gets no Spirit Strike, and a reaction is stamped Minor', () => {
+        const { owner, spirit, units } = scene();
+        owner.weaponAbilityIds.push('weapon');
+        const queued: { castPriority?: number }[] = [];
+        const engine = {
+            units, gameTick: 10, gameTime: 0,
+            getUnit: (id: string) => units.find((u) => u.id === id),
+            state: { orderMgr: { queueOrder: (_tick: number, order: { castPriority?: number }) => { queued.push(order); } } },
+        } as unknown as AbilityEngineContext & { gameTime: number };
+        const hit = { sourceUnitId: owner.id, targetUnitId: 'enemy', abilityId: 'weapon' } as AttackHitEvent;
+
+        handlePetReactionsOnAttackHit(engine, hit);
+        expect(queued).toHaveLength(1);
+        expect(queued[0]!.castPriority).toBe(CAST_PRIORITY.Minor);
+
+        queued.length = 0;
+        const bite = getAbility('0701')!;
+        const cooldown = normalizeAbilityTimingsToIntervals(bite.abilityTimings!)
+            .find((t) => t.abilityPhase === AbilityPhase.Cooldown)!;
+        spirit.activeAbilities.push({
+            abilityId: '0701', startTime: 0, targets: [], castBehaviourPayloads: {}, evadeFired: false, comboCount: 1,
+        } as ActiveAbility);
+        engine.gameTime = cooldown.start + 0.05;
         handlePetReactionsOnAttackHit(engine, hit);
         expect(queued).toEqual([]);
     });

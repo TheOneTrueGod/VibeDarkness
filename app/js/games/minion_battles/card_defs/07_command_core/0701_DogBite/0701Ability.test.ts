@@ -19,7 +19,7 @@ describe('Dog Bite 0701 research damage', () => {
         });
         pet.abilityModifiers = { '0701': { damageFlat: 4 } };
 
-        expect(DogBiteAbility.getDamage?.(pet)).toBe(9); // base 5 + flat 4
-        expect(DogBiteAbility.getDamage?.(undefined)).toBe(5);
+        expect(DogBiteAbility.getDamage?.(pet)).toBe(5); // base 1 + flat 4
+        expect(DogBiteAbility.getDamage?.(undefined)).toBe(1);
     });
 });

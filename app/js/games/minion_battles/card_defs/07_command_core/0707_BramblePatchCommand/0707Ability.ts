@@ -11,6 +11,7 @@
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { resolveAbilitySourceUnits, commandPetAbility } from '../../../abilities/petCommands';
+import { CAST_PRIORITY } from '../../../game/units/castPriority';
 import type { Unit } from '../../../game/units/Unit';
 import { type CardDef } from '../../types';
 import {
@@ -44,7 +45,7 @@ const CONFIRM_END = BRAMBLE_PATCH_CONFIRM_AT + 1 / 60;
 const CAST_ACTIVE_END = BRAMBLE_PATCH_WINDUP + 0.1;
 const COOLDOWN_END = CAST_ACTIVE_END + 0.4;
 
-const BRAMBLE_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const };
+const BRAMBLE_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const, requireFree: true as const };
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     {
@@ -115,7 +116,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
         active: ActiveAbility,
     ): void {
         const eng = engine as AbilityEngineContext;
-        const pets = resolveAbilitySourceUnits(BramblePatchCommandAbility_0707, caster, eng.units);
+        const pets = resolveAbilitySourceUnits(BramblePatchCommandAbility_0707, caster, eng.units, undefined, eng);
         const pet = pets[0];
         active.castPayload = {
             previewX: pet?.x ?? caster.x,
@@ -126,6 +127,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
         if (pets.length > 0) {
             commandPetAbility(pets, BRAMBLE_PATCH_STRIKE_ID, [], eng, {
                 preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+                priority: CAST_PRIORITY.Major,
                 owner: caster,
             });
         }

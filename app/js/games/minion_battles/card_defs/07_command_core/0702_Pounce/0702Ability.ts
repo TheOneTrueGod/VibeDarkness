@@ -3,7 +3,7 @@
  *
  * Pet-only: no aiSettings, so the pet AI never auto-queues it. Only the player's Sic 'em card causes the
  * pet to use Pounce. Short windup (the charge telegraph), then a dash toward a pixel target that stops on
- * its first hit: that enemy takes damage and a short stun, and the spirit locks on to it — Spirit Flurry
+ * its first hit: that enemy takes a short stun (no damage), and the spirit locks on to it — Spirit Flurry
  * (0711) follows, four dash strikes over about a second.
  */
 
@@ -17,7 +17,6 @@ import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import type { KnockbackEngineCtx } from '../../../crowdControl/knockbackKeywords';
 import { drawChargeCapsuleTimingTelegraph, resolveTerrainAwareMovementDisplacement } from '../../../abilities/previewHelpers';
-import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from '../../../buffs/DoubleDamageBuff';
 import { nullHitbox } from '../../../hitboxes';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import {
@@ -27,6 +26,7 @@ import {
 import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 import { commandPetAbility } from '../../../abilities/petCommands';
+import { getRunningCastPriority } from '../../../game/units/castPriority';
 import { SPIRIT_FLURRY_ABILITY_ID, SPIRIT_FLURRY_ANGLES } from '../0711_SpiritFlurry/0711Ability';
 import { SPIRIT_STRIKE_DAMAGE } from '../0710_SpiritStrike/0710Ability';
 
@@ -43,19 +43,19 @@ const COOLDOWN_DURATION = 0.1;
 export const MAX_DASH_DISTANCE = 100;
 /** Step size when probing passability along the pounce path (matches DashBehaviour default). */
 export const POUNCE_COLLISION_STEP = 4;
-const DAMAGE = 10;
+/** Pounce only locks on and stuns: all of Sic 'em's damage comes from the Spirit Flurry strikes. */
+const DAMAGE = 0;
 const STUN_DURATION = 1.0;
 /** Lock on: the dash ends on its first hit, and Spirit Flurry (0711) follows on that enemy. */
 const STOP_AFTER_HITS = 1;
 
 const TOOLTIP_LINES = [
-    'Lunge at a point. The first enemy hit takes {{DAMAGE}} damage and is stunned for {{STUN_DURATION}}s, then your spirit locks on and dashes through it {{FLURRY_STRIKES}} times for {{STRIKE_DAMAGE}} damage each.',
+    'Lunge at a point. The first enemy hit is stunned for {{STUN_DURATION}}s, then your spirit locks on and dashes through it {{FLURRY_STRIKES}} times for {{STRIKE_DAMAGE}} damage each.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     FLURRY_STRIKES: { kind: 'plain', value: SPIRIT_FLURRY_ANGLES.length },
     STRIKE_DAMAGE: { kind: 'damage', base: SPIRIT_STRIKE_DAMAGE },
-    DAMAGE: { kind: 'damage', base: DAMAGE },
     STUN_DURATION: { kind: 'plain', value: STUN_DURATION },
 };
 
@@ -64,16 +64,7 @@ const pounceDash = new DashBehaviour()
     .withCollisionStep(POUNCE_COLLISION_STEP)
     .withStopAfterHits(STOP_AFTER_HITS)
     .addHitbox('caster', { shape: 'circle', range: 'caster' }, {
-        damage: (ctx) => {
-            const idx = ctx.caster.buffs.findIndex(
-                (b) => b._type === DOUBLE_DAMAGE_BUFF_TYPE && (b as DoubleDamageBuff).abilityId === ctx.abilityId,
-            );
-            if (idx >= 0) {
-                ctx.caster.buffs.splice(idx, 1);
-                return DAMAGE * 2;
-            }
-            return DAMAGE;
-        },
+        damage: DAMAGE,
         attackType: 'charging',
         filter: 'enemy',
     })
@@ -87,8 +78,11 @@ const pounceDash = new DashBehaviour()
         };
         // Hold the victim in place for the flurry (no knockback: the spirit locks on instead).
         tryApplyHardCcStun(hitUnit, STUN_DURATION, ctx.engine.gameTime, knockbackEngine.roundNumber, ctx.engine.eventBus);
+        // Flurry is Pounce's follow-up: it keeps Pounce's stamped priority and replaces the Pounce cast.
+        const priority = getRunningCastPriority(ctx.caster, ctx.abilityId);
         commandPetAbility([ctx.caster], SPIRIT_FLURRY_ABILITY_ID, [{ type: 'unit', unitId: hitUnit.id }], ctx.engine, {
             preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+            ...(priority !== undefined ? { priority, followUpOf: ctx.abilityId } : {}),
         });
     });
 

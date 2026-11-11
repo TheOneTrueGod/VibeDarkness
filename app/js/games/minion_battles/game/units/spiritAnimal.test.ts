@@ -20,6 +20,7 @@ import { getPetDef } from './pet_defs/petDef';
 import { petStateOf } from './components/petComponent';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { SPIRIT_FLURRY_ABILITY_ID } from '../../card_defs/07_command_core/0711_SpiritFlurry/0711Ability';
+import { CAST_PRIORITY } from './castPriority';
 
 function makeUnit(id: string, x: number, y: number, teamId: 'player' | 'enemy', characterId = 'target_dummy'): Unit {
     return new Unit({
@@ -135,7 +136,7 @@ describe('owner weapon-hit reaction', () => {
         const enemy = makeUnit('enemy', 80, 0, 'enemy');
         const { engine, queued } = reactionEngine([owner, spirit, enemy]);
         handlePetReactionsOnAttackHit(engine, { sourceUnitId: 'owner', targetUnitId: 'enemy', abilityId: '0001' });
-        expect(queued).toEqual([{ tick: 11, order: { unitId: 'spirit', abilityId: '0710', targets: [{ type: 'unit', unitId: 'enemy' }] } }]);
+        expect(queued).toEqual([{ tick: 11, order: { unitId: 'spirit', abilityId: '0710', targets: [{ type: 'unit', unitId: 'enemy' }], castPriority: CAST_PRIORITY.Minor } }]);
     });
 
     it('ignores non-weapon hits and a busy spirit', () => {

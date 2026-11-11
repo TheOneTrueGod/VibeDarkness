@@ -14,7 +14,7 @@
  * preview must use `resolveTerrainAwareMovementDisplacement` (or a preset built on it).
  */
 
-import type { AbilityStatic, ActivePreviewEngineContext, IAbilityPreviewGraphics } from './Ability';
+import type { ActivePreviewEngineContext, IAbilityPreviewGraphics, PetAbilitySource } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import type { ResolvedTarget } from '../game/types';
 import { getUnitAtPosition } from './targeting';
@@ -22,7 +22,7 @@ import { areEnemies } from '../game/teams';
 import { getDistanceBasedInaccuracy } from './gunInaccuracy';
 import { computeForcedDisplacement, type ForcedDisplacement } from '../game/forceMove';
 import type { TerrainManager } from '../terrain/TerrainManager';
-import { resolveAbilitySourceUnits } from './abilitySourceUnits';
+import { asCastPriorityEngine, resolveAbilitySourceUnits } from './abilitySourceUnits';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { getTileAreaEdges, getTileAreaOutlineLoops, type TileCoord } from './tileAreaHelpers';
 import { TELEGRAPH_STYLES, type TelegraphStyle } from './telegraphStyles';
@@ -485,15 +485,13 @@ export interface PetSourcedMovementPreviewOptions {
  * Path = terrain-aware displacement matching the delegate ability's `DashBehaviour`.
  */
 export function createPetSourcedMovementPreview(
-    ability: Pick<AbilityStatic, 'abilitySource'> & {
-        abilitySource: { type: 'pet'; selector: 'nearest' | 'all' };
-    },
+    ability: { abilitySource: PetAbilitySource },
     options: PetSourcedMovementPreviewOptions,
 ): RenderTargetingPreviewFn {
     const collisionStep = options.collisionStep ?? 4;
     return (gr, caster, _currentTargets, mouseWorld, units, gameState) => {
         gr.clear();
-        const sourcePets = resolveAbilitySourceUnits(ability, caster, units, mouseWorld);
+        const sourcePets = resolveAbilitySourceUnits(ability, caster, units, mouseWorld, asCastPriorityEngine(gameState));
         const pet = sourcePets[0];
         if (!pet) {
             drawNoPetSourceFizzle(gr, caster);

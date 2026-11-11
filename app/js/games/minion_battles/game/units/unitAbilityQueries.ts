@@ -8,6 +8,7 @@ import { AbilityState, getAbilityResourceCosts, type AbilityStatic } from '../..
 import { canUseAbilityNow, unitAbilityHasTag } from '../../abilities/abilityUses';
 import type { ActiveAbility } from '../types';
 import { getLivingPetsOfUnit } from './petHelpers';
+import { isRootedWhileCastingCharacter } from './unit_defs/unitDef';
 import {
     AbilityPhase,
     getCoveringAbilityPhaseAtElapsed,
@@ -23,12 +24,21 @@ import {
  */
 export function getUnitEffectiveSpeed(unit: Unit, gameTime: number): number {
     let lowestPenalty = 1;
+    const rooted = isRootedWhileCastingCharacter(unit.characterId);
 
     for (const active of unit.activeAbilities) {
         const ability = getAbility(active.abilityId);
         if (!ability) continue;
 
         const currentTime = localNow(unit, gameTime) - active.startTime;
+        if (rooted) {
+            // `UnitDefEntry.rootedWhileCasting`: no walking until the cast reaches its cooldown.
+            const phase = getCoveringAbilityPhaseAtElapsed(
+                Math.max(0, currentTime),
+                normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit)),
+            );
+            if (phase === AbilityPhase.Windup || phase === AbilityPhase.Active) return 0;
+        }
         const states =
             ability.getAbilityStatesForActive?.(currentTime, active) ??
             ability.getAbilityStates(currentTime);

@@ -213,3 +213,12 @@ export function lockTelegraphOnTargetEvade(
 
     applyTelegraphLock(payload, snapshot, engine);
 }
+
+/**
+ * Progress (0..1) of a declarative windup telegraph (`AbilityStatic.telegraph`), or `null` once the windup
+ * is over (the attack has gone through) or there is none: the telegraph is drawn only while it is non-null.
+ */
+export function telegraphWindupProgress(prefireTime: number, elapsed: number): number | null {
+    if (prefireTime <= 0 || elapsed >= prefireTime) return null;
+    return Math.max(0, elapsed / prefireTime);
+}

@@ -1,6 +1,7 @@
 import { getAbilityResourceCosts, type AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
 import { getLivingPetsOfUnit } from '../../game/units/petHelpers';
+import { isUnitBusy, type CastPriorityEngine } from '../../game/units/castPriority';
 import {
     getAbilityUseConfig,
     unitAbilityHasTag,
@@ -15,6 +16,7 @@ export type DisabledReasonId =
     | 'cannot_afford'
     | 'no_uses_remaining'
     | 'no_pet_source'
+    | 'no_free_spirit'
     | 'tag_filter_mismatch';
 
 export interface DisabledReason {
@@ -76,6 +78,8 @@ export function getDisabledReasonDisplay(reason: DisabledReason): { title: strin
             };
         case 'no_pet_source':
             return { title: 'No Pet', description: 'This ability requires a living pet.' };
+        case 'no_free_spirit':
+            return { title: 'Not Available', description: 'Requires an unoccupied spirit animal.' };
         case 'tag_filter_mismatch':
             return { title: 'Wrong Ability Type', description: "This ability can't be used right now." };
     }
@@ -113,9 +117,14 @@ export function getAbilityDisabledReason(params: {
     currentUses: number;
     isMyTurn: boolean;
     allUnits: readonly Unit[];
+    /**
+     * Cast-priority context (anything with `gameTime`, e.g. the engine) for `abilitySource.requireFree`.
+     * Without it the busy check cannot run, so every living pet counts as free.
+     */
+    engine?: CastPriorityEngine;
     conditionalCancelContext?: { abilityTagFilter?: readonly string[] } | null;
 }): DisabledReason | null {
-    const { playerUnit, ability, abilityId, currentUses, isMyTurn, allUnits, conditionalCancelContext } = params;
+    const { playerUnit, ability, abilityId, currentUses, isMyTurn, allUnits, engine, conditionalCancelContext } = params;
 
     if (!isMyTurn) return { reason_id: 'not_my_turn' };
 
@@ -137,10 +146,15 @@ export function getAbilityDisabledReason(params: {
         };
     }
 
-    const hasPetSource =
-        ability.abilitySource?.type !== 'pet'
-        || (playerUnit != null && getLivingPetsOfUnit(playerUnit, allUnits).length > 0);
-    if (!hasPetSource) return { reason_id: 'no_pet_source' };
+    const source = ability.abilitySource;
+    if (source?.type === 'pet') {
+        const pets = playerUnit != null ? getLivingPetsOfUnit(playerUnit, allUnits) : [];
+        if (pets.length === 0) return { reason_id: 'no_pet_source' };
+        // Same busy check as `resolveAbilitySourceUnits`, so the card is enabled exactly when a pet resolves.
+        if (source.requireFree && engine && pets.every((pet) => isUnitBusy(pet, allUnits, engine))) {
+            return { reason_id: 'no_free_spirit' };
+        }
+    }
 
     const tagFilter = conditionalCancelContext?.abilityTagFilter;
     if (

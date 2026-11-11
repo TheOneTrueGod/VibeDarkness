@@ -306,7 +306,8 @@ export function tryDamageOrBlock(
     if (breakdown.absorbingShields) {
         fireShieldBlockHooks(engine, defender, breakdown.absorbingShields, attackInfo);
     }
-    if (breakdown.shieldAbsorbed >= modifiedDamage && breakdown.hpDamage <= 0) {
+    // A 0-damage attack (one that only applies CC, like Pounce) still lands: it is a hit, not a block.
+    if (modifiedDamage > 0 && breakdown.shieldAbsorbed >= modifiedDamage && breakdown.hpDamage <= 0) {
         fireAttackBlockedHooks(engine, abilityId, defender, attackInfo);
         return { hit: false, amountDealt: 0 };
     }

@@ -65,6 +65,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
                     ? JSON.parse(JSON.stringify(a.castPayload)) as unknown
                     : undefined,
             ...(a.abilityMode !== undefined ? { abilityMode: a.abilityMode } : {}),
+            ...(a.castPriority !== undefined ? { castPriority: a.castPriority } : {}),
             ...(a.conditionalCancelPaused ? { conditionalCancelPaused: true } : {}),
             ...(a.conditionalCancelTagFilter !== undefined
                 ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }

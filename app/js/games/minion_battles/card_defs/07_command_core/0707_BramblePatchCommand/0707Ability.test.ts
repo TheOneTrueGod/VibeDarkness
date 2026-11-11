@@ -32,7 +32,7 @@ describe('Bramble Patch command 0707', () => {
 
     it('uses pet abilitySource', () => {
         const ability = getAbility('0707');
-        expect(ability?.abilitySource).toEqual({ type: 'pet', selector: 'nearest' });
+        expect(ability?.abilitySource).toEqual({ type: 'pet', selector: 'nearest', requireFree: true });
     });
 
     it('recovers one use per roundCharge (not stamina)', () => {

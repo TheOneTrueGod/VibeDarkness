@@ -188,6 +188,11 @@ export interface UnitDefEntry {
      */
     ethereal?: boolean;
     /**
+     * Can't walk while any cast is winding up or active (its cooldown frees it), whether or not the ability
+     * declares a movement lock of its own. Read by `getUnitEffectiveSpeed`; dashes and lunges still move it.
+     */
+    rootedWhileCasting?: boolean;
+    /**
      * Bestiary listing. Every enemy needs one unless `hidden: true`. The section comes from
      * `creatureType` (dark_creature -> Dark Creatures, beast/nature -> Beasts, otherwise Other).
      */
@@ -508,6 +513,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         spectralSprite: themedSpectralSprite('command'),
         particleAura: BUFF_PARTICLE_AURA_PRESETS.spiritMotes(),
         ethereal: true,
+        rootedWhileCasting: true,
         bestiary: { abilityIds: ['0701'] },
         characterSpriteKey: 'dog',
         hp: 48,
@@ -1059,6 +1065,11 @@ export function paintUnitBody(body: Graphics, unit: Unit, bodyColor: number = ge
 /** Per-character spectral sprite look (undefined = draw the sprite normally). */
 export function getUnitSpectralSprite(characterId: string): SpectralSpriteDef | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.spectralSprite;
+}
+
+/** True when the character can't walk while casting (see `UnitDefEntry.rootedWhileCasting`). */
+export function isRootedWhileCastingCharacter(characterId: string): boolean {
+    return UNIT_DEFS[characterId as UnitDefId]?.rootedWhileCasting === true;
 }
 
 /** True when the character is ethereal (see `UnitDefEntry.ethereal`). */
