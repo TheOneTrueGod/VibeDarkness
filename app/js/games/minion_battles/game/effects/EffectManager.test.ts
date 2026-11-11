@@ -180,3 +180,28 @@ describe('emitter timeDomain', () => {
         expect(world.toJSON()).toMatchObject({ timeDomain: 'world' });
     });
 });
+
+describe('render-frame cleanup', () => {
+    it('drops finished effects on render frames, keeping the list object', () => {
+        const { ctx } = makeCtx(1);
+        const mgr = new EffectManager(ctx);
+        const list = mgr.effects;
+        const short = new Effect({ x: 0, y: 0, duration: 0.05, effectType: 'impact' });
+        const long = new Effect({ x: 0, y: 0, duration: 5, effectType: 'impact' });
+        mgr.addEffect(short);
+        mgr.addEffect(long);
+        for (let i = 0; i < 10; i++) mgr.renderUpdate(FIXED_DT);
+        expect(short.active).toBe(false);
+        expect(mgr.effects).toEqual([long]);
+        expect(mgr.effects).toBe(list);
+    });
+
+    it("drops 'stop' effects while halted, with no game tick", () => {
+        const { ctx } = makeCtx(1);
+        const mgr = new EffectManager(ctx);
+        const fx = new Effect({ x: 0, y: 0, duration: 5, effectType: 'impact', pauseBehaviour: 'stop' });
+        mgr.addEffect(fx);
+        mgr.renderUpdate(FIXED_DT, true);
+        expect(mgr.effects).toHaveLength(0);
+    });
+});

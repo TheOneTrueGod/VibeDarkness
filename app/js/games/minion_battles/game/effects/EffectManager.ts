@@ -76,26 +76,44 @@ export class EffectManager {
     /**
      * Called every render frame — advances purely visual effects. While `halted` (pause plane), each effect
      * follows its pause behaviour: 'continue' ages as normal, 'hold' freezes, 'stop' is removed.
+     *
+     * Finished effects are dropped here too, not only by the tick's {@link cleanupInactive}: no game tick runs
+     * while halted, but 'continue' emitters and auras keep spawning effects, so a long pause would otherwise
+     * pile up finished effects (and their renderer visuals) without bound. Effects are render-only and not
+     * serialized or fingerprinted, so dropping them on a render frame cannot affect the simulation.
      */
     renderUpdate(realDt: number, halted = false): void {
+        let sawInactive = false;
         for (const effect of this.effects) {
-            if (!effect.active) continue;
+            if (!effect.active) { sawInactive = true; continue; }
             followOwner(this.ctx, effect);
             // A cast-bound effect whose cast was cut fades on wall time and does not age normally.
-            if (updateCastBound(effect, realDt, (id) => this.ctx.getUnit(id))) continue;
+            if (updateCastBound(effect, realDt, (id) => this.ctx.getUnit(id))) {
+                if (!effect.active) sawInactive = true;
+                continue;
+            }
             if (halted) {
                 const behaviour = resolveEffectPauseBehaviour(effect);
                 if (behaviour === 'hold') continue;
-                if (behaviour === 'stop') { effect.active = false; continue; }
+                if (behaviour === 'stop') { effect.active = false; sawInactive = true; continue; }
             }
             const rate = this.rateFor(effect);
             const step = rate === 1 ? realDt : realDt * rate;
             effect.renderUpdate(step);
+            if (!effect.active) sawInactive = true;
         }
+        if (sawInactive) this.cleanupInactive();
     }
 
+    /** Drop finished effects, in place (no allocation when the list is already clean). */
     cleanupInactive(): void {
-        this.effects = this.effects.filter((e) => e.active);
+        const list = this.effects;
+        let write = 0;
+        for (let read = 0; read < list.length; read++) {
+            const effect = list[read]!;
+            if (effect.active) list[write++] = effect;
+        }
+        list.length = write;
     }
 }
 

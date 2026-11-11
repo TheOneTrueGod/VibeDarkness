@@ -58,6 +58,7 @@ export class EffectRenderer {
             }
             let visual = this.effectVisuals.get(effect.id);
             if (!visual) {
+                if (!effect.active) continue;
                 visual = createEffectVisual(effect, context);
                 visual.zIndex = EffectRenderer.UNDER_PROJECTILE_EFFECT_TYPES.has(effect.effectType)
                     ? Z_UNDER_PROJECTILES
@@ -65,9 +66,11 @@ export class EffectRenderer {
                 this.effectVisuals.set(effect.id, visual);
                 this.gameContainer.addChild(visual);
             }
+            visual.visible = effect.active;
+            // A finished effect is hidden until its list drops it; don't redraw it.
+            if (!effect.active) continue;
             visual.x = effect.x;
             visual.y = effect.y;
-            visual.visible = effect.active;
             updateEffectVisual(visual, effect, context);
         }
 
