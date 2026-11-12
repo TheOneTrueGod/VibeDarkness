@@ -1,6 +1,6 @@
 /**
- * Conjured weapons swap a unit's weapon abilities for a held strike and a release ability.
- * The held record is instance state and is serialized on the unit.
+ * Conjured weapons replace their conjure card with a held strike. The release ability is that
+ * card's mode toggle, not a second slot. The held record is instance state and is serialized on the unit.
  */
 /** Upright card picture for the orbit, the discard arc and the dropped token. */
 export interface ConjuredWeaponArt {
@@ -37,7 +37,10 @@ export interface ConjuredWeaponDef {
 
 export interface HeldConjuredWeaponState {
     defId: string;
-    /** Weapon-origin abilities hidden while this weapon is held. Their uses stay on the runtime. */
+    /**
+     * Weapon-origin abilities hidden while this weapon is held. New equips leave this empty.
+     * A loaded save may still list them; release puts them back.
+     */
     stowedAbilityIds: string[];
 }
 

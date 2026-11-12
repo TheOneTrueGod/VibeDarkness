@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { HELD_WEAPON_MODE_SPECIAL } from '../../abilities/heldWeaponModes';
 import { isAbilityTimingInterval } from '../../abilities/abilityTimings';
 import { pointInCone } from '../../abilities/coneGeometry';
 import type { IAbilityPreviewGraphics } from '../../abilities/Ability';
@@ -245,15 +246,19 @@ describe('Armory Core', () => {
         expect(traveled).toBeLessThan(fullSpeedDistance);
     });
 
-    it('replaces weapon abilities while the sword is held, drops a token each slash, and the tokens do not expire', () => {
+    it('replaces Create Sword with Charge Sword, which toggles to Throw Sword, and the weapon stays', () => {
         const { engine } = armoryBattle();
         const player = engine.units[0]!;
+        const weaponId = swordItem.cardsToAdd[0]!;
         executeUnitAbility(player, CreateSwordAbility, [], engine);
         step(engine, CREATE_SWORD_CAST_DURATION + FIXED_DT);
         expect(player.heldConjuredWeapon).not.toBeNull();
-        expect(player.abilities).toContain(IMPROVISED_SWORD_ABILITY_ID);
-        expect(player.abilities).toContain(THROW_SWORD_ABILITY_ID);
-        expect(player.abilityRuntime[swordItem.cardsToAdd[0]!]?.active).toBe(false);
+        const createAt = player.abilities.indexOf(CREATE_SWORD_ABILITY_ID);
+        expect(player.abilities.indexOf(IMPROVISED_SWORD_ABILITY_ID)).toBe(createAt - 1);
+        expect(player.abilities).not.toContain(THROW_SWORD_ABILITY_ID);
+        expect(player.abilityRuntime[CREATE_SWORD_ABILITY_ID]?.active).toBe(false);
+        expect(player.abilityRuntime[weaponId]?.active).not.toBe(false);
+        expect(ImprovisedSwordAbility.abilityModes?.modeAbilityIds?.[HELD_WEAPON_MODE_SPECIAL]).toBe(THROW_SWORD_ABILITY_ID);
         expect(player.abilityRuntime[IMPROVISED_SWORD_ABILITY_ID]?.currentUses).toBe(IMPROVISED_SWORD_MAX_USES);
 
         executeUnitAbility(player, ImprovisedSwordAbility, [AIM], engine);
@@ -635,8 +640,12 @@ describe('Create Mace', () => {
         expect(player.getResource('charge')?.current).toBe(chargeBefore - ARMORY_CREATE_CHARGE_COST);
         step(engine, CREATE_SWORD_CAST_DURATION + FIXED_DT);
         expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_MACE_WEAPON_ID);
-        expect(player.abilities).toContain(CHARGE_MACE_ABILITY_ID);
-        expect(player.abilities).toContain(WHIRL_ABILITY_ID);
+        const createAt = player.abilities.indexOf(CREATE_MACE_ABILITY_ID);
+        expect(player.abilities.indexOf(CHARGE_MACE_ABILITY_ID)).toBe(createAt - 1);
+        expect(player.abilities).not.toContain(WHIRL_ABILITY_ID);
+        expect(player.abilityRuntime[CREATE_MACE_ABILITY_ID]?.active).toBe(false);
+        expect(player.abilityRuntime[swordItem.cardsToAdd[0]!]?.active).not.toBe(false);
+        expect(ChargeMaceAbility_1006.abilityModes?.modeAbilityIds?.[HELD_WEAPON_MODE_SPECIAL]).toBe(WHIRL_ABILITY_ID);
         expect(player.abilityRuntime[CHARGE_MACE_ABILITY_ID]?.currentUses).toBe(CHARGE_MACE_MAX_USES);
         const swingTiming = ChargeMaceAbility_1006.abilityTimings.find((entry) => isAbilityTimingInterval(entry) && entry.id === 'hit');
         const swingDef = swingTiming && isAbilityTimingInterval(swingTiming) ? swingTiming.targetDef : undefined;
@@ -764,7 +773,7 @@ describe('Create Shield', () => {
         expect(engine.units[0]!.abilities).toContain(CREATE_SHIELD_ABILITY_ID);
     });
 
-    it('blocks, gains Charge once, orbits bucklers, then holds Release Charge and Throw Shield', () => {
+    it('blocks, gains Charge once, orbits bucklers, then replaces itself with Release Charge', () => {
         const { engine } = shieldBattle();
         const player = engine.units[0]!;
         const attacker = placeTargetDummy(engine, { x: PLAYER.x + CELL_SIZE * 3, y: PLAYER.y }, 'shield_attacker');
@@ -797,9 +806,12 @@ describe('Create Shield', () => {
 
         step(engine, CREATE_SHIELD_CAST_DURATION / 2 + FIXED_DT);
         expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_SHIELD_WEAPON_ID);
-        expect(player.abilities).toContain(RELEASE_CHARGE_ABILITY_ID);
-        expect(player.abilities).toContain(THROW_SHIELD_ABILITY_ID);
-        expect(player.abilityRuntime[swordItem.cardsToAdd[0]!]?.active).toBe(false);
+        const createAt = player.abilities.indexOf(CREATE_SHIELD_ABILITY_ID);
+        expect(player.abilities.indexOf(RELEASE_CHARGE_ABILITY_ID)).toBe(createAt - 1);
+        expect(player.abilities).not.toContain(THROW_SHIELD_ABILITY_ID);
+        expect(player.abilityRuntime[CREATE_SHIELD_ABILITY_ID]?.active).toBe(false);
+        expect(player.abilityRuntime[swordItem.cardsToAdd[0]!]?.active).not.toBe(false);
+        expect(ReleaseChargeAbility_1009.abilityModes?.modeAbilityIds?.[HELD_WEAPON_MODE_SPECIAL]).toBe(THROW_SHIELD_ABILITY_ID);
         expect(player.abilityRuntime[RELEASE_CHARGE_ABILITY_ID]?.currentUses).toBe(1);
         expect(player.abilityRuntime[THROW_SHIELD_ABILITY_ID]?.currentUses).toBe(1);
     });

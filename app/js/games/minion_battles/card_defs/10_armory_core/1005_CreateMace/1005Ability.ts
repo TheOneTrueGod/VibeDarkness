@@ -2,8 +2,8 @@
  * Create Mace — conjure a mace over one second, then hold it.
  *
  * Four mace icons spin out around the caster, circle, and come back in.
- * The caster can keep walking, at reduced speed. Weapon abilities become
- * Charge Mace when the cast ends. Create Mace itself swaps for Whirl.
+ * The caster can keep walking, at reduced speed. This card becomes Charge Mace,
+ * which toggles to Whirl. Equipped weapon abilities stay.
  * If a conjured weapon is already held, it is discarded as this cast starts.
  * Costs Charge. Two uses, both recovered at each round start.
  */
@@ -26,7 +26,7 @@ import {
 } from '../armoryConstants';
 
 const TOOLTIP_LINES = [
-    'Conjure a mace. Your weapon abilities become Charge Mace and Whirl until Whirl is used or the mace is spent.',
+    'Conjure a mace. This card becomes Charge Mace, and can switch to Whirl, until Whirl is used or the mace is spent.',
     'You can move slowly while it forms.',
 ] as const;
 

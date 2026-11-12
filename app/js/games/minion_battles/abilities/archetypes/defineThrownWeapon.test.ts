@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 // AbilityRegistry first: importing archetypes directly hits an existing archetype <-> card-def import cycle.
 import { registerAbilityForTest } from '../AbilityRegistry';
 import { AbilityState } from '../Ability';
+import { heldWeaponAbilityModes, HELD_WEAPON_MODE_SPECIAL } from '../heldWeaponModes';
 import { defineAbility } from '../defineAbility';
 import { defineConjure } from './defineConjure';
 import { defineThrownWeapon } from './defineThrownWeapon';
@@ -75,6 +76,13 @@ const JavelinJab = defineAbility({
     abilityTimings: [],
     getRange: () => ({ minRange: 0, maxRange: 0 }),
     getTooltipText: () => [],
+    abilityModes: heldWeaponAbilityModes({
+        releaseAbilityId: THROW_ID,
+        strikeLabel: 'Jab',
+        specialLabel: 'Throw',
+        strikeDescription: 'Jab with the javelin',
+        specialDescription: 'Throw the javelin',
+    }),
 });
 
 const PLAYER = { x: 200, y: 200 };
@@ -142,7 +150,10 @@ describe('defineConjure + defineThrownWeapon (non-Armory weapon)', () => {
         expect(orbit?.duration).toBe(CONJURE_DURATION);
         step(engine, CONJURE_DURATION + FIXED_DT);
         expect(player.heldConjuredWeapon?.defId).toBe(WEAPON_ID);
-        expect(player.abilities).toContain(THROW_ID);
+        expect(player.abilities.indexOf(HELD_ID)).toBe(player.abilities.indexOf(CONJURE_ID) - 1);
+        expect(player.abilities).not.toContain(THROW_ID);
+        expect(player.abilityRuntime[CONJURE_ID]?.active).toBe(false);
+        expect(JavelinJab.abilityModes?.modeAbilityIds?.[HELD_WEAPON_MODE_SPECIAL]).toBe(THROW_ID);
 
         executeUnitAbility(player, ThrowJavelin, [AIM], engine);
         let thrown: Projectile | null = null;

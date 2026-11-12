@@ -4,7 +4,8 @@
  * Timing: one Active window of `duration` seconds. When it starts, any held conjured weapon is
  * dropped as a token and pictures of the new weapon orbit the caster. The caster walks at
  * `moveMult` speed during the window. When it ends, the weapon (`weaponId`, a registered
- * `ConjuredWeaponDef`) is equipped and swaps the caster's weapon abilities.
+ * `ConjuredWeaponDef`) is equipped: this card's slot becomes the held strike, whose mode
+ * toggle casts the release ability. Equipped weapon abilities stay.
  *
  * The orbit pictures use the weapon's `tokenKind` art. `orbit` tunes the orbit shape; omitted
  * fields use the orbit effect's defaults.

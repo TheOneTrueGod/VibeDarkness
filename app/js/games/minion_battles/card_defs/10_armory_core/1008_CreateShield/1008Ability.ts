@@ -2,8 +2,9 @@
  * Create Shield — raise a conjured buckler for one second, then hold it.
  *
  * Blocks like a standard shield while four bucklers spin out and back around the caster.
- * The first block refunds the Charge it cost. When the cast ends, weapon abilities become
- * Release Charge and Create Shield swaps for Throw Shield. Either one puts the buckler away.
+ * The first block refunds the Charge it cost. When the cast ends, this card becomes
+ * Release Charge, which toggles to Throw Shield. Either one puts the buckler away.
+ * Equipped weapon abilities stay.
  * If a conjured weapon is already held, it is discarded as this cast starts.
  * Costs Charge. Two uses, both recovered at each round start.
  */
@@ -33,7 +34,7 @@ import { equipConjuredWeaponAtEnd, startConjureCast } from '../../../abilities/a
 
 const TOOLTIP_LINES = [
     'Conjure a buckler and block attacks from the front. The first block gains {{CHARGE}} Charge.',
-    'Your weapon abilities become Release Charge and Throw Shield until you use one.',
+    'This card becomes Release Charge, and can switch to Throw Shield, until you use one.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {

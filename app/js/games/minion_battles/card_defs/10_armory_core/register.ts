@@ -1,6 +1,7 @@
 /**
  * Armory content registration: the sword, mace and shield conjured weapons and the turret's
- * deployable def. `registerArmoryContent()` is called from `abilities/AbilityRegistry.ts` and
+ * deployable def. Each weapon's held strike takes the Create card's slot; the release is that
+ * card's mode toggle. `registerArmoryContent()` is called from `abilities/AbilityRegistry.ts` and
  * `card_defs/index.ts`; tests that build Armory abilities without either call it in `beforeAll`.
  */
 import { registerConjuredWeapon } from '../../game/conjuredWeapons/registry';

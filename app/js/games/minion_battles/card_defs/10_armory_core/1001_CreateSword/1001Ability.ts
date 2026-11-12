@@ -2,8 +2,8 @@
  * Create Sword — conjure a blade over one second, then hold it.
  *
  * Four sword icons spin out around the caster, circle, and come back in.
- * The caster can keep walking, at reduced speed. Weapon abilities are replaced
- * by Charge Sword when the cast ends. Create Sword itself swaps for Throw Sword.
+ * The caster can keep walking, at reduced speed. This card becomes Charge Sword,
+ * which toggles to Throw Sword. Equipped weapon abilities stay.
  * If a conjured weapon is already held, it is discarded as this cast starts.
  * Costs Charge. Two uses, both recovered at each round start.
  */
@@ -26,7 +26,7 @@ import {
 } from '../armoryConstants';
 
 const TOOLTIP_LINES = [
-    'Conjure a sword. Your weapon abilities become Charge Sword and Throw Sword until it is thrown or spent.',
+    'Conjure a sword. This card becomes Charge Sword, and can switch to Throw Sword, until it is thrown or spent.',
     'You can move slowly while it forms.',
 ] as const;
 

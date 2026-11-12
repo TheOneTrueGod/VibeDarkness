@@ -41,10 +41,12 @@ import {
     SWING_BAT_SLIDE_FORWARD,
     SWING_BAT_WINDUP_END,
 } from '../../0115_SwingBat/0115Ability';
+import { heldWeaponAbilityModes } from '../../../abilities/heldWeaponModes';
 import {
     ARMORY_PRIMARY_COLOR_NUM,
     CHARGE_MACE_ABILITY_ID,
     CHARGE_MACE_MAX_USES,
+    WHIRL_ABILITY_ID,
 } from '../armoryConstants';
 
 const MAX_TARGETS = SWING_BAT_HITBOX.numTargets;
@@ -120,6 +122,13 @@ export const ChargeMaceAbility_1006 = defineAbility({
     aiSettings: { minRange: 0, maxRange: SWING_BAT_HITBOX.maxRange + DEFAULT_MELEE_LUNGE },
     lunge: { distance: DEFAULT_MELEE_LUNGE },
     movementLock: { until: SWING_BAT_WINDUP_END },
+    abilityModes: heldWeaponAbilityModes({
+        releaseAbilityId: WHIRL_ABILITY_ID,
+        strikeLabel: 'Mace',
+        specialLabel: 'Whirl',
+        strikeDescription: 'Swing the conjured mace',
+        specialDescription: 'Spin and hit everyone around you',
+    }),
     getTooltipText(gameState?: unknown): string[] {
         return formatTooltipLegacyLines(
             TOOLTIP_LINES,

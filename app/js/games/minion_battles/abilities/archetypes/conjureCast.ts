@@ -2,7 +2,7 @@
  * Shared cast pieces for abilities that conjure a held weapon.
  * `startConjureCast` drops any held weapon and starts the orbit of `weaponKind` pictures (the Armory
  * spell circle style, `game/spellCircles/`).
- * `equipConjuredWeaponAtEnd` swaps the weapon in when the conjure window closes.
+ * `equipConjuredWeaponAtEnd` equips the weapon when the conjure window closes.
  * `defineConjure` uses both; other archetypes (e.g. a conjured shield on `defineDirectionalShield`)
  * call them as hooks.
  */

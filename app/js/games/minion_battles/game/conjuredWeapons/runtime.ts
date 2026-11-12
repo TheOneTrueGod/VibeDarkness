@@ -1,7 +1,8 @@
 /**
- * Equip and release a conjured weapon. Stow hides weapon-origin abilities without
- * discarding their uses. The conjure card stays on the bar, inactive, so it still
- * recovers while the weapon is held.
+ * Equip and release a conjured weapon. The conjure card's slot becomes the held strike.
+ * That card's mode toggle casts the release ability, which never takes a slot of its own.
+ * The conjure card stays on the bar, inactive, so it still recovers while the weapon is held.
+ * Equipped weapon abilities stay where they are.
  */
 import type { Unit } from '../units/Unit';
 import type { EventBus } from '../EventBus';
@@ -18,15 +19,11 @@ export function equipConjuredWeapon(unit: Unit, def: ConjuredWeaponDef, engine: 
     if (unit.heldConjuredWeapon) {
         releaseHeldConjuredWeapon(unit, engine, { leaveToken: true });
     }
-    const stowed = unit.weaponAbilityIds.filter((id) => unit.abilities.includes(id));
-    for (const id of stowed) setAbilityActive(unit, id, false);
-
-    const anchorIndexes = stowed
-        .map((id) => unit.abilities.indexOf(id))
-        .filter((index) => index >= 0);
-    const insertAt = anchorIndexes.length > 0 ? Math.min(...anchorIndexes) : unit.abilities.length;
+    // The held strike takes the conjure card's slot. The release is that card's other mode.
+    const conjureIndex = unit.abilities.indexOf(def.conjureAbilityId);
     if (!unit.abilities.includes(def.heldAbilityId)) {
-        unit.abilities.splice(insertAt, 0, def.heldAbilityId);
+        if (conjureIndex >= 0) unit.abilities.splice(conjureIndex, 0, def.heldAbilityId);
+        else unit.abilities.push(def.heldAbilityId);
     }
     setAbilityActive(unit, def.heldAbilityId, true);
     const heldRuntime = unit.abilityRuntime[def.heldAbilityId];
@@ -35,11 +32,6 @@ export function equipConjuredWeapon(unit: Unit, def: ConjuredWeaponDef, engine: 
         heldRuntime.currentUses = def.heldUses;
     }
 
-    const conjureIndex = unit.abilities.indexOf(def.conjureAbilityId);
-    if (!unit.abilities.includes(def.releaseAbilityId)) {
-        if (conjureIndex >= 0) unit.abilities.splice(conjureIndex, 0, def.releaseAbilityId);
-        else unit.abilities.push(def.releaseAbilityId);
-    }
     setAbilityActive(unit, def.releaseAbilityId, true);
     const releaseRuntime = unit.abilityRuntime[def.releaseAbilityId];
     if (releaseRuntime) {
@@ -48,7 +40,7 @@ export function equipConjuredWeapon(unit: Unit, def: ConjuredWeaponDef, engine: 
     }
     setAbilityActive(unit, def.conjureAbilityId, false);
 
-    unit.heldConjuredWeapon = { defId: def.id, stowedAbilityIds: [...stowed] };
+    unit.heldConjuredWeapon = { defId: def.id, stowedAbilityIds: [] };
     notifyBar(unit, engine);
 }
 

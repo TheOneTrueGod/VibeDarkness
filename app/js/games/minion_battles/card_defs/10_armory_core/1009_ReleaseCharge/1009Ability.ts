@@ -5,6 +5,8 @@
  */
 
 import { defineConeStrike } from '../../../abilities/archetypes/defineConeStrike';
+import { heldWeaponAbilityModes } from '../../../abilities/heldWeaponModes';
+import type { AbilityStatic } from '../../../abilities/Ability';
 import releaseChargeSvg from './releaseCharge.svg?raw';
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
@@ -28,6 +30,7 @@ import {
     ARMORY_SHIELD_ECHO,
     RELEASE_CHARGE_ABILITY_ID,
     SHIELD_FOLLOWUP_USES,
+    THROW_SHIELD_ABILITY_ID,
 } from '../armoryConstants';
 import { RELEASE_CHARGE_DAMAGE, RELEASE_CHARGE_ECHO_RADIUS } from './1009Constants';
 
@@ -45,7 +48,8 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     ARC_DEGREES: { kind: 'plain', value: CONE_OF_LIGHT_ARC_DEGREES },
 };
 
-export const ReleaseChargeAbility_1009 = defineConeStrike({
+export const ReleaseChargeAbility_1009: AbilityStatic = {
+    ...defineConeStrike({
     id: RELEASE_CHARGE_ABILITY_ID,
     name: 'Release Charge',
     flavorText: 'You let loose the energy your buckler caught, all at once.',
@@ -73,7 +77,15 @@ export const ReleaseChargeAbility_1009 = defineConeStrike({
             resolveTooltipContext(gameState, { ability: { id: RELEASE_CHARGE_ABILITY_ID } }),
         );
     },
-});
+    }),
+    abilityModes: heldWeaponAbilityModes({
+        releaseAbilityId: THROW_SHIELD_ABILITY_ID,
+        strikeLabel: 'Burst',
+        specialLabel: 'Throw',
+        strikeDescription: 'Release the caught charge in a cone',
+        specialDescription: 'Throw the conjured buckler',
+    }),
+};
 
 export const ReleaseChargeCard: CardDef = {
     abilityId: RELEASE_CHARGE_ABILITY_ID,

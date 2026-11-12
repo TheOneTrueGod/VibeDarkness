@@ -33,10 +33,12 @@ import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { type CardDef } from '../../types';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
+import { heldWeaponAbilityModes } from '../../../abilities/heldWeaponModes';
 import {
     ARMORY_SECONDARY_COLOR_NUM,
     IMPROVISED_SWORD_ABILITY_ID,
     IMPROVISED_SWORD_MAX_USES,
+    THROW_SWORD_ABILITY_ID,
 } from '../armoryConstants';
 import {
     IMPROVISED_SWORD_COOLDOWN_END,
@@ -109,6 +111,13 @@ export const ImprovisedSwordAbility = defineAbility({
     aiSettings: { minRange: 0, maxRange: SWING_SWORD_HITBOX.maxRange + SWING_SWORD_LUNGE },
     lunge: { distance: SWING_SWORD_LUNGE },
     movementLock: { until: IMPROVISED_SWORD_SLASH_START },
+    abilityModes: heldWeaponAbilityModes({
+        releaseAbilityId: THROW_SWORD_ABILITY_ID,
+        strikeLabel: 'Sword',
+        specialLabel: 'Throw',
+        strikeDescription: 'Slash with the conjured sword',
+        specialDescription: 'Throw the conjured sword',
+    }),
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [
             {
