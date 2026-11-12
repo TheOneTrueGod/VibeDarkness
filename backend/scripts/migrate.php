@@ -30,6 +30,7 @@ use App\Migrations\MigrationRunner;
 use App\Migrations\Versions\M0003EquipmentUpgradeRewards;
 use App\Migrations\Versions\M0004WeaponsResearchTree;
 use App\Migrations\Versions\M0005ResourceRename;
+use App\Migrations\Versions\M0006ActiveQuestRuns;
 use App\SaveData\CampaignMigrations;
 use App\SaveData\CharacterMigrations;
 use App\SaveData\ResourceRenames;
@@ -212,7 +213,7 @@ function runSelfTest(): int
         'researchTrees' => ['stick_sword' => ['swing_stick'], 'tech_shield' => ['raise_shield']],
     ], 3);
     $check('character: weapon implied by first root node', $implied['data']['equipment'] === ['004', '002']);
-    $quest = CharacterMigrations::migrate([
+    $quest = $charTo([
         'id' => 'q',
         'equipment' => ['004', '015'],
         'activeQuestRun' => ['runId' => 'r', 'questCharacter' => ['equipment' => ['004', '021', '002']]],
@@ -414,17 +415,18 @@ function runSelfTest(): int
         $cs = $readDisk('characters/c_shield.json');
         $cp = $readDisk('characters/c_plain.json');
         $cc = $readDisk('campaigns/camp3.json');
-        $check('0003+0004: applied', $code === 0 && MigrationLedger::load($store)->currentVersion() === 5);
+        $check('0003+0004: applied', $code === 0 && MigrationLedger::load($store)->currentVersion() === 6);
         $check('0003+0004: Rocks character -> Charged Rocks + More Power in the Weapons tree',
             $cr['equipment'] === ['004', '011'] && $cr['researchTrees'] === ['weapons' => ['throw_rock', 'more_power']]
-            && $cr['researchNodeLevels']['weapons']['more_power'] === 2 && $cr['version'] === 5,
+            && $cr['researchNodeLevels']['weapons']['more_power'] === 2 && $cr['version'] === 6,
             json_encode($cr));
         $check('0003+0004: Shield character -> Charged Shield', $cs['equipment'] === ['004', '016'] && $cs['researchTrees']['weapons'] === ['raise_shield'], json_encode($cs));
-        $check('0003+0004: plain character keeps equipment, research moves to weapons', $cp['equipment'] === ['004', '002'] && $cp['researchTrees'] === ['weapons' => ['swing_stick']] && $cp['version'] === 5);
+        $check('0003+0004: plain character keeps equipment, research moves to weapons', $cp['equipment'] === ['004', '002'] && $cp['researchTrees'] === ['weapons' => ['swing_stick']] && $cp['version'] === 6);
         $unlockedDisk = $cc['unlockedItemIds'] ?? [];
         sort($unlockedDisk);
         $check('0003: campaign unlocks tier 1-2 items plus equipped 016',
-            $unlockedDisk === ['001', '002', '003', '011', '012', '013', '014', '015', '016'] && ($cc['version'] ?? 0) === 5, json_encode($cc['unlockedItemIds'] ?? null));
+            $unlockedDisk === ['001', '002', '003', '011', '012', '013', '014', '015', '016'] && ($cc['version'] ?? 0) === 5,
+            json_encode($cc['unlockedItemIds'] ?? null));
         // Re-running up() on migrated data changes nothing (idempotent).
         $before = [json_encode($cr), json_encode($cs), json_encode($cc)];
         (new M0003EquipmentUpgradeRewards())->up(new MigrationContext($store, $quiet));
@@ -497,7 +499,7 @@ function runSelfTest(): int
         $check('0005: account knowledge renamed on disk', ($acct['knowledge'] ?? null) === ['ResourceAttunement' => ['acquiredAt' => 3]], json_encode($acct['knowledge'] ?? null));
         $check('0005: character and campaign renamed on disk',
             ($chr['missionResults']['camp'][0]['resourceDelta'] ?? null) === ['vigor' => 2] && ($cmp['resources']['attunement'] ?? null) === 4
-            && !isset($cmp['resources']['crystals']) && $chr['version'] === 5 && $cmp['version'] === 5);
+            && !isset($cmp['resources']['crystals']) && $chr['version'] === 6 && ($chr['activeQuestRuns'] ?? null) === [] && $cmp['version'] === 5);
         $before = [json_encode($acct), json_encode($chr), json_encode($cmp)];
         (new M0005ResourceRename())->up($m5);
         $after = [
@@ -507,6 +509,53 @@ function runSelfTest(): int
         ];
         $check('0005: up() is idempotent', $before === $after);
         $check('0005: plan is empty after applying', str_contains((string) ($p = (new M0005ResourceRename())->plan($m5))[count($p) - 1], '0 character(s), 0 campaign(s), 0 account(s)'));
+    } finally {
+        StorageRoot::setOverride(null);
+        removeDir($store);
+    }
+
+    // --- Migration 0006 (active quest runs map): pure logic --------------------------------------------
+    $v6 = $charTo([
+        'id' => 'v6', 'version' => 5,
+        'activeQuestRun' => ['runId' => 'run_a', 'status' => 'prep', 'questCharacter' => ['equipment' => ['004']]],
+    ], 6)['data'];
+    $check('0006 character: singular run wrapped into activeQuestRuns',
+        ($v6['activeQuestRuns']['run_a']['status'] ?? null) === 'prep'
+        && !array_key_exists('activeQuestRun', $v6) && $v6['version'] === 6,
+        json_encode($v6['activeQuestRuns'] ?? null));
+    $empty = $charTo(['id' => 'e', 'version' => 5], 6)['data'];
+    $check('0006 character: absent singular becomes empty map', ($empty['activeQuestRuns'] ?? null) === [] && !array_key_exists('activeQuestRun', $empty));
+    $check('0006 character: idempotent', CharacterMigrations::v5ToV6($v6) === $v6);
+
+    // --- Migration 0006 end to end (characters) in a scratch storage dir ------------------------------
+    $store = makeTempDir('migrate_0006_');
+    mkdir($store . '/characters');
+    file_put_contents($store . '/characters/c_run.json', json_encode([
+        'id' => 'c_run', 'version' => 5, 'ownerAccountId' => 1,
+        'activeQuestRun' => ['runId' => 'q1', 'status' => 'active', 'questCharacter' => ['equipment' => ['004', '001']]],
+    ]));
+    file_put_contents($store . '/characters/c_none.json', json_encode([
+        'id' => 'c_none', 'version' => 5, 'ownerAccountId' => 1,
+    ]));
+    try {
+        $m6 = new MigrationContext($store, $quiet);
+        $plan6 = (new M0006ActiveQuestRuns())->plan($m6);
+        $check('0006: plan counts characters', str_contains(end($plan6), '2 character(s)'), json_encode($plan6));
+        (new M0006ActiveQuestRuns())->up($m6);
+        $withRun = json_decode((string) file_get_contents($store . '/characters/c_run.json'), true);
+        $none = json_decode((string) file_get_contents($store . '/characters/c_none.json'), true);
+        $check('0006: character with run migrated on disk',
+            ($withRun['activeQuestRuns']['q1']['status'] ?? null) === 'active'
+            && !isset($withRun['activeQuestRun']) && ($withRun['version'] ?? 0) === 6,
+            json_encode($withRun));
+        $check('0006: character without run gets empty map', ($none['activeQuestRuns'] ?? null) === [] && ($none['version'] ?? 0) === 6);
+        $before = [json_encode($withRun), json_encode($none)];
+        (new M0006ActiveQuestRuns())->up($m6);
+        $after = [
+            json_encode(json_decode((string) file_get_contents($store . '/characters/c_run.json'), true)),
+            json_encode(json_decode((string) file_get_contents($store . '/characters/c_none.json'), true)),
+        ];
+        $check('0006: up() is idempotent', $before === $after);
     } finally {
         StorageRoot::setOverride(null);
         removeDir($store);

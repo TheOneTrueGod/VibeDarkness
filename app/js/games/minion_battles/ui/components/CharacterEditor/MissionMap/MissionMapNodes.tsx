@@ -12,7 +12,7 @@ import {
     isMissionDisabled,
 } from '../../../../storylines/unlock';
 import { missionMapNodeTestId, missionMapQuestBankTestId } from '../../../../../../testing/testIds';
-import { questBankMapNodeKey } from '../questBankUi';
+import { QUEST_BANK_IN_PROGRESS_STROKE, questBankMapNodeKey } from '../questBankUi';
 import {
     BATTLE_NODE_STROKE,
     CIRCLE_R,
@@ -237,6 +237,7 @@ export interface QuestBankNodeProps {
     isAdmin: boolean;
     clears: number;
     finished: boolean;
+    inProgress: boolean;
     hoveredId: string | null;
     pressedId: string | null;
     bankTooltip: QuestBankTooltipData | null;
@@ -251,6 +252,7 @@ export function QuestBankNode({
     isAdmin,
     clears,
     finished,
+    inProgress,
     hoveredId,
     pressedId,
     bankTooltip,
@@ -267,7 +269,11 @@ export function QuestBankNode({
                     const bankDisabled = isQuestBankDisabled(bank);
                     const label = bank.title ?? bank.id.replace(/_/g, ' ');
                     const fill = finished || bankDisabled ? DISABLED_NODE_FILL : '#7c3aed';
-                    const stroke = finished ? COMPLETED_MISSION_ACCENT : '#a78bfa';
+                    const stroke = finished
+                        ? COMPLETED_MISSION_ACCENT
+                        : inProgress
+                            ? QUEST_BANK_IN_PROGRESS_STROKE
+                            : '#a78bfa';
                     const glow = '#7c3aed';
 
                     const isBankPinned = bankTooltip?.pinned && bankTooltip.bankId === bank.id;
@@ -323,6 +329,15 @@ export function QuestBankNode({
                                         stroke={DISABLED_ADMIN_RING_COLOR}
                                         strokeWidth={1.5}
                                         strokeDasharray="4 3"
+                                    />
+                                )}
+                                {inProgress && !finished && (
+                                    <circle
+                                        r={r + 4}
+                                        fill="none"
+                                        stroke={QUEST_BANK_IN_PROGRESS_STROKE}
+                                        strokeWidth={2}
+                                        strokeOpacity={0.85}
                                     />
                                 )}
                                 <circle

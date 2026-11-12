@@ -13,6 +13,8 @@ import {
     addLocationCardsToDeck,
     getQuestDef,
     abandonQuestRun,
+    coalesceActiveQuestRunsFromWire,
+    findRunById,
     queueCampaignReward,
     placeQuestResultOnMap,
     planQuestVictoryContinue,
@@ -187,7 +189,9 @@ export function useQuestFlow({
         if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return null;
         try {
             const rawChar = await api.getCharacter(sel);
-            let run = rawChar.activeQuestRun ?? null;
+            if (!questLobbyFields?.questRunId) return null;
+            const wireRuns = coalesceActiveQuestRunsFromWire(rawChar);
+            let run = findRunById(wireRuns, questLobbyFields.questRunId) ?? null;
             const matchesLobby = questRunMatchesLobby(run, questLobbyFields);
             const currentMissionId = missionIdFromResolvedRef(
                 run?.resolvedSlots[run?.currentSlotIndex ?? -1],
@@ -211,7 +215,7 @@ export function useQuestFlow({
             const plan = planQuestVictoryContinue(run!, questDef);
             let finaleCampaignRewards: CampaignRewardsPayload | null = null;
             if (plan.kind === 'continued') {
-                await api.updateCharacter(sel, { activeQuestRun: plan.run });
+                await api.updateCharacter(sel, { upsertActiveQuestRun: plan.run });
             } else {
                 const campaignId = questDef.campaignId;
                 const existingMap: Record<string, QuestResult[]> = rawChar.questResults ?? {};
@@ -284,7 +288,7 @@ export function useQuestFlow({
                 }
 
                 await api.updateCharacter(sel, {
-                    activeQuestRun: null,
+                    removeActiveQuestRunId: runId,
                     questResults: { ...existingMap, [campaignId]: updatedList },
                     ...(locationDeckUpdate ? { locationDeck: locationDeckUpdate } : {}),
                 });
@@ -304,10 +308,11 @@ export function useQuestFlow({
         if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return;
         try {
             const rawChar = await api.getCharacter(sel);
-            const run = rawChar.activeQuestRun ?? null;
+            const wireRuns = coalesceActiveQuestRunsFromWire(rawChar);
+            const run = findRunById(wireRuns, questLobbyFields.questRunId);
             if (!run || run.runId !== questLobbyFields.questRunId) return;
             void abandonQuestRun(run); // domain mark; discard active run below
-            await api.updateCharacter(sel, { activeQuestRun: null });
+            await api.updateCharacter(sel, { removeActiveQuestRunId: run.runId });
         } catch (e) {
             console.warn('Failed to abandon quest run:', e);
         }

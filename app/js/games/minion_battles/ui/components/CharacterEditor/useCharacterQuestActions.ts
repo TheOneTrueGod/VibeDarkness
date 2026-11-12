@@ -4,7 +4,7 @@ import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { abandonQuestRun } from '../../../storylines/questRun';
 import type { QuestResult } from '../../../storylines/questTypes';
-import { getQuestDef, isQuestDisabled } from '../../../storylines/index';
+import { findRunByQuestDefId, getQuestDef, isQuestDisabled } from '../../../storylines/index';
 
 export interface UseCharacterQuestActionsArgs {
     character: CampaignCharacter;
@@ -48,11 +48,11 @@ export function useCharacterQuestActions({ character, api, isAdmin, onSaved, onS
             adminGranted: true,
             campaignRewardsApplied: true,
         };
-        const clearRun = character.activeQuestRun?.questDefId === questDefId;
+        const runToClear = findRunByQuestDefId(character.activeQuestRuns, questDefId);
         try {
             await api.updateCharacter(character.id, {
                 questResults: { ...all, [campaignId]: [...existingList, newEntry] },
-                ...(clearRun ? { activeQuestRun: null } : {}),
+                ...(runToClear ? { removeActiveQuestRunId: runToClear.runId } : {}),
             });
             onSaved?.({ equipment: character.equipment, name: character.name, portraitId: character.portraitId });
         } catch (e) {
@@ -80,13 +80,13 @@ export function useCharacterQuestActions({ character, api, isAdmin, onSaved, onS
         [onStartQuest, isAdmin],
     );
 
-    /** Clear the singular activeQuestRun after UI confirm. */
-    const handleAbandonQuest = useCallback(async () => {
-        const run = character.activeQuestRun;
+    /** Remove one prep/active run by quest definition (never clears other parked runs). */
+    const handleAbandonQuest = useCallback(async (questDefId: string) => {
+        const run = findRunByQuestDefId(character.activeQuestRuns, questDefId);
         if (!run) return;
         try {
             void abandonQuestRun(run);
-            await api.updateCharacter(character.id, { activeQuestRun: null });
+            await api.updateCharacter(character.id, { removeActiveQuestRunId: run.runId });
             onSaved?.({
                 equipment: character.equipment,
                 name: character.name,
@@ -104,12 +104,11 @@ export function useCharacterQuestActions({ character, api, isAdmin, onSaved, onS
         const all = character.questResults ?? {};
         const nextList = (all[campaignId] ?? []).filter((r) => r.questDefId !== questDefId);
         try {
-            // Also drop this quest's run (prep / active / completed) so it can't trigger
-            // the "already have an active quest" warning when starting again.
-            const clearRun = character.activeQuestRun?.questDefId === questDefId;
+            // Also drop this quest's run so the map/picker no longer show it in progress.
+            const runToClear = findRunByQuestDefId(character.activeQuestRuns, questDefId);
             await api.updateCharacter(character.id, {
                 questResults: { ...all, [campaignId]: nextList },
-                ...(clearRun ? { activeQuestRun: null } : {}),
+                ...(runToClear ? { removeActiveQuestRunId: runToClear.runId } : {}),
             });
             onSaved?.({
                 equipment: character.equipment,

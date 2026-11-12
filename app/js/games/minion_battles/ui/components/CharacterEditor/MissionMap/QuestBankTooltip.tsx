@@ -98,7 +98,7 @@ export default function QuestBankTooltip({
     isLocked,
     unlockRequirementLabel,
     isAdmin,
-    activeQuestDefId,
+    prepActiveQuestDefIds,
     activeQuestRun,
     questCompleted,
     questResult,
@@ -115,15 +115,16 @@ export default function QuestBankTooltip({
     isLocked: boolean;
     unlockRequirementLabel: string | null;
     isAdmin: boolean;
-    /** Singular active run's questDefId, if any. */
-    activeQuestDefId?: string | null;
+    /** All prep/active quest def ids on the character (concurrent runs). */
+    prepActiveQuestDefIds: ReadonlySet<string>;
+    /** Dedicated bank: run for the pinned quest, if any. */
     activeQuestRun?: QuestRunState | null;
     /** Dedicated quest already cleared (victory recorded). */
     questCompleted: boolean;
     /** Victory result of the pinned quest, used for the Rewards section. */
     questResult?: QuestResult;
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
-    onAbandonQuest?: () => void | Promise<void>;
+    onAbandonQuest?: (questDefId: string) => void | Promise<void>;
     onResetQuest?: (questDefId: string) => void | Promise<void>;
     onMarkQuestVictory?: (questDefId: string, bankId: string) => Promise<void>;
     onDismiss: () => void;
@@ -272,7 +273,7 @@ export default function QuestBankTooltip({
                             </p>
                         ) : (
                             startableQuests.map((q) => {
-                                const isActive = activeQuestDefId === q.id;
+                                const isActive = prepActiveQuestDefIds.has(q.id);
                                 if (isActive) {
                                     return (
                                         <div key={q.id} className="flex items-center justify-between gap-2">
@@ -288,7 +289,7 @@ export default function QuestBankTooltip({
                                                         ) {
                                                             return;
                                                         }
-                                                        void onAbandonQuest();
+                                                        void onAbandonQuest(q.id);
                                                         onDismiss();
                                                     }}
                                                     className={`${QUEST_ACTION_BTN} shrink-0 bg-red-800/90 text-red-100 border border-red-600 hover:bg-red-700`}
@@ -330,15 +331,6 @@ export default function QuestBankTooltip({
                                         type="button"
                                         data-testid={`${TestIds.questStartPrefix}${q.id}`}
                                         onClick={() => {
-                                            if (
-                                                activeQuestDefId
-                                                && activeQuestDefId !== q.id
-                                                && !window.confirm(
-                                                    'You already have an active quest. Starting this quest abandons the current run. Continue?',
-                                                )
-                                            ) {
-                                                return;
-                                            }
                                             onStartQuest?.(q.id, {
                                                 mode: 'start',
                                                 assignedBankId: bank.id,

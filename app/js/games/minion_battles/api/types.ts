@@ -4,6 +4,7 @@
 import type { CampaignCharacterPayload, CreateCharacterPayload } from '../../../LobbyClient';
 import type { AccountState, CampaignResourceKey, CampaignState, MissionResult } from '../../../types';
 import type { QuestResult, QuestRunState, ResolvedMissionRef } from '../storylines/questTypes';
+import type { ActiveQuestRunsMap } from '../storylines/activeQuestRuns';
 import type { ResearchNodeSources } from '../../../researchTrees/types';
 import type { GamePhase } from '../state';
 
@@ -30,8 +31,12 @@ export interface CharacterUpdates {
     missionResults?: Record<string, MissionResult[]>;
     /** Per-campaign quest results; key = campaignId. */
     questResults?: Record<string, QuestResult[]>;
-    /** Active QuestRun (includes Quest Character); null clears. */
-    activeQuestRun?: QuestRunState | null;
+    /** Full runs map (tests/admin); production prefers keyed upsert/remove. */
+    activeQuestRuns?: ActiveQuestRunsMap;
+    /** Insert or replace one run at `run.runId` (server merges under file lock). */
+    upsertActiveQuestRun?: QuestRunState;
+    /** Remove one run by id. */
+    removeActiveQuestRunId?: string;
     /** Active campaign for this character. */
     campaignId?: string;
     /** Last Prepare Carefully primary ability picks for regular missions. */

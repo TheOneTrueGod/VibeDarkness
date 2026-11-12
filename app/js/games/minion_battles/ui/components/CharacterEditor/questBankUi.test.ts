@@ -29,9 +29,11 @@ import {
     SWARMLING_SOURCE_COMPLETION_VIGOR,
     SWARMLING_SOURCE_COMPLETION_METAL,
 } from '../../../storylines/WorldOfDarkness/questMissions/questMissionConstants';
+import type { QuestRunState } from '../../../storylines/questTypes';
 import {
     bankDisplayLabel,
     MAP_NODE_DISABLED_LABEL,
+    QUEST_BANK_IN_PROGRESS_STROKE,
     QUEST_BANK_PICKER_HOVER_DESCRIPTION,
     questBankHoverDescription,
     questBankUnlockRequirementLabel,
@@ -40,6 +42,7 @@ import {
     isQuestBankFinished,
     missionMapEdgeStroke,
     MISSION_MAP_COMPLETED_EDGE_COLOR,
+    prepActiveQuestDefIdSet,
     questBankMapNodeKey,
 } from './questBankUi';
 
@@ -90,7 +93,9 @@ describe('questBankUnlockRequirementLabel', () => {
     it('names the gating mission or prior picker for each Surface Quests picker', () => {
         const banks = [WOD_POST_CORE_QUEST_BANK, WOD_POST_CORE_QUEST_BANK_2];
         expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK, banks)).toBe('Core Awakening');
-        expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK_2, banks)).toBe('Campsite');
+        expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK_2, banks)).toBe(
+            bankDisplayLabel(WOD_POST_CORE_QUEST_BANK),
+        );
     });
 });
 
@@ -150,6 +155,34 @@ describe('questCompletionResourceGains', () => {
             { resource: 'metal', count: SWARMLING_SOURCE_COMPLETION_METAL },
             { resource: 'attunement', count: SWARMLING_SOURCE_COMPLETION_ATTUNEMENT },
         ]);
+    });
+});
+
+describe('prepActiveQuestDefIdSet', () => {
+    const sampleRun = (questDefId: string, status: QuestRunState['status']): QuestRunState => ({
+        runId: `run_${questDefId}`,
+        questDefId,
+        runSeed: 1,
+        status,
+        currentSlotIndex: 0,
+        resolvedSlots: [{ kind: 'fixed', missionId: 'found_berries' }],
+        questCharacter: { sourceCharacterId: 'c1', equipment: [], selectedAbilityIds: [] },
+        partyRoster: [],
+    });
+
+    it('collects every prep/active quest def id', () => {
+        const runs = {
+            a: sampleRun('quest_a', 'prep'),
+            b: sampleRun('quest_b', 'active'),
+            c: sampleRun('quest_done', 'completed' as QuestRunState['status']),
+        };
+        expect(prepActiveQuestDefIdSet(runs)).toEqual(new Set(['quest_a', 'quest_b']));
+    });
+});
+
+describe('QUEST_BANK_IN_PROGRESS_STROKE', () => {
+    it('exports a sky accent for in-progress map nodes', () => {
+        expect(QUEST_BANK_IN_PROGRESS_STROKE).toBe('#38bdf8');
     });
 });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QuestRunState } from '../../storylines/questTypes';
+import { QUEST_PARTY_RESERVATION_MIN_SLOT_INDEX } from '../../../../../../global_constants.js';
 import {
     buildEquipmentUpdate,
     canItemFillSlot,
@@ -70,19 +71,33 @@ describe('filterItemIdsByName', () => {
 });
 
 describe('quest equipment rules', () => {
-    const run = { questCharacter: { equipment: ['old'] } } as unknown as QuestRunState;
+    const prepRun = {
+        runId: 'run_equip_test',
+        status: 'prep',
+        questCharacter: { equipment: ['old'] },
+    } as unknown as QuestRunState;
+    const activeRun = { ...prepRun, status: 'active' as const };
 
-    it('locks equipment for non-admins during a quest run', () => {
-        expect(isEquipmentLockedByQuest({ activeQuestRun: run }, false)).toBe(true);
-        expect(isEquipmentLockedByQuest({ activeQuestRun: run }, true)).toBe(false);
-        expect(isEquipmentLockedByQuest({ activeQuestRun: null }, false)).toBe(false);
+    it('does not lock campaign editor equipment when quest runs exist', () => {
+        expect(isEquipmentLockedByQuest(false)).toBe(false);
+        expect(isEquipmentLockedByQuest(true)).toBe(false);
     });
 
-    it('writes equipment to the quest snapshot during a run', () => {
-        expect(buildEquipmentUpdate(null, ['a'])).toEqual({ equipment: ['a'] });
-        const update = buildEquipmentUpdate(run, ['a']);
-        expect(update.equipment).toEqual(['a']);
-        expect(update.activeQuestRun?.questCharacter.equipment).toEqual(['a']);
+    it('locks Quest Prep when the lobby is past the first slot or prep was finalized', () => {
+        expect(
+            isEquipmentLockedByQuest(false, {
+                questSlotIndex: QUEST_PARTY_RESERVATION_MIN_SLOT_INDEX,
+                questRun: prepRun,
+            }),
+        ).toBe(true);
+        expect(isEquipmentLockedByQuest(false, { questSlotIndex: 0, questRun: activeRun })).toBe(true);
+        expect(isEquipmentLockedByQuest(false, { questSlotIndex: 0, questRun: prepRun })).toBe(false);
+        expect(isEquipmentLockedByQuest(true, { questSlotIndex: 1, questRun: activeRun })).toBe(false);
+    });
+
+    it('buildEquipmentUpdate writes campaign equipment only', () => {
+        expect(buildEquipmentUpdate(['a'])).toEqual({ equipment: ['a'] });
+        expect(buildEquipmentUpdate(['b', 'c'])).toEqual({ equipment: ['b', 'c'] });
     });
 });
 

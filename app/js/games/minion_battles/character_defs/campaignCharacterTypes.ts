@@ -3,7 +3,8 @@
  * All shapes are serializable for API and storage.
  */
 
-import type { QuestResult, QuestRunState } from '../storylines/questTypes';
+import type { QuestResult } from '../storylines/questTypes';
+import type { ActiveQuestRunsMap } from '../storylines/activeQuestRuns';
 import type { ResearchNodeSources } from '../../../researchTrees/types';
 
 /** Allowed trait strings for characters (extend as needed). */
@@ -69,11 +70,10 @@ export interface CampaignCharacterData {
      */
     questResults?: Record<string, QuestResult[]>;
     /**
-     * Singular active QuestRun for this Campaign Character (null/absent when none).
-     * At most one prep/active run at a time — not a `questRuns` map.
-     * Holds the Quest Character sheet for the current attempt.
+     * Prep/active quest runs keyed by `runId`. Absent on load becomes `{}`.
+     * At most one prep/active run per `questDefId` (enforced when upserting).
      */
-    activeQuestRun?: QuestRunState | null;
+    activeQuestRuns?: ActiveQuestRunsMap;
     /**
      * Default prep loadout: the primary ability IDs (up to PREP_ABILITY_SLOT_COUNT, in slot order)
      * the player last picked or reordered on Prepare Carefully / Quest Prep. Seeds the next prep;

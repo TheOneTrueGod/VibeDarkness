@@ -38,8 +38,8 @@ class Character
     private array $missionResults;
     /** Per-campaign quest results. Key = campaignId, value = list of QuestResult objects. */
     private array $questResults;
-    /** Active QuestRunState blob (includes questCharacter), or null when none. */
-    private ?array $activeQuestRun;
+    /** @var array<string, array<string, mixed>> Active quest runs keyed by runId. */
+    private array $activeQuestRuns;
     /** @var string[] Last Prepare Carefully primary ability picks for regular missions. */
     private array $lastMissionAbilityIds;
     /** Per-campaign location card decks. Key = campaignId, value = list of LocationCardInstance. */
@@ -68,7 +68,7 @@ class Character
         array $missionResults = [],
         array $researchNodeLevels = [],
         array $questResults = [],
-        ?array $activeQuestRun = null,
+        array $activeQuestRuns = [],
         array $lastMissionAbilityIds = [],
         array $researchSources = [],
         array $locationDeck = [],
@@ -91,7 +91,7 @@ class Character
         $this->lastUsed = max(0, $lastUsed);
         $this->missionResults = is_array($missionResults) ? $missionResults : [];
         $this->questResults = is_array($questResults) ? $questResults : [];
-        $this->activeQuestRun = $activeQuestRun;
+        $this->activeQuestRuns = self::normalizeActiveQuestRuns($activeQuestRuns);
         $this->lastMissionAbilityIds = self::normalizeStringIdList($lastMissionAbilityIds);
         $this->locationDeck = self::normalizeLocationDeck($locationDeck);
         $this->version = max(0, $version);
@@ -222,10 +222,20 @@ class Character
         return $total;
     }
 
-    /** @return array<string, mixed>|null */
-    public function getActiveQuestRun(): ?array
+    /** @return array<string, array<string, mixed>> */
+    public function getActiveQuestRuns(): array
     {
-        return $this->activeQuestRun;
+        return $this->activeQuestRuns;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function getActiveQuestRun(string $runId): ?array
+    {
+        $runId = trim($runId);
+        if ($runId === '') {
+            return null;
+        }
+        return $this->activeQuestRuns[$runId] ?? null;
     }
 
     /** @return string[] */
@@ -330,7 +340,7 @@ class Character
             'lastUsed' => $this->lastUsed,
             'missionResults' => $this->missionResults,
             'questResults' => $this->questResults,
-            'activeQuestRun' => $this->activeQuestRun,
+            'activeQuestRuns' => $this->activeQuestRuns,
             'lastMissionAbilityIds' => $this->lastMissionAbilityIds,
             'locationDeck' => $this->locationDeck,
             'version' => $this->version,
@@ -349,10 +359,7 @@ class Character
         $researchSources = $data['researchSources'] ?? [];
         $missionResults = $data['missionResults'] ?? [];
         $questResults = $data['questResults'] ?? [];
-        $activeQuestRun = null;
-        if (array_key_exists('activeQuestRun', $data) && is_array($data['activeQuestRun'])) {
-            $activeQuestRun = $data['activeQuestRun'];
-        }
+        $activeQuestRuns = self::coalesceActiveQuestRunsFromWire($data);
         $lastMissionAbilityIds = $data['lastMissionAbilityIds'] ?? [];
         $locationDeck = $data['locationDeck'] ?? [];
         return new self(
@@ -371,7 +378,7 @@ class Character
             is_array($missionResults) ? $missionResults : [],
             is_array($researchNodeLevels) ? $researchNodeLevels : [],
             is_array($questResults) ? $questResults : [],
-            $activeQuestRun,
+            $activeQuestRuns,
             is_array($lastMissionAbilityIds) ? $lastMissionAbilityIds : [],
             is_array($researchSources) ? $researchSources : [],
             is_array($locationDeck) ? $locationDeck : [],
@@ -380,6 +387,52 @@ class Character
                 ? (float) $data['startingHungerFraction']
                 : 1.0
         );
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, array<string, mixed>>
+     */
+    private static function coalesceActiveQuestRunsFromWire(array $data): array
+    {
+        $runs = [];
+        if (isset($data['activeQuestRuns']) && is_array($data['activeQuestRuns'])) {
+            $runs = self::normalizeActiveQuestRuns($data['activeQuestRuns']);
+        }
+        if (array_key_exists('activeQuestRun', $data) && is_array($data['activeQuestRun'])) {
+            $legacy = $data['activeQuestRun'];
+            $runId = is_string($legacy['runId'] ?? null) ? $legacy['runId'] : '';
+            if ($runId !== '') {
+                $runs[$runId] = $legacy;
+            }
+        }
+        return self::normalizeActiveQuestRuns($runs);
+    }
+
+    /**
+     * @param mixed $runs
+     * @return array<string, array<string, mixed>>
+     */
+    private static function normalizeActiveQuestRuns(mixed $runs): array
+    {
+        if (!is_array($runs)) {
+            return [];
+        }
+        $out = [];
+        foreach ($runs as $runId => $run) {
+            if (!is_string($runId) || $runId === '' || !is_array($run)) {
+                continue;
+            }
+            $storedId = is_string($run['runId'] ?? null) ? $run['runId'] : '';
+            if ($storedId !== '' && $storedId !== $runId) {
+                continue;
+            }
+            if ($storedId === '') {
+                $run['runId'] = $runId;
+            }
+            $out[$runId] = $run;
+        }
+        return $out;
     }
 
     /**

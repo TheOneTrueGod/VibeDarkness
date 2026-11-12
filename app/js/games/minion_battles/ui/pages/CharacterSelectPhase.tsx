@@ -43,6 +43,7 @@ import { PrepEquipmentDrawer } from './characterSelect/prep/PrepEquipmentDrawer'
 import { PrepAbilityDragProvider } from './characterSelect/prep/PrepAbilityDrag';
 import { missionPrepConfig, questPrepConfig } from './characterSelect/prep/prepLoadoutConfig';
 import { getQuestDef } from '../../storylines/questRegistry';
+import { findRunById } from '../../storylines/index';
 import { hasUpgradesSystem } from '../../../../accountKnowledge';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
 import {
@@ -98,7 +99,10 @@ function isQuestPrepMode(
     character: CampaignCharacter | null,
 ): boolean {
     if (!questLobbyFields) return false;
-    const run = character?.activeQuestRun;
+    const run =
+        questLobbyFields.questRunId && character
+            ? findRunById(character.activeQuestRuns, questLobbyFields.questRunId)
+            : undefined;
     if (run?.status === 'prep' && run.questDefId === questLobbyFields.questDefId) return true;
     // Joiner on first mission before they have a local prep run.
     if (
@@ -256,8 +260,11 @@ export default function CharacterSelectPhase({
                 ) {
                     partyRoster.push({ playerName: user.name, characterId: mySelection });
                 }
+                const existingRun = questLobbyFields.questRunId
+                    ? findRunById(characterToEdit.activeQuestRuns, questLobbyFields.questRunId)
+                    : undefined;
                 const frozen = freezeQuestPrepForCharacter({
-                    existingRun: characterToEdit.activeQuestRun,
+                    existingRun,
                     lobby: questLobbyFields,
                     character: {
                         id: characterToEdit.id,
@@ -265,9 +272,9 @@ export default function CharacterSelectPhase({
                     },
                     selectedAbilityIds: primaries,
                     partyRoster,
-                    assignedBankId: characterToEdit.activeQuestRun?.assignedBankId ?? null,
+                    assignedBankId: existingRun?.assignedBankId ?? null,
                 });
-                await api.updateCharacter(characterToEdit.id, { activeQuestRun: frozen });
+                await api.updateCharacter(characterToEdit.id, { upsertActiveQuestRun: frozen });
                 // Keep lobby loadout maps in sync for battle filter (+ continue lobbies).
                 await api.updateGameState({
                     questPrepLoadoutsByPlayer: {
@@ -440,6 +447,8 @@ export default function CharacterSelectPhase({
             <PrepEquipmentProvider
                 api={api}
                 character={character}
+                questRunId={questLobbyFields?.questRunId ?? null}
+                questSlotIndex={questLobbyFields?.questSlotIndex ?? null}
                 campaign={campaign}
                 knowledge={user?.knowledge}
                 isAdmin={isAdmin}

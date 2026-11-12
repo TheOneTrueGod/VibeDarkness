@@ -10,6 +10,7 @@ import {
     KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1,
     type AccountKnowledgeMap,
 } from '../../../../accountKnowledge';
+import { QUEST_PARTY_RESERVATION_MIN_SLOT_INDEX } from '../../../../../../global_constants.js';
 import type { CharacterUpdates } from '../../api/types';
 import type { QuestRunState } from '../../storylines/questTypes';
 import type { CampaignState } from '../../../../types';
@@ -171,28 +172,32 @@ export function filterItemIdsByFilters(
     return itemIds.filter((id) => [...filters].some((f) => itemMatchesFilter(id, f)));
 }
 
-/** Equipment is frozen for the whole quest: non-admins cannot change it while a run exists. */
-export function isEquipmentLockedByQuest(
-    character: { activeQuestRun: QuestRunState | null },
-    isAdmin: boolean,
-): boolean {
-    return !isAdmin && !!character.activeQuestRun;
-}
+/** Lobby quest context for prep equipment lock (not used in Campaign Character Editor). */
+export type QuestEquipmentLockParams = {
+    questSlotIndex?: number | null;
+    questRun?: QuestRunState | null;
+};
 
 /**
- * Character update payload for an equipment change. During an active quest the same equipment is
- * also written to the quest snapshot (`activeQuestRun.questCharacter.equipment`), which battles read.
+ * Whether equipment UI should be read-only for quest reasons.
+ * Campaign Editor: omit `questLock` — parked runs never lock the campaign sheet.
+ * Quest Prep: pass lobby slot + this lobby's run (`active` after Ready freeze locks editing).
  */
-export function buildEquipmentUpdate(
-    activeQuestRun: QuestRunState | null,
-    equipment: string[],
-): CharacterUpdates {
-    if (!activeQuestRun) return { equipment };
-    return {
-        equipment,
-        activeQuestRun: {
-            ...activeQuestRun,
-            questCharacter: { ...activeQuestRun.questCharacter, equipment },
-        },
-    };
+export function isEquipmentLockedByQuest(
+    isAdmin: boolean,
+    questLock?: QuestEquipmentLockParams,
+): boolean {
+    if (isAdmin) return false;
+    if (!questLock) return false;
+    const slot = questLock.questSlotIndex;
+    if (typeof slot === 'number' && slot >= QUEST_PARTY_RESERVATION_MIN_SLOT_INDEX) {
+        return true;
+    }
+    const run = questLock.questRun;
+    return run?.status === 'active';
+}
+
+/** Character update payload for a campaign equipment change (no quest snapshot write). */
+export function buildEquipmentUpdate(equipment: string[]): CharacterUpdates {
+    return { equipment };
 }

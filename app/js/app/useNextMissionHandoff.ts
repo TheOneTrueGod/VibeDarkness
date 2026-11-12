@@ -6,6 +6,8 @@ import {
     buildQuestContinuationClaimPayload,
     getQuestDef,
     requiredPlayersFromPartyRoster,
+    coalesceActiveQuestRunsFromWire,
+    findRunById,
 } from '../games/minion_battles/storylines';
 import type { QuestLobbyFields } from '../games/minion_battles/storylines/questLobby';
 import type { LobbyState, PlayerState, AccountState, GameStatePayload } from '../types';
@@ -96,7 +98,10 @@ export function useNextMissionHandoff({
                         }
                         try {
                             const rawChar = await lobbyClient.getCharacter(characterId);
-                            const run = rawChar.activeQuestRun;
+                            const wireRuns = coalesceActiveQuestRunsFromWire(rawChar);
+                            const run = questLobby.questRunId
+                                ? findRunById(wireRuns, questLobby.questRunId)
+                                : undefined;
                             if (run?.questCharacter?.selectedAbilityIds) {
                                 questAbilityLoadoutsByCharacterId[characterId] = [
                                     ...run.questCharacter.selectedAbilityIds,

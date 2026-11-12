@@ -17,6 +17,8 @@ import {
     type VisibleEquipmentSlot,
 } from '../../../../character_defs/items/equipmentSlots';
 import type { EquipmentSlotType } from '../../../../character_defs/items/types';
+import { findRunById } from '../../../../storylines/activeQuestRuns';
+import type { QuestLobbyFields } from '../../../../storylines/questLobby';
 
 /** Prepare-screen equipment: slots beside the portrait and the equipment drawer share this. */
 interface PrepEquipmentValue {
@@ -51,10 +53,15 @@ export function PrepEquipmentProvider({
     knowledge,
     isAdmin,
     onSaved,
+    questRunId,
+    questSlotIndex,
     children,
 }: {
     api: MinionBattlesApi;
     character: CampaignCharacter;
+    /** Lobby quest run id — selects this lobby's run for prep equipment lock. */
+    questRunId?: string | null;
+    questSlotIndex?: QuestLobbyFields['questSlotIndex'] | null;
     campaign: CampaignState | null | undefined;
     /** The local player's account knowledge (unlocks knowledge-gated slots and menu items). */
     knowledge: AccountKnowledgeMap;
@@ -71,7 +78,14 @@ export function PrepEquipmentProvider({
         setEquipment([...character.equipment]);
     }, [character.equipment]);
 
-    const canEdit = !isEquipmentLockedByQuest(character, isAdmin);
+    const questRun = useMemo(
+        () => (questRunId ? findRunById(character.activeQuestRuns, questRunId) : undefined),
+        [character.activeQuestRuns, questRunId],
+    );
+    const canEdit = !isEquipmentLockedByQuest(isAdmin, {
+        questSlotIndex: questSlotIndex ?? null,
+        questRun,
+    });
     const slots = useMemo(
         () => getVisibleSlotDescriptors(equipment, knowledge, WEAPON_FIRST_SLOT_ORDER),
         [equipment, knowledge],
@@ -95,7 +109,7 @@ export function PrepEquipmentProvider({
             if (JSON.stringify(next) === JSON.stringify(previous)) return;
             setEquipment(next);
             setSaving(true);
-            api.updateCharacter(character.id, buildEquipmentUpdate(character.activeQuestRun, next))
+            api.updateCharacter(character.id, buildEquipmentUpdate(next))
                 .then((updated) => {
                     setEquipment(updated.equipment ?? next);
                     onSaved?.();
@@ -106,7 +120,7 @@ export function PrepEquipmentProvider({
                 })
                 .finally(() => setSaving(false));
         },
-        [api, canEdit, character.activeQuestRun, character.id, equipment, onSaved, slots],
+        [api, canEdit, character.id, equipment, onSaved, slots],
     );
 
     const value = useMemo(

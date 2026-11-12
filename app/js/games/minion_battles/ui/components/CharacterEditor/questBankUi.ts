@@ -1,7 +1,8 @@
 import type { CampaignResourceKey } from '../../../../../types';
 import { campaignResourceGains } from '../../../../../components/ResourcePill';
-import { MISSION_MAP } from '../../../storylines/index';
-import type { QuestDef, QuestResult, QuestRunState, QuestSlotBank } from '../../../storylines/questTypes';
+import { MISSION_MAP, listPrepOrActive } from '../../../storylines/index';
+import type { ActiveQuestRunsMap } from '../../../storylines/activeQuestRuns';
+import type { QuestDef, QuestResult, QuestSlotBank } from '../../../storylines/questTypes';
 import { countQuestBankClears, hasQuestVictoryResult, isDedicatedQuestBank } from '../../../storylines/unlock';
 
 export function bankDisplayLabel(bank: QuestSlotBank): string {
@@ -74,21 +75,17 @@ export function questCompletionResourceGains(
     return campaignResourceGains(quest.completionRewards?.resourceDelta);
 }
 
-/**
- * Confirm replacing a different in-progress run. Returns true when start may proceed.
- */
-export function confirmReplaceActiveQuest(
-    activeQuest: QuestRunState | null,
-    activeQuestDef: QuestDef | undefined,
-    nextQuestDefId: string,
-): boolean {
-    if (!activeQuest || activeQuest.questDefId === nextQuestDefId) return true;
-    const title = activeQuestDef?.title ?? activeQuest.questDefId;
-    return window.confirm(
-        `You already have an active quest (“${title}”). `
-        + 'Starting this quest abandons the current run. Continue?',
-    );
+/** Prep/active quest def ids on the character (any number of concurrent runs). */
+export function prepActiveQuestDefIdSet(runs: ActiveQuestRunsMap): Set<string> {
+    const ids = new Set<string>();
+    for (const run of listPrepOrActive(runs)) {
+        ids.add(run.questDefId);
+    }
+    return ids;
 }
+
+/** Map ring stroke when a quest bank has at least one in-progress run among its quests. */
+export const QUEST_BANK_IN_PROGRESS_STROKE = '#38bdf8'; // sky-400
 
 /** A quest bank node counts as complete: its pinned quest won (dedicated) or enough clears (picker). */
 export function isQuestBankFinished(bank: QuestSlotBank, questResults: QuestResult[]): boolean {

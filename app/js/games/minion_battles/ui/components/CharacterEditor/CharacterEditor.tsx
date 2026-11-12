@@ -15,11 +15,10 @@ import { ResearchTreeList } from '../ResearchTreePanel';
 import type { AccountState, CampaignResourceKey, CampaignState } from '../../../../../types';
 import { TestIds } from '../../../../../testing/testIds';
 import {
-    buildEquipmentUpdate as buildQuestAwareEquipmentUpdate,
+    buildEquipmentUpdate,
     getInventoryItemIds,
     filterEquipmentMenuItemIds,
     getVisibleSlotDescriptors,
-    isEquipmentLockedByQuest,
     type VisibleEquipmentSlot,
 } from '../../../character_defs/items/equipmentSlots';
 import {
@@ -226,9 +225,7 @@ export default function CharacterEditor({
             ),
         [activeResearchTrees, activeResearchNodeLevels, researchSources, darknessUpgrades],
     );
-    // Equipment is frozen for the whole quest: non-admins get read-only slots while a run is active.
-    const equipmentLockedByQuest = isEquipmentLockedByQuest(character, isAdmin);
-    const effectiveEditMode = editMode && !equipmentLockedByQuest;
+    const effectiveEditMode = editMode;
     const effectiveShowInventory = showInventoryPanel;
     // Knowledge-gated slots: Utility 1 is hidden and the core slot locked until the character's
     // account has learned them.
@@ -295,21 +292,16 @@ export default function CharacterEditor({
         };
     }, [account?.campaignIds, activeTab, campaign, character.campaignId, api]);
 
-    /**
-     * Character update payload for an equipment change. During an active quest the same equipment is
-     * also written to the quest snapshot (`activeQuestRun.questCharacter.equipment`), which battles read.
-     */
-    const buildEquipmentUpdate = useCallback(
-        (newEquipment: string[]): CharacterUpdates =>
-            buildQuestAwareEquipmentUpdate(character.activeQuestRun, newEquipment),
-        [character.activeQuestRun],
+    const buildEquipmentUpdatePayload = useCallback(
+        (newEquipment: string[]): CharacterUpdates => buildEquipmentUpdate(newEquipment),
+        [],
     );
 
     const saveEquipment = useCallback(
         async (newEquipment: string[]) => {
             setSaving(true);
             try {
-                const updated = await api.updateCharacter(character.id, buildEquipmentUpdate(newEquipment));
+                const updated = await api.updateCharacter(character.id, buildEquipmentUpdatePayload(newEquipment));
                 setEquipment(updated.equipment ?? newEquipment);
                 onSaved?.({ equipment: updated.equipment ?? newEquipment, name, portraitId: selectedPortraitId });
             } catch (e) {
@@ -318,7 +310,7 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [character.id, api, name, onSaved, selectedPortraitId, buildEquipmentUpdate]
+        [character.id, api, name, onSaved, selectedPortraitId, buildEquipmentUpdatePayload]
     );
 
     const savePortrait = useCallback(
@@ -438,7 +430,7 @@ export default function CharacterEditor({
         name,
         selectedPortraitId,
         onSaved,
-        buildEquipmentUpdate,
+        buildEquipmentUpdate: buildEquipmentUpdatePayload,
         setSaving,
         setDarknessUpgrades,
         setLocalCampaign,
@@ -541,11 +533,6 @@ export default function CharacterEditor({
 
     const equipmentLeft = (
         <div className="flex-1 min-h-0 overflow-auto p-3">
-            {equipmentLockedByQuest && (
-                <p className="mb-2 rounded-md border border-border-custom bg-surface-light px-2 py-1.5 text-xs text-muted">
-                    Equipment is locked for the active quest
-                </p>
-            )}
             {equippedItemsDisplay === 'list' ? (
                 <EquippedItemsList
                     equipment={equipment}

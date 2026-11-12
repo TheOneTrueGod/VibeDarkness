@@ -106,7 +106,7 @@ class CharacterManager
      * Update a character's fields (equipment, name, portraitId, researchTrees). Caller must ensure ownership.
      *
      * @param string $characterId
-     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>, researchNodeLevels?: array<string, array<string, int>>, researchSources?: array<string, array<string, list<string>>>, lastUsed?: int, missionResults?: array<string, list<array<string, mixed>>>, questResults?: array<string, list<array<string, mixed>>>, activeQuestRun?: array<string, mixed>|null, campaignId?: string, lastMissionAbilityIds?: string[], locationDeck?: array<string, list<array<string, mixed>>>} $updates
+     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>, researchNodeLevels?: array<string, array<string, int>>, researchSources?: array<string, array<string, list<string>>>, lastUsed?: int, missionResults?: array<string, list<array<string, mixed>>>, questResults?: array<string, list<array<string, mixed>>>, activeQuestRuns?: array<string, array<string, mixed>>, upsertActiveQuestRun?: array<string, mixed>, removeActiveQuestRunId?: string, campaignId?: string, lastMissionAbilityIds?: string[], locationDeck?: array<string, list<array<string, mixed>>>} $updates
      * @return Character|null Updated character or null if not found
      */
     public function updateCharacter(string $characterId, array $updates): ?Character
@@ -156,8 +156,23 @@ class CharacterManager
             if (isset($updates['questResults']) && is_array($updates['questResults'])) {
                 $data['questResults'] = $updates['questResults'];
             }
-            if (array_key_exists('activeQuestRun', $updates)) {
-                $data['activeQuestRun'] = is_array($updates['activeQuestRun']) ? $updates['activeQuestRun'] : null;
+            if (isset($updates['activeQuestRuns']) && is_array($updates['activeQuestRuns'])) {
+                $data['activeQuestRuns'] = $updates['activeQuestRuns'];
+            }
+            if (isset($updates['upsertActiveQuestRun']) && is_array($updates['upsertActiveQuestRun'])) {
+                $run = $updates['upsertActiveQuestRun'];
+                $runId = is_string($run['runId'] ?? null) ? trim($run['runId']) : '';
+                if ($runId !== '') {
+                    $runs = is_array($data['activeQuestRuns'] ?? null) ? $data['activeQuestRuns'] : [];
+                    $runs[$runId] = $run;
+                    $data['activeQuestRuns'] = $runs;
+                }
+            }
+            if (array_key_exists('removeActiveQuestRunId', $updates)) {
+                $removeId = is_string($updates['removeActiveQuestRunId']) ? trim($updates['removeActiveQuestRunId']) : '';
+                if ($removeId !== '' && is_array($data['activeQuestRuns'] ?? null)) {
+                    unset($data['activeQuestRuns'][$removeId]);
+                }
             }
             if (array_key_exists('campaignId', $updates)) {
                 $data['campaignId'] = (string) $updates['campaignId'];
@@ -193,9 +208,10 @@ class CharacterManager
      * @param string $characterId
      * @param string $itemId
      * @param list<string> $replaceItemIds Item IDs to remove (e.g. same-slot items)
+     * @param string|null $questRunId When set, also mirror the change onto that run's questCharacter.equipment snapshot
      * @return bool True if the character was found and updated
      */
-    public function equipItem(string $characterId, string $itemId, array $replaceItemIds = []): bool
+    public function equipItem(string $characterId, string $itemId, array $replaceItemIds = [], ?string $questRunId = null): bool
     {
         $character = $this->getCharacter($characterId);
         if ($character === null) {
@@ -210,22 +226,24 @@ class CharacterManager
         }
         $data = array_merge($character->toArray(), ['equipment' => $equipment]);
 
-        // Equipment is frozen for a quest via the snapshot; a mission that equips mid-quest
-        // must also change the snapshot (same replace / append logic).
-        $run = $data['activeQuestRun'] ?? null;
-        if (is_array($run) && isset($run['questCharacter']) && is_array($run['questCharacter'])) {
-            $questEquipment = $run['questCharacter']['equipment'] ?? [];
-            $questEquipment = is_array($questEquipment)
-                ? array_values(array_filter($questEquipment, static fn ($e): bool => is_string($e)))
-                : [];
-            foreach ($replaceItemIds as $rid) {
-                $questEquipment = array_values(array_filter($questEquipment, static fn (string $e): bool => $e !== $rid));
+        if (is_string($questRunId) && $questRunId !== '') {
+            $runs = is_array($data['activeQuestRuns'] ?? null) ? $data['activeQuestRuns'] : [];
+            $run = $runs[$questRunId] ?? null;
+            if (is_array($run) && isset($run['questCharacter']) && is_array($run['questCharacter'])) {
+                $questEquipment = $run['questCharacter']['equipment'] ?? [];
+                $questEquipment = is_array($questEquipment)
+                    ? array_values(array_filter($questEquipment, static fn ($e): bool => is_string($e)))
+                    : [];
+                foreach ($replaceItemIds as $rid) {
+                    $questEquipment = array_values(array_filter($questEquipment, static fn (string $e): bool => $e !== $rid));
+                }
+                if (!in_array($itemId, $questEquipment, true)) {
+                    $questEquipment[] = $itemId;
+                }
+                $run['questCharacter']['equipment'] = $questEquipment;
+                $runs[$questRunId] = $run;
+                $data['activeQuestRuns'] = $runs;
             }
-            if (!in_array($itemId, $questEquipment, true)) {
-                $questEquipment[] = $itemId;
-            }
-            $run['questCharacter']['equipment'] = $questEquipment;
-            $data['activeQuestRun'] = $run;
         }
 
         $updated = Character::fromArray($data);

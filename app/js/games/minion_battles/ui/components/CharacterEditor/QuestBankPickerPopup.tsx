@@ -9,8 +9,8 @@ import type { QuestSlotBank } from '../../../storylines/questTypes';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 import {
     countQuestBankClears,
+    findRunByQuestDefId,
     getEligibleQuestsForBank,
-    getQuestDef,
     isQuestDisabled,
 } from '../../../storylines/index';
 import { TestIds } from '../../../../../testing/testIds';
@@ -18,7 +18,7 @@ import { QuestPickRow } from './QuestPickRow';
 import {
     QUEST_SECTION_BOX_CLASS,
     bankDisplayLabel,
-    confirmReplaceActiveQuest,
+    prepActiveQuestDefIdSet,
     questBankUnlockRequirementLabel,
 } from './questBankUi';
 
@@ -33,7 +33,7 @@ export interface QuestBankPickerPopupProps {
     isUnlocked: boolean;
     isAdmin: boolean;
     onStartQuest: (questDefId: string, options?: StartQuestOptions) => void;
-    onAbandonQuest?: () => void | Promise<void>;
+    onAbandonQuest?: (questDefId: string) => void | Promise<void>;
     onClose: () => void;
 }
 
@@ -61,15 +61,10 @@ export default function QuestBankPickerPopup({
     const clears = countQuestBankClears(bank, questResults);
     const label = bankDisplayLabel(bank);
 
-    const activeQuest =
-        character.activeQuestRun?.status === 'active'
-        || character.activeQuestRun?.status === 'prep'
-            ? character.activeQuestRun
-            : null;
-    const activeQuestDef = activeQuest ? getQuestDef(activeQuest.questDefId) : undefined;
-    const activeSlotLabel = activeQuest
-        ? `${activeQuest.currentSlotIndex + 1}/${activeQuest.resolvedSlots.length}`
-        : undefined;
+    const prepActiveQuestDefIds = useMemo(
+        () => prepActiveQuestDefIdSet(character.activeQuestRuns),
+        [character.activeQuestRuns],
+    );
 
     const assignedBankId = isUnlocked ? bank.id : null;
     const startPrefix = isUnlocked
@@ -84,14 +79,13 @@ export default function QuestBankPickerPopup({
         return () => document.removeEventListener('keydown', onKey);
     }, [onClose]);
 
-    const startOrReplace = (questDefId: string, options: StartQuestOptions) => {
-        if (!confirmReplaceActiveQuest(activeQuest, activeQuestDef, questDefId)) return;
+    const startQuest = (questDefId: string, options: StartQuestOptions) => {
         onStartQuest(questDefId, options);
         onClose();
     };
 
     const handleAdminSeek = (questDefId: string, slotIndex: number, bankId: string | null) => {
-        startOrReplace(questDefId, {
+        startQuest(questDefId, {
             mode: 'start',
             assignedBankId: bankId,
             adminSeekSlotIndex: slotIndex,
@@ -102,11 +96,14 @@ export default function QuestBankPickerPopup({
     const lockedCopy = unlockRequirement
         ? `This slot unlocks after ${unlockRequirement}.`
         : 'This slot is locked.';
-    // Locked (non-admins only reach this): no new starts, but an already-active quest can still be continued.
-    const listedQuests = isUnlocked ? eligible : eligible.filter((q) => activeQuest?.questDefId === q.id);
+    // Locked (non-admins only reach this): no new starts, but prep/active rows can still be continued.
+    const listedQuests = isUnlocked
+        ? eligible
+        : eligible.filter((q) => prepActiveQuestDefIds.has(q.id));
 
     return (
         <div
+            data-className="QuestBankPickerPopup"
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
             onClick={(e) => {
                 if (e.target === e.currentTarget) onClose();
@@ -173,19 +170,23 @@ export default function QuestBankPickerPopup({
                             className={`flex w-full flex-col gap-1.5 overflow-y-auto ${QUEST_BANK_PICKER_LIST_MAX_HEIGHT_CLASS} pr-0.5`}
                         >
                             {listedQuests.map((q) => {
-                                const isActive = activeQuest?.questDefId === q.id;
+                                const activeRun = findRunByQuestDefId(character.activeQuestRuns, q.id) ?? null;
+                                const isActive = prepActiveQuestDefIds.has(q.id);
+                                const activeSlotLabel = activeRun
+                                    ? `${activeRun.currentSlotIndex + 1}/${activeRun.resolvedSlots.length}`
+                                    : undefined;
                                 return (
                                     <QuestPickRow
                                         key={q.id}
                                         quest={q}
                                         isActive={isActive}
                                         activeSlotLabel={isActive ? activeSlotLabel : undefined}
-                                        activeRun={isActive ? activeQuest : null}
+                                        activeRun={isActive ? activeRun : null}
                                         isAdmin={isAdmin}
                                         assignedBankId={assignedBankId}
                                         startTestId={`${startPrefix}${q.id}`}
                                         onStart={() =>
-                                            startOrReplace(q.id, {
+                                            startQuest(q.id, {
                                                 mode: 'start',
                                                 assignedBankId,
                                             })
@@ -194,7 +195,11 @@ export default function QuestBankPickerPopup({
                                             onStartQuest(q.id, { mode: 'continue' });
                                             onClose();
                                         }}
-                                        onAbandon={onAbandonQuest}
+                                        onAbandon={
+                                            onAbandonQuest && isActive
+                                                ? () => onAbandonQuest(q.id)
+                                                : undefined
+                                        }
                                         onAdminSeek={
                                             isAdmin
                                                 ? (slotIndex, bankId) =>

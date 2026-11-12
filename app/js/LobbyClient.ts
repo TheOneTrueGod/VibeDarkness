@@ -6,6 +6,7 @@
 import type { CampaignResourceKey, BattleOrderRecord, HeartbeatResponse, MissionResult } from './types';
 import type { BattleOrder, SerializedGameState } from './games/minion_battles/game/types';
 import type { QuestResult, QuestRunState } from './games/minion_battles/storylines/questTypes';
+import type { ActiveQuestRunsMap } from './games/minion_battles/storylines/activeQuestRuns';
 import type { ResearchNodeSources, ResearchSource } from './researchTrees/types';
 import { isBattleHeartbeatTraceEnvOn, traceBattleHeartbeatLine } from './battleHeartbeatTrace';
 import { OPEN_LOBBY_MAX_PLAYERS } from '../../global_constants.js';
@@ -29,8 +30,8 @@ export interface CampaignCharacterPayload {
     missionResults?: Record<string, MissionResult[]>;
     /** Per-campaign quest results; key = campaignId. */
     questResults?: Record<string, QuestResult[]>;
-    /** Active QuestRun (includes Quest Character); null/absent when none. */
-    activeQuestRun?: QuestRunState | null;
+    /** Prep/active quest runs keyed by `runId`. */
+    activeQuestRuns?: ActiveQuestRunsMap;
     /** Per-campaign location card decks; key = campaignId. */
     locationDeck?: Record<string, unknown>;
     lastUsed?: number;
@@ -475,7 +476,9 @@ export class LobbyClient {
             researchSources?: ResearchNodeSources;
             missionResults?: Record<string, MissionResult[]>;
             questResults?: Record<string, QuestResult[]>;
-            activeQuestRun?: QuestRunState | null;
+            activeQuestRuns?: ActiveQuestRunsMap;
+            upsertActiveQuestRun?: QuestRunState;
+            removeActiveQuestRunId?: string;
             campaignId?: string;
             lastMissionAbilityIds?: string[];
         }

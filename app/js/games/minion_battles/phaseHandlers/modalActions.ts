@@ -6,6 +6,8 @@ import {
     isLastMissionInChapter,
     planQuestDefeatRetry,
     questRunMatchesLobby,
+    coalesceActiveQuestRunsFromWire,
+    findRunById,
     type QuestLobbyFields,
 } from '../storylines';
 import { SPECTATOR_ID, isControlEnemy } from '../state';
@@ -56,7 +58,11 @@ export async function retryMission(
     if (sel && sel !== SPECTATOR_ID && !isControlEnemy(sel)) {
         try {
             const rawChar = await api.getCharacter(sel);
-            const run = rawChar.activeQuestRun ?? null;
+            const wireRuns = coalesceActiveQuestRunsFromWire(rawChar);
+            const run =
+                questLobbyFields.questRunId != null
+                    ? findRunById(wireRuns, questLobbyFields.questRunId) ?? null
+                    : null;
             if (questRunMatchesLobby(run, questLobbyFields)) {
                 const retry = planQuestDefeatRetry(run!);
                 missionId = retry.missionId;

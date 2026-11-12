@@ -6,6 +6,10 @@
 import type { CampaignCharacterData, CharacterDisallowReason } from './campaignCharacterTypes';
 import type { MissionResult } from '../../../types';
 import type { QuestResult, QuestRunState } from '../storylines/questTypes';
+import {
+    coalesceActiveQuestRunsFromWire,
+    type ActiveQuestRunsMap,
+} from '../storylines/activeQuestRuns';
 import { getItemDef } from './items';
 import { LIGHT_TREE_ID, LIGHT_NODE_CORE } from '../../../researchTrees/trees/light';
 import { coreLightItem } from './items/core/017_core_light';
@@ -101,8 +105,8 @@ export class CampaignCharacter {
     readonly missionResults: Record<string, MissionResult[]>;
     /** Per-campaign quest results. Key = campaignId. */
     readonly questResults: Record<string, QuestResult[]>;
-    /** Active QuestRun (Quest Character lives on `questCharacter`); null when none. */
-    readonly activeQuestRun: QuestRunState | null;
+    /** Prep/active quest runs keyed by `runId`. */
+    readonly activeQuestRuns: ActiveQuestRunsMap;
     /** Default prep loadout: the player's last picked/ordered primaries; seeds the next prep. */
     readonly lastMissionAbilityIds: string[];
     /** Per-campaign location card decks. Key = campaignId. */
@@ -143,10 +147,15 @@ export class CampaignCharacter {
             data.missionResults && typeof data.missionResults === 'object' ? data.missionResults : {};
         this.questResults =
             data.questResults && typeof data.questResults === 'object' ? data.questResults : {};
-        this.activeQuestRun =
-            data.activeQuestRun && typeof data.activeQuestRun === 'object'
-                ? normalizeActiveQuestRun(data.activeQuestRun)
-                : null;
+        const rawRuns = coalesceActiveQuestRunsFromWire(
+            data as CampaignCharacterData & { activeQuestRun?: QuestRunState | null },
+        );
+        this.activeQuestRuns = Object.fromEntries(
+            Object.entries(rawRuns).map(([runId, run]) => [
+                runId,
+                normalizeActiveQuestRun(run),
+            ]),
+        );
         this.lastMissionAbilityIds = Array.isArray(data.lastMissionAbilityIds)
             ? data.lastMissionAbilityIds.filter((id): id is string => typeof id === 'string')
             : [];
@@ -234,7 +243,7 @@ export class CampaignCharacter {
             startingHungerFraction: this.startingHungerFraction,
             missionResults: this.missionResults,
             questResults: this.questResults,
-            activeQuestRun: this.activeQuestRun,
+            activeQuestRuns: this.activeQuestRuns,
             lastMissionAbilityIds: this.lastMissionAbilityIds,
             ...(this.locationDeck ? { locationDeck: this.locationDeck } : {}),
         };

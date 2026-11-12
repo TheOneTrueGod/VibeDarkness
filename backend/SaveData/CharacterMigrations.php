@@ -16,10 +16,11 @@ namespace App\SaveData;
  *     `researchRewards` rows are re-pointed too.
  * v5: Resource rename. `food` -> `vigor`, `crystals` -> `attunement` in every `resourceDelta`; knowledge key
  *     `Crystals` -> `ResourceAttunement`.
+ * v6: Multiple active quest runs. Singular `activeQuestRun` moves into `activeQuestRuns[runId]`; empty stays `{}`.
  */
 final class CharacterMigrations
 {
-    public const CURRENT_VERSION = 5;
+    public const CURRENT_VERSION = 6;
 
     /**
      * Frozen (v3): swap research node => [old tree, upgrade item, base item it replaces]. Within a base item
@@ -91,7 +92,46 @@ final class CharacterMigrations
             2 => [self::class, 'v2ToV3'],
             3 => [self::class, 'v3ToV4'],
             4 => [self::class, 'v4ToV5'],
+            5 => [self::class, 'v5ToV6'],
         ];
+    }
+
+    /**
+     * Quest snapshot equipment from character-shaped array (v6 map or legacy singular).
+     *
+     * @param array<string, mixed> $char
+     * @return list<string>
+     */
+    public static function questSnapshotEquipmentFromCharData(array $char): array
+    {
+        $out = [];
+        if (isset($char['activeQuestRuns']) && is_array($char['activeQuestRuns'])) {
+            foreach ($char['activeQuestRuns'] as $run) {
+                if (!is_array($run) || !isset($run['questCharacter']['equipment'])) {
+                    continue;
+                }
+                $equipment = $run['questCharacter']['equipment'];
+                if (!is_array($equipment)) {
+                    continue;
+                }
+                foreach ($equipment as $id) {
+                    if (is_string($id) && $id !== '') {
+                        $out[] = $id;
+                    }
+                }
+            }
+            return $out;
+        }
+        $legacy = $char['activeQuestRun']['questCharacter']['equipment'] ?? null;
+        if (!is_array($legacy)) {
+            return [];
+        }
+        foreach ($legacy as $id) {
+            if (is_string($id) && $id !== '') {
+                $out[] = $id;
+            }
+        }
+        return $out;
     }
 
     /** @return array{data: array<string, mixed>, changed: bool} */
@@ -412,6 +452,28 @@ final class CharacterMigrations
             $data['activeQuestRun']['questCharacter']['knowledge'] =
                 ResourceRenames::renameKnowledgeMap($data['activeQuestRun']['questCharacter']['knowledge']);
         }
+        return $data;
+    }
+
+    public static function v5ToV6(array $data): array
+    {
+        $runs = is_array($data['activeQuestRuns'] ?? null) ? $data['activeQuestRuns'] : [];
+        if (isset($data['activeQuestRun']) && is_array($data['activeQuestRun'])) {
+            $run = $data['activeQuestRun'];
+            $runId = is_string($run['runId'] ?? null) ? $run['runId'] : '';
+            if ($runId !== '') {
+                $runs[$runId] = $run;
+            }
+            unset($data['activeQuestRun']);
+        }
+        $clean = [];
+        foreach ($runs as $runId => $run) {
+            if (!is_string($runId) || $runId === '' || !is_array($run)) {
+                continue;
+            }
+            $clean[$runId] = $run;
+        }
+        $data['activeQuestRuns'] = $clean;
         return $data;
     }
 }

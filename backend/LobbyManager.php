@@ -1155,7 +1155,7 @@ class LobbyManager
      * Merge each selected character's equipment into state as playerEquipmentByPlayer.
      *
      * Equipment comes from the character, or from the active quest snapshot
-     * (activeQuestRun.questCharacter.equipment) when this lobby's questRunId matches the
+     * (activeQuestRuns[runId].questCharacter.equipment) when this lobby's questRunId matches the
      * character's active run (equipment is frozen for the whole quest). Research never
      * grants equipment, so no research-derived swaps are applied here.
      *
@@ -1185,11 +1185,12 @@ class LobbyManager
 
                 // Equipment is frozen for a quest: while this lobby is on the character's active quest run,
                 // use the quest snapshot rather than the (possibly since-edited) base character.
-                $run = $character->getActiveQuestRun();
                 $lobbyRunId = $state['questRunId'] ?? null;
+                $run = is_string($lobbyRunId) && $lobbyRunId !== ''
+                    ? $character->getActiveQuestRun($lobbyRunId)
+                    : null;
                 if (is_array($run)
                     && is_string($lobbyRunId) && $lobbyRunId !== ''
-                    && ($run['runId'] ?? null) === $lobbyRunId
                     && isset($run['questCharacter']['equipment'])
                     && is_array($run['questCharacter']['equipment'])
                 ) {
@@ -1516,7 +1517,9 @@ class LobbyManager
 
         if ($itemId !== null && $itemId !== '') {
             if ($characterId !== null && $characterId !== '') {
-                CharacterManager::getInstance()->equipItem($characterId, $itemId, $replaceItemIds);
+                $questRunId = $currentState['questRunId'] ?? null;
+                $questRunId = is_string($questRunId) && $questRunId !== '' ? $questRunId : null;
+                CharacterManager::getInstance()->equipItem($characterId, $itemId, $replaceItemIds, $questRunId);
                 // Invariant: an equipped story item is always unlocked on the campaign.
                 CampaignManager::getInstance()->unlockItemsForCharacter($characterId, [$itemId]);
             }
@@ -1638,12 +1641,15 @@ class LobbyManager
             return;
         }
         if ($hasQuestLoadout) {
-            $run = $character->getActiveQuestRun();
+            $lobbyRunId = $currentState['questRunId'] ?? null;
+            $run = is_string($lobbyRunId) && $lobbyRunId !== ''
+                ? $character->getActiveQuestRun($lobbyRunId)
+                : null;
             if (is_array($run) && isset($run['questCharacter']) && is_array($run['questCharacter'])) {
                 $status = $run['status'] ?? '';
                 if ($status === 'active' || $status === 'prep') {
                     $run['questCharacter']['selectedAbilityIds'] = $ids;
-                    $characterManager->updateCharacter($characterId, ['activeQuestRun' => $run]);
+                    $characterManager->updateCharacter($characterId, ['upsertActiveQuestRun' => $run]);
                 }
             }
             return;
@@ -1903,7 +1909,9 @@ class LobbyManager
 
             $characterId = $selections[$winner] ?? null;
             if (is_string($characterId) && $characterId !== '') {
-                CharacterManager::getInstance()->equipItem($characterId, $effect['itemId'], []);
+                $questRunId = $currentState['questRunId'] ?? null;
+                $questRunId = is_string($questRunId) && $questRunId !== '' ? $questRunId : null;
+                CharacterManager::getInstance()->equipItem($characterId, $effect['itemId'], [], $questRunId);
                 CampaignManager::getInstance()->unlockItemsForCharacter($characterId, [$effect['itemId']]);
             }
         }

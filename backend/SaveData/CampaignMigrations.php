@@ -95,7 +95,7 @@ final class CampaignMigrations
                 continue;
             }
             $equipment = CharacterMigrations::mapLegacyItems($char['equipment'] ?? []);
-            $snapshot = $char['activeQuestRun']['questCharacter']['equipment'] ?? [];
+            $snapshot = CharacterMigrations::questSnapshotEquipmentFromCharData($char);
             $equipment = array_merge($equipment, CharacterMigrations::mapLegacyItems($snapshot));
             $add(array_values(array_diff($equipment, CharacterMigrations::CORE_ITEM_IDS)));
 
@@ -155,8 +155,7 @@ final class CampaignMigrations
             $char = CharacterMigrations::migrate($char)['data'];
             $equipment = array_merge(
                 is_array($char['equipment'] ?? null) ? $char['equipment'] : [],
-                is_array($char['activeQuestRun']['questCharacter']['equipment'] ?? null)
-                    ? $char['activeQuestRun']['questCharacter']['equipment'] : []
+                CharacterMigrations::questSnapshotEquipmentFromCharData($char)
             );
             foreach ($equipment as $item) {
                 if (is_string($item) && isset(self::UPGRADE_ITEM_PREREQS[$item])) {

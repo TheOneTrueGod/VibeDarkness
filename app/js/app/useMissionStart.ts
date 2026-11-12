@@ -15,6 +15,8 @@ import {
     startQuestRun,
     advanceQuestRunPastClearedMissions,
     wonMissionIdsFromMissionResults,
+    coalesceActiveQuestRunsFromWire,
+    findRunByQuestDefId,
 } from '../games/minion_battles/storylines';
 import type { QuestLobbyFields } from '../games/minion_battles/storylines/questLobby';
 import type { CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
@@ -217,29 +219,30 @@ export function useMissionStart({
             try {
                 // Quest-page Continue must use the server run — UI character state can still
                 // hold the pre-victory slot after mission clear advances currentSlotIndex.
-                let run = character.activeQuestRun;
+                let run = findRunByQuestDefId(character.activeQuestRuns, questDefId) ?? null;
                 let fetchedMissionResults = character.missionResults;
                 if (mode === 'continue') {
                     try {
                         const latest = await lobbyClient.getCharacter(character.id);
-                        run = latest.activeQuestRun ?? null;
+                        const latestRuns = coalesceActiveQuestRunsFromWire(latest);
+                        run = findRunByQuestDefId(latestRuns, questDefId) ?? null;
                         fetchedMissionResults = latest.missionResults ?? fetchedMissionResults;
                     } catch (err) {
                         console.warn('Failed to refresh character before quest continue:', err);
                     }
                 }
-                const canContinue =
-                    mode === 'continue'
-                    && adminSeekSlotIndex === undefined
-                    && run
+                const hasPrepActiveForQuest =
+                    run != null
                     && (run.status === 'active' || run.status === 'prep')
                     && run.questDefId === questDefId;
+                /** Continue an existing attempt — never start a second run for the same questDefId. */
+                const canContinue =
+                    adminSeekSlotIndex === undefined
+                    && hasPrepActiveForQuest
+                    && (mode === 'continue' || mode === 'start');
                 if (!canContinue) {
                     const reuseSameQuest =
-                        adminSeekSlotIndex !== undefined
-                        && run
-                        && (run.status === 'active' || run.status === 'prep')
-                        && run.questDefId === questDefId;
+                        adminSeekSlotIndex !== undefined && hasPrepActiveForQuest;
                     if (!reuseSameQuest) {
                         const deck = character.locationDeck?.[questDef.campaignId];
                         run = startQuestRun({
@@ -260,14 +263,14 @@ export function useMissionStart({
                     );
                     if (skipped.currentSlotIndex !== run.currentSlotIndex) {
                         run = skipped;
-                        await lobbyClient.updateCharacter(character.id, { activeQuestRun: run });
+                        await lobbyClient.updateCharacter(character.id, { upsertActiveQuestRun: run });
                     }
                 }
                 if (adminSeekSlotIndex !== undefined) {
                     run = seekQuestRunToSlot(run!, adminSeekSlotIndex);
                 }
                 if (!canContinue || adminSeekSlotIndex !== undefined) {
-                    await lobbyClient.updateCharacter(character.id, { activeQuestRun: run });
+                    await lobbyClient.updateCharacter(character.id, { upsertActiveQuestRun: run! });
                 }
 
                 // Admin seek: tear down any live lobbies for this quest title, keep party users.

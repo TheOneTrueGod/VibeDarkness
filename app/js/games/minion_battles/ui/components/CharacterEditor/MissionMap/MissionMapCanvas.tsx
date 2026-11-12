@@ -18,6 +18,8 @@ interface Props {
     questBanksOnMap: QuestSlotBank[];
     posMap: Map<string, { x: number; y: number }>;
     completedNodeKeys: Set<string>;
+    /** Quest bank node ids with at least one prep/active run among their quests. */
+    inProgressQuestBankIds?: Set<string>;
     unlockedIds: Set<string>;
     missionResults: MissionResult[];
     questResults: QuestResult[];
@@ -46,6 +48,7 @@ export default function MissionMapCanvas({
     questBanksOnMap,
     posMap,
     completedNodeKeys,
+    inProgressQuestBankIds = new Set(),
     unlockedIds,
     missionResults,
     questResults,
@@ -221,6 +224,7 @@ export default function MissionMapCanvas({
                         isAdmin={isAdmin}
                         clears={countQuestBankClears(bank, questResults)}
                         finished={completedNodeKeys.has(questBankMapNodeKey(bank.id))}
+                        inProgress={inProgressQuestBankIds.has(bank.id)}
                         hoveredId={hoveredId}
                         pressedId={pressedId}
                         bankTooltip={bankTooltip}

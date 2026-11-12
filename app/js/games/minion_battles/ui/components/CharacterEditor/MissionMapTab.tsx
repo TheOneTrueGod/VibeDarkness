@@ -14,7 +14,7 @@ import { useLocation } from 'react-router-dom';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { CampaignChapterDef } from '../../../storylines/types';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
-import { STORYLINES, MISSION_MAP } from '../../../storylines/index';
+import { STORYLINES, MISSION_MAP, findRunByQuestDefId } from '../../../storylines/index';
 import {
     getUnlockedMissionIds,
     hasVictoryResult,
@@ -30,6 +30,7 @@ import {
 import type { QuestSlotBank } from '../../../storylines/questTypes';
 import {
     isQuestBankFinished,
+    prepActiveQuestDefIdSet,
     questBankMapNodeKey,
     questBankUnlockRequirementLabel,
 } from './questBankUi';
@@ -51,8 +52,8 @@ interface Props {
     onStartMission: (missionId: string) => void;
     /** Start / continue a quest (prep handled by CharacterEditor when mode is start). */
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
-    /** Clear the character's single active quest run (after confirm). */
-    onAbandonQuest?: () => void | Promise<void>;
+    /** Remove one quest's prep/active run (after confirm for that quest). */
+    onAbandonQuest?: (questDefId: string) => void | Promise<void>;
     /** Admin-only: clear a completed quest's victory so it can be run again. */
     onResetQuest?: (questDefId: string) => void | Promise<void>;
     onMarkVictory?: (missionId: string) => Promise<void>;
@@ -141,6 +142,32 @@ export default function MissionMapTab({
             getUnlockedQuestSlotBanks(storyline, missionResults, questResults).map((b) => b.id),
         );
     }, [storyline, missionResults, questResults]);
+
+    const prepActiveQuestDefIds = useMemo(
+        () => prepActiveQuestDefIdSet(character.activeQuestRuns),
+        [character.activeQuestRuns],
+    );
+
+    const inProgressQuestBankIds = useMemo(() => {
+        const ids = new Set<string>();
+        for (const bank of questBanksOnMap) {
+            if (isDedicatedQuestBank(bank)) {
+                if (bank.questDefId && prepActiveQuestDefIds.has(bank.questDefId)) {
+                    ids.add(bank.id);
+                }
+            } else {
+                const eligible = getEligibleQuestsForBank(
+                    bank,
+                    character.campaignId,
+                    questResults,
+                );
+                if (eligible.some((q) => prepActiveQuestDefIds.has(q.id))) {
+                    ids.add(bank.id);
+                }
+            }
+        }
+        return ids;
+    }, [questBanksOnMap, prepActiveQuestDefIds, character.campaignId, questResults]);
 
     /** Map node keys (mission ids and `questBank:<id>`) that are complete; drives green outlines/lines. */
     const completedNodeKeys = useMemo(() => {
@@ -237,7 +264,7 @@ export default function MissionMapTab({
     }
 
     return (
-        <div className="w-full h-full overflow-auto">
+        <div data-className="MissionMapTab" className="w-full h-full overflow-auto">
             <MissionMapChapterBar
                 character={character}
                 isAdmin={isAdmin}
@@ -259,6 +286,7 @@ export default function MissionMapTab({
                 questBanksOnMap={questBanksOnMap}
                 posMap={posMap}
                 completedNodeKeys={completedNodeKeys}
+                inProgressQuestBankIds={inProgressQuestBankIds}
                 unlockedIds={unlockedIds}
                 missionResults={missionResults}
                 questResults={questResults}
@@ -321,14 +349,12 @@ export default function MissionMapTab({
                             storyline?.questSlotBanks ?? [],
                         )}
                         isAdmin={isAdmin}
-                        activeQuestDefId={
-                            character.activeQuestRun
-                            && (character.activeQuestRun.status === 'active'
-                                || character.activeQuestRun.status === 'prep')
-                                ? character.activeQuestRun.questDefId
+                        prepActiveQuestDefIds={prepActiveQuestDefIds}
+                        activeQuestRun={
+                            bank.questDefId
+                                ? findRunByQuestDefId(character.activeQuestRuns, bank.questDefId) ?? null
                                 : null
                         }
-                        activeQuestRun={character.activeQuestRun}
                         questCompleted={
                             !!bank.questDefId && hasQuestVictoryResult(bank.questDefId, questResults)
                         }

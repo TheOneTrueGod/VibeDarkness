@@ -96,6 +96,20 @@ export {
     pickRandomStoryMission,
 } from './randomStoryResolve';
 export {
+    QUEST_RUN_STATUSES_PREP_OR_ACTIVE,
+    DuplicatePrepActiveQuestDefError,
+    canStartQuestDef,
+    coalesceActiveQuestRunsFromWire,
+    findRunById,
+    findRunByQuestDefId,
+    isPrepOrActiveQuestRun,
+    legacySingularToMap,
+    listPrepOrActive,
+    normalizeActiveQuestRuns,
+    upsertActiveQuestRunInMap,
+} from './activeQuestRuns';
+export type { ActiveQuestRunsMap } from './activeQuestRuns';
+export {
     startQuestRun,
     abandonQuestRun,
     seekQuestRunToSlot,
