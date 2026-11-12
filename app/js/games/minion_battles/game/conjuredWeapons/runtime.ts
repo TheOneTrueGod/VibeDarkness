@@ -41,7 +41,7 @@ export function equipConjuredWeapon(unit: Unit, def: ConjuredWeaponDef, engine: 
     setAbilityActive(unit, def.conjureAbilityId, false);
 
     unit.heldConjuredWeapon = { defId: def.id, stowedAbilityIds: [] };
-    notifyBar(unit, engine);
+    notifyBar(unit, engine, def.heldAbilityId);
 }
 
 export function releaseHeldConjuredWeapon(
@@ -101,7 +101,14 @@ export function onConjuredWeaponCastEnded(unit: Unit, abilityId: string, engine:
     const held = unit.heldConjuredWeapon;
     if (!held) return;
     const def = getConjuredWeaponDef(held.defId);
-    if (!def || def.heldAbilityId !== abilityId) return;
+    if (!def) return;
+    // The other mode (Burst, and any release that did not already drop the weapon) spends it
+    // here and leaves no token. A throw drops its own token when the projectile stops.
+    if (def.releaseAbilityId === abilityId) {
+        releaseHeldConjuredWeapon(unit, engine, { leaveToken: false });
+        return;
+    }
+    if (def.heldAbilityId !== abilityId) return;
     const uses = unit.abilityRuntime[abilityId]?.currentUses ?? 0;
     if (uses > 0) return;
     releaseHeldConjuredWeapon(unit, engine, { leaveToken: def.leaveTokenWhenHeldUsesEnd !== false });
@@ -113,6 +120,9 @@ function setAbilityActive(unit: Unit, abilityId: string, active: boolean): void 
     if (runtime) runtime.active = active;
 }
 
-function notifyBar(unit: Unit, engine: ConjureHost): void {
-    engine.eventBus.emit('ability_bar_changed', { unitId: unit.id });
+function notifyBar(unit: Unit, engine: ConjureHost, defaultModeAbilityId?: string): void {
+    engine.eventBus.emit('ability_bar_changed', {
+        unitId: unit.id,
+        ...(defaultModeAbilityId !== undefined ? { defaultModeAbilityId } : {}),
+    });
 }

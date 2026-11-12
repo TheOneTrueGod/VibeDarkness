@@ -4,6 +4,7 @@ import type { BattleSession } from '../../../game/BattleSession';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { BattleOrder, WaitingForOrders } from '../../../game/types';
 import { getAbility } from '../../../abilities/AbilityRegistry';
+import type { AbilityBarChangedEvent } from '../../../game/EventBus';
 
 interface UseInteractionManagerBridgeParams {
     sessionRef: RefObject<BattleSession | null>;
@@ -59,6 +60,27 @@ export function useInteractionManagerBridge({
             return getAbility(abilityId)?.abilityModes?.defaultMode;
         });
     }, [canUseOrderUi, waitingForOrders, myAbilityIds, battleInitPhase, abilityModeByAbilityId, sessionRef]);
+
+    // A Create card's replacement starts on its first mode, even if that card was toggled earlier.
+    useEffect(() => {
+        if (battleInitPhase !== 'ready') return;
+        const engine = sessionRef.current?.engine;
+        if (!engine) return;
+        const onBar = (event: AbilityBarChangedEvent) => {
+            const abilityId = event.defaultModeAbilityId;
+            if (!abilityId) return;
+            const prev = abilityModeByAbilityIdRef.current;
+            if (prev[abilityId] !== undefined) {
+                const next = { ...prev };
+                delete next[abilityId];
+                abilityModeByAbilityIdRef.current = next;
+                setAbilityModeByAbilityId(next);
+            }
+            sessionRef.current?.getInteractionManager()?.refreshNonconfirmedAbilityMode(abilityId);
+        };
+        engine.eventBus.on('ability_bar_changed', onBar);
+        return () => engine.eventBus.off('ability_bar_changed', onBar);
+    }, [battleInitPhase, sessionRef]);
 
     // Keydown: delegate to manager.onKeyDown.
     useEffect(() => {

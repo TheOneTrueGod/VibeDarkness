@@ -1,9 +1,12 @@
 /**
- * Create Shield — raise a conjured buckler for one second, then hold it.
+ * Create Shield — raise a conjured buckler for three seconds, then hold it.
  *
- * Blocks like a standard shield while four bucklers spin out and back around the caster.
- * The first block refunds the Charge it cost. When the cast ends, this card becomes
- * Release Charge, which toggles to Throw Shield. Either one puts the buckler away.
+ * Blocks like a standard shield. The spinning bucklers last one second, and this card
+ * becomes Throw Shield then, while the block keeps going. Throw Shield starts selected;
+ * its other mode is Burst.
+ * At one and a half seconds the cast pauses: another ability ends the rest of the block,
+ * and a pass keeps blocking. The held buckler stays either way.
+ * The first block refunds the Charge it cost. Either mode puts the buckler away.
  * Equipped weapon abilities stay.
  * If a conjured weapon is already held, it is discarded as this cast starts.
  * Costs Charge. Two uses, both recovered at each round start.
@@ -28,16 +31,23 @@ import {
 import {
     CREATE_SHIELD_AIM_LABEL,
     CREATE_SHIELD_CAST_DURATION,
+    CREATE_SHIELD_CONJURE_DURATION,
+    CREATE_SHIELD_INTERRUPT_AT,
     SHIELD_BLOCK_CHARGE_GRANT,
 } from './1008Constants';
 import { equipConjuredWeaponAtEnd, startConjureCast } from '../../../abilities/archetypes/conjureCast';
 
 const TOOLTIP_LINES = [
-    'Conjure a buckler and block attacks from the front. The first block gains {{CHARGE}} Charge.',
-    'This card becomes Release Charge, and can switch to Throw Shield, until you use one.',
+    'Block attacks from the front for {{DURATION}} seconds. After {{CONJURE}} seconds this card becomes Throw Shield.',
+    'At {{INTERRUPT}} seconds, use another ability or pass to keep blocking.',
+    'The first block gains {{CHARGE}} Charge.',
+    'Throw Shield can switch to Burst. Either one puts the buckler away.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DURATION: { kind: 'plain', value: CREATE_SHIELD_CAST_DURATION },
+    CONJURE: { kind: 'plain', value: CREATE_SHIELD_CONJURE_DURATION },
+    INTERRUPT: { kind: 'plain', value: CREATE_SHIELD_INTERRUPT_AT },
     CHARGE: { kind: 'plain', value: SHIELD_BLOCK_CHARGE_GRANT },
 };
 
@@ -52,12 +62,14 @@ export const CreateShieldAbility_1008 = defineDirectionalShield({
     maxUses: ARMORY_CREATE_MAX_USES,
     recoveries: ARMORY_CREATE_RECOVERIES,
     duration: CREATE_SHIELD_CAST_DURATION,
+    conjureEndAt: CREATE_SHIELD_CONJURE_DURATION,
+    freeInterruptAt: CREATE_SHIELD_INTERRUPT_AT,
     aimLabel: CREATE_SHIELD_AIM_LABEL,
     blockBehaviour: equipConjuredWeaponAtEnd(ARMORY_SHIELD_WEAPON_ID),
 
     beginActiveCast(engine, caster): void {
         startConjureCast(engine, caster, DROPPED_WEAPON_KIND_SHIELD, {
-            duration: CREATE_SHIELD_CAST_DURATION,
+            duration: CREATE_SHIELD_CONJURE_DURATION,
             abilityId: CREATE_SHIELD_ABILITY_ID,
             ...ARMORY_CONJURE_ORBIT,
         });

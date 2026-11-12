@@ -57,6 +57,16 @@ export interface DirectionalShieldConfig {
     // ---- Timings ----
     /** Duration of the active blocking window in seconds. */
     duration: number;
+    /**
+     * Seconds into the block when `blockBehaviour` runs (the conjure landing).
+     * The block keeps going after this. Omitted runs `blockBehaviour` when the block ends.
+     */
+    conjureEndAt?: number;
+    /**
+     * Seconds into the block when the cast pauses. Any ability cancels the rest of the block;
+     * Pass resumes it. Omitted means the block runs straight through.
+     */
+    freeInterruptAt?: number;
     /** Duration of the cooldown phase after the block window (default: 0 = no cooldown). */
     cooldownDuration?: number;
     /** Runs on the block window, e.g. `CastBehaviours.Instant(fn, { at: 'end' })` to act once it closes. */
@@ -169,6 +179,90 @@ function spawnBlockImpact(
 
 const DEFAULT_AIM_LABEL = 'Direction to block';
 
+interface ShieldAimSelect {
+    kind: 'select';
+    label: string;
+    hitbox: typeof nullHitbox;
+    filter: 'any';
+    allowMiss: true;
+}
+
+/** Block windows. A conjure landing and a free interrupt split the block without shortening it. */
+function buildShieldBlockTimings(opts: {
+    duration: number;
+    aimSelect: ShieldAimSelect;
+    blockBehaviour?: CastBehaviour;
+    conjureEndAt?: number;
+    freeInterruptAt?: number;
+}): AbilityTimingInterval[] {
+    const { duration, aimSelect, blockBehaviour } = opts;
+    const conjureEnd = opts.conjureEndAt;
+    const interruptAt = opts.freeInterruptAt;
+    const conjureLandsEarly = conjureEnd != null && conjureEnd > 0 && conjureEnd < duration;
+    const pausesMidBlock = interruptAt != null && interruptAt > 0 && interruptAt < duration
+        && (!conjureLandsEarly || interruptAt > conjureEnd);
+
+    if (conjureLandsEarly && pausesMidBlock && interruptAt != null && conjureEnd != null) {
+        return [
+            {
+                id: 'conjure',
+                start: 0,
+                end: conjureEnd,
+                abilityPhase: AbilityPhase.Active,
+                doNotRefund: true,
+                targetDef: aimSelect,
+                ...(blockBehaviour ? { behaviour: blockBehaviour } : {}),
+            },
+            {
+                id: 'juggernaut',
+                start: conjureEnd,
+                end: interruptAt,
+                abilityPhase: AbilityPhase.Active,
+                conditionalCancel: { condition: () => true },
+            },
+            {
+                id: 'hold',
+                start: interruptAt,
+                end: duration,
+                abilityPhase: AbilityPhase.Active,
+            },
+        ];
+    }
+
+    if (pausesMidBlock && interruptAt != null) {
+        return [
+            {
+                id: 'juggernaut',
+                start: 0,
+                end: interruptAt,
+                abilityPhase: AbilityPhase.Active,
+                doNotRefund: true,
+                targetDef: aimSelect,
+                conditionalCancel: { condition: () => true },
+            },
+            {
+                id: 'hold',
+                start: interruptAt,
+                end: duration,
+                abilityPhase: AbilityPhase.Active,
+                ...(blockBehaviour ? { behaviour: blockBehaviour } : {}),
+            },
+        ];
+    }
+
+    return [
+        {
+            id: 'juggernaut',
+            start: 0,
+            end: duration,
+            abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
+            targetDef: aimSelect,
+            ...(blockBehaviour ? { behaviour: blockBehaviour } : {}),
+        },
+    ];
+}
+
 /**
  * Fill and stroke the shield will draw with. Explicit config colours win; omitted ones come from the
  * ability's two-tone theme. A key left out means the shield helpers' own default.
@@ -196,23 +290,20 @@ export function defineDirectionalShield(config: DirectionalShieldConfig): Abilit
     const fillAlpha = config.fillAlpha ?? 0.9;
     const strokeAlpha = config.strokeAlpha ?? 0.9;
 
-    const abilityTimings: AbilityTimingInterval[] = [
-        {
-            id: 'juggernaut',
-            start: 0,
-            end: duration,
-            abilityPhase: AbilityPhase.Active,
-            doNotRefund: true,
-            targetDef: {
-                kind: 'select',
-                label: config.aimLabel ?? DEFAULT_AIM_LABEL,
-                hitbox: nullHitbox,
-                filter: 'any',
-                allowMiss: true,
-            },
-            ...(config.blockBehaviour ? { behaviour: config.blockBehaviour } : {}),
-        },
-    ];
+    const aimSelect = {
+        kind: 'select' as const,
+        label: config.aimLabel ?? DEFAULT_AIM_LABEL,
+        hitbox: nullHitbox,
+        filter: 'any' as const,
+        allowMiss: true,
+    };
+    const abilityTimings = buildShieldBlockTimings({
+        duration,
+        aimSelect,
+        blockBehaviour: config.blockBehaviour,
+        conjureEndAt: config.conjureEndAt,
+        freeInterruptAt: config.freeInterruptAt,
+    });
     if (cooldownDuration > 0) {
         abilityTimings.push({
             id: 'cooldown',

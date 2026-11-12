@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { HELD_WEAPON_MODE_SPECIAL } from '../../abilities/heldWeaponModes';
+import { HELD_WEAPON_MODE_SPECIAL, HELD_WEAPON_MODE_STRIKE } from '../../abilities/heldWeaponModes';
 import { isAbilityTimingInterval } from '../../abilities/abilityTimings';
 import { pointInCone } from '../../abilities/coneGeometry';
 import type { IAbilityPreviewGraphics } from '../../abilities/Ability';
@@ -60,7 +60,7 @@ import {
     THROW_SWORD_ABILITY_ID,
     WHIRL_ABILITY_ID,
 } from './armoryConstants';
-import { CREATE_SHIELD_CAST_DURATION, SHIELD_BLOCK_CHARGE_GRANT } from './1008_CreateShield/1008Constants';
+import { CREATE_SHIELD_CAST_DURATION, CREATE_SHIELD_CONJURE_DURATION, CREATE_SHIELD_INTERRUPT_AT, SHIELD_BLOCK_CHARGE_GRANT } from './1008_CreateShield/1008Constants';
 import {
     THROW_SHIELD_BOUNCE_RANGE,
     THROW_SHIELD_COOLDOWN_END,
@@ -250,8 +250,15 @@ describe('Armory Core', () => {
         const { engine } = armoryBattle();
         const player = engine.units[0]!;
         const weaponId = swordItem.cardsToAdd[0]!;
+        const defaultModes: string[] = [];
+        engine.eventBus.on('ability_bar_changed', (event) => {
+            if (event.defaultModeAbilityId) defaultModes.push(event.defaultModeAbilityId);
+        });
         executeUnitAbility(player, CreateSwordAbility, [], engine);
         step(engine, CREATE_SWORD_CAST_DURATION + FIXED_DT);
+        expect(defaultModes).toContain(IMPROVISED_SWORD_ABILITY_ID);
+        expect(ImprovisedSwordAbility.abilityModes?.defaultMode).toBe(HELD_WEAPON_MODE_STRIKE);
+        expect(ImprovisedSwordAbility.abilityModes?.modes[0]).toBe(HELD_WEAPON_MODE_STRIKE);
         expect(player.heldConjuredWeapon).not.toBeNull();
         const createAt = player.abilities.indexOf(CREATE_SWORD_ABILITY_ID);
         expect(player.abilities.indexOf(IMPROVISED_SWORD_ABILITY_ID)).toBe(createAt - 1);
@@ -645,6 +652,8 @@ describe('Create Mace', () => {
         expect(player.abilities).not.toContain(WHIRL_ABILITY_ID);
         expect(player.abilityRuntime[CREATE_MACE_ABILITY_ID]?.active).toBe(false);
         expect(player.abilityRuntime[swordItem.cardsToAdd[0]!]?.active).not.toBe(false);
+        expect(ChargeMaceAbility_1006.abilityModes?.defaultMode).toBe(HELD_WEAPON_MODE_STRIKE);
+        expect(ChargeMaceAbility_1006.abilityModes?.modes[0]).toBe(HELD_WEAPON_MODE_STRIKE);
         expect(ChargeMaceAbility_1006.abilityModes?.modeAbilityIds?.[HELD_WEAPON_MODE_SPECIAL]).toBe(WHIRL_ABILITY_ID);
         expect(player.abilityRuntime[CHARGE_MACE_ABILITY_ID]?.currentUses).toBe(CHARGE_MACE_MAX_USES);
         const swingTiming = ChargeMaceAbility_1006.abilityTimings.find((entry) => isAbilityTimingInterval(entry) && entry.id === 'hit');
@@ -736,11 +745,33 @@ function shieldBattle(): { engine: GameEngine } {
     return { engine };
 }
 
-/** Raise the buckler toward {@link AIM_POINT} and hold it once the block window closes. */
+/** Step until Create Shield pauses at its interrupt, or throw if it never does. */
+function advanceToShieldInterrupt(engine: GameEngine): void {
+    const player = engine.units[0]!;
+    const ticks = Math.ceil(CREATE_SHIELD_INTERRUPT_AT / FIXED_DT) + 4;
+    for (let i = 0; i < ticks; i++) {
+        if (player.activeAbilities.some((active) => active.conditionalCancelPaused && active.abilityId === CREATE_SHIELD_ABILITY_ID)) {
+            return;
+        }
+        engine.waitingForOrders = null;
+        (engine as unknown as { fixedUpdate(dt: number): void }).fixedUpdate(FIXED_DT);
+    }
+    throw new Error('Create Shield did not pause at its interrupt');
+}
+
+/** Pass the interrupt so the buckler stays up for the rest of the cast. */
+function passShieldInterrupt(engine: GameEngine): void {
+    const player = engine.units[0]!;
+    engine.state.orderMgr.applyOrder({ unitId: player.id, abilityId: 'wait', targets: [], endTurn: true });
+}
+
+/** Raise the buckler toward {@link AIM_POINT}, pass the interrupt, and hold it once the block window closes. */
 function conjureShield(engine: GameEngine): Unit {
     const player = engine.units[0]!;
     executeUnitAbility(player, CreateShieldAbility_1008, [AIM], engine);
-    step(engine, CREATE_SHIELD_CAST_DURATION + FIXED_DT);
+    advanceToShieldInterrupt(engine);
+    passShieldInterrupt(engine);
+    step(engine, CREATE_SHIELD_CAST_DURATION - CREATE_SHIELD_INTERRUPT_AT + FIXED_DT);
     engine.waitingForOrders = null;
     return player;
 }
@@ -761,7 +792,21 @@ describe('Create Shield', () => {
         expect(CreateShieldAbility_1008.name).toBe('Create Shield');
         expect(ReleaseChargeAbility_1009.name).toBe('Release Charge');
         expect(ThrowShieldAbility_1010.name).toBe('Throw Shield');
-        expect(CREATE_SHIELD_CAST_DURATION).toBe(CREATE_SWORD_CAST_DURATION);
+        expect(CREATE_SHIELD_CAST_DURATION).toBe(3);
+        expect(CREATE_SHIELD_CONJURE_DURATION).toBe(1);
+        expect(CREATE_SHIELD_INTERRUPT_AT).toBe(CREATE_SHIELD_CAST_DURATION / 2);
+        const conjure = CreateShieldAbility_1008.abilityTimings.find((entry) => isAbilityTimingInterval(entry) && entry.id === 'conjure');
+        const block = CreateShieldAbility_1008.abilityTimings.find((entry) => isAbilityTimingInterval(entry) && entry.id === 'juggernaut');
+        const hold = CreateShieldAbility_1008.abilityTimings.find((entry) => isAbilityTimingInterval(entry) && entry.id === 'hold');
+        if (!conjure || !isAbilityTimingInterval(conjure) || !block || !isAbilityTimingInterval(block) || !hold || !isAbilityTimingInterval(hold)) {
+            throw new Error('Create Shield block windows are missing');
+        }
+        expect(conjure.end).toBe(CREATE_SHIELD_CONJURE_DURATION);
+        expect(block.start).toBe(CREATE_SHIELD_CONJURE_DURATION);
+        expect(block.end).toBe(CREATE_SHIELD_INTERRUPT_AT);
+        expect(hold.start).toBe(CREATE_SHIELD_INTERRUPT_AT);
+        expect(hold.end).toBe(CREATE_SHIELD_CAST_DURATION);
+        expect(block.conditionalCancel?.abilityTagFilter).toBeUndefined();
         expect(CreateShieldAbility_1008.resourceCost).toEqual({ resourceId: 'charge', amount: ARMORY_CREATE_CHARGE_COST });
         expect(ReleaseChargeAbility_1009.resourceCost).toEqual({ resourceId: 'charge', amount: ARMORY_ECHO_CHARGE_COST });
         expect(ThrowShieldAbility_1010.resourceCost).toBeNull();
@@ -771,6 +816,12 @@ describe('Create Shield', () => {
 
         const { engine } = shieldBattle();
         expect(engine.units[0]!.abilities).toContain(CREATE_SHIELD_ABILITY_ID);
+        expect(block.conditionalCancel?.condition({
+            caster: engine.units[0]!,
+            engine,
+            targets: [],
+            abilityId: CREATE_SHIELD_ABILITY_ID,
+        })).toBe(true);
     });
 
     it('blocks, gains Charge once, orbits bucklers, then replaces itself with Release Charge', () => {
@@ -784,6 +835,7 @@ describe('Create Shield', () => {
             (effect) => effect.effectData?.weaponKind === DROPPED_WEAPON_KIND_SHIELD,
         );
         expect(orbit).toBeDefined();
+        expect(orbit?.duration).toBe(CREATE_SHIELD_CONJURE_DURATION);
 
         const hp = player.hp;
         for (const offset of [0, 12]) {
@@ -799,21 +851,63 @@ describe('Create Shield', () => {
                 maxDistance: CELL_SIZE * 4,
             }));
         }
-        step(engine, CREATE_SHIELD_CAST_DURATION / 2);
+        advanceToShieldInterrupt(engine);
         expect(player.hp).toBe(hp);
         expect(charge(player)).toBe(chargeBefore - ARMORY_CREATE_CHARGE_COST + SHIELD_BLOCK_CHARGE_GRANT);
-        expect(player.heldConjuredWeapon).toBeNull();
+        expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_SHIELD_WEAPON_ID);
+        expect(player.abilityRuntime[CREATE_SHIELD_ABILITY_ID]?.active).toBe(false);
+        expect(player.activeAbilities.some((active) => active.conditionalCancelPaused)).toBe(true);
 
-        step(engine, CREATE_SHIELD_CAST_DURATION / 2 + FIXED_DT);
+        passShieldInterrupt(engine);
+        engine.addProjectile(new Projectile({
+            x: attacker.x,
+            y: attacker.y,
+            velocityX: -400,
+            velocityY: 0,
+            damage: 5,
+            sourceTeamId: attacker.teamId,
+            sourceUnitId: attacker.id,
+            sourceAbilityId: 'throw_rock',
+            maxDistance: CELL_SIZE * 4,
+        }));
+        const stillBlocking = 0.5;
+        step(engine, stillBlocking);
+        expect(player.hp).toBe(hp);
+        expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_SHIELD_WEAPON_ID);
+
+        step(engine, CREATE_SHIELD_CAST_DURATION - CREATE_SHIELD_INTERRUPT_AT - stillBlocking + FIXED_DT);
         expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_SHIELD_WEAPON_ID);
         const createAt = player.abilities.indexOf(CREATE_SHIELD_ABILITY_ID);
-        expect(player.abilities.indexOf(RELEASE_CHARGE_ABILITY_ID)).toBe(createAt - 1);
-        expect(player.abilities).not.toContain(THROW_SHIELD_ABILITY_ID);
+        expect(player.abilities.indexOf(THROW_SHIELD_ABILITY_ID)).toBe(createAt - 1);
+        expect(player.abilities).not.toContain(RELEASE_CHARGE_ABILITY_ID);
         expect(player.abilityRuntime[CREATE_SHIELD_ABILITY_ID]?.active).toBe(false);
         expect(player.abilityRuntime[swordItem.cardsToAdd[0]!]?.active).not.toBe(false);
-        expect(ReleaseChargeAbility_1009.abilityModes?.modeAbilityIds?.[HELD_WEAPON_MODE_SPECIAL]).toBe(THROW_SHIELD_ABILITY_ID);
+        expect(ThrowShieldAbility_1010.abilityModes?.defaultMode).toBe(HELD_WEAPON_MODE_STRIKE);
+        expect(ThrowShieldAbility_1010.abilityModes?.modes[0]).toBe(HELD_WEAPON_MODE_STRIKE);
+        expect(ThrowShieldAbility_1010.abilityModes?.modeLabels?.[HELD_WEAPON_MODE_STRIKE]).toBe('Throw');
+        expect(ThrowShieldAbility_1010.abilityModes?.modeLabels?.[HELD_WEAPON_MODE_SPECIAL]).toBe('Burst');
+        expect(ThrowShieldAbility_1010.abilityModes?.modeAbilityIds?.[HELD_WEAPON_MODE_SPECIAL]).toBe(RELEASE_CHARGE_ABILITY_ID);
         expect(player.abilityRuntime[RELEASE_CHARGE_ABILITY_ID]?.currentUses).toBe(1);
         expect(player.abilityRuntime[THROW_SHIELD_ABILITY_ID]?.currentUses).toBe(1);
+    });
+
+    it('ends the block when another ability is used at the interrupt, and keeps the buckler', () => {
+        const { engine } = shieldBattle();
+        const player = engine.units[0]!;
+        const weaponId = swordItem.cardsToAdd[0]!;
+        const chargeBefore = charge(player);
+        executeUnitAbility(player, CreateShieldAbility_1008, [AIM], engine);
+        advanceToShieldInterrupt(engine);
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: weaponId,
+            targets: [AIM],
+            endTurn: true,
+        });
+        expect(player.activeAbilities.some((active) => active.abilityId === CREATE_SHIELD_ABILITY_ID)).toBe(false);
+        expect(player.heldConjuredWeapon?.defId).toBe(ARMORY_SHIELD_WEAPON_ID);
+        expect(player.abilityRuntime[CREATE_SHIELD_ABILITY_ID]?.active).toBe(false);
+        expect(charge(player)).toBe(chargeBefore - ARMORY_CREATE_CHARGE_COST);
     });
 
     it('holds the buckler without Charge when nothing is blocked', () => {

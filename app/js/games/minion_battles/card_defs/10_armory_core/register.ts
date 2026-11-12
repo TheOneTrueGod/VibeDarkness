@@ -104,12 +104,12 @@ export function registerArmoryContent(): void {
     registerConjuredWeapon({
         id: ARMORY_SHIELD_WEAPON_ID,
         conjureAbilityId: CREATE_SHIELD_ABILITY_ID,
-        heldAbilityId: RELEASE_CHARGE_ABILITY_ID,
-        releaseAbilityId: THROW_SHIELD_ABILITY_ID,
+        heldAbilityId: THROW_SHIELD_ABILITY_ID,
+        releaseAbilityId: RELEASE_CHARGE_ABILITY_ID,
         tokenKind: DROPPED_WEAPON_KIND_SHIELD,
         art: { url: shieldCardUrl },
         heldUses: SHIELD_FOLLOWUP_USES,
-        // Release Charge spends the buckler. Only Throw Shield leaves one on the ground.
+        // Throw Shield's projectile is the token. Ending the held cast must not drop a second one.
         leaveTokenWhenHeldUsesEnd: false,
     });
 

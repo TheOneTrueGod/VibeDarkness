@@ -393,7 +393,6 @@ export const armoryShieldBlockAndBounceScenario: ScenarioDefinition = {
 
     buildEngine() {
         const engine = buildArmoryEngine(10, 7, SHIELD_PLAYER, [ARMORY_NODE_CORE, ARMORY_NODE_CREATE_SHIELD]);
-        const me = playerUnitId(engine);
         const attacker = placeTargetDummy(engine, SHIELD_ATTACKER, SHIELD_ATTACKER_ID);
         placeTargetDummy(engine, SHIELD_FIRST, SHIELD_FIRST_ID);
         placeTargetDummy(engine, SHIELD_SECOND, SHIELD_SECOND_ID);
@@ -409,11 +408,6 @@ export const armoryShieldBlockAndBounceScenario: ScenarioDefinition = {
             sourceAbilityId: 'throw_rock',
             maxDistance: CELL_SIZE * 4,
         }));
-        engine.state.orderMgr.queueOrder(
-            toTick(SHIELD_THROW_AT),
-            aimedOrder(me, THROW_SHIELD_ABILITY_ID, THROW_SHIELD_AIM_LABEL, SHIELD_FIRST),
-        );
-        engine.state.orderMgr.queueOrder(toTick(SHIELD_KEEP_ALIVE_AT), { unitId: me, abilityId: 'wait', targets: [] });
         const player = engine.getLocalPlayerUnit()!;
         shieldTracks.set(engine, {
             startCharge: charge(engine),
@@ -426,6 +420,16 @@ export const armoryShieldBlockAndBounceScenario: ScenarioDefinition = {
     getInitialOrders(engine) {
         const me = playerUnitId(engine);
         return [aimedOrder(me, CREATE_SHIELD_ABILITY_ID, CREATE_SHIELD_AIM_LABEL, SHIELD_BLOCK_AIM)];
+    },
+
+    onConditionalCancelPause(engine) {
+        const me = playerUnitId(engine);
+        engine.state.orderMgr.applyOrder({ unitId: me, abilityId: 'wait', targets: [], endTurn: true });
+        engine.state.orderMgr.queueOrder(
+            toTick(SHIELD_THROW_AT),
+            aimedOrder(me, THROW_SHIELD_ABILITY_ID, THROW_SHIELD_AIM_LABEL, SHIELD_FIRST),
+        );
+        engine.state.orderMgr.queueOrder(toTick(SHIELD_KEEP_ALIVE_AT), { unitId: me, abilityId: 'wait', targets: [] });
     },
 
     assertPass(engine) {

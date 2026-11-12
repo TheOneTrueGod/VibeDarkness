@@ -1,11 +1,10 @@
 /**
- * Release Charge — the held buckler's strike. Cone of Light's burst in Armory colours (from the theme), paid for in Charge.
+ * Release Charge — Burst, Throw Shield's other mode. Cone of Light's burst in Armory colours (from the theme), paid for in Charge.
  * Single use. The buckler is put away after, and leaves nothing on the ground.
  * Echo: a smaller circular burst at each of the caster's dropped bucklers, which are destroyed.
  */
 
 import { defineConeStrike } from '../../../abilities/archetypes/defineConeStrike';
-import { heldWeaponAbilityModes } from '../../../abilities/heldWeaponModes';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import releaseChargeSvg from './releaseCharge.svg?raw';
 import { type CardDef } from '../../types';
@@ -30,7 +29,6 @@ import {
     ARMORY_SHIELD_ECHO,
     RELEASE_CHARGE_ABILITY_ID,
     SHIELD_FOLLOWUP_USES,
-    THROW_SHIELD_ABILITY_ID,
 } from '../armoryConstants';
 import { RELEASE_CHARGE_DAMAGE, RELEASE_CHARGE_ECHO_RADIUS } from './1009Constants';
 
@@ -77,13 +75,6 @@ export const ReleaseChargeAbility_1009: AbilityStatic = {
             resolveTooltipContext(gameState, { ability: { id: RELEASE_CHARGE_ABILITY_ID } }),
         );
     },
-    }),
-    abilityModes: heldWeaponAbilityModes({
-        releaseAbilityId: THROW_SHIELD_ABILITY_ID,
-        strikeLabel: 'Burst',
-        specialLabel: 'Throw',
-        strikeDescription: 'Release the caught charge in a cone',
-        specialDescription: 'Throw the conjured buckler',
     }),
 };
 

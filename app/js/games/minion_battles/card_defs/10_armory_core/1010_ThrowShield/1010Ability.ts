@@ -9,6 +9,7 @@
  */
 
 import { defineThrownWeapon } from '../../../abilities/archetypes/defineThrownWeapon';
+import { heldWeaponAbilityModes } from '../../../abilities/heldWeaponModes';
 import shieldThrowSvg from '../shieldThrow.svg?raw';
 import type { SpriteProjectileConfig } from '../../../game/projectiles/projectile_defs/types';
 import { SPRITE_AFTERIMAGE_PRESETS } from '../../../game/projectiles/projectile_defs/spriteAfterimage';
@@ -18,6 +19,7 @@ import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../ab
 import shieldProjectileUrl from '../shield.svg';
 import {
     ARMORY_SHIELD_WEAPON_ID,
+    RELEASE_CHARGE_ABILITY_ID,
     SHIELD_FOLLOWUP_USES,
     THROW_SHIELD_ABILITY_ID,
 } from '../armoryConstants';
@@ -56,7 +58,8 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: THROW_SHIELD_DAMAGE },
 };
 
-export const ThrowShieldAbility_1010 = defineThrownWeapon({
+export const ThrowShieldAbility_1010 = {
+    ...defineThrownWeapon({
     id: THROW_SHIELD_ABILITY_ID,
     name: 'Throw Shield',
     flavorText: 'You shaped its rim to ring off one enemy and find the next.',
@@ -81,7 +84,15 @@ export const ThrowShieldAbility_1010 = defineThrownWeapon({
             resolveTooltipContext(gameState, { ability: { id: THROW_SHIELD_ABILITY_ID } }),
         );
     },
-});
+    }),
+    abilityModes: heldWeaponAbilityModes({
+        releaseAbilityId: RELEASE_CHARGE_ABILITY_ID,
+        strikeLabel: 'Throw',
+        specialLabel: 'Burst',
+        strikeDescription: 'Throw the conjured buckler',
+        specialDescription: 'Release the caught charge in a cone',
+    }),
+};
 
 export const ThrowShieldCard: CardDef = {
     abilityId: THROW_SHIELD_ABILITY_ID,

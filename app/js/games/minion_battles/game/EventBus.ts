@@ -248,6 +248,11 @@ export interface BossExposedCcSuppressedEvent {
 
 export interface AbilityBarChangedEvent {
     unitId: string;
+    /**
+     * Slot ability that just replaced a Create card. Mode selection for this id should
+     * return to that ability's first mode.
+     */
+    defaultModeAbilityId?: string;
 }
 
 /** Fired when a unit is assigned to or released from player NPC control. */
