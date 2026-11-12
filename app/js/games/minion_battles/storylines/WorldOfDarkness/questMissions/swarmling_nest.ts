@@ -20,9 +20,14 @@ import type {
     SpawnWaveEntry,
     SpecialTilePlacement,
 } from '../../types';
-import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING } from '../../../constants/enemyConstants';
+import {
+    SWARMLING_NEST_NAME,
+    SWARMLING_NEST_OBJECTIVE_LABEL,
+    questScripts,
+} from '../../../../../storylines/worldOfDarkness/quests.script';
+
+export { SWARMLING_NEST_NAME, SWARMLING_NEST_OBJECTIVE_LABEL };
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
@@ -40,8 +45,6 @@ import {
 } from '../MapSegments/0_0_boss_arena';
 
 export const SWARMLING_NEST_MISSION_ID = 'swarmling_nest';
-export const SWARMLING_NEST_NAME = 'Swarmling Nest';
-export const SWARMLING_NEST_OBJECTIVE_LABEL = 'Destroy the nest';
 
 const COLS = BOSS_ARENA_SIZE;
 const ROWS = BOSS_ARENA_SIZE;
@@ -197,29 +200,7 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     },
 ];
 
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "The trail ends at a dirt circle. Skittering things boil out of a nest at the centre.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
-
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "The nest splits open and goes still. You have a feeling that this is just the beginning.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
+const SWARMLING_NEST_SCRIPT = questScripts.swarmling_nest;
 
 export class SwarmlingNestMission extends BaseMissionDef {
     segmentIds = [BOSS_ARENA_SEGMENT_ID];
@@ -227,7 +208,7 @@ export class SwarmlingNestMission extends BaseMissionDef {
     missionId = SWARMLING_NEST_MISSION_ID;
     mapPosition = undefined;
     missionType = 'battle' as const;
-    description = 'The swarm leads here. Destroy the nest.';
+    description = SWARMLING_NEST_SCRIPT.description;
     campaignId = 'world_of_darkness';
     name = SWARMLING_NEST_NAME;
     worldWidth = WORLD_WIDTH;
@@ -239,8 +220,8 @@ export class SwarmlingNestMission extends BaseMissionDef {
     createTerrain = createTerrain;
     specialTiles = DARK_CRYSTAL_TILES;
     aiController = 'stateBased' as const;
-    preMissionStory = PRE_MISSION_STORY;
-    postMissionStory = POST_MISSION_STORY;
+    preMissionStory = SWARMLING_NEST_SCRIPT.preMissionStory;
+    postMissionStory = SWARMLING_NEST_SCRIPT.postMissionStory;
     lightLevelEnabled = true;
     globalLightLevel = DarknessLevel.FULL_DARKNESS;
     ninjutsuPools = { shadow: NINJUTSU_DISABLED };

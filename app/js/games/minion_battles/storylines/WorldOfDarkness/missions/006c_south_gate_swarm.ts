@@ -21,7 +21,7 @@ import type {
 } from '../../types';
 import type { MapSegmentZone } from '../../../terrain/segmentSchema';
 import { resolveZoneTiles, offsetZone } from '../../../terrain/zones';
-import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
+import { chapter0Scripts } from '../../../../../storylines/worldOfDarkness/chapter0.script';
 import {
     ENEMY_DARK_WOLF,
     ENEMY_SWARMLING,
@@ -165,35 +165,13 @@ function buildSlimeLeftOfBox(): EnemySpawnDef {
 // ---------------------------------------------------------------------------
 // Story / objectives
 // ---------------------------------------------------------------------------
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'The cave mouth is no longer empty. Something has nested beyond the southern gate—and the pack outside is only the beginning.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
-
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'The nest collapses. South of the cave, the dark thins for a moment—but the road ahead still crawls.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
+const SOUTH_GATE_SCRIPT = chapter0Scripts.south_gate_swarm;
 
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'destroy_nest',
         objectiveType: ObjectiveType.KillTarget,
-        label: 'Destroy the swarm nest',
+        label: SOUTH_GATE_SCRIPT.objectives.destroy_nest,
         toComplete: { type: 'unitDead', unitCharacterId: SWARM_NEST_CHARACTER_ID },
         showObjectiveMarker: {
             enable: true,
@@ -253,7 +231,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
 
 export class SouthGateSwarmMission extends BaseMissionDef {
     static readonly missionId = 'south_gate_swarm';
-    static readonly nameStr = 'South Gate Swarm';
+    static readonly nameStr = SOUTH_GATE_SCRIPT.name;
 
     campaignId = 'world_of_darkness';
     segmentIds = ['50_50_crystal_cave', '50_51_south_gate'];
@@ -266,8 +244,7 @@ export class SouthGateSwarmMission extends BaseMissionDef {
     /** Admin-only Chapter 0; players reach it through the South Gate Swarm side quest. */
     mapPosition?: { x: number; y: number } = { x: WOD_CH0_MAP_X_COL1, y: WOD_CH0_MAP_Y_ROW0 };
     missionType = 'battle' as const;
-    description =
-        'Something has nested beyond the southern gate. Clear the opening pack and tear the nest down.';
+    description = SOUTH_GATE_SCRIPT.description;
     name = SouthGateSwarmMission.nameStr;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
@@ -276,8 +253,8 @@ export class SouthGateSwarmMission extends BaseMissionDef {
     lightLevelEnabled = true;
     globalLightLevel = 0;
     gatherPartyBackgroundImage = STORY_BACKGROUNDS.campfire;
-    preMissionStory = PRE_MISSION_STORY;
-    postMissionStory = POST_MISSION_STORY;
+    preMissionStory = SOUTH_GATE_SCRIPT.preMissionStory;
+    postMissionStory = SOUTH_GATE_SCRIPT.postMissionStory;
 
     /** Players start on the cave floor near the campfire. */
     playerSpawnPoints: PlayerSpawnPoint[] = [

@@ -7,9 +7,6 @@ import { coreEarthItem } from '../../../character_defs/items/core/019_core_earth
 /** Tag for plains-location random story / quest filters. */
 export const LOCATION_PLAINS_TAG = 'location:plains';
 
-/** Player-facing label for the shared "Search for loose metals" story choice. */
-export const SEARCH_FOR_LOOSE_METALS_LABEL = 'Search for loose metals';
-
 /** Stable option id for Search for loose metals (kept as `harvest` for in-progress runs). */
 export const SEARCH_FOR_LOOSE_METALS_OPTION_ID = 'harvest';
 
@@ -33,9 +30,6 @@ export const FOUND_BERRIES_KEEP_VIGOR = 2;
 
 /** Found Berries — Eat the Berries recovers this much Hunger. */
 export const FOUND_BERRIES_EAT_HUNGER_RECOVERY = 10;
-
-/** Player-facing label for the shared "Rest" story choice. */
-export const REST_LABEL = 'Rest';
 
 /** Stable option id for the shared Rest story choice. */
 export const REST_OPTION_ID = 'rest';

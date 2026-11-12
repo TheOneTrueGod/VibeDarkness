@@ -35,8 +35,10 @@ import {
     rightmostArenaRingSpawnPoints,
 } from '../MapSegments/0_0_boss_arena';
 
+import { chapter2Scripts } from '../../../../../storylines/worldOfDarkness/chapter2.script';
+
 export const DISPLACER_MISSION_ID = 'displacer';
-export const DISPLACER_NAME = 'Displacer';
+export const DISPLACER_NAME = chapter2Scripts.displacer.name;
 
 const COLS = BOSS_ARENA_SIZE;
 const ROWS = BOSS_ARENA_SIZE;
@@ -149,7 +151,7 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'defeat_displacer',
         objectiveType: ObjectiveType.KillTarget,
-        label: 'Defeat the Displacer Spirit',
+        label: chapter2Scripts.displacer.objectives.defeat_displacer,
         toComplete: { type: 'unitDead', unitCharacterId: ENEMY_DISPLACER_SPIRIT.characterId },
     },
 ];
@@ -161,7 +163,7 @@ export class DisplacerMission extends BaseMissionDef {
     /** Chapter 2 grid — row 1 col 1, right after the third campsite on the path. */
     mapPosition = { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 };
     missionType = 'boss' as const;
-    description = 'A spirit flickers in the lit circle. Its bolts fly farther than they seem to aim.';
+    description = chapter2Scripts.displacer.description;
     /** First Darkness Upgrade: the Displacer Spirit's power empowers the slimes (and sweetens future victories). */
     completionRewards = {
         darknessUpgradeIds: [DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS],

@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EARTH_NODE_EARTH_CORE, EARTH_TREE_ID } from '../../../../../researchTrees/trees/earth';
 import { coreEarthItem } from '../../../character_defs/items/core/019_core_earth';
+import { searchForLooseMetalsText, restChoiceText } from '../../../../../storylines/worldOfDarkness/quests.script';
 import {
-    SEARCH_FOR_LOOSE_METALS_LABEL,
     SEARCH_FOR_LOOSE_METALS_OPTION_ID,
     REQUIRES_EARTH_CORE_LABEL,
     REST_HUNGER_RECOVERY,
-    REST_LABEL,
     SURFACE_METAL_HARVEST_METAL,
     requiresItemLabel,
 } from './questMissionConstants';
@@ -35,8 +34,8 @@ describe('Surface metal deposit choices', () => {
         expect(options).not.toBeNull();
         const harvest = options!.find((o) => o.id === SURFACE_METAL_OPTION_HARVEST);
         expect(SURFACE_METAL_OPTION_HARVEST).toBe(SEARCH_FOR_LOOSE_METALS_OPTION_ID);
-        expect(harvest?.label).toBe(SEARCH_FOR_LOOSE_METALS_LABEL);
-        expect(harvest?.loreTitle).toBe(SEARCH_FOR_LOOSE_METALS_LABEL);
+        expect(harvest?.label).toBe(searchForLooseMetalsText.label);
+        expect(harvest?.loreTitle).toBe(searchForLooseMetalsText.label);
         expect(harvest?.action).toEqual({
             type: 'grant_resources',
             metal: SURFACE_METAL_HARVEST_METAL,
@@ -58,7 +57,7 @@ describe('Surface metal deposit choices', () => {
         const options = SURFACE_METAL_DEPOSIT.getPostMissionChoiceOptions(baseParams);
         const rest = options!.find((o) => o.id === SURFACE_METAL_OPTION_REST);
         expect(REST_HUNGER_RECOVERY).toBe(20);
-        expect(rest?.label).toBe(REST_LABEL);
+        expect(rest?.label).toBe(restChoiceText.label);
         expect(rest?.disabledLabel).toBeUndefined();
         expect(rest?.action).toEqual({ type: 'recover_hunger', amount: REST_HUNGER_RECOVERY });
     });

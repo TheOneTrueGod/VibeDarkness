@@ -9,9 +9,9 @@
 
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { WOD_CH1_MAP_X_COL0, WOD_CH1_MAP_Y_ROW1 } from '../chapter1Map';
-import type { PostMissionStoryDef, StoryChoiceOptionRow } from '../../storyTypes';
+import type { StoryChoiceOptionRow } from '../../storyTypes';
 import type { PostMissionChoiceResolveParams } from '../../types';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
+import { chapter1Scripts } from '../../../../../storylines/worldOfDarkness/chapter1.script';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { RESEARCH_TREES, getResearchNode } from '../../../../../researchTrees/list';
@@ -188,27 +188,7 @@ export function pickCoreAwakeningOptions(
     return ordered.slice(0, optionCount);
 }
 
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: [
-                'The Beast is defeated. The cave falls silent, and your breath steadies in the dark.',
-                'As the beast falls, you feel a new power stirring awake within you, answering the clash you survived.',
-                'Choose the core you will awaken next.',
-            ].join('\n'),
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.forestLight,
-        },
-        {
-            type: 'choice',
-            choiceId: 'core_awakening_reward',
-            backgroundImage: STORY_BACKGROUNDS.forestLight,
-            options: [],
-        },
-    ],
-};
+const CORE_AWAKENING_SCRIPT = chapter1Scripts.core_awakening;
 
 export class CoreAwakeningMission extends BaseMissionDef {
     getPostMissionChoiceOptions(params: PostMissionChoiceResolveParams): StoryChoiceOptionRow[] | null {
@@ -244,9 +224,9 @@ export class CoreAwakeningMission extends BaseMissionDef {
     missionId = 'core_awakening';
     mapPosition = { x: WOD_CH1_MAP_X_COL0, y: WOD_CH1_MAP_Y_ROW1 };
     missionType = 'story' as const;
-    description = 'A deep resonance stirs within. An awakening that will change the path ahead.';
+    description = CORE_AWAKENING_SCRIPT.description;
     campaignId = 'world_of_darkness';
-    name = 'Core Awakening';
+    name = CORE_AWAKENING_SCRIPT.name;
     completionRewards = {
         resourceDelta: {
             vigor: CORE_AWAKENING_VIGOR_REWARD,
@@ -258,7 +238,7 @@ export class CoreAwakeningMission extends BaseMissionDef {
     worldHeight = CELL_SIZE;
     enemies = [];
     createTerrain = createTerrain;
-    postMissionStory = POST_MISSION_STORY;
+    postMissionStory = CORE_AWAKENING_SCRIPT.postMissionStory;
     skipBattle = true;
     lightLevelEnabled = false;
 }

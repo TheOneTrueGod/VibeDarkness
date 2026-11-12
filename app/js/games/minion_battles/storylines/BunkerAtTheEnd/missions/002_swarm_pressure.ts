@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Swarm Pressure — stress-test mission (Bunker at the End #2).
  *
  * Same layout as The Last Holdout with a narrowed C-bunker chokepoint (cols 10–11,
@@ -13,6 +13,7 @@ import type { EnemySpawnDef, LevelEvent, SpecialTilePlacement } from '../../type
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType, TERRAIN_PROPERTIES } from '../../../terrain/TerrainType';
 import type { MapSegmentZone } from '../../../terrain/segmentSchema';
+import { bunkerChapterScripts } from '../../../../../storylines/bunkerAtTheEnd/chapter.script';
 import { resolveZoneTiles } from '../../../terrain/zones';
 import {
     ENEMY_DARK_WOLF,
@@ -212,10 +213,9 @@ export class SwarmPressureMission extends BaseMissionDef {
     missionId = 'swarm_pressure';
     mapPosition = { x: 650, y: 250 };
     missionType = 'battle' as const;
-    description =
-        'Stress test: a narrowed bunker choke and a dense opening pack in the eastern spawn zone.';
+    description = bunkerChapterScripts.swarm_pressure.description;
     campaignId = 'bunker_at_the_end';
-    name = 'Swarm Pressure';
+    name = bunkerChapterScripts.swarm_pressure.name;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     enemies: EnemySpawnDef[] = [];

@@ -10,9 +10,8 @@ import { ObjectiveType } from '../../objectiveTypes';
 import { NINJUTSU_3_FLURRY_PER_ROUND } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { LevelEvent, LevelEventConvertSpecialTile, SpecialTilePlacement } from '../../types';
 import { MISSION_MAP_DISABLED } from '../../types';
-import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, SLIME } from '../../../constants/enemyConstants';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
+import { chapter0Scripts } from '../../../../../storylines/worldOfDarkness/chapter0.script';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
@@ -160,43 +159,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
     ...crystalSpecialTilesAt(RIGHT_SEGMENT_COL),
 ];
 
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'The howling outside the cave grows louder. They have found you.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'One by one the crystals flicker. The cave is no longer safe — only your hands can stop what comes next.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
-
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'The last of them falls. The cave stands — but the crystals are gone, and with them, the silence you once knew.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'Something worse is coming. You can feel it.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
+const CRYSTAL_CORRUPTION_SCRIPT = chapter0Scripts.crystal_corruption;
 
 export class CrystalCorruptionMission extends BaseMissionDef {
     segmentIds = ['49_50_path_to_cave', '50_50_crystal_cave'];
@@ -206,9 +169,9 @@ export class CrystalCorruptionMission extends BaseMissionDef {
     isSideMission = true;
     disabled = MISSION_MAP_DISABLED;
     missionType = 'battle' as const;
-    description = 'The crystals pulse with dark energy. Purge the corruption before it spreads beyond the cave.';
+    description = CRYSTAL_CORRUPTION_SCRIPT.description;
     campaignId = 'world_of_darkness';
-    name = 'Crystal Corruption';
+    name = CRYSTAL_CORRUPTION_SCRIPT.name;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     enemies = INITIAL_ENEMIES;
@@ -220,20 +183,20 @@ export class CrystalCorruptionMission extends BaseMissionDef {
     ninjutsuPools = {
         shadow: { ...NINJUTSU_3_FLURRY_PER_ROUND, ninjutsuPerUnit: CRYSTAL_CORRUPTION_NINJUTSU_PER_UNIT },
     };
-    preMissionStory = PRE_MISSION_STORY;
-    postMissionStory = POST_MISSION_STORY;
+    preMissionStory = CRYSTAL_CORRUPTION_SCRIPT.preMissionStory;
+    postMissionStory = CRYSTAL_CORRUPTION_SCRIPT.postMissionStory;
     battleObjectives = [
         {
             id: 'survive',
             objectiveType: ObjectiveType.Survive,
-            label: 'Survive the assault',
+            label: CRYSTAL_CORRUPTION_SCRIPT.objectives.survive,
             toComplete: { type: 'atLeastRound' as const, round: 7 },
             onComplete: [{ type: 'revealObjective' as const, id: 'eliminate' }],
         },
         {
             id: 'eliminate',
             objectiveType: ObjectiveType.EliminateAll,
-            label: 'Kill the remaining enemies',
+            label: CRYSTAL_CORRUPTION_SCRIPT.objectives.eliminate,
             requiresCompletedId: 'survive',
             toComplete: { type: 'eliminateAllEnemies' as const },
         },

@@ -7,10 +7,10 @@ import {
     FOUND_BERRIES_OPTION_EAT,
     FOUND_BERRIES_OPTION_KEEP,
 } from './found_berries';
+import { searchForLooseMetalsText } from '../../../../../storylines/worldOfDarkness/quests.script';
 import {
     FOUND_BERRIES_EAT_HUNGER_RECOVERY,
     FOUND_BERRIES_KEEP_VIGOR,
-    SEARCH_FOR_LOOSE_METALS_LABEL,
     SEARCH_FOR_LOOSE_METALS_OPTION_ID,
     SURFACE_METAL_HARVEST_METAL,
 } from './questMissionConstants';
@@ -34,7 +34,7 @@ describe('Found Berries choices', () => {
         expect(options.map((o) => o.label)).toEqual([
             FOUND_BERRIES_EAT_LABEL,
             FOUND_BERRIES_KEEP_LABEL,
-            SEARCH_FOR_LOOSE_METALS_LABEL,
+            searchForLooseMetalsText.label,
         ]);
     });
 

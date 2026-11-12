@@ -5,9 +5,8 @@
  */
 
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
-import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { darkCrystalSpecialTilesAt } from '../MapSegments/50_50_crystal_cave';
+import { QUEST_CRYSTAL_RECOVERY_LINES, questScripts } from '../../../../../storylines/worldOfDarkness/quests.script';
 import {
     CrystalCorruptionMission,
     CRYSTAL_CORRUPTION_CAMPFIRE,
@@ -26,59 +25,23 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
 
 const LEVEL_EVENTS: LevelEvent[] = [
     ...CRYSTAL_CORRUPTION_COMBAT_EVENTS,
-    ...crystalConversionEvents('Crystal', RESTORED_CRYSTAL_REPLACEMENT, [
-        'A crystal flickers back to life.',
-        'Another crystal sheds its corruption.',
-        'The cave grows brighter.',
-        'The protection is returning.',
-        'The last crystal shines again. Kill the remaining enemies!',
-    ]),
+    ...crystalConversionEvents('Crystal', RESTORED_CRYSTAL_REPLACEMENT, [...QUEST_CRYSTAL_RECOVERY_LINES]),
 ];
 
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'You return to the cave to find every crystal dark, pulsing with corruption. The howling is close behind you.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'Deep inside, a faint light still stirs. Hold the cave long enough, and the crystals may recover.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
-
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'The last of them falls. Around you, the crystals glow clean and bright once more.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
+const QUEST_CRYSTAL_SCRIPT = questScripts.quest_crystal_corruption;
 
 export class QuestCrystalCorruptionMission extends CrystalCorruptionMission {
     override missionId = QUEST_CRYSTAL_CORRUPTION_MISSION_ID;
-    override name = 'Quest: Crystal Corruption';
-    override description =
-        'The cave crystals have turned dark. Hold the cave while they recover, one by one.';
+    override name = QUEST_CRYSTAL_SCRIPT.name;
+    override description = QUEST_CRYSTAL_SCRIPT.description;
     /** Not placed on the main Mission Map graph. */
     override mapPosition = undefined;
     /** Quest runs stay playable even though the campaign map copy is disabled. */
     override disabled = false;
     override specialTiles = SPECIAL_TILES;
     override levelEvents = LEVEL_EVENTS;
-    override preMissionStory = PRE_MISSION_STORY;
-    override postMissionStory = POST_MISSION_STORY;
+    override preMissionStory = QUEST_CRYSTAL_SCRIPT.preMissionStory;
+    override postMissionStory = QUEST_CRYSTAL_SCRIPT.postMissionStory;
 }
 
 export const QUEST_CRYSTAL_CORRUPTION = new QuestCrystalCorruptionMission();

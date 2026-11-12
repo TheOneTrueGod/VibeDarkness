@@ -11,9 +11,13 @@ import { BaseMissionDef } from '../../BaseMissionDef';
 import { WOD_CH1_MAP_X_COL1, WOD_CH1_MAP_Y_ROW1 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
-import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_ALPHA_WOLF } from '../../../constants/enemyConstants';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
+import {
+    chapter1Scripts,
+    MONSTER_HUNGER_RECOVERY,
+} from '../../../../../storylines/worldOfDarkness/chapter1.script';
+
+export { MONSTER_HUNGER_RECOVERY };
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
@@ -26,8 +30,6 @@ import {
 
 /** Crystals pried from the Beast's dark-crystal den. */
 export const MONSTER_ATTUNEMENT_REWARD = 6;
-/** Hunger each player's character recovers on defeating the Alpha Wolf (clamped at max Hunger by the story's ordered Hunger changes). */
-export const MONSTER_HUNGER_RECOVERY = 100;
 
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
@@ -114,37 +116,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
     ...darkCrystalSpecialTilesAt(RIGHT_SEGMENT_COL),
 ];
 
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "A loud growl echoes from beyond the cave mouth. Something has found you.  Something patient... Something hungry",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "The Beast has come. There is no retreat... only the fight.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
-
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "You defeat the Beast, but something is different.  You feel... power.  Like things won't be the same anymore.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        { type: 'recover_hunger_auto', amount: MONSTER_HUNGER_RECOVERY },
-    ],
-};
+const MONSTER_SCRIPT = chapter1Scripts.monster;
 
 export class MonsterMission extends BaseMissionDef {
     segmentIds = ['49_50_path_to_cave', '50_50_crystal_cave'];
@@ -152,9 +124,9 @@ export class MonsterMission extends BaseMissionDef {
     missionId = 'monster';
     mapPosition = { x: WOD_CH1_MAP_X_COL1, y: WOD_CH1_MAP_Y_ROW1 };
     missionType = 'boss' as const;
-    description = 'The pack leader hunts these tunnels. Confront the beast directly — or be hunted forever.';
+    description = MONSTER_SCRIPT.description;
     campaignId = 'world_of_darkness';
-    name = 'Monster';
+    name = MONSTER_SCRIPT.name;
     completionRewards = {
         knowledgeKeys: [KNOWLEDGE_COMPLETED_CHAPTER_1],
         resourceDelta: { attunement: MONSTER_ATTUNEMENT_REWARD },
@@ -163,13 +135,13 @@ export class MonsterMission extends BaseMissionDef {
     worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;
     // Match by controlGroupId only — Boss tag alone must not claim summoned pack wolves.
-    playerControl = [{ controlGroupId: 'boss', label: 'Control Alpha Wolf' }];
+    playerControl = [{ controlGroupId: 'boss', label: MONSTER_SCRIPT.playerControlLabel }];
     levelEvents = LEVEL_EVENTS;
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;
     aiController = 'alphaWolfBoss' as const;
-    preMissionStory = PRE_MISSION_STORY;
-    postMissionStory = POST_MISSION_STORY;
+    preMissionStory = MONSTER_SCRIPT.preMissionStory;
+    postMissionStory = MONSTER_SCRIPT.postMissionStory;
     lightLevelEnabled = true;
     globalLightLevel = 0;
     ninjutsuPools = { shadow: NINJUTSU_DISABLED };

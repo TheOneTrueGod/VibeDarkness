@@ -30,8 +30,8 @@ import type {
     PlayerSpawnPoint,
 } from '../../types';
 import type { MapSegmentPOI } from '../../../terrain/segmentSchema';
-import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
+import { questScripts } from '../../../../../storylines/worldOfDarkness/quests.script';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING } from '../../../constants/enemyConstants';
@@ -199,36 +199,11 @@ const MISSION_POIS: MapSegmentPOI[] = [
 // ---------------------------------------------------------------------------
 // Story
 // ---------------------------------------------------------------------------
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'The nest in the glade still pulses with light—untouchable. But the glowing insects are not staying. Small flames drift south into the thorns. Whatever they are building, they need you to follow.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
+const THORN_MARCH_SCRIPT = questScripts.thorn_march;
 
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'Three nests. Three lights in the dark. The little lights have driven roots deep into the thorn path—and the darkness has not snuffed them out.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
-
-// ---------------------------------------------------------------------------
-// Mission class
-// ---------------------------------------------------------------------------
 export class ThornMarchMission extends BaseMissionDef {
     static readonly missionId = 'thorn_march';
-    static readonly nameStr = 'Thorn March';
+    static readonly nameStr = THORN_MARCH_SCRIPT.name;
 
     campaignId = 'world_of_darkness';
     segmentIds = ['49_51_west_glade', '49_52_thorn_path', '48_52_thorn_path_2'];
@@ -237,7 +212,7 @@ export class ThornMarchMission extends BaseMissionDef {
         {
             id: 'establish_all_nests',
             objectiveType: ObjectiveType.Protect,
-            label: 'Protect the plant-creatures as they build their network',
+            label: questScripts.thorn_march.objectives.establish_all_nests,
             toComplete: { type: 'aliveUnitCount', characterId: LANTERNITE_NEST_CHARACTER_ID, minCount: 3 },
             onComplete: [{ type: 'revealObjective', id: 'hold_the_line' }],
             showObjectiveMarker: {
@@ -249,7 +224,7 @@ export class ThornMarchMission extends BaseMissionDef {
         {
             id: 'hold_the_line',
             objectiveType: ObjectiveType.Protect,
-            label: 'Hold all three nests for 2 more rounds',
+            label: questScripts.thorn_march.objectives.hold_the_line,
             revealedInitially: false,
             requiresCompletedId: 'establish_all_nests',
             toComplete: { type: 'atLeastRound', round: 8 },
@@ -434,7 +409,7 @@ export class ThornMarchMission extends BaseMissionDef {
     /** Quest-only; not placed on the chapter 2 Mission Map. */
     mapPosition = undefined;
     missionType = 'battle' as const;
-    description = 'March through the thornwood and dismantle the nest at its heart before the swarm spreads.';
+    description = THORN_MARCH_SCRIPT.description;
     name = ThornMarchMission.nameStr;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
@@ -455,8 +430,8 @@ export class ThornMarchMission extends BaseMissionDef {
     lightLevelEnabled = true;
     globalLightLevel = 0;
 
-    preMissionStory = PRE_MISSION_STORY;
-    postMissionStory = POST_MISSION_STORY;
+    preMissionStory = THORN_MARCH_SCRIPT.preMissionStory;
+    postMissionStory = THORN_MARCH_SCRIPT.postMissionStory;
 
     override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
         this.enemies = [...this.enemies, ...buildInitialAmbush(engine)];

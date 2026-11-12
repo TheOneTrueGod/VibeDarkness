@@ -18,9 +18,10 @@ import type {
     LevelEvent,
     SpecialTilePlacement,
 } from '../../types';
-import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
+import type { PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
+import { chapter1Scripts } from '../../../../../storylines/worldOfDarkness/chapter1.script';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { MAP_SEGMENT_48_50_WAKEUP } from '../MapSegments/48_50_wakeup';
@@ -115,7 +116,7 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'find_safety',
         objectiveType: ObjectiveType.ReachLocation,
-        label: 'Find safety — reach the light in the cave to the east with your whole party',
+        label: chapter1Scripts.towards_the_light.objectives.find_safety,
         toComplete: {
             type: 'allUnitsNearPosition',
             col: CAVE_CAMPFIRE.col + RIGHT_OFFSET_COL,
@@ -155,50 +156,14 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
     ...crystalSpecialTilesAt(RIGHT_OFFSET_COL),
 ];
 
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "The darkness does not appear to be letting up, and the campfire is starting to grow dim.\n\nIt's time to light a torch and find somewhere safe.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
+const TOWARDS_THE_LIGHT_SCRIPT = chapter1Scripts.towards_the_light;
 
+/** Weapon labels and descriptions come from the item defs. The lines before this choice live in the chapter script. */
 const POST_MISSION_STORY: PostMissionStoryDef = {
     phrases: [
+        ...TOWARDS_THE_LIGHT_SCRIPT.postMissionStory.phrases,
         {
-            type: 'dialogue',
-            speakerId: '1',
-            text: [
-							"You run toward the light, desperate to get away from the flickering darkness.",
-							"You turn, expecting a fight, but the crystals' light burns and drives back any wolf that dares to follow you in."
-						].join("\n"),
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "You take a moment to steady yourself. Inside the cave, the walls are studded with glittering crystals. They pulse softly, like distant stars.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: [
-							"In the center, a cauldron sits over a firepit, wood stacked nearby",
-							"In one corner: bones, scraps of cloth, rusted tools and armour. Someone was here before.",
-							"You figure now is as good a time as any to catch your breath. What would you like to do with this moment of respite?"
-						].join("\n"),
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'choice',
+            type: 'choice' as const,
             choiceId: 'towards_the_light_cave_choice',
             backgroundImage: STORY_BACKGROUNDS.whiskyCave,
             options: CAVE_WEAPON_ITEM_IDS.map((itemId) => {
@@ -221,9 +186,9 @@ export class TowardsTheLightMission extends BaseMissionDef {
     missionId = 'towards_the_light';
     mapPosition = { x: WOD_CH1_MAP_X_COL1, y: WOD_CH1_MAP_Y_ROW0 };
     missionType = 'battle' as const;
-    description = 'Push through the crystal caves toward a faint glow. Something ancient stirs in the dark.';
+    description = TOWARDS_THE_LIGHT_SCRIPT.description;
     campaignId = 'world_of_darkness';
-    name = 'Towards the Light';
+    name = TOWARDS_THE_LIGHT_SCRIPT.name;
     completionRewards = {
         knowledgeKeys: [KNOWLEDGE_RESEARCH],
         resourceDelta: {
@@ -243,7 +208,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;
     aiController = 'stateBased' as const;
-    preMissionStory = PRE_MISSION_STORY;
+    preMissionStory = TOWARDS_THE_LIGHT_SCRIPT.preMissionStory;
     postMissionStory = POST_MISSION_STORY;
     lightLevelEnabled = true;
     globalLightLevel = 0;

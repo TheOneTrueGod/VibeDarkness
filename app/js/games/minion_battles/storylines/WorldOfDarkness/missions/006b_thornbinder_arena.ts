@@ -17,6 +17,7 @@ import type {
     SpecialTilePlacement,
 } from '../../types';
 import { MISSION_MAP_DISABLED } from '../../types';
+import { chapter0Scripts } from '../../../../../storylines/worldOfDarkness/chapter0.script';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { DarknessLevel } from '../../../game/darknessLevels';
 import { WOD_CH0_MAP_X_COL0, WOD_CH0_MAP_Y_ROW0 } from '../chapter0Map';
@@ -122,13 +123,13 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'survive_waves',
         objectiveType: ObjectiveType.Survive,
-        label: 'Survive the arena waves',
+        label: chapter0Scripts.thornbinder_arena.objectives.survive_waves,
         toComplete: { type: 'atLeastRound', round: THORNBINDER_ARENA_LAST_WAVE_ROUND },
     },
     {
         id: 'clear_arena',
         objectiveType: ObjectiveType.EliminateAll,
-        label: 'Defeat the remaining creatures',
+        label: chapter0Scripts.thornbinder_arena.objectives.clear_arena,
         revealedInitially: false,
         requiresCompletedId: 'survive_waves',
         toComplete: { type: 'eliminateAllEnemies' },
@@ -185,7 +186,7 @@ const HOME_CAMPFIRE_TILE: SpecialTilePlacement = {
 
 export class ThornbinderArenaMission extends BaseMissionDef {
     static readonly missionId = 'thornbinder_arena';
-    static readonly nameStr = 'Thornbinder Arena';
+    static readonly nameStr = chapter0Scripts.thornbinder_arena.name;
 
     campaignId = 'world_of_darkness';
     missionId = ThornbinderArenaMission.missionId;
@@ -194,8 +195,7 @@ export class ThornbinderArenaMission extends BaseMissionDef {
     /** Chapter 0 (Unused Missions) grid — row 0 col 0. */
     mapPosition = { x: WOD_CH0_MAP_X_COL0, y: WOD_CH0_MAP_Y_ROW0 };
     missionType = 'battle' as const;
-    description =
-        'Bramble-weaving creatures hold a dirt circle east of the cave. Dark crystals mark the ring — more will come.';
+    description = chapter0Scripts.thornbinder_arena.description;
 
     mapLayout = THORNBINDER_ARENA_LAYOUT;
     spawnSegmentId = EAST_CAVE_SEGMENT_ID;

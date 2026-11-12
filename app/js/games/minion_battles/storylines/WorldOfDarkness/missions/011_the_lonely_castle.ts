@@ -15,6 +15,7 @@ import type { GameEngine } from '../../../game/GameEngine';
 import type { TriggerDef } from '../../../game/triggers/triggerTypes';
 import { ObjectiveType } from '../../objectiveTypes';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
+import { chapter3Scripts } from '../../../../../storylines/worldOfDarkness/chapter3.script';
 import { HOME_CAMPFIRE_LIGHT_AMOUNT, HOME_CAMPFIRE_LIGHT_RADIUS, HOME_CAMPFIRE_MAX_HP } from '../../homeBase';
 import type {
     BattleObjectiveDef,
@@ -204,7 +205,7 @@ export const THE_LONELY_CASTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: OBJECTIVE_REACH_BRIDGE,
         objectiveType: ObjectiveType.ReachLocation,
-        label: 'Explore the new cave exit',
+        label: chapter3Scripts.the_lonely_castle.objectives.reach_bridge,
         toComplete: {
             type: 'allUnitsNearPosition',
             col: BRIDGE_THRESHOLD.col,
@@ -251,15 +252,14 @@ function homeLights(params: InitializeGameStateParams): SpecialTilePlacement[] {
 
 export class TheLonelyCastleMission extends BaseMissionDef {
     static readonly missionId = THE_LONELY_CASTLE_MISSION_ID;
-    static readonly nameStr = 'The Lonely Castle';
+    static readonly nameStr = chapter3Scripts.the_lonely_castle.name;
 
     campaignId = 'world_of_darkness';
     missionId = TheLonelyCastleMission.missionId;
     name = TheLonelyCastleMission.nameStr;
     mapPosition = { x: WOD_CH3_MAP_X_COL0, y: WOD_CH3_MAP_Y_ROW0 };
     missionType = 'battle' as const;
-    description =
-        'A second way out of the cave leads east along an old road, toward a castle standing alone in the dark.';
+    description = chapter3Scripts.the_lonely_castle.description;
 
     mapLayout = THE_LONELY_CASTLE_LAYOUT;
     spawnSegmentId = EAST_CAVE_SEGMENT_ID;

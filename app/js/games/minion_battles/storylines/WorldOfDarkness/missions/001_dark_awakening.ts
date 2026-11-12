@@ -10,10 +10,9 @@ import { BaseMissionDef } from '../../BaseMissionDef';
 import { ObjectiveType } from '../../objectiveTypes';
 import { WOD_CH1_MAP_X_COL0, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
-import type { PreMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
+import { chapter1Scripts } from '../../../../../storylines/worldOfDarkness/chapter1.script';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
@@ -159,13 +158,13 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
 	{
 		id: 'survive_wolves',
 		objectiveType: ObjectiveType.Survive,
-		label: 'Survive the wolves',
+		label: chapter1Scripts.dark_awakening.objectives.survive_wolves,
 		toComplete: { type: 'atLeastRound', round: 3 },
 	},
 	{
 		id: 'eliminate_enemies',
 		objectiveType: ObjectiveType.EliminateAll,
-		label: 'Eliminate all enemies to win',
+		label: chapter1Scripts.dark_awakening.objectives.eliminate_enemies,
 		requiresCompletedId: 'survive_wolves',
 		toComplete: { type: 'eliminateAllEnemies' },
 	},
@@ -184,60 +183,15 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
 	},
 ];
 
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-	phrases: [
-		{
-			type: 'dialogue',
-			speakerId: '1',
-			text: "Welcome to my game, and thanks for playing!  I will be your DM for this story.",
-			portraitSide: 'left',
-			backgroundImage: STORY_BACKGROUNDS.campfire,
-		},
-		{
-			type: 'dialogue',
-			speakerId: '1',
-			text: 'Wake Up',
-			textEffect: 'title_bounce',
-			backgroundImage: STORY_BACKGROUNDS.campfire,
-		},
-		{
-			type: 'dialogue',
-			speakerId: '1',
-			text: [
-				"You open your eyes to find a campfire crackling before you.",
-				"Beyond the glow, darkness presses in, along with the sounds of movement and growling.",
-				"With little time to remember where you are, you push yourself up and scan the camp for weapons."
-			].join("\n"),
-			portraitSide: 'left',
-			backgroundImage: STORY_BACKGROUNDS.campfire,
-		},
-		{
-			type: 'choice',
-			choiceId: 'dark_awakening_weapon',
-			backgroundImage: STORY_BACKGROUNDS.campfire,
-			options: [
-				{
-					id: 'rocks',
-					label: 'Grab some nearby rocks',
-					action: { type: 'equip_item' as const, itemId: '001' },
-				},
-				{
-					id: 'torch',
-					label: 'Grab a thick branch',
-					action: { type: 'equip_item' as const, itemId: '002' },
-				},
-			],
-		},
-	],
-};
+const DARK_AWAKENING_SCRIPT = chapter1Scripts.dark_awakening;
 
 export class DarkAwakeningMission extends BaseMissionDef {
 	missionId = 'dark_awakening';
 	mapPosition = { x: WOD_CH1_MAP_X_COL0, y: WOD_CH1_MAP_Y_ROW0 };
 	missionType = 'battle' as const;
-	description = 'You awaken in darkness with no memory. Survive the first night and find a way forward.';
+	description = DARK_AWAKENING_SCRIPT.description;
 	campaignId = 'world_of_darkness';
-	name = 'A Dark Awakening';
+	name = DARK_AWAKENING_SCRIPT.name;
 	completionRewards = {
 		resourceDelta: {
 			vigor: DARK_AWAKENING_VIGOR_REWARD,
@@ -253,7 +207,7 @@ export class DarkAwakeningMission extends BaseMissionDef {
 	createTerrain = createTerrain;
 	specialTiles = SPECIAL_TILES;
 	aiController = 'stateBased' as const;
-	preMissionStory = PRE_MISSION_STORY;
+	preMissionStory = DARK_AWAKENING_SCRIPT.preMissionStory;
 	lightLevelEnabled = true;
 	ninjutsuPools = { shadow: NINJUTSU_DISABLED };
 	globalLightLevel = 0;

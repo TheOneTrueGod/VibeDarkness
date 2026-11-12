@@ -4,14 +4,14 @@
  */
 
 import { LightEmpoweredMission } from '../missions/003_light_empowered';
+import { questScripts } from '../../../../../storylines/worldOfDarkness/quests.script';
 
 export const QUEST_FIND_SOME_FOOD_MISSION_ID = 'quest_find_some_food';
 
 export class QuestFindSomeFoodMission extends LightEmpoweredMission {
     override missionId = QUEST_FIND_SOME_FOOD_MISSION_ID;
-    override name = 'Quest: Find some food';
-    override description =
-        'Quest variant of the plains hunt — forage and fight for food while the run is locked.';
+    override name = questScripts.quest_find_some_food.name;
+    override description = questScripts.quest_find_some_food.description;
     /** Not placed on the main Mission Map graph. */
     override mapPosition = undefined;
 }

@@ -11,10 +11,14 @@ import { ObjectiveType } from '../../objectiveTypes';
 import { WOD_CH1_MAP_X_COL2, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
-import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF, ENEMY_BOAR, SLIME } from '../../../constants/enemyConstants';
 import { UnitTag } from '../../../game/units/unitTag';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
+import {
+	chapter1Scripts,
+	LIGHT_EMPOWERED_HUNGER_RECOVERY,
+} from '../../../../../storylines/worldOfDarkness/chapter1.script';
+
+export { LIGHT_EMPOWERED_HUNGER_RECOVERY };
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import {
@@ -31,8 +35,6 @@ import {
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
 /** Meat from the cliff-inlet hunt. */
-/** Hunger recovered in the post-mission feast (clamped to max Hunger). */
-export const LIGHT_EMPOWERED_HUNGER_RECOVERY = 100;
 export const LIGHT_EMPOWERED_VIGOR_REWARD = 8;
 
 const SEGMENT_COLS = 22;
@@ -143,7 +145,7 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
 	{
 		id: 'kill_boar',
 		objectiveType: ObjectiveType.KillTarget,
-		label: 'Hunt and kill the boar',
+		label: chapter1Scripts.light_empowered.objectives.kill_boar,
 		toComplete: { type: 'unitDead', unitCharacterId: 'boar' },
 		showObjectiveMarker: {
 			enable: true,
@@ -154,7 +156,7 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
 	{
 		id: 'return_cave',
 		objectiveType: ObjectiveType.ReachLocation,
-		label: 'Return to the cave with your party',
+		label: chapter1Scripts.light_empowered.objectives.return_cave,
 		requiresCompletedId: 'kill_boar',
 		toComplete: {
 			type: 'allUnitsNearPosition',
@@ -187,44 +189,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
 	...crystalSpecialTilesAt(0, BOTTOM_OFFSET_ROW),
 ];
 
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-	phrases: [
-		{
-			type: 'dialogue',
-			speakerId: '1',
-			text: "Your stomach growls. The crystals glow softly in the cave, but they cannot fill an empty belly. You need to venture out and find food.",
-			portraitSide: 'left',
-			backgroundImage: STORY_BACKGROUNDS.campfire,
-		},
-		{
-			type: 'dialogue',
-			speakerId: '1',
-			text: "You've seen tracks in the dirt—something large, something that could feed you all. A boar, perhaps. It's time to hunt.",
-			portraitSide: 'left',
-			backgroundImage: STORY_BACKGROUNDS.campfire,
-		},
-	],
-};
-
-const POST_MISSION_STORY: PostMissionStoryDef = {
-	phrases: [
-		{
-			type: 'dialogue',
-			speakerId: '1',
-			text: "The boar falls. You drag the carcass back through the path, past the wolves that snap at your heels. At last you reach the cave, where the crystals' light burns and drives back any wolf that dares to follow you in.",
-			portraitSide: 'left',
-			backgroundImage: STORY_BACKGROUNDS.campfire,
-		},
-		{
-			type: 'dialogue',
-			speakerId: '1',
-			text: "You butcher the meat and share it around. For the first time in what feels like an age, your hunger is sated. The crystals pulse gently. You have survived another trial.",
-			portraitSide: 'left',
-			backgroundImage: STORY_BACKGROUNDS.campfire,
-		},
-		{ type: 'recover_hunger_auto', amount: LIGHT_EMPOWERED_HUNGER_RECOVERY },
-	],
-};
+const LIGHT_EMPOWERED_SCRIPT = chapter1Scripts.light_empowered;
 
 export class LightEmpoweredMission extends BaseMissionDef {
 	segmentIds = ['50_49_cliff_path_north', '50_50_crystal_cave'];
@@ -232,9 +197,9 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	missionId = 'light_empowered';
 	mapPosition?: { x: number; y: number } = { x: WOD_CH1_MAP_X_COL2, y: WOD_CH1_MAP_Y_ROW0 };
 	missionType = 'battle' as const;
-	description = 'Forage for supplies in the lit passages. Territorial creatures guard the food sources.';
+	description = LIGHT_EMPOWERED_SCRIPT.description;
 	campaignId = 'world_of_darkness';
-	name = 'Find some food';
+	name = LIGHT_EMPOWERED_SCRIPT.name;
 	completionRewards = {
 		knowledgeKeys: [KNOWLEDGE_RESEARCH, KNOWLEDGE_RESOURCE_FOOD],
 		resourceDelta: { vigor: LIGHT_EMPOWERED_VIGOR_REWARD },
@@ -247,8 +212,8 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	createTerrain = createTerrain;
 	specialTiles = SPECIAL_TILES;
 	aiController = 'stateBased' as const;
-	preMissionStory = PRE_MISSION_STORY;
-	postMissionStory = POST_MISSION_STORY;
+	preMissionStory = LIGHT_EMPOWERED_SCRIPT.preMissionStory;
+	postMissionStory = LIGHT_EMPOWERED_SCRIPT.postMissionStory;
 	lightLevelEnabled = true;
 	globalLightLevel = 0;
 	ninjutsuPools = { shadow: NINJUTSU_DISABLED };

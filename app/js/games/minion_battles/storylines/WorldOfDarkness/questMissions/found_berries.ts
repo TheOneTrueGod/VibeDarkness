@@ -6,77 +6,45 @@
 
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
-import type { PostMissionStoryDef } from '../../storyTypes';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { LOCATION_PLAINS_TAG, PLAINS_STORY_CHALLENGE_RATING } from './questMissionConstants';
 import {
-    FOUND_BERRIES_EAT_HUNGER_RECOVERY,
-    FOUND_BERRIES_KEEP_VIGOR,
-    LOCATION_PLAINS_TAG,
-    PLAINS_STORY_CHALLENGE_RATING,
-} from './questMissionConstants';
-import { buildSearchForLooseMetalsOption } from './searchForLooseMetalsOption';
+    FOUND_BERRIES_CHOICE_ID,
+    FOUND_BERRIES_EAT_LABEL,
+    FOUND_BERRIES_KEEP_LABEL,
+    FOUND_BERRIES_OPTION_EAT,
+    FOUND_BERRIES_OPTION_KEEP,
+    questScripts,
+} from '../../../../../storylines/worldOfDarkness/quests.script';
+
+export {
+    FOUND_BERRIES_CHOICE_ID,
+    FOUND_BERRIES_EAT_LABEL,
+    FOUND_BERRIES_KEEP_LABEL,
+    FOUND_BERRIES_OPTION_EAT,
+    FOUND_BERRIES_OPTION_KEEP,
+};
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
 }
 
 export const FOUND_BERRIES_MISSION_ID = 'found_berries';
-export const FOUND_BERRIES_CHOICE_ID = 'found_berries_choice';
-export const FOUND_BERRIES_OPTION_EAT = 'eat_berries';
-export const FOUND_BERRIES_OPTION_KEEP = 'keep_berries';
-export const FOUND_BERRIES_EAT_LABEL = 'Eat the Berries';
-export const FOUND_BERRIES_KEEP_LABEL = 'Keep the Berries';
 
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'A low thicket catches your eye — ripe berries, still cool from the night air. Enough to matter, if you choose carefully.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'choice',
-            choiceId: FOUND_BERRIES_CHOICE_ID,
-            backgroundImage: STORY_BACKGROUNDS.foundBerries,
-            options: [
-                {
-                    id: FOUND_BERRIES_OPTION_EAT,
-                    label: FOUND_BERRIES_EAT_LABEL,
-                    loreTitle: FOUND_BERRIES_EAT_LABEL,
-                    loreDescription: 'Sate your hunger.',
-                    action: { type: 'recover_hunger', amount: FOUND_BERRIES_EAT_HUNGER_RECOVERY },
-                },
-                {
-                    id: FOUND_BERRIES_OPTION_KEEP,
-                    label: FOUND_BERRIES_KEEP_LABEL,
-                    loreTitle: FOUND_BERRIES_KEEP_LABEL,
-                    loreDescription: 'Pack them carefully.',
-                    action: {
-                        type: 'grant_resources',
-                        vigor: FOUND_BERRIES_KEEP_VIGOR,
-                    },
-                },
-                buildSearchForLooseMetalsOption(),
-            ],
-        },
-    ],
-};
+const FOUND_BERRIES_SCRIPT = questScripts.found_berries;
 
 export class FoundBerriesMission extends BaseMissionDef {
     missionId = FOUND_BERRIES_MISSION_ID;
     missionType = 'story' as const;
-    description = 'A chance find on the plains — berries worth eating or keeping.';
+    description = FOUND_BERRIES_SCRIPT.description;
     campaignId = 'world_of_darkness';
-    name = 'Found Berries';
+    name = FOUND_BERRIES_SCRIPT.name;
     worldWidth = CELL_SIZE;
     worldHeight = CELL_SIZE;
     enemies = [];
     createTerrain = createTerrain;
-    postMissionStory = POST_MISSION_STORY;
+    postMissionStory = FOUND_BERRIES_SCRIPT.postMissionStory;
     skipBattle = true;
     lightLevelEnabled = false;
     ninjutsuPools = { shadow: NINJUTSU_DISABLED };

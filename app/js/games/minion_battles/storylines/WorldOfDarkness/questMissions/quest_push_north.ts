@@ -10,11 +10,16 @@ import { ObjectiveType } from '../../objectiveTypes';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { BattleObjectiveDef, EnemySpawnDef, LevelEvent, SpecialTilePlacement } from '../../types';
-import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import type { MapSegmentZone } from '../../../terrain/segmentSchema';
+import {
+    QUEST_PUSH_NORTH_NAME,
+    QUEST_PUSH_NORTH_OBJECTIVE_LABEL,
+    questScripts,
+} from '../../../../../storylines/worldOfDarkness/quests.script';
+
+export { QUEST_PUSH_NORTH_NAME, QUEST_PUSH_NORTH_OBJECTIVE_LABEL };
 import { resolveZoneTiles, offsetZone } from '../../../terrain/zones';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING } from '../../../constants/enemyConstants';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import {
@@ -32,8 +37,6 @@ import type { TerrainManager } from '../../../terrain/TerrainManager';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
 export const QUEST_PUSH_NORTH_MISSION_ID = 'quest_push_north';
-export const QUEST_PUSH_NORTH_NAME = 'Push North';
-export const QUEST_PUSH_NORTH_OBJECTIVE_LABEL = 'Reach the northern path';
 
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
@@ -274,32 +277,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
     ...CLIFF_PATH_CAMPFIRES,
 ];
 
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: [
-							"The skittering swarm keeps pouring in from the north.", 
-							"Fight your way through to find out where they're coming from."
-						].join("\n"),
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
-
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "Continue your march.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-    ],
-};
+const QUEST_PUSH_NORTH_SCRIPT = questScripts.quest_push_north;
 
 export class QuestPushNorthMission extends BaseMissionDef {
     segmentIds = ['50_49_cliff_path_north', '50_50_crystal_cave'];
@@ -307,7 +285,7 @@ export class QuestPushNorthMission extends BaseMissionDef {
     missionId = QUEST_PUSH_NORTH_MISSION_ID;
     mapPosition = undefined;
     missionType = 'battle' as const;
-    description = 'Follow the swarm north along the cliff path.';
+    description = QUEST_PUSH_NORTH_SCRIPT.description;
     campaignId = 'world_of_darkness';
     name = QUEST_PUSH_NORTH_NAME;
     worldWidth = WORLD_WIDTH;
@@ -319,8 +297,8 @@ export class QuestPushNorthMission extends BaseMissionDef {
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;
     aiController = 'stateBased' as const;
-    preMissionStory = PRE_MISSION_STORY;
-    postMissionStory = POST_MISSION_STORY;
+    preMissionStory = QUEST_PUSH_NORTH_SCRIPT.preMissionStory;
+    postMissionStory = QUEST_PUSH_NORTH_SCRIPT.postMissionStory;
     lightLevelEnabled = true;
     globalLightLevel = 0;
     ninjutsuPools = { shadow: NINJUTSU_DISABLED };

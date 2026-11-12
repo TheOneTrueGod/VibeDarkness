@@ -24,8 +24,10 @@ import {
     ARENA_OUTSIDE_ROAD,
 } from '../MapSegments/0_0_boss_arena';
 
+import { chapter0Scripts } from '../../../../../storylines/worldOfDarkness/chapter0.script';
+
 export const COURT_MAGICIAN_MISSION_ID = 'court_magician';
-export const COURT_MAGICIAN_MISSION_NAME = 'The Court Magician';
+export const COURT_MAGICIAN_MISSION_NAME = chapter0Scripts.court_magician.name;
 
 const COLS = BOSS_ARENA_SIZE;
 const ROWS = BOSS_ARENA_SIZE;
@@ -90,7 +92,7 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'defeat_court_magician',
         objectiveType: ObjectiveType.KillTarget,
-        label: 'Defeat the Court Magician',
+        label: chapter0Scripts.court_magician.objectives.defeat_court_magician,
         toComplete: { type: 'unitDead', unitCharacterId: ENEMY_COURT_MAGICIAN.characterId },
     },
 ];
@@ -104,8 +106,7 @@ export class CourtMagicianMission extends BaseMissionDef {
     /** Chapter 0 grid — row 0, col 2 (next free slot). */
     mapPosition = { x: WOD_CH0_MAP_X_COL2, y: WOD_CH0_MAP_Y_ROW0 };
     missionType = 'boss' as const;
-    description =
-        'A robed figure waits in the circle, dark crystals turning slowly around him. They move when he moves his hands.';
+    description = chapter0Scripts.court_magician.description;
     worldWidth = COLS * CELL_SIZE;
     worldHeight = ROWS * CELL_SIZE;
     enemies: EnemySpawnDef[] = [MAGICIAN, ...CRYSTALS];

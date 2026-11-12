@@ -23,10 +23,10 @@ import type {
 } from '../../types';
 import type { MapSegmentPOI, MapSegmentZone } from '../../../terrain/segmentSchema';
 import { resolveZoneTiles, offsetZone } from '../../../terrain/zones';
-import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
 import { ALLY_LANTERNITE, ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { UnitTag } from '../../../game/units/unitTag';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
+import { questScripts } from '../../../../../storylines/worldOfDarkness/quests.script';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import {
@@ -165,33 +165,11 @@ function buildScout(position: { x: number; y: number }) {
 const CAVE_CAMPFIRE_COL = CAVE_ORIGIN_COL + CAVE_CAMPFIRE.col;  // global
 const CAVE_CAMPFIRE_ROW = CAVE_CAMPFIRE.row;                     // global (row 0 origin)
 
-const PRE_MISSION_STORY: PreMissionStoryDef = {
-	phrases: [
-		{
-			type: 'dialogue',
-			speakerId: '1',
-			text: "You spot lights drifting south through the dark, moving with quiet purpose. You've got little else to do, so you follow them.",
-			portraitSide: 'left',
-			backgroundImage: STORY_BACKGROUNDS.campfire,
-		},
-	],
-};
-
-const POST_MISSION_STORY: PostMissionStoryDef = {
-	phrases: [
-		{
-			type: 'dialogue',
-			speakerId: '1',
-			text: 'The glowing insects have made their home. Two nests now glow in the dark—small fires of life holding back the shadow.',
-			portraitSide: 'left',
-			backgroundImage: STORY_BACKGROUNDS.campfire,
-		},
-	],
-};
+const EMBER_THRESHOLD_SCRIPT = questScripts.ember_threshold;
 
 export class EmberThresholdMission extends BaseMissionDef {
 	static readonly missionId = 'ember_threshold';
-	static readonly nameStr = 'Ember at the Threshold';
+	static readonly nameStr = EMBER_THRESHOLD_SCRIPT.name;
 
 	campaignId = 'world_of_darkness';
 	segmentIds = ['49_50_path_to_cave', '50_50_crystal_cave', '49_51_west_glade', '50_51_south_gate'];
@@ -200,7 +178,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 		{
 			id: 'find_first_nest',
 			objectiveType: ObjectiveType.Protect,
-			label: 'Find out what the creatures are doing',
+			label: questScripts.ember_threshold.objectives.find_first_nest,
 			toComplete: { type: 'aliveUnitCount', characterId: 'lanternite_nest', minCount: 1 },
 			onComplete: [{ type: 'revealObjective', id: 'find_second_nest' }],
 			showObjectiveMarker: {
@@ -212,7 +190,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 		{
 			id: 'find_second_nest',
 			objectiveType: ObjectiveType.Protect,
-			label: 'Follow the glowing creatures',
+			label: questScripts.ember_threshold.objectives.find_second_nest,
 			revealedInitially: false,
 			toComplete: { type: 'aliveUnitCount', characterId: 'lanternite_nest', minCount: 2 },
 			onComplete: [{ type: 'revealObjective', id: 'survive_1_round' }],
@@ -225,7 +203,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 		{
 			id: 'survive_1_round',
 			objectiveType: ObjectiveType.Survive,
-			label: 'Survive 1 more round',
+			label: questScripts.ember_threshold.objectives.survive_1_round,
 			revealedInitially: false,
 			requiresCompletedId: 'find_second_nest',
 			toComplete: { type: 'atLeastRound', round: 5 },
@@ -313,7 +291,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 	/** Quest-only; not placed on the chapter 2 Mission Map. */
 	mapPosition = undefined;
 	missionType = 'battle' as const;
-	description = 'Hold the threshold against relentless waves of shadow creatures. The line must not break.';
+	description = EMBER_THRESHOLD_SCRIPT.description;
 	name = EmberThresholdMission.nameStr;
 	worldWidth = WORLD_WIDTH;
 	worldHeight = WORLD_HEIGHT;
@@ -340,8 +318,8 @@ export class EmberThresholdMission extends BaseMissionDef {
 		},
 	];
 
-	preMissionStory = PRE_MISSION_STORY;
-	postMissionStory = POST_MISSION_STORY;
+	preMissionStory = EMBER_THRESHOLD_SCRIPT.preMissionStory;
+	postMissionStory = EMBER_THRESHOLD_SCRIPT.postMissionStory;
 
 	override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
 		// Pre-spawn the opening wolf pack alongside the scout. Recomputed per battle so

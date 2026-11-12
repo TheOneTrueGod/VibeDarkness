@@ -7,8 +7,8 @@ import { BaseMissionDef } from '../../BaseMissionDef';
 import { WOD_CH1_MAP_X_COL2, WOD_CH1_MAP_Y_ROW1 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { PostMissionChoiceResolveParams } from '../../types';
-import type { PostMissionStoryDef, StoryChoiceAction, StoryChoiceOptionRow } from '../../storyTypes';
-import { WEAPON_ITEM_CHARGED_ROCKS } from '../../../../../researchTrees/trees/weaponTreeIds';
+import type { StoryChoiceOptionRow } from '../../storyTypes';
+import { CAVE_RESPITE_PUNCH_CHOICES, chapter1Scripts } from '../../../../../storylines/worldOfDarkness/chapter1.script';
 import {
     TRAINING_TREE_ID,
     TRAINING_NODE_CHARGING_PUNCH,
@@ -16,7 +16,7 @@ import {
     TRAINING_NODE_SNEAKY_PUNCH,
     TRAINING_NODE_STRONG_PUNCH,
 } from '../../../../../researchTrees/trees/training';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
+import { WEAPON_ITEM_CHARGED_ROCKS } from '../../../../../researchTrees/trees/weaponTreeIds';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
@@ -29,41 +29,27 @@ function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
 }
 
+function punchRow(nodeId: string): StoryChoiceOptionRow {
+    const copy = CAVE_RESPITE_PUNCH_CHOICES[nodeId];
+    return {
+        id: nodeId,
+        label: copy.label,
+        loreTitle: copy.loreTitle,
+        loreDescription: copy.loreDescription,
+        action: {
+            type: 'grant_research_to_player',
+            treeId: TRAINING_TREE_ID,
+            nodeId,
+        },
+    };
+}
+
 function getCaveRespitePunchChoiceRows(equippedItemIds: readonly string[]): StoryChoiceOptionRow[] {
-    const grantPunch = (nodeId: string): StoryChoiceAction => ({
-        type: 'grant_research_to_player',
-        treeId: TRAINING_TREE_ID,
-        nodeId,
-    });
     const rows: StoryChoiceOptionRow[] = [
-        {
-            id: TRAINING_NODE_CHARGING_PUNCH,
-            label: 'Charging Punch',
-            loreTitle: 'Crystal Rhythm',
-            loreDescription: 'The crystals keep your rhythm. Each hit stores 1 Light Charge.',
-            action: grantPunch(TRAINING_NODE_CHARGING_PUNCH),
-        },
-        {
-            id: TRAINING_NODE_SNEAKY_PUNCH,
-            label: 'Sneaky Punch',
-            loreTitle: 'Strike the Opening',
-            loreDescription: 'Wait for a clean opening. Extra damage to stunned enemies.',
-            action: grantPunch(TRAINING_NODE_SNEAKY_PUNCH),
-        },
-        {
-            id: TRAINING_NODE_STRONG_PUNCH,
-            label: 'Strong Punch',
-            loreTitle: 'Brace and Hit',
-            loreDescription: 'Plant your feet and drive through. Stun and knock enemies back.',
-            action: grantPunch(TRAINING_NODE_STRONG_PUNCH),
-        },
-        {
-            id: TRAINING_NODE_DOUBLE_PUNCH,
-            label: 'Double Punch',
-            loreTitle: 'Two Quick Blows',
-            loreDescription: 'Tight paths train fast follow-ups. Strike two enemies in sequence.',
-            action: grantPunch(TRAINING_NODE_DOUBLE_PUNCH),
-        },
+        punchRow(TRAINING_NODE_CHARGING_PUNCH),
+        punchRow(TRAINING_NODE_SNEAKY_PUNCH),
+        punchRow(TRAINING_NODE_STRONG_PUNCH),
+        punchRow(TRAINING_NODE_DOUBLE_PUNCH),
     ];
     // Charging Punch feeds Throw Charged Rock; hide it unless Charged Rocks is equipped (mirrors the tree requirement).
     if (!equippedItemIds.includes(WEAPON_ITEM_CHARGED_ROCKS)) {
@@ -72,29 +58,7 @@ function getCaveRespitePunchChoiceRows(equippedItemIds: readonly string[]): Stor
     return rows;
 }
 
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'The cave holds you. Outside, the dark still hunts—but in here, by the faint light, you are safe for now.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'You settle in and share another meal while it lasts. The quiet feels borrowed—enough room to sharpen body and gear alike.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'choice',
-            choiceId: 'cave_respite_punch_choice',
-            options: [],
-        },
-    ],
-};
+const CAVE_RESPITE_SCRIPT = chapter1Scripts.cave_respite;
 
 export class CaveRespiteMission extends BaseMissionDef {
     getPostMissionChoiceOptions(params: PostMissionChoiceResolveParams): StoryChoiceOptionRow[] | null {
@@ -107,9 +71,9 @@ export class CaveRespiteMission extends BaseMissionDef {
     missionId = 'cave_respite';
     mapPosition = { x: WOD_CH1_MAP_X_COL2, y: WOD_CH1_MAP_Y_ROW1 };
     missionType = 'story' as const;
-    description = 'A rare moment of rest in a hidden alcove. Choose wisely how to spend your time.';
+    description = CAVE_RESPITE_SCRIPT.description;
     campaignId = 'world_of_darkness';
-    name = 'Cave respite';
+    name = CAVE_RESPITE_SCRIPT.name;
     completionRewards = {
         resourceDelta: {
             vigor: CAVE_RESPITE_VIGOR_REWARD,
@@ -121,7 +85,7 @@ export class CaveRespiteMission extends BaseMissionDef {
     worldHeight = CELL_SIZE;
     enemies = [];
     createTerrain = createTerrain;
-    postMissionStory = POST_MISSION_STORY;
+    postMissionStory = CAVE_RESPITE_SCRIPT.postMissionStory;
     skipBattle = true;
     lightLevelEnabled = false;
     ninjutsuPools = { shadow: NINJUTSU_DISABLED };

@@ -15,6 +15,7 @@
 import type { GameEngine } from '../../../game/GameEngine';
 import { ObjectiveType } from '../../objectiveTypes';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
+import { chapter3Scripts } from '../../../../../storylines/worldOfDarkness/chapter3.script';
 import type {
     BattleObjectiveDef,
     EnemySpawnDef,
@@ -172,7 +173,7 @@ export const THE_CASTLE_COURTYARD_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: OBJECTIVE_DESTROY_SPAWNERS,
         objectiveType: ObjectiveType.KillTarget,
-        label: 'Destroy the two swarmling spawners',
+        label: chapter3Scripts.the_castle_courtyard.objectives.destroy_spawners,
         toComplete: { type: 'unitDead', unitCharacterId: SWARM_NEST_CHARACTER_ID },
     },
 ];
@@ -205,15 +206,14 @@ function castleWarden(): EnemySpawnDef {
 
 export class TheCastleCourtyardMission extends BaseMissionDef {
     static readonly missionId = THE_CASTLE_COURTYARD_MISSION_ID;
-    static readonly nameStr = 'The Castle Courtyard';
+    static readonly nameStr = chapter3Scripts.the_castle_courtyard.name;
 
     campaignId = 'world_of_darkness';
     missionId = TheCastleCourtyardMission.missionId;
     name = TheCastleCourtyardMission.nameStr;
     mapPosition = { x: WOD_CH3_MAP_X_COL1, y: WOD_CH3_MAP_Y_ROW0 };
     missionType = 'battle' as const;
-    description =
-        'Past the moat bridge, the castle gate stands open. Something in the courtyard keeps the dark alive.';
+    description = chapter3Scripts.the_castle_courtyard.description;
 
     mapLayout = THE_CASTLE_COURTYARD_LAYOUT;
     segmentIds = [CASTLE_GATE_SEGMENT_ID, CASTLE_COURTYARD_SEGMENT_ID];

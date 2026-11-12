@@ -3,8 +3,8 @@
  */
 
 import type { StoryChoiceOptionRow } from '../../storyTypes';
+import { searchForLooseMetalsText } from '../../../../../storylines/worldOfDarkness/quests.script';
 import {
-    SEARCH_FOR_LOOSE_METALS_LABEL,
     SEARCH_FOR_LOOSE_METALS_OPTION_ID,
     SURFACE_METAL_HARVEST_METAL,
 } from './questMissionConstants';
@@ -12,9 +12,9 @@ import {
 export function buildSearchForLooseMetalsOption(): StoryChoiceOptionRow {
     return {
         id: SEARCH_FOR_LOOSE_METALS_OPTION_ID,
-        label: SEARCH_FOR_LOOSE_METALS_LABEL,
-        loreTitle: SEARCH_FOR_LOOSE_METALS_LABEL,
-        loreDescription: "There's bound to be some nearby.",
+        label: searchForLooseMetalsText.label,
+        loreTitle: searchForLooseMetalsText.label,
+        loreDescription: searchForLooseMetalsText.loreDescription,
         action: {
             type: 'grant_resources',
             metal: SURFACE_METAL_HARVEST_METAL,

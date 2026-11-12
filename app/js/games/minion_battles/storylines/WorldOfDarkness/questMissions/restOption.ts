@@ -3,14 +3,15 @@
  */
 
 import type { StoryChoiceOptionRow } from '../../storyTypes';
-import { REST_HUNGER_RECOVERY, REST_LABEL, REST_OPTION_ID } from './questMissionConstants';
+import { restChoiceText } from '../../../../../storylines/worldOfDarkness/quests.script';
+import { REST_HUNGER_RECOVERY, REST_OPTION_ID } from './questMissionConstants';
 
 export function buildRestOption(amount: number = REST_HUNGER_RECOVERY): StoryChoiceOptionRow {
     return {
         id: REST_OPTION_ID,
-        label: REST_LABEL,
-        loreTitle: REST_LABEL,
-        loreDescription: 'Take a moment to catch your breath and eat.',
+        label: restChoiceText.label,
+        loreTitle: restChoiceText.label,
+        loreDescription: restChoiceText.loreDescription,
         action: { type: 'recover_hunger', amount },
     };
 }

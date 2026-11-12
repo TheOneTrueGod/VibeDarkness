@@ -7,8 +7,7 @@
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { PostMissionChoiceResolveParams } from '../../types';
-import type { PostMissionStoryDef, StoryChoiceOptionRow } from '../../storyTypes';
-import { STORY_BACKGROUNDS } from '../../../assets/story';
+import type { StoryChoiceOptionRow } from '../../storyTypes';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTrees/trees/earth';
@@ -23,13 +22,19 @@ import {
 } from './questMissionConstants';
 import { buildSearchForLooseMetalsOption } from './searchForLooseMetalsOption';
 import { buildRestOption } from './restOption';
+import {
+    SURFACE_METAL_CHOICE_ID,
+    SURFACE_METAL_EXTRACT_COPY,
+    questScripts,
+} from '../../../../../storylines/worldOfDarkness/quests.script';
+
+export { SURFACE_METAL_CHOICE_ID };
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
 }
 
 export const SURFACE_METAL_DEPOSIT_MISSION_ID = 'surface_metal_deposit';
-export const SURFACE_METAL_CHOICE_ID = 'surface_metal_choice';
 export const SURFACE_METAL_OPTION_HARVEST = SEARCH_FOR_LOOSE_METALS_OPTION_ID;
 export const SURFACE_METAL_OPTION_EXTRACT = 'extract_metal';
 export const SURFACE_METAL_OPTION_REST = REST_OPTION_ID;
@@ -44,11 +49,11 @@ function buildChoiceOptions(playerResearchTrees: Record<string, string[]> | unde
         buildSearchForLooseMetalsOption(),
         {
             id: SURFACE_METAL_OPTION_EXTRACT,
-            label: 'Extract Metal',
-            loreTitle: 'Extract Metal',
+            label: SURFACE_METAL_EXTRACT_COPY.label,
+            loreTitle: SURFACE_METAL_EXTRACT_COPY.loreTitle,
             loreDescription: canExtract
-                ? `Earth Core lets you pull deeper veins. Each other player also gains +${SURFACE_METAL_EXTRACT_OTHERS_METAL} Metal.`
-                : `${REQUIRES_EARTH_CORE_LABEL}.`,
+                ? SURFACE_METAL_EXTRACT_COPY.enabledLoreDescription
+                : SURFACE_METAL_EXTRACT_COPY.disabledLoreDescription,
             disabledLabel: canExtract ? undefined : REQUIRES_EARTH_CORE_LABEL,
             action: {
                 type: 'grant_resources',
@@ -60,36 +65,19 @@ function buildChoiceOptions(playerResearchTrees: Record<string, string[]> | unde
     ];
 }
 
-const POST_MISSION_STORY: PostMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'Wind has stripped the soil from a dark seam of metal. It is close enough to work — or to walk past.',
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'choice',
-            choiceId: SURFACE_METAL_CHOICE_ID,
-            backgroundImage: STORY_BACKGROUNDS.surfaceMetalDeposit,
-            // Placeholder; rows come from getPostMissionChoiceOptions (Earth Core gate).
-            options: [],
-        },
-    ],
-};
+const SURFACE_METAL_SCRIPT = questScripts.surface_metal_deposit;
 
 export class SurfaceMetalDepositMission extends BaseMissionDef {
     missionId = SURFACE_METAL_DEPOSIT_MISSION_ID;
     missionType = 'story' as const;
-    description = 'A surface seam of metal on the plains — harvest, extract, or rest.';
+    description = SURFACE_METAL_SCRIPT.description;
     campaignId = 'world_of_darkness';
-    name = 'Surface metal deposit';
+    name = SURFACE_METAL_SCRIPT.name;
     worldWidth = CELL_SIZE;
     worldHeight = CELL_SIZE;
     enemies = [];
     createTerrain = createTerrain;
-    postMissionStory = POST_MISSION_STORY;
+    postMissionStory = SURFACE_METAL_SCRIPT.postMissionStory;
     skipBattle = true;
     lightLevelEnabled = false;
     ninjutsuPools = { shadow: NINJUTSU_DISABLED };
