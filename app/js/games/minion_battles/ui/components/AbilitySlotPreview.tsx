@@ -5,6 +5,7 @@ import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { resolveModeAbilityId } from '../../abilities/resolveAbilityMode';
+import { ABILITY_USE_DIAMOND_SIZE_PX } from './battleUiSlots/battleBottomBarLayout';
 import AbilitySlot, {
     ABILITY_MODE_STRIP_TOTAL_HEIGHT_PX,
     ABILITY_SLOT_PREP_HEIGHT_PX,
@@ -71,6 +72,7 @@ export function AbilitySlotPreview({
         <div
             data-className="AbilitySlotPreview"
             className={className}
+            style={{ paddingBottom: ABILITY_USE_DIAMOND_SIZE_PX / 2 }}
             title={disabled && disabledTitle ? disabledTitle : undefined}
         >
             <AbilitySlot

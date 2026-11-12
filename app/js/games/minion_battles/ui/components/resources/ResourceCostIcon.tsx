@@ -13,7 +13,7 @@ export const RESOURCE_COST_STACKED_ICON_MAX = 4;
 /** Horizontal overlap between stacked resource / recovery charge icons (px). */
 export const STACKED_ICON_OVERLAP_PX = 8;
 
-/** Matches the ability bar uses pill (`AbilitySlot`). */
+/** Compact cost-pill height on an ability card. */
 export const RESOURCE_COST_COMPACT_BADGE_MIN_HEIGHT_PX = 22;
 /** Icon diameter inside the compact cost pill. */
 export const RESOURCE_COST_COMPACT_ICON_SIZE_PX = 16;

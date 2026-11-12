@@ -17,7 +17,6 @@ import { RECOVERY_CHARGE_DEFINITIONS, recoveryGlossaryEntries } from './recovery
 import AbilityTooltip from './AbilityTooltip';
 import {
     ResourceCostIcon,
-    RESOURCE_COST_COMPACT_BADGE_MIN_HEIGHT_PX,
     STACKED_ICON_OVERLAP_PX,
 } from './resources/ResourceCostIcon';
 import type { DisabledReason } from './abilityDisabledReason';
@@ -25,6 +24,9 @@ import {
     ABILITY_MODE_STRIP_GAP_PX,
     ABILITY_MODE_STRIP_HEIGHT_PX,
     ABILITY_SLOT_HEIGHT_PX,
+    ABILITY_USE_DIAMOND_GAP_PX,
+    ABILITY_USE_DIAMOND_SIZE_PX,
+    abilityUseDiamondSizePx,
 } from './battleUiSlots/battleBottomBarLayout';
 import { AbilityModeStrip } from './AbilityModeStrip';
 import { ensureSvgViewBox } from './abilityIconSvg';
@@ -49,6 +51,50 @@ export function usesHandModeStrip(abilityModes: AbilityModesConfig | undefined):
 
 /** Extra height the mode strip (and its gap) adds below a card. */
 export const ABILITY_MODE_STRIP_TOTAL_HEIGHT_PX = ABILITY_MODE_STRIP_HEIGHT_PX + ABILITY_MODE_STRIP_GAP_PX;
+/** `border-2` on the card. Use diamonds are centered on this stroke. */
+const ABILITY_SLOT_BORDER_PX = 2;
+
+/** Use pips along the bottom edge. Filled diamonds are uses still left, left to right. */
+function AbilityUseDiamonds({ usesLeft, maxUses, dimmed }: { usesLeft: number; maxUses: number; dimmed: boolean }) {
+    const count = Math.max(1, maxUses);
+    const filled = Math.max(0, Math.min(count, usesLeft));
+    const size = abilityUseDiamondSizePx(count, ABILITY_SLOT_WIDTH_PX);
+    return (
+        <div
+            data-className="AbilityUseDiamonds"
+            className={`pointer-events-none absolute bottom-0 left-1/2 z-20 flex ${dimmed ? 'opacity-50' : ''}`}
+            style={{
+                gap: ABILITY_USE_DIAMOND_GAP_PX,
+                transform: `translate(-50%, calc(50% + ${ABILITY_SLOT_BORDER_PX / 2}px))`,
+            }}
+            role="img"
+            aria-label={`${filled} of ${count} uses`}
+        >
+            {Array.from({ length: count }, (_, index) => (
+                <UseDiamond key={index} filled={index < filled} size={size} />
+            ))}
+        </div>
+    );
+}
+
+function UseDiamond({ filled, size }: { filled: boolean; size: number }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 16 16"
+            aria-hidden
+        >
+            <polygon
+                points="8,1.2 14.8,8 8,14.8 1.2,8"
+                fill={filled ? '#ffffff' : '#000000'}
+                stroke="#ffffff"
+                strokeWidth="1.2"
+                strokeLinejoin="miter"
+            />
+        </svg>
+    );
+}
 
 interface AbilitySlotProps {
     ability: AbilityStatic;
@@ -202,17 +248,10 @@ export default function AbilitySlot({
                 `}
                 style={{ width: ABILITY_SLOT_WIDTH_PX, height: cardHeightPx }}
             >
-                {/* Uses + recovery — top of the card stack */}
+                {showRecovery && (
                 <div
                     className={`relative z-10 flex max-w-[calc(100%-32px)] shrink-0 items-center gap-0.5 pointer-events-none ${isDisabled ? 'opacity-50' : ''}`}
                 >
-                    <div
-                        className="flex shrink-0 items-center rounded border border-white bg-surface px-1.5 py-0.5 text-[10px] tabular-nums leading-none text-gray-100"
-                        style={{ minHeight: RESOURCE_COST_COMPACT_BADGE_MIN_HEIGHT_PX }}
-                    >
-                        {usesLeft}/{maxUses}
-                    </div>
-                    {showRecovery && (
                         <div className="flex min-w-0 flex-col justify-center gap-0.5">
                             {recoveryRules.map((rule, ruleIndex) => {
                                 const recoveryNeeded = Math.max(1, rule.chargesPerRecovery);
@@ -266,8 +305,10 @@ export default function AbilitySlot({
                                 );
                             })}
                         </div>
-                    )}
                 </div>
+                )}
+
+                <AbilityUseDiamonds usesLeft={usesLeft} maxUses={maxUses} dimmed={isDisabled} />
 
                 {/* Resource cost — inset from top-right corner */}
                 {displayCosts.length > 0 && (
@@ -285,6 +326,7 @@ export default function AbilitySlot({
 
                 <div
                     className={`flex min-h-0 flex-1 flex-col items-center px-0.5 ${isDisabled ? 'opacity-50' : ''}`}
+                    style={{ paddingBottom: ABILITY_USE_DIAMOND_SIZE_PX / 2 }}
                 >
                     <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
                         <div
