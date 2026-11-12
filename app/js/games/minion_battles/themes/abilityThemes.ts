@@ -37,6 +37,18 @@ export const COURT_MAGIC_THEME: AbilityTheme = {
     font: '#1e0336',
     shadeFactor: 0.5,
 };
+/**
+ * Water, Tidewater: a deep navy for mass (ice bodies, the field, research border) and a seafoam for the
+ * event (edges, frost trails, splashes, the Water resource). Dark navy research text on the seafoam fill.
+ * Chosen in `docs/ideas/plans/0005_2026-11-11_water-tree.md`.
+ */
+export const WATER_THEME: AbilityTheme = {
+    id: 'water',
+    primary: '#1e3a8a',
+    secondary: '#5eead4',
+    font: '#0b1a3a',
+    shadeFactor: 0.5,
+};
 export const EARTH_THEME: AbilityTheme = { id: 'earth', primary: '#b45309' };
 export const LIGHT_THEME: AbilityTheme = { id: 'light', primary: '#eab308' };
 export const GRAVITY_THEME: AbilityTheme = { id: 'gravity', primary: '#a855f7' };
@@ -65,6 +77,7 @@ export const ABILITY_THEMES: Readonly<Record<string, AbilityTheme>> = Object.fro
         ARMORY_THEME,
         STORM_THEME,
         COURT_MAGIC_THEME,
+        WATER_THEME,
         EARTH_THEME,
         LIGHT_THEME,
         GRAVITY_THEME,
@@ -91,4 +104,5 @@ export const ABILITY_GROUP_THEMES: Readonly<Partial<Record<number, AbilityTheme>
     10: ARMORY_THEME, // AbilityGroupId.Armory
     13: STORM_THEME, // AbilityGroupId.Storm
     14: COURT_MAGIC_THEME, // AbilityGroupId.EnemyCourtMagician
+    15: WATER_THEME, // AbilityGroupId.Water
 };

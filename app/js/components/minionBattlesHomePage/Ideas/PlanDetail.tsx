@@ -85,7 +85,7 @@ function Block({ block }: { block: PlanBlock }) {
         case 'palette':
             if (block.variant === 'fx') {
                 return (
-                    <FxPaletteCard name={block.name} primary={block.primary} secondary={block.secondary}>
+                    <FxPaletteCard name={block.name} primary={block.primary} secondary={block.secondary} options={block.fx}>
                         {block.blocks.map((child, i) => (
                             <Block key={i} block={child} />
                         ))}
@@ -101,7 +101,7 @@ function Block({ block }: { block: PlanBlock }) {
             );
         case 'fxStudio':
             return (
-                <FxStudio title={block.title}>
+                <FxStudio title={block.title} options={block.fx}>
                     {block.blocks.map((child, i) => (
                         <Block key={i} block={child} />
                     ))}

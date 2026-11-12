@@ -36,6 +36,11 @@ export interface DebugSettingsSnapshot {
      * `performanceLog` on serialized game state (checkpoints / tick logs).
      */
     jsPerformanceTracking: boolean;
+    /**
+     * When true, every unit is drawn as `'seen'` regardless of team perception (visibility and senses).
+     * Read only by `getUnitDetection` (`game/visibility/teamPerception.ts`).
+     */
+    revealAllUnits: boolean;
 }
 
 export const debugSettingsSnapshot: DebugSettingsSnapshot = {
@@ -47,6 +52,7 @@ export const debugSettingsSnapshot: DebugSettingsSnapshot = {
     debugAdvanceTicksRequested: 0,
     logEveryTick: false,
     jsPerformanceTracking: false,
+    revealAllUnits: false,
 };
 
 export function requestDebugAdvanceTicks(count = 1): void {

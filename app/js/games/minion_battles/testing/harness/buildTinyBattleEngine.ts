@@ -25,7 +25,7 @@ import { computeAbilityModifiersFromResearch } from '../../../../researchTrees/e
 import { getAbilityTagsForId } from '../../abilities/Ability';
 import { expandAbilityIdsForResearchModifiers } from '../../abilities/abilityModifierHelpers';
 import { getItemDef } from '../../character_defs/items';
-import { collectRoundStartRecoveryCharges } from '../../storylines/BaseMissionDef';
+import { attachResourcesFromResearch, collectRoundStartRecoveryCharges } from '../../storylines/BaseMissionDef';
 import {
     activeResearchByPlayer,
     activeResearchNodeLevelsByPlayer,
@@ -246,6 +246,7 @@ export function placePlayerFromLoadout(
             if (resource) player.attachResource(resource, engine.eventBus);
         }
     }
+    attachResourcesFromResearch(player, activeByPlayer[playerId], engine.eventBus);
     player.weaponAbilityIds = loadout.weaponAbilityIds.filter((id) => player.abilities.includes(id));
     const grants = getMissionStartResourcesFromResearch(activeByPlayer[playerId]);
     for (const [resourceId, amount] of grants) {

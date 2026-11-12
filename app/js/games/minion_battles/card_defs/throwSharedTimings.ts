@@ -1,6 +1,7 @@
 /**
  * Shared throw-family timings, More Rock dual-throw pattern, and thrown-weapon research helpers.
- * Used by Throw Rock, Throw Charged Rock, and Throw Knife.
+ * Used by Throw Rock, Throw Charged Rock, Throw Knife, Blood Shard and Ice Shards (two throws at
+ * `QUICK_THROW_PROFILE` pace via `dualThrowPacing`).
  */
 
 import { AbilityState, type AbilityStateEntry } from '../abilities/Ability';
@@ -289,8 +290,61 @@ function applyThrowComboCancel(
     });
 }
 
+/**
+ * When each part of a two-throw cast happens (seconds from cast start). `MORE_ROCK_PACING` is the
+ * More Rock timeline; `dualThrowPacing(profile)` derives one from a single-throw profile.
+ */
+export interface DualThrowPacing {
+    firstThrow: number;
+    /** Length of each release frame. */
+    slice: number;
+    secondThrow: number;
+    cooldownStart: number;
+    totalDuration: number;
+    /** The windup slow lasts until `firstThrow`; the standard slow until this. */
+    movementPenaltyUntil: number;
+}
+
+export const MORE_ROCK_PACING: DualThrowPacing = {
+    firstThrow: MORE_ROCK_FIRST_THROW,
+    slice: MORE_ROCK_TIME_SLICE,
+    secondThrow: MORE_ROCK_SECOND_THROW,
+    cooldownStart: MORE_ROCK_COOLDOWN_START,
+    totalDuration: MORE_ROCK_TOTAL_DURATION,
+    movementPenaltyUntil: MORE_ROCK_SECOND_THROW,
+};
+
+/**
+ * Two throws at a single-throw profile's pace: the first releases at `windupEnd`, the second after
+ * another windup of the same length, then the profile's own recovery (shifted by the extra throw).
+ * `QUICK_THROW_PROFILE` gives throws at 0.2 s and 0.5 s and a 1.5 s cast.
+ */
+export function dualThrowPacing(profile: ThrowTimingProfile): DualThrowPacing {
+    const slice = profile.activeEnd - profile.windupEnd;
+    const secondThrow = profile.activeEnd + profile.windupEnd;
+    const extra = secondThrow - profile.windupEnd;
+    return {
+        firstThrow: profile.windupEnd,
+        slice,
+        secondThrow,
+        cooldownStart: secondThrow + slice,
+        totalDuration: profile.cooldownEnd + extra,
+        movementPenaltyUntil: profile.movementPenaltyUntil + extra,
+    };
+}
+
 export interface BuildMoreRockTimingsOpts {
     launchBehaviour: CastBehaviour;
+    /** Timeline; default `MORE_ROCK_PACING`. */
+    pacing?: DualThrowPacing;
+    /** Extra one-shot behaviours when the first windup starts (e.g. a windup VFX). */
+    windupBehaviours?: CastBehaviour[];
+    /** Extra one-shot behaviours at each release, aimed at that throw's target (e.g. a second launch). */
+    releaseBehaviours?: CastBehaviour[];
+    /** Visual effects at each projectile's hit / expiry point. */
+    onProjectileHit?: VisualEffectDef[];
+    /** Label of the second pick (default `'Second target (More Rock)'`). */
+    secondTargetLabel?: string;
     entombed?: EntombedTimingOpts;
     comboCancelPhase?: AbilityPhase;
     selectHitbox?: HitboxSpec;
@@ -301,54 +355,66 @@ export interface BuildMoreRockTimingsOpts {
 /** Timeline: windup / throw / short windup / throw / cooldown (`::::::=:::=...`). */
 export function buildMoreRockTimings(opts: BuildMoreRockTimingsOpts): AbilityTimingInterval[] {
     const { launchBehaviour, entombed } = opts;
+    const pacing = opts.pacing ?? MORE_ROCK_PACING;
     const selectOpts = {
         selectHitbox: opts.selectHitbox,
         selectFilter: opts.selectFilter,
         lockOnMode: opts.lockOnMode,
     };
+    const windupEntries: CastBehaviourEntry[] = (opts.windupBehaviours ?? [])
+        .map((behaviour): CastBehaviourEntry => ({ timingStart: 'start', behaviour }));
+    const releaseEntries = (targetIndex: number): CastBehaviourEntry[] => [
+        ...throwLaunchAtWindowStart(launchBehaviour, targetIndex),
+        ...(opts.releaseBehaviours ?? [])
+            .map((behaviour): CastBehaviourEntry => ({ timingStart: 'start', targetIndex, behaviour })),
+    ];
+    const onHit = opts.onProjectileHit ? { onProjectileHit: opts.onProjectileHit } : {};
     const raw: AbilityTimingInterval[] = [
         {
             id: 'windup_1',
             start: 0,
-            end: MORE_ROCK_FIRST_THROW,
+            end: pacing.firstThrow,
             abilityPhase: AbilityPhase.Windup,
             timelineLabel: 'Startup',
             timelineDescription: 'Winding up for the first throw.',
+            ...(windupEntries.length > 0 ? { castBehaviours: windupEntries } : {}),
         },
         {
             id: 'active_1',
-            start: MORE_ROCK_FIRST_THROW,
-            end: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
+            start: pacing.firstThrow,
+            end: pacing.firstThrow + pacing.slice,
             abilityPhase: AbilityPhase.Active,
             doNotRefund: true,
             timelineLabel: 'First throw',
             timelineDescription: 'First projectile is in flight.',
             // Picked right before the throw, like the second target, not up front at cast start.
             targetDef: { ...throwSelectTargetDef('Target location', selectOpts), pickAtEntry: true },
-            castBehaviours: throwLaunchAtWindowStart(launchBehaviour, 0),
+            castBehaviours: releaseEntries(0),
+            ...onHit,
         },
         {
             id: 'windup_2',
-            start: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
-            end: MORE_ROCK_SECOND_THROW,
+            start: pacing.firstThrow + pacing.slice,
+            end: pacing.secondThrow,
             abilityPhase: AbilityPhase.Windup,
             timelineLabel: 'Quick windup',
             timelineDescription: 'Brief pause before the second throw.',
         },
         {
             id: 'active_2',
-            start: MORE_ROCK_SECOND_THROW,
-            end: MORE_ROCK_SECOND_THROW + MORE_ROCK_TIME_SLICE,
+            start: pacing.secondThrow,
+            end: pacing.secondThrow + pacing.slice,
             abilityPhase: AbilityPhase.Active,
             timelineLabel: 'Second throw',
             timelineDescription: 'Second projectile is in flight.',
-            targetDef: throwSelectTargetDef('Second target (More Rock)', selectOpts),
-            castBehaviours: throwLaunchAtWindowStart(launchBehaviour, 1),
+            targetDef: throwSelectTargetDef(opts.secondTargetLabel ?? 'Second target (More Rock)', selectOpts),
+            castBehaviours: releaseEntries(1),
+            ...onHit,
         },
         {
             id: 'cooldown',
-            start: MORE_ROCK_COOLDOWN_START,
-            end: MORE_ROCK_TOTAL_DURATION,
+            start: pacing.cooldownStart,
+            end: pacing.totalDuration,
             abilityPhase: AbilityPhase.Cooldown,
             timelineLabel: 'Cooldown',
             timelineDescription: 'Recovering after both throws.',
@@ -405,5 +471,16 @@ export function throwMovementPenaltyStates(
 ): AbilityStateEntry[] {
     if (currentTime < profile.windupEnd) return penaltyEntry(profile.windupMovementPenalty);
     if (currentTime < profile.movementPenaltyUntil) return penaltyEntry(profile.movementPenalty);
+    return [];
+}
+
+/** Movement-penalty states for a two-throw cast that always throws twice (no per-cast payload). */
+export function dualThrowMovementPenaltyStates(
+    currentTime: number,
+    pacing: DualThrowPacing,
+    profile: ThrowTimingProfile = BASE_THROW_PROFILE,
+): AbilityStateEntry[] {
+    if (currentTime < pacing.firstThrow) return penaltyEntry(profile.windupMovementPenalty);
+    if (currentTime < pacing.movementPenaltyUntil) return penaltyEntry(profile.movementPenalty);
     return [];
 }

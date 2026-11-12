@@ -38,6 +38,7 @@ import { deserializeEngine, serializeEngine } from './engineSerialization';
 import { wireCoreEventListeners } from './engineEventWiring';
 import { OrderPauseController } from './orderPause/OrderPauseController';
 import { LightingSystem } from './lighting/LightingSystem';
+import type { LightOcclusionCache } from './lighting/lightOcclusion';
 import { NpcControlRegistry } from './npcControl/NpcControlRegistry';
 import {
     FingerprintEvent,
@@ -673,6 +674,11 @@ export class GameEngine implements EngineContext {
         return this.lighting.getAllLightSources();
     }
 
+    /** Engine-scoped wall-occlusion masks for light (pass to `computeLightGrid` / `getLightGrid`). */
+    getLightOcclusion(): LightOcclusionCache | undefined {
+        return this.lighting.getLightOcclusion();
+    }
+
     /** Light sources with id for AI (FindLight state). */
     private getLightSourcesForAI(): AILightSource[] {
         return this.lighting.getLightSourcesForAI();
@@ -723,6 +729,9 @@ export class GameEngine implements EngineContext {
         this.terrainManager = config.terrainManager ?? null;
         this.terrainManager?.setStoneDamagedEmitter((event) => {
             this.eventBus.emit('terrain_stone_damaged', event);
+        });
+        this.terrainManager?.setWaterDrainedEmitter((event) => {
+            this.eventBus.emit('terrain_water_drained', event);
         });
         this.terrainManager?.setTerrainEffectsClearedEmitter((cleared) => {
             this.eventBus.emit('terrain_effects_cleared', { cleared });
@@ -1751,6 +1760,7 @@ export class GameEngine implements EngineContext {
         this.stop();
         this.deferredOrderPause = null;
         this.terrainManager?.setStoneDamagedEmitter(undefined);
+        this.terrainManager?.setWaterDrainedEmitter(undefined);
         this.terrainManager?.setTerrainEffectsClearedEmitter(undefined);
         for (const unit of this.units) {
             unit.detachAllResources(this.eventBus);

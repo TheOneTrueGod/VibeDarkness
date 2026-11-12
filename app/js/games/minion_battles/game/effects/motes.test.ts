@@ -4,7 +4,19 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Effect } from './Effect';
-import { createMote, MOTE_EFFECT_TYPE, MOTE_PRESETS, moteFlicker, moteRng } from './motes';
+import type { Graphics } from 'pixi.js';
+import {
+    createMote,
+    drawMote,
+    MOTE_EFFECT_TYPE,
+    MOTE_PRESETS,
+    moteAngle,
+    moteDrawOffsetY,
+    moteFlicker,
+    moteRng,
+    type MoteEffectData,
+    type MoteShape,
+} from './motes';
 import { BUFF_PARTICLE_AURA_PRESETS, BuffRenderEmitterSystem } from './buffParticleAura';
 import { PROJECTILE_PARTICLE_TRAIL_PRESETS, ProjectileParticleTrailSystem } from './projectileParticleTrails';
 import { COMMAND_CUE_EFFECT_TYPE } from './commandCue';
@@ -42,6 +54,102 @@ describe('createMote', () => {
             expect(f).toBeLessThanOrEqual(1 + 1e-9);
         }
         expect(moteFlicker(1.23, 0, 0)).toBe(1);
+    });
+});
+
+/** Records Graphics calls so a test can tell which primitives a shape drew. */
+function recordingGraphics() {
+    const calls: string[] = [];
+    const g = new Proxy(
+        {},
+        {
+            get: (_t, name: string) => (..._args: unknown[]) => {
+                calls.push(name);
+                return g;
+            },
+        },
+    ) as unknown as Graphics;
+    return { g, calls };
+}
+
+describe('mote shapes', () => {
+    const shapes: MoteShape[] = ['frost', 'shard', 'droplet'];
+
+    it.each(shapes)('round-trips the %s shape through createMote into effect data', (shape) => {
+        const spec = { ...MOTE_PRESETS.frost('water'), shape };
+        const data = createMote(0, 0, spec, moteRng(7)).effectData as unknown as MoteEffectData;
+        expect(data.shape).toBe(shape);
+        if (shape === 'droplet') {
+            expect(data.spin).toBeUndefined();
+        } else {
+            expect(typeof data.angle).toBe('number');
+            expect(typeof data.spin).toBe('number');
+            expect(moteAngle(data, 1)).toBeCloseTo(data.angle! + data.spin!);
+        }
+    });
+
+    it('keeps today\'s spark when shape is omitted', () => {
+        const spec = MOTE_PRESETS.spirit();
+        expect(spec.shape).toBeUndefined();
+        const fx = createMote(10, 20, spec, moteRng(3));
+        const data = fx.effectData as unknown as MoteEffectData;
+        expect(data.shape).toBeUndefined();
+        expect(data.angle).toBeUndefined();
+        expect(data.arcPx).toBeUndefined();
+        expect(moteDrawOffsetY(data, 0.5)).toBe(0);
+        // Same RNG draws as before the shapes existed: an explicit 'spark' gives identical data.
+        const explicit = createMote(10, 20, { ...spec, shape: 'spark' }, moteRng(3));
+        expect(explicit.effectData).toEqual(fx.effectData);
+
+        const { g, calls } = recordingGraphics();
+        drawMote(g, 0, 0, 2, 0xffffff, 0x000000, 1);
+        expect(calls).toEqual(['circle', 'fill', 'circle', 'fill', 'circle', 'fill', 'circle', 'fill']);
+    });
+
+    it('draws each new shape with its own primitives', () => {
+        const draw = (shape: MoteShape) => {
+            const { g, calls } = recordingGraphics();
+            drawMote(g, 0, 0, 2, 0x5eead4, 0x1e3a8a, 1, { shape, angle: 0.3 });
+            return calls;
+        };
+        expect(draw('frost')).toContain('stroke');
+        expect(draw('frost').filter((c) => c === 'lineTo').length).toBe(3 * (1 + 2 * 2));
+        expect(draw('shard')).toContain('poly');
+        expect(draw('droplet')).toContain('ellipse');
+    });
+
+    it('gravityPx arcs a mote up and brings it back below its start by the end of life', () => {
+        const spec = MOTE_PRESETS.droplets('water');
+        expect(spec.gravityPx).toBeGreaterThan(0);
+        const fx = createMote(100, 200, spec, moteRng(11));
+        const data = fx.effectData as unknown as MoteEffectData;
+        expect(data.gravityPx).toBe(spec.gravityPx);
+        const drawnY = () => fx.y + moteDrawOffsetY(data, fx.progress);
+        expect(drawnY()).toBe(200);
+        let minY = Infinity;
+        for (let i = 1; i <= 100; i++) {
+            fx.renderUpdate(fx.duration / 100 - 1e-9);
+            minY = Math.min(minY, drawnY());
+        }
+        // Peaks about risePx (+-30%) above the start, then falls back gravityPx below it.
+        expect(minY).toBeLessThan(200 - spec.risePx * 0.6);
+        expect(minY).toBeGreaterThan(200 - spec.risePx * 1.4);
+        expect(drawnY()).toBeGreaterThan(200);
+        expect(drawnY()).toBeCloseTo(200 + spec.gravityPx!, 0);
+    });
+
+    it('frost presets and the frost projectile trail use the theme colours', () => {
+        const { light, dark } = themeGlowPair(getThemeById('water'));
+        for (const spec of [MOTE_PRESETS.frost('water'), MOTE_PRESETS.frostTrail('water')]) {
+            expect(spec.shape).toBe('frost');
+            expect(spec.color).toBe(light);
+            expect(spec.glowColor).toBe(dark);
+        }
+        expect(MOTE_PRESETS.frostTrail('water').durationSec).toBeLessThan(MOTE_PRESETS.frost('water').durationSec);
+        const trail = PROJECTILE_PARTICLE_TRAIL_PRESETS.frost('water');
+        expect(trail.ratePerSec).toBeGreaterThan(0);
+        expect(trail.spec).toEqual(MOTE_PRESETS.frostTrail('water'));
+        expect(light).toBe(0x5eead4);
     });
 });
 

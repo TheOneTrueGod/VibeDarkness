@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cssHexToNumber, darkenCssHex, numberToCssHex } from './colorUtils';
+import { cssHexToNumber, darkenCssHex, mixCssHex, numberToCssHex } from './colorUtils';
 import { ARMORY_PRIMARY_SHADE_COLOR } from '../card_defs/10_armory_core/armoryConstants';
 
 describe('colorUtils', () => {
@@ -20,5 +20,12 @@ describe('colorUtils', () => {
     it('factor 1 is identity and factor 0 is black', () => {
         expect(darkenCssHex('#4f6d8c', 1)).toBe('#4f6d8c');
         expect(darkenCssHex('#e7e5e4', 0)).toBe('#000000');
+    });
+
+    it('mixes two colours per channel', () => {
+        expect(mixCssHex('#000000', '#ffffff', 0)).toBe('#000000');
+        expect(mixCssHex('#000000', '#ffffff', 1)).toBe('#ffffff');
+        expect(mixCssHex('#000000', '#ffffff', 0.5)).toBe('#808080');
+        expect(mixCssHex('#5eead4', '#ffffff', 0.55)).toBe('#b7f6ec');
     });
 });

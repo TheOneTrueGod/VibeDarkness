@@ -10,7 +10,7 @@
  * that run in the live game.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
@@ -18,6 +18,15 @@ import {
 } from '../testing/harness/buildTinyBattleEngine';
 import { LightImbueBuff } from '../buffs/LightImbueBuff';
 import { consumeAbilityUse, ensureAbilityRuntimeState } from './abilityUses';
+import { defineAbility } from './defineAbility';
+import { AbilityPhase } from './abilityTimings';
+import { registerAbilityForTest } from './AbilityRegistry';
+import type { AbilityStatic } from './Ability';
+import { GameEngine } from '../game/GameEngine';
+import { FIXED_DT } from '../game/gameConstants';
+import { executeUnitAbility } from '../game/units/unitAbilityLifecycle';
+import type { Unit } from '../game/units/Unit';
+import { Water } from '../resources/Water';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -169,5 +178,210 @@ describe('Swap Network — Scenario D: guard against double-swap', () => {
 
         expect(player.abilityRuntime['0803']?.active).toBe(false);
         expect(player.abilityRuntime['0803']?.replacedAbilityId).toBe(null);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Scenario E — `whileCastable`: the swap ability holds the slot while it can be cast
+// ---------------------------------------------------------------------------
+
+const WC_BASE_ID = 'test_while_castable_base';
+const WC_SWAP_ID = 'test_while_castable_swap';
+const WC_COST = 3;
+const WC_USES = 2;
+const WC_CAST_SECONDS = 0.5;
+
+function wcAbility(overrides: Partial<AbilityStatic> & Pick<AbilityStatic, 'id' | 'name'>): AbilityStatic {
+    return defineAbility({
+        image: '',
+        resourceCost: null,
+        rechargeTurns: 0,
+        prefireTime: 0,
+        targets: [],
+        abilityTimings: [
+            { id: 'active', start: 0, end: WC_CAST_SECONDS, abilityPhase: AbilityPhase.Active, castBehaviours: [] },
+        ],
+        getTooltipText: () => [overrides.name],
+        getRange: () => ({ minRange: 0, maxRange: 100 }),
+        ...overrides,
+    });
+}
+
+const WcBaseAbility = wcAbility({ id: WC_BASE_ID, name: 'Base Card' });
+const WcSwapAbility = wcAbility({
+    id: WC_SWAP_ID,
+    name: 'Swap Card',
+    maxUses: WC_USES,
+    resourceCost: { resourceId: 'water', amount: WC_COST },
+    swapConfig: {
+        activateTrigger: { type: 'whileCastable' },
+        deactivateTrigger: { type: 'whileCastable' },
+        replacesAbilityId: WC_BASE_ID,
+    },
+});
+
+/** Steps the engine like a live battle (UnitManager tick, natural cast completion). */
+function stepTicks(engine: GameEngine, ticks: number): void {
+    for (let i = 0; i < ticks; i++) {
+        engine.waitingForOrders = null;
+        engine.isPaused = false;
+        (engine as unknown as { fixedUpdate(dt: number): void }).fixedUpdate(FIXED_DT);
+    }
+}
+
+const CAST_TICKS = Math.ceil(WC_CAST_SECONDS / FIXED_DT) + 2;
+
+function buildWhileCastableEngine(startWater = 0) {
+    const engine = buildTinyBattleEngine({ gridW: 8, gridH: 8, localPlayerId: P, grass: true });
+    const player = spawnTinyPlayerUnit(engine, {
+        playerId: P,
+        x: PLAYER_POS.x,
+        y: PLAYER_POS.y,
+        abilities: [WC_BASE_ID, '0804', WC_SWAP_ID],
+    });
+    const water = new Water();
+    water.current = startWater;
+    player.attachResource(water, engine.eventBus);
+    let barEvents = 0;
+    engine.eventBus.on('ability_bar_changed', () => { barEvents++; });
+    return { engine, player, water, barEvents: () => barEvents };
+}
+
+function isSwappedIn(player: Unit): boolean {
+    return player.abilityRuntime[WC_SWAP_ID]?.active === true
+        && player.abilityRuntime[WC_BASE_ID]?.active === false
+        && player.abilities.indexOf(WC_SWAP_ID) === 0;
+}
+
+function isSwappedOut(player: Unit): boolean {
+    return player.abilityRuntime[WC_SWAP_ID]?.active === false
+        && player.abilityRuntime[WC_BASE_ID]?.active === true
+        && player.abilities.indexOf(WC_BASE_ID) === 0
+        && player.abilityRuntime[WC_SWAP_ID]?.replacedAbilityId === null;
+}
+
+describe('Swap Network — Scenario E: whileCastable', () => {
+    beforeAll(() => {
+        registerAbilityForTest(WcBaseAbility);
+        registerAbilityForTest(WcSwapAbility);
+    });
+
+    it('stays hidden while the cost cannot be paid', () => {
+        const { engine, player, barEvents } = buildWhileCastableEngine(WC_COST - 1);
+        stepTicks(engine, 5);
+        expect(isSwappedOut(player)).toBe(true);
+        expect(barEvents()).toBe(0);
+    });
+
+    it('swaps into the replaced slot once affordable, keeping its own uses', () => {
+        const { engine, player, water } = buildWhileCastableEngine(0);
+        stepTicks(engine, 1);
+        expect(isSwappedOut(player)).toBe(true);
+
+        water.current = WC_COST;
+        stepTicks(engine, 1);
+
+        expect(isSwappedIn(player)).toBe(true);
+        expect(player.abilityRuntime[WC_SWAP_ID]?.replacedAbilityId).toBe(WC_BASE_ID);
+        expect(player.abilityRuntime[WC_SWAP_ID]?.currentUses).toBe(WC_USES);
+    });
+
+    it('gives the slot back when the resource drops below cost', () => {
+        const { engine, player, water } = buildWhileCastableEngine(WC_COST);
+        stepTicks(engine, 1);
+        expect(isSwappedIn(player)).toBe(true);
+
+        water.current = WC_COST - 0.5;
+        stepTicks(engine, 1);
+        expect(isSwappedOut(player)).toBe(true);
+    });
+
+    it('gives the slot back once its uses hit 0, after the last cast ends, and returns at round start', () => {
+        const { engine, player } = buildWhileCastableEngine(16);
+        stepTicks(engine, 1);
+        expect(isSwappedIn(player)).toBe(true);
+
+        executeUnitAbility(player, WcSwapAbility, [], engine);
+        stepTicks(engine, CAST_TICKS);
+        expect(player.abilityRuntime[WC_SWAP_ID]?.currentUses).toBe(WC_USES - 1);
+        expect(isSwappedIn(player)).toBe(true);
+
+        executeUnitAbility(player, WcSwapAbility, [], engine);
+        expect(player.abilityRuntime[WC_SWAP_ID]?.currentUses).toBe(0);
+        stepTicks(engine, 2);
+        // Mid-cast: the slot is left alone.
+        expect(player.activeAbilities.some((a) => a.abilityId === WC_SWAP_ID)).toBe(true);
+        expect(isSwappedIn(player)).toBe(true);
+
+        stepTicks(engine, CAST_TICKS);
+        expect(player.activeAbilities.length).toBe(0);
+        expect(isSwappedOut(player)).toBe(true);
+
+        // Round start refills uses; the swap settles there without waiting for a tick.
+        player.onRoundStart(engine.roundNumber + 1, engine);
+        expect(isSwappedIn(player)).toBe(true);
+    });
+
+    it('does not swap out mid-cast when the cast spends the last of the resource', () => {
+        const { engine, player, water } = buildWhileCastableEngine(WC_COST);
+        stepTicks(engine, 1);
+        expect(isSwappedIn(player)).toBe(true);
+
+        executeUnitAbility(player, WcSwapAbility, [], engine);
+        expect(water.current).toBe(0);
+        stepTicks(engine, 2);
+        expect(isSwappedIn(player)).toBe(true);
+
+        stepTicks(engine, CAST_TICKS);
+        expect(isSwappedOut(player)).toBe(true);
+    });
+
+    it('does not swap in while the replaced card is mid-cast', () => {
+        const { engine, player, water } = buildWhileCastableEngine(0);
+        executeUnitAbility(player, WcBaseAbility, [], engine);
+        water.current = WC_COST;
+        stepTicks(engine, 2);
+        expect(isSwappedOut(player)).toBe(true);
+
+        stepTicks(engine, CAST_TICKS);
+        expect(player.activeAbilities.length).toBe(0);
+        expect(isSwappedIn(player)).toBe(true);
+    });
+
+    it('emits ability_bar_changed once per swap, never on a steady state', () => {
+        const { engine, water, barEvents } = buildWhileCastableEngine(0);
+        stepTicks(engine, 10);
+        expect(barEvents()).toBe(0);
+
+        water.current = WC_COST;
+        stepTicks(engine, 30);
+        expect(barEvents()).toBe(1);
+
+        water.current = 0;
+        stepTicks(engine, 30);
+        expect(barEvents()).toBe(2);
+    });
+
+    it('keeps the swapped-in slot across a checkpoint round trip', () => {
+        const { engine, player } = buildWhileCastableEngine(WC_COST);
+        stepTicks(engine, 1);
+        expect(isSwappedIn(player)).toBe(true);
+        const barBefore = [...player.abilities];
+
+        const restored = GameEngine.fromJSON(
+            JSON.parse(JSON.stringify(engine.toJSON())),
+            TINY_BATTLE_PLAYER_ID,
+            engine.terrainManager,
+        );
+        const restoredPlayer = restored.units.find((u) => u.id === player.id)!;
+        expect(restoredPlayer.getResource('water')?.current).toBe(WC_COST);
+        expect(restoredPlayer.abilities).toEqual(barBefore);
+        expect(isSwappedIn(restoredPlayer)).toBe(true);
+
+        let restoredBarEvents = 0;
+        restored.eventBus.on('ability_bar_changed', () => { restoredBarEvents++; });
+        stepTicks(restored, 5);
+        expect(isSwappedIn(restoredPlayer)).toBe(true);
+        expect(restoredBarEvents).toBe(0);
     });
 });

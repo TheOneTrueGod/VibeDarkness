@@ -91,6 +91,9 @@ import { BurstCard_0302 } from './03_blood_mage/0302_Burst/0302Ability';
 import { BloodShardCard_0304 } from './03_blood_mage/0304_BloodShard/0304Ability';
 import { BloodPactCard_0305 } from './03_blood_mage/0305_BloodPact/0305Ability';
 import { BloodyClawsCard_0306 } from './03_blood_mage/0306_BloodyClaws/0306Ability';
+import { IceClawsCard_1501 } from './15_water/1501_IceClaws/1501Ability';
+import { IceShardsCard_1502 } from './15_water/1502_IceShards/1502Ability';
+import { FrozenFieldCard_1503 } from './15_water/1503_FrozenField/1503Ability';
 import { CreateSwordCard } from './10_armory_core/1001_CreateSword/1001Ability';
 import { ImprovisedSwordCard } from './10_armory_core/1002_ImprovisedSword/1002Ability';
 import { ThrowSwordCard } from './10_armory_core/1003_ThrowSword/1003Ability';
@@ -200,6 +203,9 @@ const cardDefs: CardDef[] = [
     BloodShardCard_0304,
     BloodPactCard_0305,
     BloodyClawsCard_0306,
+    IceClawsCard_1501,
+    IceShardsCard_1502,
+    FrozenFieldCard_1503,
     CreateSwordCard,
     ImprovisedSwordCard,
     ThrowSwordCard,

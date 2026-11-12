@@ -1,4 +1,5 @@
 import type { TerrainType } from '../terrain/TerrainType';
+import type { TerrainWaterDrainedTransition } from '../terrain/FloorTile';
 import type { KnockbackSource } from './units/unitTypes';
 import type { ClearedTerrainEffect } from './TerrainLayerManager';
 
@@ -26,6 +27,7 @@ export type GameEventType =
     | 'projectile_hit'
     | 'attack_hit'
     | 'terrain_stone_damaged'
+    | 'terrain_water_drained'
     | 'nearby_stone_damaged'
     | 'recovery_charge_granted'
     | 'stack_members_died'
@@ -216,6 +218,12 @@ export interface TerrainStoneDamagedEvent {
     sourceUnitId?: string | null;
 }
 
+/**
+ * A water tile dropped one water level (deep -> water -> shallow -> dirt) through
+ * `TerrainManager.drainWater`. Fired only on a level change, not on every partial drain.
+ */
+export type TerrainWaterDrainedEvent = TerrainWaterDrainedTransition;
+
 export interface RecoveryChargeGrantedEvent {
     /** Unit that received the charge(s). */
     unitId: string;
@@ -351,6 +359,7 @@ export type GameEventDataMap = {
     projectile_hit: ProjectileHitEvent;
     attack_hit: AttackHitEvent;
     terrain_stone_damaged: TerrainStoneDamagedEvent;
+    terrain_water_drained: TerrainWaterDrainedEvent;
     nearby_stone_damaged: NearbyStoneDamagedEvent;
     recovery_charge_granted: RecoveryChargeGrantedEvent;
     stack_members_died: StackMembersDiedEvent;

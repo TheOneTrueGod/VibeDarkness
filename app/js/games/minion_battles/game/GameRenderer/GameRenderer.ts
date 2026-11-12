@@ -30,6 +30,8 @@ import { TerrainEffectRenderer } from './renderers/TerrainEffectRenderer';
 import { FloorTileRenderer } from './renderers/FloorTileRenderer';
 import { MapNetworkRenderer } from './renderers/MapNetworkRenderer';
 import { FieldObjectRenderer } from './renderers/FieldObjectRenderer';
+import { SenseIndicatorRenderer } from './renderers/SenseIndicatorRenderer';
+import { getUnitDetection, isDetectionVisible } from '../visibility/teamPerception';
 import { isRenderLayerVisible } from '../../../../debug/renderVisibilityStore';
 import {
 	PERF_UI,
@@ -72,6 +74,7 @@ export class GameRenderer {
 	private floorTileRenderer!: FloorTileRenderer;
 	private mapNetworkRenderer!: MapNetworkRenderer;
 	private fieldObjectRenderer!: FieldObjectRenderer;
+	private senseIndicatorRenderer!: SenseIndicatorRenderer;
 
 	/** Optional debug: draw a yellow outline around this unit. */
 	private debugUnitOutlineId: string | null = null;
@@ -182,6 +185,7 @@ export class GameRenderer {
 		this.terrainEffectRenderer = new TerrainEffectRenderer(this.gameContainer);
 		this.mapNetworkRenderer = new MapNetworkRenderer(this.gameContainer);
 		this.fieldObjectRenderer = new FieldObjectRenderer(this.gameContainer);
+		this.senseIndicatorRenderer = new SenseIndicatorRenderer(this.gameContainer);
 
 		const afterLoad = (): void => {
 			const tex = this.assetRegistry.getEffectTexture('darkBlob');
@@ -299,7 +303,7 @@ export class GameRenderer {
 				const overlayVisible = isRenderLayerVisible('overlay');
 				this.overlayRenderer.setLayerVisible(overlayVisible);
 				if (overlayVisible) {
-					this.overlayRenderer.render(engine, realDt ?? 0);
+					this.overlayRenderer.render(engine, realDt ?? 0, this.localTeamId);
 				}
 			});
 
@@ -322,8 +326,11 @@ export class GameRenderer {
 			tickPerformanceTracker.measure([PERF_UI_CANVAS_UNITS], () => {
 				const unitsVisible = isRenderLayerVisible('units');
 				this.unitRenderer.setLayerVisible(unitsVisible);
+				this.senseIndicatorRenderer.setLayerVisible(unitsVisible);
 				if (unitsVisible) {
 					this.unitRenderer.render(engine, this.localTeamId, this.debugUnitOutlineId);
+					// Pulses for units the local team only hears or feels (their bodies are hidden above).
+					this.senseIndicatorRenderer.render(engine, this.localTeamId);
 				}
 			});
 
@@ -359,10 +366,18 @@ export class GameRenderer {
 				const effectsVisible = isRenderLayerVisible('effects');
 				this.effectRenderer.setLayerVisible(effectsVisible);
 				if (effectsVisible) {
-					this.effectRenderer.render(engine.effects, (id) => {
-						const u = engine.getUnit(id);
-						return u && u.isAlive() ? { x: u.x, y: u.y } : undefined;
-					});
+					this.effectRenderer.render(
+						engine.effects,
+						(id) => {
+							const u = engine.getUnit(id);
+							return u && u.isAlive() ? { x: u.x, y: u.y } : undefined;
+						},
+						// `concealedWithOwner` effects (spell circles) hide while their owner is invisible.
+						(id) => {
+							const u = engine.getUnit(id);
+							return !u || isDetectionVisible(getUnitDetection(engine, this.localTeamId, u));
+						},
+					);
 				}
 			});
 
@@ -413,6 +428,7 @@ export class GameRenderer {
 		this.effectRenderer.destroy();
 		this.lightSourceRenderer.destroy();
 		this.previewRenderer.destroy();
+		this.senseIndicatorRenderer.destroy();
 		this.gameContainer.destroy();
 		this.initInFlight = null;
 		this.app.destroy();

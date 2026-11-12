@@ -318,19 +318,29 @@ export interface AbilityRecoveryRule {
     usesRecovered: number;
 }
 
+/**
+ * `whileCastable`: a state trigger, not an event. The swap ability holds its target's slot while the
+ * unit can pay its resource cost and has a use left (`canAffordAbility` + `canUseAbilityNow`), and gives
+ * the slot back as soon as either fails. Pair it with `DeactivateTrigger` `whileCastable`. Settled once per
+ * unit tick and at round start (`evaluateSwapTriggers` `{ type: 'refresh' }`), never while either card is
+ * mid-cast. Activation keeps the swap ability's own uses (`usesOnActivation` is ignored).
+ */
 export type SwapTrigger =
-    | { type: 'buffApplied'; buffType: string };
+    | { type: 'buffApplied'; buffType: string }
+    | { type: 'whileCastable' };
 
+/** `whileCastable`: deactivate as soon as the swap ability can no longer be cast (see `SwapTrigger`). */
 export type DeactivateTrigger =
     | { type: 'selfExhausted' }
-    | { type: 'selfUsed' };
+    | { type: 'selfUsed' }
+    | { type: 'whileCastable' };
 
 export interface AbilitySwapConfig {
     /** The trigger that causes this ability to activate and push aside `replacesAbilityId`. */
     activateTrigger: SwapTrigger;
     /** The ability ID that this ability replaces when it activates. */
     replacesAbilityId: string;
-    /** Uses to grant when activating. Defaults to this ability's own `maxUses`. */
+    /** Uses to grant when activating. Defaults to this ability's own `maxUses`. Ignored by `whileCastable` (it keeps its own uses). */
     usesOnActivation?: number;
     /** The trigger that causes this ability to deactivate and restore `replacedAbilityId`. */
     deactivateTrigger: DeactivateTrigger;

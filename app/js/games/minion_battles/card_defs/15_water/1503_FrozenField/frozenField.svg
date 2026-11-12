@@ -1,0 +1,27 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="frozenFieldCardMist" cx="0.5" cy="0.55" r="0.6">
+      <stop offset="0%" stop-color="#1e3a8a" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="64" height="64" rx="6" fill="#0b1a3a"/>
+  <circle cx="32" cy="34" r="28" fill="url(#frozenFieldCardMist)"/>
+  <polygon points="6,56 58,56 48,28 16,28" fill="#1e3a8a" fill-opacity="0.6" stroke="#5eead4" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M14 50 L24 44 L22 38 M42 46 L50 50 M34 34 L30 40" stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.5" fill="none"/>
+  <g stroke-linejoin="round">
+    <polygon points="22.5,40 26,32 29.5,40" fill="#5eead4" stroke="#ffffff" stroke-opacity="0.75" stroke-width="0.8"/>
+    <polygon points="26,40 26,32 29.5,40" fill="#ffffff" fill-opacity="0.45"/>
+    <polygon points="35.5,41 39,32 42.5,41" fill="#5eead4" stroke="#ffffff" stroke-opacity="0.75" stroke-width="0.8"/>
+    <polygon points="39,41 39,32 42.5,41" fill="#ffffff" fill-opacity="0.45"/>
+    <polygon points="16.5,50 20,38 23.5,50" fill="#5eead4" stroke="#ffffff" stroke-opacity="0.75" stroke-width="0.8"/>
+    <polygon points="20,50 20,38 23.5,50" fill="#ffffff" fill-opacity="0.45"/>
+    <polygon points="40.5,50 44,37 47.5,50" fill="#5eead4" stroke="#ffffff" stroke-opacity="0.75" stroke-width="0.8"/>
+    <polygon points="44,50 44,37 47.5,50" fill="#ffffff" fill-opacity="0.45"/>
+    <polygon points="28.5,52 32,32 35.5,52" fill="#5eead4" stroke="#ffffff" stroke-opacity="0.75" stroke-width="0.8"/>
+    <polygon points="32,52 32,32 35.5,52" fill="#ffffff" fill-opacity="0.45"/>
+  </g>
+  <path d="M32 7 L33.6 12.4 L39 14 L33.6 15.6 L32 21 L30.4 15.6 L25 14 L30.4 12.4 Z" fill="#ffffff"/>
+  <path d="M18 14 L18.8 16.2 L21 17 L18.8 17.8 L18 20 L17.2 17.8 L15 17 L17.2 16.2 Z" fill="#5eead4"/>
+  <path d="M46 14 L46.8 16.2 L49 17 L46.8 17.8 L46 20 L45.2 17.8 L43 17 L45.2 16.2 Z" fill="#5eead4"/>
+</svg>

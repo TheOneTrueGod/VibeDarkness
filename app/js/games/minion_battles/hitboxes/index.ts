@@ -10,6 +10,17 @@ export { TruncatedConeHitboxSpec, type TruncatedConeGeometry, type TruncatedCone
 export { ConvexQuadHitboxSpec, convexQuadHitbox } from './ConvexQuadHitbox';
 export { AimFrameSegmentHitboxSpec, aimFrameSegmentHitbox, type AimFramePoint, type AimFrameSegmentConfig } from './AimFrameSegmentHitbox';
 export {
+    OrientedRectHitboxSpec,
+    orientedRectAtPointHitbox,
+    orientedRectAt,
+    pointInOrientedRect,
+    unitOverlapsOrientedRect,
+    cellsInOrientedRect,
+    type OrientedRect,
+    type OrientedRectAtPointConfig,
+    type OrientedRectOrigin,
+} from './OrientedRectHitbox';
+export {
     TileAreaHitboxSpec,
     tileAreaHitbox,
     tileShapes,

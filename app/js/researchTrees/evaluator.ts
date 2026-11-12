@@ -26,6 +26,7 @@ import { RESEARCH_TREES } from './list';
 import { DEFAULT_PASSIVE_MULT, getAddAtLevel, getMultBonusAtLevel, getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 import { getNodeResearchSources } from './researchSources';
 import { mergeAbilityModifierInto } from './abilityModifierMerge';
+import type { SenseGrant } from '../games/minion_battles/game/visibility/senses';
 
 export interface ResearchContext {
     account: AccountState;
@@ -618,6 +619,49 @@ export function getMissionStartResourcesFromResearch(
         }
     }
     return amounts;
+}
+
+/**
+ * Resource ids from `attachResource` effects in researched nodes, deduplicated, in deterministic node
+ * order (same order as {@link getMissionStartResourcesFromResearch}). Attached to the player unit at
+ * mission start, before mission-start grants are added.
+ */
+export function getAttachedResourcesFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+): string[] {
+    const trees = researchTrees ?? {};
+    const ids: string[] = [];
+    for (const tree of RESEARCH_TREES) {
+        const researchedSet = new Set(trees[tree.id] ?? []);
+        const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
+        for (const node of researchedNodes) {
+            for (const eff of node.effects) {
+                if (eff.type === 'attachResource' && !ids.includes(eff.resourceId)) ids.push(eff.resourceId);
+            }
+        }
+    }
+    return ids;
+}
+
+/**
+ * Returns sense grants from `grantSense` effects in researched nodes, in deterministic node order
+ * (same order as {@link getMissionStartResourcesFromResearch}). Applied to the player unit at mission start.
+ */
+export function getSenseGrantsFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+): SenseGrant[] {
+    const trees = researchTrees ?? {};
+    const grants: SenseGrant[] = [];
+    for (const tree of RESEARCH_TREES) {
+        const researchedSet = new Set(trees[tree.id] ?? []);
+        const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
+        for (const node of researchedNodes) {
+            for (const eff of node.effects) {
+                if (eff.type === 'grantSense') grants.push({ ...eff.grant });
+            }
+        }
+    }
+    return grants;
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { CastBehaviour, CastBehaviourTickContext } from '../castBehaviourTypes';
 import type { TerrainLayerName } from '../../game/TerrainLayerManager';
 import { placeJitteredGroundThorns } from '../targetHelpers';
+import type { TileCoord } from '../tileAreaHelpers';
 
 type Resolvable<T> = T | ((ctx: CastBehaviourTickContext) => T);
 
@@ -11,8 +12,16 @@ export interface GroundPatchConfig {
     layer?: TerrainLayerName;
     /** Patch centre (default: the caster's position at fire time). */
     center?: (ctx: CastBehaviourTickContext) => { x: number; y: number };
-    /** Patch radius in px; a function so it can react to caster state (e.g. weakened by light). */
+    /**
+     * Patch radius in px; a function so it can react to caster state (e.g. weakened by light). With
+     * `cells` it only shapes the edge-first jitter (keep it positive, e.g. the shape's half diagonal).
+     */
     radius: Resolvable<number>;
+    /**
+     * Exact cells to cover instead of the circle (e.g. a hitbox's `resolveCells`, so the hazard sits
+     * exactly under the hit). Resolved at fire time.
+     */
+    cells?: (ctx: CastBehaviourTickContext) => readonly TileCoord[];
     /** Guaranteed lifetime of every cell, in seconds from placement. */
     lifetimeSec: Resolvable<number>;
     /** Seconds shaved off the end of the lifetime (so a patch clears just before the next cast). Applied after the add, to keep float results exact. */
@@ -38,7 +47,8 @@ function resolve<T>(value: Resolvable<T>, ctx: CastBehaviourTickContext): T {
  * VFX) is a separate behaviour in the same window, kept ahead of this one in the array.
  *
  * Reusable for thorns (Thorn Stomp, Bramble Patch), fire, frost or slime patches: swap
- * `effectType`, `params` and `layer`.
+ * `effectType`, `params` and `layer`. A non-circular patch passes `cells` (Frozen Field: the oriented
+ * rectangle hitbox's `resolveCells`), with `jitterSec: 0` for a crisp edge.
  *
  * Usage:
  *   behaviour: new GroundPatchBehaviour({ effectType: 'dark_thorn', radius: 95, lifetimeSec: 30, ... })
@@ -65,6 +75,7 @@ export class GroundPatchBehaviour implements CastBehaviour {
             ownerAbilityId: config.ownerAbilityId ?? ctx.abilityId,
             params: resolve(config.params, ctx),
             idPrefix: `${config.idPrefix}-${ctx.caster.id}-${eng.gameTime}`,
+            ...(config.cells ? { cells: config.cells(ctx) } : {}),
         });
     }
 }

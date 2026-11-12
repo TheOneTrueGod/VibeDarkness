@@ -1,6 +1,14 @@
+import { WATER_THEME } from '../../themes/abilityThemes';
+
 export interface TerrainEffectVisualDef {
     layer: 'ground' | 'air';
     svgString: string;
+    /**
+     * How much of the cell each sprite covers. `'lowerHalf'` (default) is a cell-wide strip in the
+     * bottom half (thorns, gas); `'fullCell'` fills the whole cell, for surface sheets (ice, slime,
+     * fire) whose cells should join into one field. Draw `'fullCell'` SVGs on a square viewBox.
+     */
+    footprint?: 'lowerHalf' | 'fullCell';
     /**
      * Ages the visual over a timed effect's lifetime (world clock, so it holds while paused):
      * scale and alpha lerp from 1 at placement to these values at expiry. Permanent effects ignore it.
@@ -30,6 +38,40 @@ interface ThornVineColours {
 
 const DARK_THORN_COLOURS: ThornVineColours = { vine: '#7c3aed', underVine: '#5b21b6', thorn: '#a78bfa' };
 const BRAMBLE_COLOURS: ThornVineColours = { vine: '#22c55e', underVine: '#16a34a', thorn: '#4ade80' };
+
+/**
+ * A frozen-field ice tile (full cell): a navy frost sheet, a soft seafoam rim inset from the cell edge
+ * (adjacent tiles read as cracked ice panes rather than a hard grid) and a few faint six-armed flakes.
+ * Colours are the Tidewater theme's, so the hazard matches the ability that places it.
+ */
+function frostSheetSvg(mass: string, edge: string, deep: string): string {
+    const flake = (cx: number, cy: number, r: number, opacity: number): string => {
+        const arms = [0, 60, 120]
+            .map((deg) => {
+                const a = (deg * Math.PI) / 180;
+                const dx = Math.cos(a) * r;
+                const dy = Math.sin(a) * r;
+                return `M${(cx - dx).toFixed(2)},${(cy - dy).toFixed(2)} L${(cx + dx).toFixed(2)},${(cy + dy).toFixed(2)}`;
+            })
+            .join(' ');
+        return `<path d="${arms}" stroke="${edge}" stroke-opacity="${opacity}" stroke-width="0.8" stroke-linecap="round" fill="none"/>`;
+    };
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <defs>
+    <linearGradient id="ff" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="${mass}" stop-opacity="0.62"/>
+      <stop offset="1" stop-color="${deep}" stop-opacity="0.7"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="40" height="40" fill="url(#ff)"/>
+  <rect x="1.5" y="1.5" width="37" height="37" rx="3" fill="none" stroke="${edge}" stroke-opacity="0.45" stroke-width="1.2"/>
+  <path d="M6,30 L15,22 L19,25 M24,9 L31,15" stroke="#ffffff" stroke-opacity="0.22" stroke-width="0.7" fill="none" stroke-linecap="round"/>
+  ${flake(11, 11, 3.5, 0.35)}
+  ${flake(28, 26, 4, 0.3)}
+  ${flake(30, 8, 2.2, 0.25)}
+  ${flake(9, 32, 2.5, 0.25)}
+</svg>`;
+}
 
 /** Number of worn looks after the untouched one. */
 export const THORN_WEAR_STAGES = 4;
@@ -102,5 +144,12 @@ export const TERRAIN_EFFECT_VISUAL_DEFS: Record<string, TerrainEffectVisualDef> 
 </svg>`,
         lifetimeFade: { endScale: 0.7, endAlpha: 0.7 },
         exit: { durationSec: 0.25, endScale: 0.2, endAlpha: 0 },
+    },
+    frozen_field: {
+        layer: 'ground',
+        footprint: 'fullCell',
+        svgString: frostSheetSvg(WATER_THEME.primary, WATER_THEME.secondary ?? WATER_THEME.primary, WATER_THEME.font ?? WATER_THEME.primary),
+        lifetimeFade: { endScale: 1, endAlpha: 0.6 },
+        exit: { durationSec: 0.3, endScale: 1.05, endAlpha: 0 },
     },
 };

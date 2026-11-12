@@ -41,7 +41,7 @@ export class InterruptSystem {
             }
         });
 
-        eventBus.on('terrain_stone_damaged', (event) => {
+        const onTerrainCellChanged = (event: { col: number; row: number }): void => {
             const changedCol = event.col;
             const changedRow = event.row;
             for (const unit of this.getUnits()) {
@@ -58,7 +58,9 @@ export class InterruptSystem {
                     unit.pendingInterrupts.add('terrain_changed_near_path');
                 }
             }
-        });
+        };
+        eventBus.on('terrain_stone_damaged', onTerrainCellChanged);
+        eventBus.on('terrain_water_drained', onTerrainCellChanged);
 
         eventBus.on('damage_taken', (data) => {
             const unit = this.findUnit(data.unitId);

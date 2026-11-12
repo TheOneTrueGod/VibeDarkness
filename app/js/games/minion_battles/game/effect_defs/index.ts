@@ -75,6 +75,9 @@ import { LINKED_AREA_FIELD_EFFECT_TYPE } from '../effects/linkedAreaField';
 import { SPIRIT_SLASH_EFFECT_TYPE } from '../effects/slashTrail';
 import { MOTE_EFFECT_TYPE } from '../effects/motes';
 import { commandCueEffectDef, commandSpellCircleEffectDef, COMMAND_SPELL_CIRCLE_EFFECT_TYPE } from './commandEffects';
+import { moteRingSpellCircleEffectDef, MOTE_RING_SPELL_CIRCLE_EFFECT_TYPE } from './moteRingSpellCircle';
+import { spikesRiseEffectDef } from './spikesRiseEffects';
+import { SPIKES_RISE_EFFECT_TYPE } from '../effects/spikesRise';
 import { COMMAND_CUE_EFFECT_TYPE } from '../effects/commandCue';
 import { TEMPO_ORB_EFFECT_TYPE, TEMPO_SPEED_LINE_EFFECT_TYPE } from '../effects/buffParticleAura';
 import {
@@ -152,6 +155,8 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     [SPIRIT_SLASH_EFFECT_TYPE]: spiritSlashEffectDef,
     [LINKED_AREA_FIELD_EFFECT_TYPE]: linkedAreaFieldEffectDef,
     [COMMAND_SPELL_CIRCLE_EFFECT_TYPE]: commandSpellCircleEffectDef,
+    [MOTE_RING_SPELL_CIRCLE_EFFECT_TYPE]: moteRingSpellCircleEffectDef,
+    [SPIKES_RISE_EFFECT_TYPE]: spikesRiseEffectDef,
     [COMMAND_CUE_EFFECT_TYPE]: commandCueEffectDef,
     [WEAPON_ORBIT_EFFECT_TYPE]: weaponOrbitEffectDef,
     [STORM_SPELL_CIRCLE_EFFECT_TYPE]: stormSpellCircleEffectDef,

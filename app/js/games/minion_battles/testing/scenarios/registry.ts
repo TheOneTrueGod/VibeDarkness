@@ -101,7 +101,14 @@ import { aiPlanHoldStabilityScenario } from './ai/ai_plan_hold_stability';
 import { aiTerrainInterruptScenario } from './ai/ai_terrain_interrupt';
 import { aiReplanStaggerScenario } from './ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from './ai/ai_serialization_roundtrip';
-import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario, lightingBaseOverlapScenario } from './general/lightingSystem';
+import {
+    lightingIlluminatesAreaScenario,
+    lightDelayedFadeScenario,
+    campfireDecayScenario,
+    lightingBaseOverlapScenario,
+    lightBlockedByWallsScenario,
+} from './general/lightingSystem';
+import { VISIBILITY_SCENARIOS } from './general/visibility';
 import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario, worldEffectVisualEffectsFireScenario } from './general/worldModifiers';
 import {
     dsEnemyHardenedRaisesEnemyHpScenario,
@@ -133,6 +140,7 @@ import {
     bloodyClawsFarCentreLockOnScenario,
     bloodyClawsStepLungesScenario,
 } from './abilities/bloodyClawsScenarios';
+import { WATER_SCENARIOS } from './abilities/waterScenarios';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -222,6 +230,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     lightDelayedFadeScenario,
     campfireDecayScenario,
     lightingBaseOverlapScenario,
+    lightBlockedByWallsScenario,
+    ...VISIBILITY_SCENARIOS,
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
     earthCoreShatterScenario,
@@ -283,6 +293,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     bloodyClawsEdgeLockOnScenario,
     bloodyClawsFarCentreLockOnScenario,
     bloodyClawsStepLungesScenario,
+    ...WATER_SCENARIOS,
     throwKnifePiercingBleedScenario,
     clawMovementDistanceScenario,
     pistolHitsDummyScenario,
@@ -334,7 +345,7 @@ const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'gravity_core',  label: 'Gravity',        selectorKey: 'tree:gravity_core',  abilityIds: ['0901', '0902', '0903', '0904', '0905', 'gravity_core'] },
     { treeId: 'armory_core',   label: 'Armory',         selectorKey: 'tree:armory_core',   abilityIds: ['1001', '1004', '1008', '1011'] },
     { treeId: 'storm_core',    label: 'Storm',          selectorKey: 'tree:storm_core',    abilityIds: ['1303'] },
-    { treeId: 'blood_mage',    label: 'Blood Mage',     selectorKey: 'tree:blood_mage',    abilityIds: ['0301', '0302'] },
+    { treeId: 'blood_mage',    label: 'Blood Mage',     selectorKey: 'tree:blood_mage',    abilityIds: ['0301', '0302', '1501', '1502', '1503'] },
 ];
 
 export function getAbilityTreeSidebarGroups(): AbilityTreeSidebarGroup[] {
@@ -360,6 +371,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'enemies', section: 'Enemies' },
     { slug: 'lanternites', section: 'Lanternites' },
     { slug: 'lighting', section: 'Lighting' },
+    { slug: 'visibility', section: 'Visibility' },
     { slug: 'pets', section: 'Pets' },
     { slug: 'ai', section: 'AI' },
     { slug: 'world-modifiers', section: 'World Modifiers' },
@@ -441,6 +453,9 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('burst_')) return '0302';
     if (id.startsWith('blood_shard_')) return '0304';
     if (id.startsWith('bloody_claws_')) return '0306';
+    if (id.startsWith('ice_claws_')) return '1501';
+    if (id.startsWith('ice_shards_')) return '1502';
+    if (id.startsWith('frozen_field_')) return '1503';
     return null;
 }
 

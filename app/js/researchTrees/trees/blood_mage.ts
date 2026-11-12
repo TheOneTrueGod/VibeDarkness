@@ -2,6 +2,7 @@
 import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_ICON_BLOOD_MAGE } from '../researchTreeChrome';
+import { ResourceId } from '../../games/minion_battles/resources/resourceIds';
 
 export const BLOOD_MAGE_TREE_ID = 'blood_mage';
 export const BLOOD_MAGE_NODE_CORE = 'blood_mage_core';
@@ -9,6 +10,13 @@ export const BLOOD_MAGE_NODE_BURST = 'blood_mage_burst';
 export const BLOOD_MAGE_NODE_PACT = 'blood_mage_pact';
 export const BLOOD_MAGE_NODE_CLAWS = 'blood_mage_claws';
 export const BLOOD_MAGE_NODE_SPLINTERS = 'blood_mage_shard_splinters';
+/**
+ * Water overlap (`card_defs/15_water/AGENTS.md`): each node adds an ice card that takes its blood card's
+ * slot while castable, and attaches the Water resource. A Water core arrives with the standalone tree.
+ */
+export const BLOOD_MAGE_NODE_ICE_CLAWS = 'blood_mage_ice_claws';
+export const BLOOD_MAGE_NODE_ICE_SHARDS = 'blood_mage_ice_shards';
+export const BLOOD_MAGE_NODE_FROZEN_FIELD = 'blood_mage_frozen_field';
 
 export const BLOOD_CORE_ATTUNEMENT_COST = 12;
 export const BLOOD_CORE_VIGOR_COST = 8;
@@ -29,6 +37,18 @@ export const BLOODY_CLAWS_METAL_COST = 1;
 export const BLOOD_SPLINTERS_ATTUNEMENT_COST = 14;
 export const BLOOD_SPLINTERS_VIGOR_COST = 9;
 export const BLOOD_SPLINTERS_METAL_COST = 3;
+
+export const ICE_CLAWS_ATTUNEMENT_COST = 12;
+export const ICE_CLAWS_VIGOR_COST = 8;
+export const ICE_CLAWS_METAL_COST = 2;
+
+export const ICE_SHARDS_ATTUNEMENT_COST = 13;
+export const ICE_SHARDS_VIGOR_COST = 7;
+export const ICE_SHARDS_METAL_COST = 2;
+
+export const FROZEN_FIELD_ATTUNEMENT_COST = 13;
+export const FROZEN_FIELD_VIGOR_COST = 8;
+export const FROZEN_FIELD_METAL_COST = 3;
 
 export const bloodMageTree: ResearchTreeDef = {
     id: BLOOD_MAGE_TREE_ID,
@@ -155,6 +175,78 @@ export const bloodMageTree: ResearchTreeDef = {
                 metal: BLOOD_SPLINTERS_METAL_COST,
             },
             effects: [],
+        },
+        {
+            id: BLOOD_MAGE_NODE_ICE_CLAWS,
+            title: 'Ice Claws',
+            description:
+                'Draw water from the ground around you and freeze it into longer claws.',
+            flavorText: 'Cold blood cuts deeper.',
+            order: 40,
+            tier: 11,
+            position: { x: 660, y: 150 },
+            prereqNodeIds: [BLOOD_MAGE_NODE_CLAWS],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CLAWS] },
+            ],
+            cost: {
+                attunement: ICE_CLAWS_ATTUNEMENT_COST,
+                vigor: ICE_CLAWS_VIGOR_COST,
+                metal: ICE_CLAWS_METAL_COST,
+            },
+            effects: [
+                { type: 'addCard', cardId: '1501' },
+                { type: 'attachResource', resourceId: ResourceId.Water },
+            ],
+        },
+        {
+            id: BLOOD_MAGE_NODE_ICE_SHARDS,
+            title: 'Ice Shards',
+            description:
+                'Draw water from the ground around you and freeze it into shards that punch through your foes.',
+            flavorText: 'What the blood gives, the water keeps.',
+            order: 45,
+            tier: 11,
+            position: { x: 180, y: 430 },
+            prereqNodeIds: [BLOOD_MAGE_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
+            ],
+            cost: {
+                attunement: ICE_SHARDS_ATTUNEMENT_COST,
+                vigor: ICE_SHARDS_VIGOR_COST,
+                metal: ICE_SHARDS_METAL_COST,
+            },
+            effects: [
+                { type: 'addCard', cardId: '1502' },
+                { type: 'attachResource', resourceId: ResourceId.Water },
+            ],
+        },
+        {
+            id: BLOOD_MAGE_NODE_FROZEN_FIELD,
+            title: 'Frozen Field',
+            description:
+                'Gather a great deal of water and freeze the ground in front of you, locking your foes in the ice.',
+            flavorText: 'Even blood stops running in the cold.',
+            order: 50,
+            tier: 12,
+            position: { x: 660, y: 290 },
+            prereqNodeIds: [BLOOD_MAGE_NODE_BURST],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_BURST] },
+            ],
+            cost: {
+                attunement: FROZEN_FIELD_ATTUNEMENT_COST,
+                vigor: FROZEN_FIELD_VIGOR_COST,
+                metal: FROZEN_FIELD_METAL_COST,
+            },
+            effects: [
+                { type: 'addCard', cardId: '1503' },
+                { type: 'attachResource', resourceId: ResourceId.Water },
+            ],
         },
     ],
 };

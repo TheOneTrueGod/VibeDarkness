@@ -9,9 +9,47 @@ import { LightTileGrid } from '../lightTileGrid/LightTileGrid';
 import type { AILightSource } from '../units/unitAI';
 import type { GameEngine } from '../GameEngine';
 import { LIGHT_TYPES, type LightType } from './lightTypes';
+import { LightOcclusionCache } from './lightOcclusion';
+import type { TerrainManager } from '../../terrain/TerrainManager';
 
 export class LightingSystem {
+    /** Engine-scoped wall-occlusion masks (derived from terrain, never serialized). */
+    private occlusion: LightOcclusionCache | null = null;
+    private occlusionTerrain: TerrainManager | null = null;
+    private occlusionGrid: TerrainManager['grid'] | null = null;
+    private occlusionEpoch = -1;
+
     constructor(private readonly engine: GameEngine) {}
+
+    /**
+     * The occlusion cache for the current terrain, so walls block light. Built lazily from
+     * `terrainManager.blocksLightAt`; recreated when the terrain manager or its grid changes and
+     * invalidated when `terrainManager.navEpoch` moves (rock created or destroyed).
+     * Undefined when there is no terrain grid.
+     */
+    getLightOcclusion(): LightOcclusionCache | undefined {
+        const terrain = this.engine.terrainManager;
+        const grid = terrain?.grid;
+        if (!terrain || !grid) return undefined;
+        if (
+            !this.occlusion ||
+            this.occlusionTerrain !== terrain ||
+            this.occlusionGrid !== grid ||
+            this.occlusion.width !== grid.width ||
+            this.occlusion.height !== grid.height
+        ) {
+            this.occlusion = new LightOcclusionCache(grid.width, grid.height, (col, row) =>
+                terrain.blocksLightAt(col, row),
+            );
+            this.occlusionTerrain = terrain;
+            this.occlusionGrid = grid;
+            this.occlusionEpoch = terrain.navEpoch;
+        } else if (this.occlusionEpoch !== terrain.navEpoch) {
+            this.occlusion.invalidate();
+            this.occlusionEpoch = terrain.navEpoch;
+        }
+        return this.occlusion;
+    }
 
     getLightLevelAt(x: number, y: number): number | null {
         const grid = this.engine.state.lightTileGrid;
@@ -52,7 +90,13 @@ export class LightingSystem {
         if (!this.engine.terrainManager?.grid) return;
         const { width, height } = this.engine.terrainManager.grid;
         const tileGrid = LightTileGrid.create(width, height);
-        const target = computeLightChannelGrid(this.engine.globalLightLevel, width, height, this.getAllLightSources());
+        const target = computeLightChannelGrid(
+            this.engine.globalLightLevel,
+            width,
+            height,
+            this.getAllLightSources(),
+            this.getLightOcclusion(),
+        );
         for (let row = 0; row < height; row++) {
             for (let col = 0; col < width; col++) {
                 for (const type of LIGHT_TYPES) {
@@ -68,7 +112,13 @@ export class LightingSystem {
         const grid = this.engine.state.lightTileGrid;
         if (!grid || !this.engine.terrainManager?.grid) return;
         const { width, height } = this.engine.terrainManager.grid;
-        const target = computeLightChannelGrid(this.engine.globalLightLevel, width, height, this.getAllLightSources());
+        const target = computeLightChannelGrid(
+            this.engine.globalLightLevel,
+            width,
+            height,
+            this.getAllLightSources(),
+            this.getLightOcclusion(),
+        );
         const animateToward = (cur: number, rawTgt: number): number => {
             // Round target to integer — fractional emission/radius produces float targets
             // which would cause cur to oscillate between floor(tgt) and ceil(tgt) forever.

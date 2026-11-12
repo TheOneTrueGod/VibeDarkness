@@ -13,6 +13,8 @@ export interface DebugSettings {
     debugPauseMode: boolean;
     logEveryTick: boolean;
     jsPerformanceTracking: boolean;
+    /** Draw every unit as seen, bypassing team perception (visibility and senses). */
+    revealAllUnits: boolean;
     enemyMovementTrailLimit: EnemyMovementTrailLimit;
     setDarkOverlayEnabled: (value: boolean) => void;
     setGodModeEnabled: (value: boolean) => void;
@@ -20,6 +22,7 @@ export interface DebugSettings {
     setDebugPauseMode: (value: boolean) => void;
     setLogEveryTick: (value: boolean) => void;
     setJsPerformanceTracking: (value: boolean) => void;
+    setRevealAllUnits: (value: boolean) => void;
     setEnemyMovementTrailLimit: (value: EnemyMovementTrailLimit) => void;
     advanceOneDebugTick: () => void;
 }
@@ -31,6 +34,7 @@ const DebugSettingsContext = createContext<DebugSettings>({
     debugPauseMode: false,
     logEveryTick: false,
     jsPerformanceTracking: false,
+    revealAllUnits: false,
     enemyMovementTrailLimit: DEFAULT_ENEMY_MOVEMENT_TRAIL_LIMIT,
     setDarkOverlayEnabled: () => {},
     setGodModeEnabled: () => {},
@@ -38,6 +42,7 @@ const DebugSettingsContext = createContext<DebugSettings>({
     setDebugPauseMode: () => {},
     setLogEveryTick: () => {},
     setJsPerformanceTracking: () => {},
+    setRevealAllUnits: () => {},
     setEnemyMovementTrailLimit: () => {},
     advanceOneDebugTick: () => {},
 });
@@ -53,6 +58,7 @@ export function DebugSettingsProvider({ children }: { children: React.ReactNode 
     const [debugPauseMode, setDebugPauseMode] = useState(false);
     const [logEveryTick, setLogEveryTick] = useState(false);
     const [jsPerformanceTracking, setJsPerformanceTracking] = useState(false);
+    const [revealAllUnits, setRevealAllUnits] = useState(false);
     const [enemyMovementTrailLimit, setEnemyMovementTrailLimit] = useState<EnemyMovementTrailLimit>(
         DEFAULT_ENEMY_MOVEMENT_TRAIL_LIMIT,
     );
@@ -86,6 +92,10 @@ export function DebugSettingsProvider({ children }: { children: React.ReactNode 
     }, [jsPerformanceTracking]);
 
     useEffect(() => {
+        debugSettingsSnapshot.revealAllUnits = revealAllUnits;
+    }, [revealAllUnits]);
+
+    useEffect(() => {
         debugSettingsSnapshot.enemyMovementTrailLimit = enemyMovementTrailLimit;
     }, [enemyMovementTrailLimit]);
 
@@ -97,6 +107,7 @@ export function DebugSettingsProvider({ children }: { children: React.ReactNode 
             debugPauseMode,
             logEveryTick,
             jsPerformanceTracking,
+            revealAllUnits,
             enemyMovementTrailLimit,
             setDarkOverlayEnabled,
             setGodModeEnabled,
@@ -104,10 +115,20 @@ export function DebugSettingsProvider({ children }: { children: React.ReactNode 
             setDebugPauseMode,
             setLogEveryTick,
             setJsPerformanceTracking,
+            setRevealAllUnits,
             setEnemyMovementTrailLimit,
             advanceOneDebugTick: () => requestDebugAdvanceTicks(1),
         }),
-        [darkOverlayEnabled, godModeEnabled, superSpeedEnabled, debugPauseMode, logEveryTick, jsPerformanceTracking, enemyMovementTrailLimit],
+        [
+            darkOverlayEnabled,
+            godModeEnabled,
+            superSpeedEnabled,
+            debugPauseMode,
+            logEveryTick,
+            jsPerformanceTracking,
+            revealAllUnits,
+            enemyMovementTrailLimit,
+        ],
     );
 
     return <DebugSettingsContext.Provider value={value}>{children}</DebugSettingsContext.Provider>;

@@ -38,6 +38,31 @@ export interface TerrainStoneDamagedTransition {
     sourceUnitId?: string | null;
 }
 
+/** `DestructibleState.kind` of a water tile's remaining water (created lazily by `TerrainManager.drainWater`). */
+export const WATER_DESTRUCTIBLE_KIND = 'water';
+
+/** Health of one water level. `drainWater` fractions are fractions of this. */
+export const WATER_TILE_HEALTH = 1;
+
+/**
+ * Result of `TerrainManager.drainWater`. `health` is the tile's water after the drain: reset to
+ * `maxHealth` when it dropped a level and is still water, 0 once it is dry ground.
+ */
+export interface TerrainWaterDrainedTransition {
+    col: number;
+    row: number;
+    worldX: number;
+    worldY: number;
+    previousHealth: number;
+    health: number;
+    maxHealth: number;
+    previousTerrainType: TerrainType;
+    terrainType: TerrainType;
+    /** True when the tile dropped a water level (`terrainType !== previousTerrainType`). */
+    levelDropped: boolean;
+    sourceUnitId?: string | null;
+}
+
 /** Effective terrain type: floor override or bedrock. */
 export function getEffectiveTerrain(floor: FloorTile | null | undefined, bedrock: TerrainType): TerrainType {
     return floor?.terrainType ?? bedrock;

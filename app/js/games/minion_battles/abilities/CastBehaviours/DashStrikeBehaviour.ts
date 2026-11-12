@@ -12,7 +12,11 @@
  * `withApproachFrom` (default: from the caster's own position), rotated by `angleOffsetDeg`.
  *
  * Terrain: the blink and the far end are pulled in toward the target until passable, so the caster never
- * ends inside rock. Needs a `unit` target; anything else does nothing.
+ * ends inside rock. Needs a `unit` target, unless `withAreaTargeting` is set.
+ *
+ * Area targeting (`withAreaTargeting(radius)`): when the cast target is a point, or the locked-on unit is
+ * gone, each strike picks the enemy nearest the point (or where the unit was) within `radius`, and hits only
+ * it. With nobody there it still dashes through the point, hitting nothing. A living unit target is kept.
  */
 import type { Unit } from '../../game/units/Unit';
 import type {
@@ -23,9 +27,11 @@ import type {
 import { computeForcedDisplacement } from '../../game/forceMove';
 import { tryDamageOrBlock } from '../blockingHelpers';
 import { createSlashTrail, type SlashTrailColors } from '../../game/effects/slashTrail';
+import { areEnemies } from '../../game/teams';
 
 interface DashStrikePayload {
-    targetUnitId: string;
+    /** The one unit this strike hits; null for a strike through an empty area. */
+    targetUnitId: string | null;
     startX: number;
     startY: number;
     endX: number;
@@ -47,6 +53,8 @@ export class DashStrikeBehaviour implements CastBehaviour {
     private _approach: ApproachFn | null = null;
     private _attackType: 'melee' | 'charging' = 'melee';
     private _trail: SlashTrailColors | null = null;
+    /** Radius (px) round the anchor point in which a strike picks its own enemy; null = unit targets only. */
+    private _areaRadius: number | null = null;
 
     withDamage(damage: number): this {
         this._damage = damage;
@@ -76,6 +84,15 @@ export class DashStrikeBehaviour implements CastBehaviour {
         return this;
     }
 
+    /**
+     * Strike whatever enemy is nearest the target point (or a lost unit target's position) within `radiusPx`,
+     * one per strike, or dash through the empty point. See the file comment.
+     */
+    withAreaTargeting(radiusPx: number): this {
+        this._areaRadius = radiusPx;
+        return this;
+    }
+
     /** Leave a slash trail in these colours. */
     withSlashTrail(colors: SlashTrailColors): this {
         this._trail = colors;
@@ -84,12 +101,12 @@ export class DashStrikeBehaviour implements CastBehaviour {
 
     onSetup(ctx: CastBehaviourSetupContext): void {
         ctx.setBehaviourPayload(null);
-        const t = ctx.target;
-        if (t.type !== 'unit' || !t.unitId) return;
-        const target = ctx.engine.getUnit(t.unitId);
-        if (!target || !target.isAlive()) return;
+        const resolved = this.resolveStrikeTarget(ctx);
+        if (!resolved) return;
+        const target = resolved.unit ?? { id: null, x: resolved.point.x, y: resolved.point.y, radius: 0 };
 
-        const from = this._approach?.(ctx.caster, target, ctx) ?? { x: ctx.caster.x, y: ctx.caster.y };
+        const approached = resolved.unit ? this._approach?.(ctx.caster, resolved.unit, ctx) : null;
+        const from = approached ?? { x: ctx.caster.x, y: ctx.caster.y };
         let dx = target.x - from.x;
         let dy = target.y - from.y;
         let len = Math.hypot(dx, dy);
@@ -139,6 +156,7 @@ export class DashStrikeBehaviour implements CastBehaviour {
         ctx.caster.y = payload.startY + (payload.endY - payload.startY) * eased;
 
         if (payload.hit) return;
+        if (payload.targetUnitId === null) return;
         const target = ctx.engine.getUnit(payload.targetUnitId);
         if (!target || !target.isAlive()) {
             payload.hit = true;
@@ -166,10 +184,42 @@ export class DashStrikeBehaviour implements CastBehaviour {
         });
     }
 
+    /**
+     * The unit this strike goes through, or just a point (area targeting with nobody there). Null = no strike.
+     */
+    private resolveStrikeTarget(ctx: CastBehaviourSetupContext): { unit: Unit | null; point: { x: number; y: number } } | null {
+        const t = ctx.target;
+        let anchor: { x: number; y: number } | null = null;
+        if (t.type === 'unit' && t.unitId) {
+            const locked = ctx.engine.getUnit(t.unitId);
+            if (locked?.isAlive()) return { unit: locked, point: { x: locked.x, y: locked.y } };
+            if (locked) anchor = { x: locked.x, y: locked.y };
+        } else if (t.type === 'pixel' && t.position) {
+            anchor = t.position;
+        }
+        if (this._areaRadius === null || !anchor) return null;
+        return { unit: this.nearestEnemyInArea(ctx, anchor, this._areaRadius), point: anchor };
+    }
+
+    /** The living enemy whose edge is nearest `point`, within `radius` of it. */
+    private nearestEnemyInArea(ctx: CastBehaviourSetupContext, point: { x: number; y: number }, radius: number): Unit | null {
+        let best: Unit | null = null;
+        let bestDist = Infinity;
+        for (const unit of ctx.engine.units) {
+            if (!unit.active || !unit.isAlive() || unit.id === ctx.caster.id) continue;
+            if (!areEnemies(ctx.caster.teamId, unit.teamId)) continue;
+            const dist = Math.hypot(unit.x - point.x, unit.y - point.y) - unit.radius;
+            if (dist > radius || dist >= bestDist) continue;
+            best = unit;
+            bestDist = dist;
+        }
+        return best;
+    }
+
     /** A point `reach` px from the target along (dirX, dirY), pulled in toward the target until passable. */
     private passablePoint(
         ctx: CastBehaviourSetupContext,
-        target: Unit,
+        target: { x: number; y: number },
         dirX: number,
         dirY: number,
         reach: number,

@@ -7,6 +7,7 @@
  */
 
 import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
+import { forEachTileOnLine } from './tileLine';
 
 /** Default cell size in pixels. */
 export const CELL_SIZE = 40;
@@ -101,21 +102,22 @@ export class TerrainGrid {
 
     /**
      * True if the line between two world positions does not pass through obstructed terrain.
-     * Rock and Impassable are considered obstructing (block line of sight) — Impassable mirrors
+     * Terrain with `blocksVision` (Rock and Impassable) obstructs line of sight — Impassable mirrors
      * Rock here since it stands in for "outside the map" (see TerrainType.Impassable).
+     *
+     * Reads bedrock only and, unlike `isTileLineClear`, checks both endpoint tiles too. Traced with
+     * the shared `forEachTileOnLine`, so its tiles match vision and light occlusion.
      */
     hasLineOfSight(fromX: number, fromY: number, toX: number, toY: number): boolean {
         const from = this.worldToGrid(fromX, fromY);
         const to = this.worldToGrid(toX, toY);
-        const steps = Math.max(Math.abs(to.col - from.col), Math.abs(to.row - from.row), 1);
-        for (let i = 0; i <= steps; i++) {
-            const t = i / steps;
-            const col = Math.round(from.col + (to.col - from.col) * t);
-            const row = Math.round(from.row + (to.row - from.row) * t);
-            const type = this.get(col, row);
-            if (type === TerrainType.Rock || type === TerrainType.Impassable) return false;
-        }
-        return true;
+        return forEachTileOnLine(
+            from.col,
+            from.row,
+            to.col,
+            to.row,
+            (col, row) => !TERRAIN_PROPERTIES[this.get(col, row)].blocksVision,
+        );
     }
 
     /**

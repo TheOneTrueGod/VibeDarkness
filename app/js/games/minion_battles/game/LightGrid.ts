@@ -15,6 +15,7 @@ import {
     resolveLightType,
     visibilityFromChannels,
 } from './lighting/lightTypes';
+import type { LightOcclusionCache } from './lighting/lightOcclusion';
 
 /**
  * Controls how a light source's contribution combines with other sources on the same tile.
@@ -160,12 +161,17 @@ function emptyGrid(width: number, height: number, fill = 0): number[][] {
  * Compute multi-channel light levels for every tile.
  * Positive sources contribute to their lightType within radius; falloff goes to FireLight.
  * Negative emission feeds the void pool only.
+ *
+ * With `occlusion`, a source (positive or void) only contributes to tiles its occlusion mask marks
+ * reachable, so walls cast shadows; the wall tile itself is still lit. Without it, light ignores
+ * terrain (map tools, previews that have no terrain).
  */
 export function computeLightChannelGrid(
     globalLightLevel: number,
     width: number,
     height: number,
     sources: LightSource[],
+    occlusion?: LightOcclusionCache,
 ): LightChannelGridResult {
     const channels: Record<LightType, number[][]> = {
         FireLight: emptyGrid(width, height),
@@ -175,6 +181,16 @@ export function computeLightChannelGrid(
     };
     const voidDarkness = emptyGrid(width, height);
     const visibility = emptyGrid(width, height);
+
+    // Snap to 0.25 increments so ring boundaries transition atomically for all
+    // cells at the same distance rather than drifting cell-by-cell as values decay.
+    const snapped = sources.map((s) => {
+        const emission = Math.round(s.emission * 4) / 4;
+        const radius = Math.round(s.radius * 4) / 4;
+        const range = radius + Math.abs(emission);
+        const mask = occlusion ? occlusion.getMask(s.col, s.row, range) : null;
+        return { s, emission, radius, range, mask };
+    });
 
     for (let row = 0; row < height; row++) {
         for (let col = 0; col < width; col++) {
@@ -186,14 +202,10 @@ export function computeLightChannelGrid(
             };
             const voidContribs: TileContrib[] = [];
 
-            for (const s of sources) {
-                // Snap to 0.25 increments so ring boundaries transition atomically for all
-                // cells at the same distance rather than drifting cell-by-cell as values decay.
-                const emission = Math.round(s.emission * 4) / 4;
-                const radius = Math.round(s.radius * 4) / 4;
-                const range = radius + Math.abs(emission);
+            for (const { s, emission, radius, range, mask } of snapped) {
                 const d = roundedEuclideanDistance(col, row, s.col, s.row);
                 if (d > range) continue;
+                if (mask && mask[row * width + col] === 0) continue;
                 const contrib = sourceContribution(emission, radius, d);
                 if (contrib === 0) continue;
                 const overlapMethod: OverlapMethod = s.overlapMethod ?? { method: 'max' };
@@ -227,14 +239,16 @@ export function computeLightChannelGrid(
 /**
  * Compute light level for every tile. Returns visibility grid[row][col].
  * tileLevel = globalLightLevel + max(typed channels) + voidDarkness.
+ * Pass `occlusion` for gameplay reads so walls block light (see `computeLightChannelGrid`).
  */
 export function computeLightGrid(
     globalLightLevel: number,
     width: number,
     height: number,
     sources: LightSource[],
+    occlusion?: LightOcclusionCache,
 ): number[][] {
-    return computeLightChannelGrid(globalLightLevel, width, height, sources).visibility;
+    return computeLightChannelGrid(globalLightLevel, width, height, sources, occlusion).visibility;
 }
 
 /**
@@ -245,8 +259,9 @@ export function getLightGrid(
     width: number,
     height: number,
     sources: LightSource[],
+    occlusion?: LightOcclusionCache,
 ): number[][] {
-    return computeLightGrid(globalLightLevel, width, height, sources);
+    return computeLightGrid(globalLightLevel, width, height, sources, occlusion);
 }
 
 /** @deprecated Previously cleared a module cache; no-op — kept for call-site compatibility */

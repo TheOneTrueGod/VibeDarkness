@@ -23,6 +23,8 @@ export interface ProjectileParticleTrailDef {
 export const PROJECTILE_PARTICLE_TRAIL_PRESETS = {
     /** Command spirit motes behind a thrown thorn or pulse. */
     spiritMotes: (): ProjectileParticleTrailDef => ({ ratePerSec: 70, spec: MOTE_PRESETS.spiritTrail() }),
+    /** Six-armed ice crystals behind a thrown shard, in a theme's colours (`'water'` for Tidewater). */
+    frost: (themeId: string): ProjectileParticleTrailDef => ({ ratePerSec: 50, spec: MOTE_PRESETS.frostTrail(themeId) }),
 } as const;
 
 /** Never emit more than this many motes for one projectile per frame (long frames / tab refocus). */

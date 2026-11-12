@@ -17,11 +17,22 @@ import {
 } from '../effect_defs/spellCircleEffects';
 import { effectDefRegistry } from '../effect_defs';
 import {
+    MOTE_RING_SPELL_CIRCLE_EFFECT_TYPE,
+    moteRingSlots,
+    moteRingSpellCircleEffectDef,
+    readRimMotes,
+} from '../effect_defs/moteRingSpellCircle';
+import { loopingMotePose, MOTE_PRESETS } from '../effects/motes';
+import { getThemeById, resolveAbilityTheme, themeGlowPair } from '../../themes/abilityTheme';
+import type { Container, Graphics } from 'pixi.js';
+import type { IEffectRenderContext } from '../effect_defs/types';
+import {
     SPELL_CIRCLE_STYLE_ARMORY,
     SPELL_CIRCLE_STYLE_EARTH,
     SPELL_CIRCLE_STYLE_EARTH_LIGHT,
     SPELL_CIRCLE_STYLE_LIGHT,
     SPELL_CIRCLE_STYLE_STORM,
+    SPELL_CIRCLE_STYLE_WATER,
     createSpellCircleEffect,
     getSpellCircleStyle,
     listSpellCircleStyles,
@@ -54,6 +65,8 @@ describe('spell circle styles', () => {
         expect(effect.timeDomain).toBe('owner');
         expect(effect.ownerActorId).toBe(CASTER.id);
         expect(effect.pauseBehaviour).toBe('hold');
+        // Hides while the caster is invisible to the local team.
+        expect(effect.concealedWithOwner).toBe(true);
         expect(effect.effectData).toMatchObject({
             radius: 70,
             castAt: 0.75,
@@ -184,5 +197,94 @@ describe('spell circle shapes', () => {
         expect(peak).toBeLessThan(DEFAULT_EARTH_CIRCLE_TIMING.liftPx + top.lift);
         expect(earthStoneHeight(top, 0.8, timing)).toBeLessThan(peak);
         expect(earthStoneHeight(top, 1, timing)).toBeCloseTo(0);
+    });
+});
+
+describe('water spell circle', () => {
+    const style = () => getSpellCircleStyle(SPELL_CIRCLE_STYLE_WATER)!;
+
+    it('is registered with the data-driven mote-ring painter in Tidewater colours', () => {
+        expect(style().effectType).toBe(MOTE_RING_SPELL_CIRCLE_EFFECT_TYPE);
+        expect(effectDefRegistry[MOTE_RING_SPELL_CIRCLE_EFFECT_TYPE]).toBe(moteRingSpellCircleEffectDef);
+        const water = resolveAbilityTheme(getThemeById('water'));
+        expect(style().data!.ringColor).toBe(water.primaryNum);
+        expect(style().data!.runeColor).toBe(water.secondaryNum);
+        expect(water.primaryNum).toBe(0x1e3a8a);
+    });
+
+    it('throws ice shards and gravity droplets off its rim, at about the studio ring counts', () => {
+        const kinds = readRimMotes(style().data as Record<string, unknown>);
+        expect(kinds.map((k) => k.spec.shape)).toEqual(['shard', 'droplet']);
+        expect(kinds[0]!.spec).toEqual(MOTE_PRESETS.iceShards('water'));
+        expect(kinds[1]!.spec).toEqual(MOTE_PRESETS.droplets('water'));
+        expect(kinds[1]!.spec.gravityPx).toBeGreaterThan(0);
+        const { light, dark } = themeGlowPair(getThemeById('water'));
+        for (const k of kinds) {
+            expect(k.spec.color).toBe(light);
+            expect(k.spec.glowColor).toBe(dark);
+            expect(k.count).toBeGreaterThanOrEqual(12);
+            expect(k.count).toBeLessThanOrEqual(18);
+        }
+        // Reaches the painter through createSpellCircleEffect.
+        const effect = createSpellCircleEffect(CASTER, { style: SPELL_CIRCLE_STYLE_WATER }, { castSeconds: 0.8, abilityId: '1503' })!;
+        expect(readRimMotes(effect.effectData)).toHaveLength(2);
+    });
+
+    it('spaces each kind evenly round the rim and interleaves them, joining during the charge', () => {
+        const kinds = readRimMotes(style().data as Record<string, unknown>);
+        const slots = moteRingSlots(kinds);
+        expect(slots).toHaveLength(kinds.reduce((n, k) => n + k.count, 0));
+        for (const s of slots) {
+            expect(s.joinAt).toBeGreaterThanOrEqual(0.05);
+            expect(s.joinAt).toBeLessThanOrEqual(0.6);
+        }
+        // Every quarter of the ring holds both kinds.
+        for (let q = 0; q < 4; q++) {
+            const inQuarter = slots.filter((s) => {
+                const a = (((s.angle + Math.PI / 2) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                return a >= (q * Math.PI) / 2 && a < ((q + 1) * Math.PI) / 2;
+            });
+            expect(new Set(inQuarter.map((s) => s.kind)).size).toBe(2);
+        }
+        expect(moteRingSlots(kinds)).toEqual(slots);
+    });
+
+    it('paints the rune arcs, shards and droplets while charging', () => {
+        const calls: string[] = [];
+        const record = (name: string) => (..._args: unknown[]) => {
+            calls.push(name);
+            return g;
+        };
+        const g = new Proxy({ alpha: 1 } as Record<string, unknown>, {
+            get: (target, name: string) => (name === 'alpha' ? target.alpha : record(name)),
+        }) as unknown as Graphics;
+        const effect = createSpellCircleEffect(CASTER, { style: SPELL_CIRCLE_STYLE_WATER }, { castSeconds: 0.8, abilityId: '1503' })!;
+        effect.renderUpdate(0.7);
+        moteRingSpellCircleEffectDef.updateVisual(g as unknown as Container, effect, {} as IEffectRenderContext);
+        expect(calls).toContain('poly');
+        expect(calls).toContain('ellipse');
+        expect(calls).toContain('arc');
+    });
+});
+
+describe('loopingMotePose', () => {
+    it('loops a gravity droplet: rises, then falls back below its anchor, the same on every call', () => {
+        const spec = MOTE_PRESETS.droplets('water');
+        const samples = Array.from({ length: 400 }, (_, i) => loopingMotePose(spec, 42, i * 0.01));
+        expect(Math.min(...samples.map((p) => p.dy))).toBeLessThan(-spec.risePx * 0.6);
+        expect(Math.max(...samples.map((p) => p.dy))).toBeGreaterThan(0);
+        expect(Math.max(...samples.map((p) => p.dy))).toBeLessThanOrEqual(spec.gravityPx! + 1e-9);
+        expect(loopingMotePose(spec, 42, 1.234)).toEqual(loopingMotePose(spec, 42, 1.234));
+        expect(loopingMotePose(spec, 43, 1.234)).not.toEqual(loopingMotePose(spec, 42, 1.234));
+    });
+
+    it('a straight-rising shard only climbs and tumbles as it goes', () => {
+        const spec = MOTE_PRESETS.iceShards('water');
+        const a = loopingMotePose(spec, 7, 0.3);
+        expect(a.dy).toBeLessThanOrEqual(0);
+        expect(a.life).toBeGreaterThanOrEqual(0);
+        expect(a.life).toBeLessThan(1);
+        const angles = new Set([0.1, 0.2, 0.3].map((t) => loopingMotePose(spec, 7, t).angle.toFixed(4)));
+        expect(angles.size).toBeGreaterThan(1);
     });
 });

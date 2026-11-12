@@ -16,6 +16,7 @@ import { TerrainType } from '../../terrain/TerrainType';
 export const BRAMBLE_SLOW_EFFECT_TYPE = 'bramble_slow';
 export const DARK_THORN_EFFECT_TYPE = 'dark_thorn';
 export const MIASMA_EFFECT_TYPE = 'miasma';
+export const FROZEN_FIELD_EFFECT_TYPE = 'frozen_field';
 
 /** Which creature types a hazard hurts: only the listed types, or everyone except them. */
 export type CreatureFilter = { only: readonly CreatureType[] } | { except: readonly CreatureType[] };
@@ -81,20 +82,47 @@ export const DARK_THORN_ENTER_DAMAGE = THORN_ENTER_DAMAGE;
 export const DARK_THORN_LAND_DAMAGE = THORN_LAND_DAMAGE * 2;
 
 /**
+ * Who a standing hazard hurts: a creature filter, or `'enemiesOfOwner'` for every unit whose team is
+ * hostile to the record's `teamId` (the placing unit's team). An ownerless record (no `teamId`) hurts
+ * nobody under `'enemiesOfOwner'`.
+ */
+export type StandingDamageTargets = CreatureFilter | 'enemiesOfOwner';
+
+/** Per-record override of `StandingDamageDef.damage`, read when the def sets `damageFromRecord`. */
+export const STANDING_DAMAGE_PARAM = 'damage';
+
+/**
  * Lingering hazard: every `intervalSec` of world time, each matching unit standing in a cell the
  * effect owns takes `damage`. Air effects hit grounded and airborne units alike; ground effects
  * skip airborne units. See `terrainEffects/standingDamage.ts`.
  */
 export interface StandingDamageDef {
-    hurts: CreatureFilter;
+    hurts: StandingDamageTargets;
     damage: number;
     intervalSec: number;
+    /**
+     * Seconds of hard stun each pulse also applies (after the damage), through `tryApplyHardCcStun`,
+     * so boss CC armour absorbs it like any other stun. Omit for a damage-only hazard.
+     */
+    stunSec?: number;
+    /**
+     * When true, a numeric `params[STANDING_DAMAGE_PARAM]` on the record wins over `damage`, so the
+     * placing ability can scale it (damage modifiers, upgrades). `damage` is the fallback.
+     */
+    damageFromRecord?: boolean;
 }
 
 /** Miasma (Husk gas): damage per pulse to non-darkness units standing in it. */
 export const MIASMA_DAMAGE = 1;
 /** Seconds between Miasma pulses. */
 export const MIASMA_INTERVAL_SEC = 1;
+
+/** Frozen Field: damage per pulse to the owner's enemies standing on the ice (fallback; see `damageFromRecord`). */
+export const FROZEN_FIELD_DAMAGE = 4;
+/** Seconds between Frozen Field pulses. */
+export const FROZEN_FIELD_INTERVAL_SEC = 0.5;
+/** Stun each Frozen Field pulse applies; longer than the interval, so a unit held on the ice stays stunned. */
+export const FROZEN_FIELD_STUN_SEC = 0.6;
 
 /** Terrain a ground growth (thorns, brambles) cannot take root on: rock and every depth of water. */
 export const ROCK_AND_WATER_TERRAIN: readonly TerrainType[] = [
@@ -152,6 +180,17 @@ export const TERRAIN_EFFECT_DEFS: Readonly<Record<string, TerrainEffectDef>> = {
             hurts: { except: ['dark_creature'] },
             damage: MIASMA_DAMAGE,
             intervalSec: MIASMA_INTERVAL_SEC,
+        },
+    },
+    [FROZEN_FIELD_EFFECT_TYPE]: {
+        effectType: FROZEN_FIELD_EFFECT_TYPE,
+        layer: 'ground',
+        standingDamage: {
+            hurts: 'enemiesOfOwner',
+            damage: FROZEN_FIELD_DAMAGE,
+            intervalSec: FROZEN_FIELD_INTERVAL_SEC,
+            stunSec: FROZEN_FIELD_STUN_SEC,
+            damageFromRecord: true,
         },
     },
 };

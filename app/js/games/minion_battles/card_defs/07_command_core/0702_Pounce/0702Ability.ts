@@ -4,13 +4,15 @@
  * Pet-only: no aiSettings, so the pet AI never auto-queues it. Only the player's Sic 'em card causes the
  * pet to use Pounce. Short windup (the charge telegraph), then a dash toward a pixel target that stops on
  * its first hit: that enemy takes a short stun (no damage), and the spirit locks on to it — Spirit Flurry
- * (0711) follows, four dash strikes over about a second.
+ * (0711) follows, four dash strikes over about a second. A pounce that hits nothing still flurries where it
+ * lands: each strike goes through whichever enemy is nearest that spot (one per strike), or through thin air.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityState } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { DashBehaviour } from '../../../abilities/CastBehaviours/DashBehaviour';
+import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
 import { tryApplyHardCcStun } from '../../../crowdControl/tryApplyHardCcStun';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import type { Unit } from '../../../game/units/Unit';
@@ -50,7 +52,7 @@ const STUN_DURATION = 1.0;
 const STOP_AFTER_HITS = 1;
 
 const TOOLTIP_LINES = [
-    'Lunge at a point. The first enemy hit is stunned for {{STUN_DURATION}}s, then your spirit locks on and dashes through it {{FLURRY_STRIKES}} times for {{STRIKE_DAMAGE}} damage each.',
+    'Lunge at a point. The first enemy hit is stunned for {{STUN_DURATION}}s, then your spirit locks on and dashes through it {{FLURRY_STRIKES}} times for {{STRIKE_DAMAGE}} damage each. On a miss, the dashes strike whatever enemy is nearest where it lands, one at a time.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -78,13 +80,19 @@ const pounceDash = new DashBehaviour()
         };
         // Hold the victim in place for the flurry (no knockback: the spirit locks on instead).
         tryApplyHardCcStun(hitUnit, STUN_DURATION, ctx.engine.gameTime, knockbackEngine.roundNumber, ctx.engine.eventBus);
-        // Flurry is Pounce's follow-up: it keeps Pounce's stamped priority and replaces the Pounce cast.
-        const priority = getRunningCastPriority(ctx.caster, ctx.abilityId);
-        commandPetAbility([ctx.caster], SPIRIT_FLURRY_ABILITY_ID, [{ type: 'unit', unitId: hitUnit.id }], ctx.engine, {
-            preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
-            ...(priority !== undefined ? { priority, followUpOf: ctx.abilityId } : {}),
-        });
+        startFlurry(ctx, { type: 'unit', unitId: hitUnit.id });
+    })
+    // A whiff still flurries, on the spot where the pounce landed.
+    .withOnEndWithoutHit((ctx) => startFlurry(ctx, { type: 'pixel', position: { x: ctx.caster.x, y: ctx.caster.y } }));
+
+/** Spirit Flurry is Pounce's follow-up: it keeps Pounce's stamped priority and replaces the Pounce cast. */
+function startFlurry(ctx: CastBehaviourTickContext, target: ResolvedTarget): void {
+    const priority = getRunningCastPriority(ctx.caster, ctx.abilityId);
+    commandPetAbility([ctx.caster], SPIRIT_FLURRY_ABILITY_ID, [target], ctx.engine, {
+        preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+        ...(priority !== undefined ? { priority, followUpOf: ctx.abilityId } : {}),
     });
+}
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     {

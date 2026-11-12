@@ -53,6 +53,16 @@ describe('ability themes', () => {
         expect(getThemeById('no_such_theme').id).toBe('generic');
     });
 
+    it('resolves a Water ability to Tidewater', () => {
+        const theme = getAbilityTheme('1501');
+        expect(theme.id).toBe('water');
+        expect(theme.primary).toBe('#1e3a8a');
+        expect(theme.secondary).toBe('#5eead4');
+        expect(theme.font).toBe('#0b1a3a');
+        expect(theme.shade).toBe(darkenCssHex('#1e3a8a', 0.5));
+        expect(getThemeById('water')).toBe(theme);
+    });
+
     it('looks up by id the same as by group, and caches', () => {
         expect(getThemeById('armory')).toBe(getAbilityTheme('1008'));
         expect(getThemeById('armory')).toEqual(getAbilityTheme('1001'));
@@ -65,6 +75,9 @@ describe('ability themes', () => {
         expect(ABILITY_GROUP_THEMES[AbilityGroupId.Gravity]?.id).toBe('gravity');
         expect(ABILITY_GROUP_THEMES[AbilityGroupId.Command]?.id).toBe('command');
         expect(ABILITY_GROUP_THEMES[AbilityGroupId.Mage]?.id).toBe('blood_mage');
+        expect(ABILITY_GROUP_THEMES[AbilityGroupId.Storm]?.id).toBe('storm');
+        expect(ABILITY_GROUP_THEMES[AbilityGroupId.EnemyCourtMagician]?.id).toBe('court_magic');
+        expect(ABILITY_GROUP_THEMES[AbilityGroupId.Water]?.id).toBe('water');
         for (const g of [AbilityGroupId.Enemy, AbilityGroupId.Warrior, AbilityGroupId.Ranger, AbilityGroupId.Healer, AbilityGroupId.Utility]) {
             expect(ABILITY_GROUP_THEMES[g]).toBeUndefined();
         }

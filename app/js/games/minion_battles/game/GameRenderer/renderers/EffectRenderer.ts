@@ -5,6 +5,7 @@ import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } fro
 import type { EffectImageKey } from '../../effectImages';
 import type { AssetRegistry } from '../AssetRegistry';
 import { SPRITE_AFTERIMAGE_EFFECT_TYPE } from '../../projectiles/projectile_defs/spriteAfterimage';
+import { isEffectConcealed } from './visibilityRenderRules';
 
 const Z_EFFECTS = 12;
 /** Just under projectiles (11), so a projectile's own afterimages never draw over it. */
@@ -44,7 +45,15 @@ export class EffectRenderer {
         }
     }
 
-    render(effects: Effect[], getUnitPosition?: (unitId: string) => { x: number; y: number } | undefined): void {
+    /**
+     * @param isActorVisible Whether an actor is visible to the local team; effects with `concealedWithOwner`
+     *   are skipped while their owner is not. Omitted = every owner visible.
+     */
+    render(
+        effects: Effect[],
+        getUnitPosition?: (unitId: string) => { x: number; y: number } | undefined,
+        isActorVisible?: (actorId: string) => boolean,
+    ): void {
         const context: IEffectRenderContext = {
             getEffectTexture: (imageKey: EffectImageKey) => this.assets.getEffectTexture(imageKey),
             getCharacterTexture: (characterId: string) => this.assets.getCharacterTexture(characterId),
@@ -52,6 +61,10 @@ export class EffectRenderer {
         };
 
         for (const effect of effects) {
+            if (isEffectConcealed(effect, isActorVisible)) {
+                this.hideConcealedEffect(effect);
+                continue;
+            }
             if (EffectRenderer.PARTICLE_EFFECT_TYPES.has(effect.effectType)) {
                 this.syncParticleEffect(effect);
                 continue;
@@ -89,6 +102,17 @@ export class EffectRenderer {
                 this.particleContainer?.removeParticle(particle);
                 this.particleEffects.delete(id);
             }
+        }
+    }
+
+    /** Hide (not destroy) a concealed effect's visual; it reappears when its owner is visible again. */
+    private hideConcealedEffect(effect: Effect): void {
+        const visual = this.effectVisuals.get(effect.id);
+        if (visual) visual.visible = false;
+        const particle = this.particleEffects.get(effect.id);
+        if (particle) {
+            this.particleContainer?.removeParticle(particle);
+            this.particleEffects.delete(effect.id);
         }
     }
 

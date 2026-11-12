@@ -9,6 +9,7 @@ See `minion_battles/AGENTS.md` for the overall architecture (tick loop, data flo
 - `game/effects/AGENTS.md` — Effect and EffectEmitter system (visual-only effects vs game-tick factories)
 - `game/deployables/AGENTS.md` — Deployable contract and registry: map objects abilities can find and consume
 - `game/lighting/AGENTS.md` — Lighting engine: per-tile light grid, source management, decay, darkness corruption
+- `game/visibility/AGENTS.md` — Senses and team perception (seen / glimpsed / heard / felt / hidden); presentation-only
 - `game/interaction/AGENTS.md` — Interactive targeting session (ITS) playahead and commit-time in-place vs rollback
 - `../terrain/AGENTS.md` — Bedrock grid vs floor/ground/air layers (`TerrainLayerManager` lives in this folder)
 

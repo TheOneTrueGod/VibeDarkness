@@ -27,6 +27,7 @@ import { PHASE_COMPONENT } from '../components/phaseComponent';
 import { DISPLACER_FADE_IN_MS, DISPLACER_LIGHT_EATER_ID, DISPLACER_PHANTOM_DECOY_ID } from '../../displacer/displacerConstants';
 import type { LightHateDef } from '../../lightHate';
 import { DarknessLevel } from '../../darknessLevels';
+import { DEFAULT_UNIT_SENSES, PLAYER_SENSES, type SenseProfile } from '../../visibility/senses';
 import type { EnemySpawnDef } from '../../../storylines/types';
 import type { SentryWakeTrigger } from '../unitAI/sentryPatrol/context';
 import { UNIT_SPRITE_URLS } from './unitSprites';
@@ -215,6 +216,12 @@ export interface UnitDefEntry {
     stamina?: number;
     stackSize?: number;
     perceptionRange?: number;
+    /**
+     * Baseline senses (vision, hearing, tremorsense) for team perception. Absent = `DEFAULT_UNIT_SENSES`.
+     * Instance and buff grants merge on top (see `game/visibility/senses.ts`). Presentation-only: AI still
+     * uses `perceptionRange`.
+     */
+    senses?: SenseProfile;
     /** Hunter AI (`alphaWolfBoss` tree) locks onto one random visible enemy as prey and keeps chasing it, instead of attacking the first enemy in sight. */
     huntsSinglePrey?: boolean;
     onDeathVisualEffects?: VisualEffectDef[];
@@ -297,6 +304,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         speed: 90,
         size: 'Medium',
         stamina: 2,
+        senses: PLAYER_SENSES,
         uiDescription: 'Adventurer — stats and abilities from equipment and research.',
     },
     // Enemies
@@ -1050,6 +1058,11 @@ export function getUnitTerrainCrushDamage(characterId: string): number {
 /** Per-character `crowdMass` override (undefined = derive from size tier). */
 export function getUnitCrowdMassOverride(characterId: string): number | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.crowdMass;
+}
+
+/** Per-character baseline senses, falling back to `DEFAULT_UNIT_SENSES`. Read through `Unit.baseSenses`. */
+export function getUnitSensesDef(characterId: string): Readonly<SenseProfile> {
+    return UNIT_DEFS[characterId as UnitDefId]?.senses ?? DEFAULT_UNIT_SENSES;
 }
 
 /**

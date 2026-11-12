@@ -3,6 +3,8 @@ import { PassiveStatKey, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
 import { WEAPON_ITEM_CHARGED_ROCKS } from './weaponTreeIds';
+// Plain data: `senses.ts` only imports `darknessLevels.ts` at runtime, so no engine code comes along.
+import { DARKVISION_GRANT, TREMORSENSE_GRANT } from '../../games/minion_battles/game/visibility/senses';
 
 export const TRAINING_TREE_ID = 'training';
 export const TRAINING_NODE_CORE = 'core_training';
@@ -16,6 +18,9 @@ export const TRAINING_NODE_MIGHTY = 'mighty';
 export const TRAINING_NODE_PLAYTEST_VITALITY = 'playtest_vitality';
 export const TRAINING_PLAYTEST_VITALITY_MAX_HEALTH_ADD = 1000;
 export const TRAINING_PLAYTEST_VITALITY_REGEN_PER_ROUND = 100;
+/** Disabled admin-only sense nodes (see `game/visibility/senses.ts`). */
+export const TRAINING_NODE_DARKVISION = 'darkvision';
+export const TRAINING_NODE_TREMORSENSE = 'tremorsense';
 
 /** Max levels / max bonus for Healthy passive (maxHealth add). */
 export const TRAINING_HEALTHY_LEVELS = 5;
@@ -198,6 +203,38 @@ export const trainingTree: ResearchTreeDef = {
                 [PassiveStatKey.MaxHealth]: { add: TRAINING_PLAYTEST_VITALITY_MAX_HEALTH_ADD },
                 [PassiveStatKey.HealthRegenPerRound]: { add: TRAINING_PLAYTEST_VITALITY_REGEN_PER_ROUND },
             },
+        },
+        {
+            // Disabled until senses are tuned: only admins see it and grant it.
+            id: TRAINING_NODE_DARKVISION,
+            title: 'Darkvision',
+            description: `See {${DARKVISION_GRANT.amount}} tiles farther into darkness.`,
+            flavorText: 'Let your eyes settle until the dark gives up its shapes.',
+            order: 910,
+            tier: 2,
+            position: { x: 20, y: 60 },
+            prereqNodeIds: [TRAINING_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [],
+            cost: {},
+            effects: [{ type: 'grantSense', grant: DARKVISION_GRANT }],
+            disabled: true,
+        },
+        {
+            // Disabled until senses are tuned: only admins see it and grant it.
+            id: TRAINING_NODE_TREMORSENSE,
+            title: 'Tremorsense',
+            description: `Sense enemies within {${TREMORSENSE_GRANT.range}} tiles through walls, even unseen.`,
+            flavorText: 'Read every footstep through the soles of your feet.',
+            order: 920,
+            tier: 2,
+            position: { x: 20, y: 200 },
+            prereqNodeIds: [TRAINING_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [],
+            cost: {},
+            effects: [{ type: 'grantSense', grant: TREMORSENSE_GRANT }],
+            disabled: true,
         },
     ],
 };

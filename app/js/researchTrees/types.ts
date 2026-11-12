@@ -1,5 +1,6 @@
 export type { CampaignResourceKey } from '../types';
 import type { CampaignResourceKey } from '../types';
+import type { SenseGrant } from '../games/minion_battles/game/visibility/senses';
 
 export type CampaignResourceCost = Partial<Record<CampaignResourceKey, number>>;
 
@@ -37,7 +38,23 @@ export type ResearchEffect =
     | { type: 'grantPet'; petId: string }
     /** Grant an extra ability id to a pet kind at mission start (merged into spawn ability list). */
     | { type: 'grantPetAbility'; petId: string; abilityId: string }
-    | { type: 'grantMissionStartResource'; resourceId: string; amount: number };
+    /**
+     * Adds `amount` to a battle resource the unit already has at mission start. It never attaches the
+     * resource: a unit without it (no item `resourcesToAdd`, no `attachResource`) gets nothing.
+     */
+    | { type: 'grantMissionStartResource'; resourceId: string; amount: number }
+    /**
+     * Attaches a battle resource (by serializable resource id, `createResourceFromId`) to the player unit
+     * at mission start, starting at the resource's own default amount. Like an item's `resourcesToAdd`,
+     * for research that grants cards paid with a resource the unit's equipment does not bring.
+     * Pair with `grantMissionStartResource` for a non-default starting amount.
+     */
+    | { type: 'attachResource'; resourceId: string }
+    /**
+     * Adds a sense grant (darkvision, tremorsense, ...) to the player unit at mission start
+     * (`Unit.addSenseGrant`). Merge rules live in `game/visibility/senses.ts`.
+     */
+    | { type: 'grantSense'; grant: SenseGrant };
 
 /**
  * Specifies which abilities a modifier targets.

@@ -19,6 +19,7 @@ import type { PendingFrozenHit } from './unitDamage';
 import type { HeldConjuredWeaponState } from '../conjuredWeapons/registry';
 import { readActorAnimation } from '../animation/actorAnimation';
 import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
+import { parseSenseGrantsFromJSON } from '../visibility/senses';
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -182,6 +183,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
 
     const buffsData = (data.buffs as BuffSerialized[] | undefined) ?? [];
     unit.buffs = buffsData.map((b) => buffFromJSON(b));
+    unit.senseGrants = parseSenseGrantsFromJSON(data.senseGrants);
     if (typeof data.localTime === 'number') {
         unit.localTime = data.localTime;
         unit.localClockActive = true;

@@ -1,7 +1,10 @@
 /**
  * Spirit Flurry — four dash strikes on one locked-on enemy in quick succession, each from a new angle.
  * `repeatCountFlat` (Frenzied Flurry research) adds strikes inside the same total time.
- * Follows a Sic 'em pounce: when Pounce (0702) hits, the spirit locks on to that enemy and casts this.
+ * Follows a Sic 'em pounce: when Pounce (0702) hits, the spirit locks on to that enemy and casts this. A pounce
+ * that misses casts it on the landing point instead: each strike then goes through the enemy nearest that point
+ * (within SPIRIT_FLURRY_AREA_RADIUS, one target per strike), or through the empty spot. Strikes also pick a
+ * new enemy near a locked-on target that died mid-flurry.
  *
  * Pet-only: no aiSettings and no card. Restored only by Pounce granting a commandCharge.
  */
@@ -25,6 +28,8 @@ export const SPIRIT_FLURRY_SECONDS = 1.0;
 /** Seconds from one strike to the next with the base four strikes. */
 export const SPIRIT_FLURRY_STRIKE_INTERVAL = SPIRIT_FLURRY_SECONDS / SPIRIT_FLURRY_ANGLES.length;
 const COOLDOWN_SECONDS = 0.1;
+/** How far (px) from the flurry's point a strike looks for an enemy when it has no living locked-on target. */
+export const SPIRIT_FLURRY_AREA_RADIUS = 60;
 
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'commandCharge', chargesPerRecovery: 1, usesRecovered: 1 },
@@ -53,6 +58,7 @@ function buildFlurryTimings(strikeCount: number): AbilityTimingInterval[] {
                 behaviour: CastBehaviours.DashStrike()
                     .withDamage(SPIRIT_STRIKE_DAMAGE)
                     .withAngleOffset(flurryAngle(i))
+                    .withAreaTargeting(SPIRIT_FLURRY_AREA_RADIUS)
                     .withSlashTrail(trail),
             },
         ],

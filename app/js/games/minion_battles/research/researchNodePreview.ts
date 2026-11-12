@@ -18,6 +18,7 @@ import { PASSIVE_STAT_LABELS } from '../../../researchTrees/passiveStatLabels';
 import {
     getMissionStartResourcesFromResearch,
     getPetsFromResearch,
+    getSenseGrantsFromResearch,
 } from '../../../researchTrees/evaluator';
 import { RESEARCH_TREES } from '../../../researchTrees/list';
 import {
@@ -34,7 +35,8 @@ import { resolveCharacterLoadout } from '../character_defs/characterLoadout';
 import { getCharacterMaxHunger } from '../character_defs/characterHunger';
 import { expandAbilityIdsForResearchModifiers } from '../abilities/abilityModifierHelpers';
 import { getAbilityTagsForId } from '../abilities/Ability';
-import { getDefaultHp, PLAYER_CHARACTER_ID } from '../game/units/unit_defs/unitDef';
+import { getDefaultHp, getUnitSensesDef, PLAYER_CHARACTER_ID } from '../game/units/unit_defs/unitDef';
+import { mergeSenseGrants, type SenseProfile } from '../game/visibility/senses';
 import { getPetDef } from '../game/units/pet_defs/petDef';
 import {
     getDamageBonusFromResearch,
@@ -96,6 +98,23 @@ const HANDLED_PASSIVE_KEYS = new Set<PassiveStatKey>([
     PassiveStatKey.MovementRegenPerRound,
     PassiveStatKey.LightRegenEnabled,
 ]);
+
+/**
+ * Sense rows shown when research changes the player's senses (`grantSense`). Each reads one number from the
+ * resolved profile; `null` means the sense is absent. A new sense gets a new row here.
+ */
+const SENSE_PREVIEW_ROWS: readonly {
+    id: string;
+    label: string;
+    read: (profile: SenseProfile) => number | null;
+    /** Darkvision is a bonus on top of vision, so it reads as "+N"; ranges read as "N". */
+    signed?: boolean;
+}[] = [
+    { id: 'vision', label: 'Vision', read: (p) => p.vision?.range ?? null },
+    { id: 'darkvision', label: 'Darkvision', read: (p) => p.darkvision ?? 0, signed: true },
+    { id: 'hearing', label: 'Hearing', read: (p) => p.hearing?.range ?? null },
+    { id: 'tremorsense', label: 'Tremorsense', read: (p) => p.tremorsense?.range ?? null },
+];
 
 const LIGHT_REGEN_ON = 'On';
 const LIGHT_REGEN_OFF = 'Off';
@@ -268,6 +287,7 @@ interface StatSheet {
     earthDamageMult: number;
     passives: PassiveBonuses;
     missionStart: Map<string, number>;
+    senses: SenseProfile;
     bonusRewards: Partial<Record<CampaignResourceKey, number>>;
 }
 
@@ -292,6 +312,7 @@ function readStatSheet(view: ResearchView): StatSheet {
         earthDamageMult: passives[PassiveStatKey.EarthDamage]?.mult ?? DEFAULT_PASSIVE_MULT,
         passives,
         missionStart: getMissionStartResourcesFromResearch(view.researchTrees),
+        senses: mergeSenseGrants(getUnitSensesDef(PLAYER_CHARACTER_ID), getSenseGrantsFromResearch(view.researchTrees)),
         bonusRewards: collectBonusRewards(view),
     };
 }
@@ -385,6 +406,12 @@ function diffStatSheets(before: StatSheet, after: StatSheet): ResearchPreviewSta
             after: String(afterAmount),
         });
     }
+    for (const row of SENSE_PREVIEW_ROWS) {
+        const beforePhrase = formatSensePhrase(row.label, row.read(before.senses), row.signed);
+        const afterPhrase = formatSensePhrase(row.label, row.read(after.senses), row.signed);
+        if (beforePhrase === afterPhrase) continue;
+        rows.push({ id: `sense:${row.id}`, label: row.label, kind: 'text', before: beforePhrase, after: afterPhrase });
+    }
     const rewardKeys = new Set<CampaignResourceKey>([
         ...Object.keys(before.bonusRewards) as CampaignResourceKey[],
         ...Object.keys(after.bonusRewards) as CampaignResourceKey[],
@@ -472,6 +499,13 @@ function formatPassivePhrase(
     if (add !== 0 && pct !== 0) return `${label} ${formatSigned(add)}, ${formatSigned(pct)}%`;
     if (pct !== 0) return `${label} ${formatSigned(pct)}%`;
     return `${label} ${formatSigned(add)}`;
+}
+
+/** "Tremorsense 6 tiles", "Darkvision +3 tiles", or "Tremorsense none" when the sense is absent. */
+function formatSensePhrase(label: string, value: number | null, signed?: boolean): string {
+    if (value === null) return `${label} none`;
+    const n = signed ? formatSigned(value) : String(value);
+    return `${label} ${n} ${value === 1 ? 'tile' : 'tiles'}`;
 }
 
 function battleResourceName(resourceId: string): string {

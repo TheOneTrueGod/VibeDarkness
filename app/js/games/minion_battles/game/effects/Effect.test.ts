@@ -25,6 +25,13 @@ describe('Effect', () => {
         expect(effect.active).toBe(false);
     });
 
+    it('leaves concealedWithOwner undefined unless true', () => {
+        const base = { x: 0, y: 0, duration: 1, effectType: 'impact', ownerActorId: 'u1' };
+        expect(new Effect({ ...base, concealedWithOwner: true }).concealedWithOwner).toBe(true);
+        expect(new Effect({ ...base, concealedWithOwner: false }).concealedWithOwner).toBeUndefined();
+        expect(new Effect(base).concealedWithOwner).toBeUndefined();
+    });
+
     it('applies upward acceleration to ParticleImage effects', () => {
         const effect = new Effect({
             x: 100,

@@ -87,6 +87,25 @@ describe('fx studio blocks', () => {
             { type: 'paragraph', text: 'After' },
         ]);
     });
+
+    it('reads styles / subject / art option lines out of the note', () => {
+        const [block] = parsePlanMarkdown(
+            '> [!FX_STUDIO] Ice studio\n> styles: frost, droplets\n> subject: mage\n> art: water-bar, fx:frost:unit\n> Pick one.',
+        );
+        expect(block).toEqual({
+            type: 'fxStudio',
+            title: 'Ice studio',
+            blocks: [{ type: 'paragraph', text: 'Pick one.' }],
+            fx: { styles: ['frost', 'droplets'], subject: 'mage', art: ['water-bar', 'fx:frost:unit'] },
+        });
+    });
+
+    it('reads option lines on [!FX_PALETTE] cards but not on armory cards', () => {
+        const [fx] = parsePlanMarkdown('> [!FX_PALETTE] Glacier\n> primary: #0369a1 A\n> secondary: #e0f2fe B\n> art: water-core');
+        expect(fx).toMatchObject({ fx: { art: ['water-core'] }, blocks: [] });
+        const [armory] = parsePlanMarkdown('> [!PALETTE] Quench\n> primary: #4f6d8c A\n> secondary: #e7e5e4 B\n> art: x');
+        expect(armory).not.toHaveProperty('fx');
+    });
 });
 
 describe('plan items', () => {

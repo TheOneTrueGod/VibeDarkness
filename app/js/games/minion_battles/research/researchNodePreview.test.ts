@@ -28,9 +28,11 @@ import {
     TRAINING_MIGHTY_ALL_DAMAGE_MULT,
     TRAINING_MIGHTY_LEVELS,
     TRAINING_NODE_CORE,
+    TRAINING_NODE_DARKVISION,
     TRAINING_NODE_DOUBLE_PUNCH,
     TRAINING_NODE_HEALTHY,
     TRAINING_NODE_MIGHTY,
+    TRAINING_NODE_TREMORSENSE,
     TRAINING_TREE_ID,
     trainingTree,
 } from '../../../researchTrees/trees/training';
@@ -64,6 +66,28 @@ const MIGHTY_ONE_LEVEL_MULT = 1 + getMultBonusAtLevel(
 );
 
 describe('buildResearchNodePreview', () => {
+    it('shows a sense grant as a sense row', () => {
+        const darkvision = buildResearchNodePreview({
+            treeId: TRAINING_TREE_ID,
+            node: nodeById(trainingTree, TRAINING_NODE_DARKVISION),
+        });
+        expect(stat(darkvision, 'sense:darkvision')).toMatchObject({
+            kind: 'text',
+            before: 'Darkvision +0 tiles',
+            after: 'Darkvision +3 tiles',
+        });
+        const tremorsense = buildResearchNodePreview({
+            treeId: TRAINING_TREE_ID,
+            node: nodeById(trainingTree, TRAINING_NODE_TREMORSENSE),
+        });
+        expect(stat(tremorsense, 'sense:tremorsense')).toMatchObject({
+            kind: 'text',
+            before: 'Tremorsense none',
+            after: 'Tremorsense 6 tiles',
+        });
+        expect(tremorsense.stats.filter((row) => row.id.startsWith('sense:'))).toHaveLength(1);
+    });
+
     it('shows a health icon delta for a max-health passive', () => {
         const preview = buildResearchNodePreview({
             treeId: TRAINING_TREE_ID,

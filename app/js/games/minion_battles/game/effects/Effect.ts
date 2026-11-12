@@ -30,6 +30,12 @@ export class Effect extends GameObject {
     ownerActorId?: string;
     /** While the simulation is halted (pause plane). Undefined = default (see `resolveEffectPauseBehaviour`). */
     pauseBehaviour?: PauseBehaviour;
+    /**
+     * When true, the renderer skips this effect while `ownerActorId` is invisible to the local team (heard,
+     * felt or hidden), so a caster-attached visual can't reveal an unseen caster. Spell circles set it.
+     * Presentation-only; omitted (undefined) when false.
+     */
+    concealedWithOwner?: boolean;
     /** When set, effect travels from (startX, startY) to (endX, endY) over its duration. */
     private startX?: number;
     private endX: number;
@@ -61,6 +67,8 @@ export class Effect extends GameObject {
         ownerActorId?: string;
         /** While the simulation is halted: 'continue' | 'hold' | 'stop'. See pauseBehaviour.ts. */
         pauseBehaviour?: PauseBehaviour;
+        /** Hide while the owner actor is invisible to the local team. */
+        concealedWithOwner?: boolean;
     }) {
         super(config.id ?? generateGameObjectId('fx'), config.x, config.y);
         this.duration = config.duration;
@@ -71,6 +79,7 @@ export class Effect extends GameObject {
         if (config.timeDomain && config.timeDomain !== 'wall') this.timeDomain = config.timeDomain;
         if (config.ownerActorId) this.ownerActorId = config.ownerActorId;
         if (config.pauseBehaviour) this.pauseBehaviour = config.pauseBehaviour;
+        if (config.concealedWithOwner) this.concealedWithOwner = true;
         this.endX = config.x;
         this.endY = config.y;
         this.startX = config.startX;

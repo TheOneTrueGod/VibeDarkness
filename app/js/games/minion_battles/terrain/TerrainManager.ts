@@ -6,18 +6,20 @@
  */
 
 import type { TerrainGrid } from './TerrainGrid';
-import { GROUND_RAISE, raiseGround, TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
+import { GROUND_RAISE, lowerWaterLevel, raiseGround, TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
 import {
     EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
     EARTH_CORE_STONE_HEALTH,
 } from '../card_defs/05_earth_core/earthCoreConstants';
-import type { FloorTile, TerrainStoneDamagedTransition } from './FloorTile';
+import type { FloorTile, TerrainStoneDamagedTransition, TerrainWaterDrainedTransition } from './FloorTile';
 import type { ResolvedSegmentPlacement } from './segmentRegistry';
 import {
     DAMAGE_TIER_NONE,
     getDamageTier,
     getEffectiveTerrain,
     isIntactRock,
+    WATER_DESTRUCTIBLE_KIND,
+    WATER_TILE_HEALTH,
 } from './FloorTile';
 import type { ClearedTerrainEffect, TerrainLayerManager } from '../game/TerrainLayerManager';
 import { TERRAIN_CLEARS, matchesClearSpec } from '../game/terrainEffects/terrainClearing';
@@ -26,11 +28,15 @@ import { PathQuery } from '../pathfinding/PathQuery';
 
 export type { TerrainStoneDamagedTransition as TerrainStoneDamagedEvent } from './FloorTile';
 
+/** Water left at or below this counts as drained (absorbs float error from many per-tick fractions). */
+const WATER_DRAINED_EPSILON = 1e-9;
+
 export class TerrainManager {
     readonly grid: TerrainGrid;
     readonly pathQuery: PathQuery;
     private terrainLayers: TerrainLayerManager | null = null;
     private onStoneDamaged?: (event: TerrainStoneDamagedTransition) => void;
+    private onWaterDrained?: (event: TerrainWaterDrainedTransition) => void;
     private onTerrainEffectsCleared?: (cleared: ClearedTerrainEffect[]) => void;
     private lastRockDamageSourceUnitId: string | null = null;
     /** Mission-global segment placement rects, for debug/tooling lookups. See `getSegmentIdAt`. */
@@ -168,6 +174,25 @@ export class TerrainManager {
     /** True if a projectile is stopped at this world position unless a travel modifier traverses it. */
     isProjectileObstructedAt(worldX: number, worldY: number): boolean {
         return TERRAIN_PROPERTIES[this.getProjectileTerrainAt(worldX, worldY)].blocksProjectiles;
+    }
+
+    /**
+     * True if the tile stops sight lines (`TerrainProperties.blocksVision`, effective terrain, so
+     * runtime rock blocks and destroyed rock stops blocking). Out-of-bounds counts as blocking.
+     * Trace lines with `isTileLineClear` from `./tileLine`.
+     */
+    blocksVisionAt(col: number, row: number): boolean {
+        if (!this.isInBounds(col, row)) return true;
+        return TERRAIN_PROPERTIES[this.getEffectiveTerrainType(col, row)].blocksVision;
+    }
+
+    /**
+     * True if the tile stops light reaching tiles behind it (`TerrainProperties.blocksLight`,
+     * effective terrain). Out-of-bounds counts as blocking.
+     */
+    blocksLightAt(col: number, row: number): boolean {
+        if (!this.isInBounds(col, row)) return true;
+        return TERRAIN_PROPERTIES[this.getEffectiveTerrainType(col, row)].blocksLight;
     }
 
     getGridSize(): { width: number; height: number; cellSize: number } {
@@ -453,6 +478,74 @@ export class TerrainManager {
         // The effective terrain type changed (movement cost, and the terrain sprite repaints on navEpoch).
         this.notifyNavChanged(col, row);
         return true;
+    }
+
+    // -------------------------------------------------------------------------
+    // Water draining — floor tile layer
+    // -------------------------------------------------------------------------
+
+    /**
+     * Drain `fraction` of one water level from a water tile (the counterpart of `damageRock`). The
+     * tile's remaining water is a lazily created `destructible` of kind `WATER_DESTRUCTIBLE_KIND`
+     * (health `WATER_TILE_HEALTH`). When it reaches 0 the tile drops one level through
+     * `lowerWaterLevel` (deep -> water -> shallow -> dirt), its water resets to full (dry ground has
+     * none), pathfinding is told, and the `terrain_water_drained` emitter fires. A drain drops at most
+     * one level; any excess is discarded. Returns the transition, or null when nothing was drained
+     * (off-grid, not water, or `fraction <= 0`).
+     */
+    drainWater(
+        col: number,
+        row: number,
+        fraction: number,
+        sourceUnitId?: string | null,
+    ): TerrainWaterDrainedTransition | null {
+        if (!this.terrainLayers) return null;
+        if (!this.isInBounds(col, row) || !(fraction > 0)) return null;
+
+        const previousTerrainType = this.getEffectiveTerrainType(col, row);
+        const lowered = lowerWaterLevel(previousTerrainType);
+        if (lowered === null) return null;
+
+        const previousFloor = this.getFloorTile(col, row);
+        const water = previousFloor?.destructible?.kind === WATER_DESTRUCTIBLE_KIND ? previousFloor.destructible : undefined;
+        const maxHealth = water?.maxHealth ?? WATER_TILE_HEALTH;
+        const previousHealth = water?.health ?? maxHealth;
+        const remaining = previousHealth - fraction;
+
+        const levelDropped = remaining <= WATER_DRAINED_EPSILON;
+        const terrainType = levelDropped ? lowered : previousTerrainType;
+        const stillWater = lowerWaterLevel(terrainType) !== null;
+        const health = !stillWater ? 0 : levelDropped ? maxHealth : remaining;
+
+        const tile: FloorTile = stillWater
+            ? { terrainType, destructible: { health, maxHealth, kind: WATER_DESTRUCTIBLE_KIND } }
+            : { terrainType };
+        this.writeFloorTile(col, row, tile);
+
+        const world = this.grid.gridToWorld(col, row);
+        const event: TerrainWaterDrainedTransition = {
+            col,
+            row,
+            worldX: world.x,
+            worldY: world.y,
+            previousHealth,
+            health,
+            maxHealth,
+            previousTerrainType,
+            terrainType,
+            levelDropped,
+            sourceUnitId: sourceUnitId ?? null,
+        };
+        if (levelDropped) {
+            // Same as a rock change: passability / cost changed and the terrain sprite repaints on navEpoch.
+            this.notifyNavChanged(col, row);
+            this.onWaterDrained?.(event);
+        }
+        return event;
+    }
+
+    setWaterDrainedEmitter(emitter: ((event: TerrainWaterDrainedTransition) => void) | undefined): void {
+        this.onWaterDrained = emitter;
     }
 
     setStoneDamagedEmitter(emitter: ((event: TerrainStoneDamagedTransition) => void) | undefined): void {

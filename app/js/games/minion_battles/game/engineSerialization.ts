@@ -127,6 +127,9 @@ export function deserializeEngine(
     engine.terrainManager?.setStoneDamagedEmitter((event) => {
         engine.eventBus.emit('terrain_stone_damaged', event);
     });
+    engine.terrainManager?.setWaterDrainedEmitter((event) => {
+        engine.eventBus.emit('terrain_water_drained', event);
+    });
     engine.terrainManager?.setTerrainEffectsClearedEmitter((cleared) => {
         engine.eventBus.emit('terrain_effects_cleared', { cleared });
     });

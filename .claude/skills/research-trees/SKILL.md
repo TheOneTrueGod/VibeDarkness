@@ -93,6 +93,8 @@ Research effects are applied to player units in `storylines/BaseMissionDef.ts`, 
 - Stat bonuses (health, damage, stamina recovery) via research callback helpers
 - Ability runtime modifiers via `applyXxxResearchToAbilityRuntime(unit, getResearchNodes)`
 
+- Battle resources: `attachResource` effects attach a resource (`createResourceFromId`) the unit's items did not bring (`attachResourcesFromResearch`), then `grantMissionStartResource` adds to resources the unit has. A grant alone never attaches a resource. The tiny-battle harness (`placePlayerFromLoadout`) mirrors both.
+
 When adding new research effects that affect battle, wire them here — not via in-battle lookups.
 
 `AbilityModifier` fields live in `researchTrees/types.ts`. Flat cost changes use `resourceCostFlat` (added to the ability's primary resource cost at spend/display time via `getAbilityResourceCosts(ability, unit)`).

@@ -1,8 +1,8 @@
 import { getCastElapsed } from '../../time/actorClock';
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { debugSettingsSnapshot } from '../../../../../debug/debugSettingsStore';
-import { DarknessLevel } from '../../darknessLevels';
 import type { GameEngine } from '../../GameEngine';
+import { getUnitDetection, isDetectionVisible, isPerceptionActive } from '../../visibility/teamPerception';
+import { enemyUnitAlpha } from './visibilityRenderRules';
 import type { AssetRegistry } from '../AssetRegistry';
 import type { OverlayRenderer } from './OverlayRenderer';
 import type { TeamId } from '../../teams';
@@ -55,6 +55,8 @@ const Z_UNITS = 10;
 // Stays below terrain effects (10.5) and projectiles (11).
 const Z_UNITS_RAISED = Z_UNITS + 0.25;
 const Z_KNOCKBACK_SHADOW = 9;
+/** Hit flash on an invisible unit: above the darkness overlay (5), sense pulses (8) and unit bodies. */
+const Z_HIDDEN_HIT_FLASH = Z_UNITS + 0.2;
 
 export class UnitRenderer {
     private unitVisuals: Map<string, Container> = new Map();
@@ -71,10 +73,14 @@ export class UnitRenderer {
     /** World-space clip masks for units sinking into water (see `updateDrowningMask`). */
     private drowningMasks: Map<string, Graphics> = new Map();
     private constructionGhostVisuals: Map<string, Container> = new Map();
-    private hitFlashState: Map<string, { startTime: number; rafId: number }> = new Map();
+    private hitFlashState: Map<string, { startTime: number; rafId: number; graphics: Graphics }> = new Map();
+    /** Standalone hit flashes for units invisible to the local team (their container is hidden). */
+    private hiddenHitFlashVisuals: Map<string, Graphics> = new Map();
 
     /** Cached engine set each render — used by onDamageTaken. */
     private currentEngine: GameEngine | null = null;
+    /** Local team set each render — used by onDamageTaken to route the flash by detection. */
+    private currentLocalTeamId: TeamId = 'player';
     private debugUnitOutlineId: string | null = null;
 
     constructor(
@@ -97,6 +103,7 @@ export class UnitRenderer {
 
     render(engine: GameEngine, localTeamId: TeamId, debugUnitOutlineId: string | null): void {
         this.currentEngine = engine;
+        this.currentLocalTeamId = localTeamId;
         this.debugUnitOutlineId = debugUnitOutlineId;
 
         if (this.assets.pendingUnitSync) {
@@ -110,12 +117,26 @@ export class UnitRenderer {
     }
 
     onDamageTaken(data: DamageTakenEvent): void {
+        const engine = this.currentEngine;
+        const unit = engine?.getUnit(data.unitId);
+        if (!engine || !unit || unit.isInvincible()) return;
+        // Invisible to the local team (heard / felt / hidden): a standalone red circle at its position, so the
+        // player still sees the attack connect without the flash revealing the body.
+        if (!isDetectionVisible(getUnitDetection(engine, this.currentLocalTeamId, unit))) {
+            this.startHitFlash(data.unitId, this.getHiddenHitFlash(data.unitId), unit.radius, HIT_FLASH_COLOR, true);
+            return;
+        }
         const container = this.unitVisuals.get(data.unitId);
-        const unit = this.currentEngine?.getUnit(data.unitId);
-        if (!container || !unit || unit.isInvincible()) return;
+        if (!container) return;
         // Shield buff soaked the hit with no HP loss -> blue; partial absorbs stay red.
         const shieldSoaked = (data.shieldAbsorbed ?? 0) > 0 && (data.hpDamage ?? 0) <= 0;
-        this.startHitFlash(data.unitId, container, unit.radius, shieldSoaked ? SHIELD_HIT_FLASH_COLOR : HIT_FLASH_COLOR);
+        this.startHitFlash(
+            data.unitId,
+            this.getUnitHitFlash(container),
+            unit.radius,
+            shieldSoaked ? SHIELD_HIT_FLASH_COLOR : HIT_FLASH_COLOR,
+            false,
+        );
     }
 
     /** `unit_fade_in` event: (re)start the unit's fade-in now, on wall time. */
@@ -126,6 +147,8 @@ export class UnitRenderer {
     clearHitFlashes(): void {
         for (const [, s] of this.hitFlashState) {
             cancelAnimationFrame(s.rafId);
+            s.graphics.visible = false;
+            s.graphics.clear();
         }
         this.hitFlashState.clear();
     }
@@ -176,6 +199,8 @@ export class UnitRenderer {
         this.lastWiggleRealTimeMs = nowMs;
 
         const castRenderOffsets = collectCastRenderOffsets(engine);
+        // Darkness-only styling (translucent enemies in the dark) applies only while perception is on.
+        const perceptionActive = isPerceptionActive(engine);
 
         for (const unit of units) {
             let visual = this.unitVisuals.get(unit.id);
@@ -273,12 +298,13 @@ export class UnitRenderer {
             visual.y = unit.y + renderOffsetY + wiggleY + knockupYOffset + (spawnState?.yOffset ?? 0) + (drowning?.sinkY ?? 0);
             this.drawHoverFlightJuice(unit, visual.x, visual.y, wiggleDt);
             visual.visible = unit.active && (spawnState ? spawnState.visible : true);
+            let fadeAlpha = 1;
             const fadeIn = this.unitFadeIns.get(unit.id);
             if (fadeIn) {
-                visual.alpha = unitFadeInAlpha(nowMs, fadeIn);
                 if (isUnitFadeInDone(nowMs, fadeIn)) {
                     this.unitFadeIns.delete(unit.id);
-                    visual.alpha = 1;
+                } else {
+                    fadeAlpha = unitFadeInAlpha(nowMs, fadeIn);
                 }
             }
             this.updateDrowningMask(unit.id, visual, drowning, unit.x, unit.radius);
@@ -294,14 +320,24 @@ export class UnitRenderer {
                 visual.scale.set(1);
             }
 
-            const col = Math.floor(unit.x / cellSize);
-            const row = Math.floor(unit.y / cellSize);
-            const light = this.overlayRenderer.getLightAt(col, row);
-            const inFullDarkness =
-                debugSettingsSnapshot.darkOverlayEnabled &&
-                light !== null &&
-                light <= DarknessLevel.FULL_DARKNESS &&
-                areEnemies(localTeamId, unit.teamId);
+            // Team perception decides whether the body is drawn (heard / felt / hidden enemies are not).
+            const detection = getUnitDetection(engine, localTeamId, unit);
+            if (!isDetectionVisible(detection)) {
+                visual.visible = false;
+                if (knockbackShadow) knockbackShadow.visible = false;
+                const juice = this.hoverFlightVisuals.get(unit.id);
+                if (juice) juice.visible = false;
+                continue;
+            }
+            const isEnemy = areEnemies(localTeamId, unit.teamId);
+            let perceptionAlpha = 1;
+            if (isEnemy) {
+                const light = perceptionActive
+                    ? this.overlayRenderer.getLightAt(Math.floor(unit.x / cellSize), Math.floor(unit.y / cellSize))
+                    : null;
+                perceptionAlpha = enemyUnitAlpha(detection, light);
+            }
+            visual.alpha = fadeAlpha * perceptionAlpha;
             const isDebugOutlined = this.debugUnitOutlineId === unit.id;
 
             const body = visual.children.find((c) => c.label === 'body') as Graphics | undefined;
@@ -313,57 +349,30 @@ export class UnitRenderer {
             const glow = visual.children.find((c) => c.label === 'glow');
             const playerRing = visual.children.find((c) => c.label === 'playerRing');
 
-            if (inFullDarkness && body) {
+            if (body) {
                 body.clear();
-                body.circle(0, 0, unit.radius);
-                body.fill({ color: 0xef4444 });
-                body.stroke({ color: 0xef4444, width: 1 });
+                paintUnitBody(body, unit);
                 if (isDebugOutlined) {
                     body.stroke({ color: 0xfacc15, width: 3 });
                     body.circle(0, 0, unit.radius + 4);
                     body.stroke({ color: 0xfacc15, width: 2 });
                 }
-                if (hpBg) hpBg.visible = false;
-                if (hpFill) hpFill.visible = false;
-                if (hpInjury) hpInjury.visible = false;
-                if (characterSprite) characterSprite.visible = false;
-                const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
-                if (darkTint) darkTint.visible = false;
-                if (label) label.visible = false;
-                if (glow) glow.visible = false;
-                if (playerRing) playerRing.visible = false;
-                syncJuggernautRing(visual, unit, false);
-                syncCastStateRing(visual, unit.radius, null);
-            } else {
-                if (body) {
-                    body.clear();
-                    paintUnitBody(body, unit);
-                    if (isDebugOutlined) {
-                        body.stroke({ color: 0xfacc15, width: 3 });
-                        body.circle(0, 0, unit.radius + 4);
-                        body.stroke({ color: 0xfacc15, width: 2 });
-                    }
-                }
-                const showHpBar = !unit.isInvincible() && !hidesWorldHpBar(unit) && !unit.isUntargetable();
-                if (hpBg) hpBg.visible = showHpBar;
-                if (hpFill) hpFill.visible = showHpBar;
-                if (hpInjury) hpInjury.visible = showHpBar;
-                if (characterSprite) characterSprite.visible = true;
-                const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
-                if (darkTint) darkTint.visible = true;
-                if (label) label.visible = true;
-                if (glow) glow.visible = true;
-                if (playerRing) playerRing.visible = true;
-                // Uninterruptible enemy cast: solid red band with a juggernaut-blue inner border (hides the glow).
-                syncJuggernautRing(
-                    visual,
-                    unit,
-                    shouldShowJuggernautRing(unit, engine.gameTime, areEnemies(localTeamId, unit.teamId)),
-                );
-                // Acting / recovering / ready ring inside the body (`UnitDefEntry.castStateRing`).
-                syncCastStateRing(visual, unit.radius, unit.isAlive() ? getCastStateRing(unit, engine) : null);
-                if (showHpBar) updateUnitHpBar(visual, unit);
             }
+            const showHpBar = !unit.isInvincible() && !hidesWorldHpBar(unit) && !unit.isUntargetable();
+            if (hpBg) hpBg.visible = showHpBar;
+            if (hpFill) hpFill.visible = showHpBar;
+            if (hpInjury) hpInjury.visible = showHpBar;
+            if (characterSprite) characterSprite.visible = true;
+            const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
+            if (darkTint) darkTint.visible = true;
+            if (label) label.visible = true;
+            if (glow) glow.visible = true;
+            if (playerRing) playerRing.visible = true;
+            // Uninterruptible enemy cast: solid red band with a juggernaut-blue inner border (hides the glow).
+            syncJuggernautRing(visual, unit, shouldShowJuggernautRing(unit, engine.gameTime, isEnemy));
+            // Acting / recovering / ready ring inside the body (`UnitDefEntry.castStateRing`).
+            syncCastStateRing(visual, unit.radius, unit.isAlive() ? getCastStateRing(unit, engine) : null);
+            if (showHpBar) updateUnitHpBar(visual, unit);
 
             syncDarknessNeedles(visual, unit);
 
@@ -392,7 +401,7 @@ export class UnitRenderer {
 
             // Buff effects (e.g. stunned stars)
             let buffEffects = visual.children.find((c) => c.label === 'buffEffects') as Graphics | undefined;
-            if (unit.buffs.length > 0 && !inFullDarkness) {
+            if (unit.buffs.length > 0) {
                 if (!buffEffects) {
                     buffEffects = new Graphics();
                     buffEffects.label = 'buffEffects';
@@ -523,12 +532,8 @@ export class UnitRenderer {
         }
     }
 
-    private startHitFlash(unitId: string, container: Container, radius: number, color: number): void {
-        const existing = this.hitFlashState.get(unitId);
-        if (existing) {
-            cancelAnimationFrame(existing.rafId);
-        }
-
+    /** The flash child inside a unit's container (visible units). */
+    private getUnitHitFlash(container: Container): Graphics {
         let hitFlash = container.children.find((c) => c.label === 'hitFlash') as Graphics | undefined;
         if (!hitFlash) {
             hitFlash = new Graphics();
@@ -536,28 +541,70 @@ export class UnitRenderer {
             hitFlash.eventMode = 'none';
             container.addChild(hitFlash);
         }
+        return hitFlash;
+    }
+
+    /** Standalone world-space flash for a unit whose container is hidden (outside it, above the darkness overlay). */
+    private getHiddenHitFlash(unitId: string): Graphics {
+        let flash = this.hiddenHitFlashVisuals.get(unitId);
+        if (!flash) {
+            flash = new Graphics();
+            flash.label = 'hiddenHitFlash';
+            flash.eventMode = 'none';
+            flash.zIndex = Z_HIDDEN_HIT_FLASH;
+            flash.visible = false;
+            this.hiddenHitFlashVisuals.set(unitId, flash);
+            this.gameContainer.addChild(flash);
+        }
+        return flash;
+    }
+
+    /**
+     * Fade a red (or shield-blue) circle in and out on wall time over {@link HIT_FLASH_DURATION}.
+     * `followUnit` moves a standalone flash with the unit each frame (the in-container flash moves with it already).
+     */
+    private startHitFlash(unitId: string, hitFlash: Graphics, radius: number, color: number, followUnit: boolean): void {
+        const existing = this.hitFlashState.get(unitId);
+        if (existing) {
+            cancelAnimationFrame(existing.rafId);
+            if (existing.graphics !== hitFlash) {
+                existing.graphics.visible = false;
+                existing.graphics.clear();
+            }
+        }
         hitFlash.visible = true;
 
+        const followPosition = (): void => {
+            if (!followUnit) return;
+            const unit = this.currentEngine?.getUnit(unitId);
+            if (unit) {
+                hitFlash.x = unit.x;
+                hitFlash.y = unit.y;
+            }
+        };
+        followPosition();
+
         const startTime = Date.now();
-        this.hitFlashState.set(unitId, { startTime, rafId: 0 });
+        this.hitFlashState.set(unitId, { startTime, rafId: 0, graphics: hitFlash });
 
         const tick = (): void => {
             const state = this.hitFlashState.get(unitId);
-            if (!state) return;
+            if (!state || hitFlash.destroyed) return;
             const elapsed = (Date.now() - state.startTime) / 1000;
             if (elapsed >= HIT_FLASH_DURATION) {
                 this.hitFlashState.delete(unitId);
-                hitFlash!.visible = false;
-                hitFlash!.clear();
+                hitFlash.visible = false;
+                hitFlash.clear();
                 return;
             }
             const alpha = elapsed < HIT_FLASH_DURATION / 2
                 ? (elapsed / (HIT_FLASH_DURATION / 2))
                 : (1 - (elapsed - HIT_FLASH_DURATION / 2) / (HIT_FLASH_DURATION / 2));
-            hitFlash!.clear();
-            hitFlash!.circle(0, 0, radius);
-            hitFlash!.fill({ color, alpha: 1 });
-            hitFlash!.alpha = alpha;
+            followPosition();
+            hitFlash.clear();
+            hitFlash.circle(0, 0, radius);
+            hitFlash.fill({ color, alpha: 1 });
+            hitFlash.alpha = alpha;
             state.rafId = requestAnimationFrame(tick);
         };
         const state = this.hitFlashState.get(unitId)!;
@@ -596,6 +643,19 @@ export class UnitRenderer {
                 juice.destroy();
                 this.hoverFlightVisuals.delete(id);
                 this.hoverMotePhase.delete(id);
+            }
+        }
+
+        for (const [id, flash] of this.hiddenHitFlashVisuals) {
+            if (!activeUnitIds.has(id)) {
+                const state = this.hitFlashState.get(id);
+                if (state?.graphics === flash) {
+                    cancelAnimationFrame(state.rafId);
+                    this.hitFlashState.delete(id);
+                }
+                this.gameContainer.removeChild(flash);
+                flash.destroy();
+                this.hiddenHitFlashVisuals.delete(id);
             }
         }
 
@@ -697,6 +757,8 @@ export class UnitRenderer {
         this.hoverMotePhase.clear();
         for (const mask of this.drowningMasks.values()) mask.destroy();
         this.drowningMasks.clear();
+        for (const flash of this.hiddenHitFlashVisuals.values()) flash.destroy();
+        this.hiddenHitFlashVisuals.clear();
         for (const ghost of this.constructionGhostVisuals.values()) ghost.destroy();
         this.constructionGhostVisuals.clear();
     }

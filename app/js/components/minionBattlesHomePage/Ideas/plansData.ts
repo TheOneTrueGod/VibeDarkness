@@ -36,14 +36,30 @@ export type PlanBlock =
            * (`> [!FX_PALETTE]`): particle effects in a ring, a projectile trail and off a unit.
            */
           variant: PlanPaletteVariant;
+          /** `styles:` / `subject:` / `art:` lines of an `fx` card (see {@link PlanFxOptions}). */
+          fx?: PlanFxOptions;
       }
     /**
      * `> [!FX_STUDIO] title`: an interactive grid that applies the plan's `[!FX_PALETTE]` cards to every
      * particle style. Any following `>` lines are its note.
      */
-    | { type: 'fxStudio'; title: string; blocks: PlanBlock[] };
+    | { type: 'fxStudio'; title: string; blocks: PlanBlock[]; fx?: PlanFxOptions };
 
 export type PlanPaletteVariant = 'armory' | 'fx';
+
+/**
+ * Optional option lines inside a `[!FX_PALETTE]` or `[!FX_STUDIO]` body, so one plan can preview its own
+ * tree instead of the defaults:
+ * - `styles: frost, droplets`: which particle styles the studio shows (default: all).
+ * - `subject: mage`: what stands in the "Off a unit" scenes (default: the spirit dog).
+ * - `art: water-bar, water-core, fx:frost:unit`: art pieces (`fxArt/`) shown on the card, or as a row above
+ *   the studio grid. `fx:<style>:<context>` is a plain particle scene.
+ */
+export interface PlanFxOptions {
+    styles?: string[];
+    subject?: string;
+    art?: string[];
+}
 
 export interface PlanDoc {
     /** Permanent 4-digit id from the file's numeric prefix, e.g. `0001`. Used in URLs. */
@@ -66,8 +82,26 @@ const PALETTE_RE = /^>\s?\[!(FX_)?PALETTE\]\s*(.*)$/i;
 const FX_STUDIO_RE = /^>\s?\[!FX_STUDIO\]\s*(.*)$/i;
 const PALETTE_COLOR_RE = /^(primary|secondary):\s*(#[0-9a-fA-F]{6})\s*(.*)$/i;
 const QUOTE_RE = /^>\s?(.*)$/;
+const FX_OPTION_RE = /^(styles|subject|art):\s*(.+)$/i;
 const DONE_RE = /^\[x\]\s+(.*)$/i;
 const FILE_RE = /(?:^|\/)(\d+)_(\d{4}-\d{2}-\d{2})_([^/]+)\.md$/;
+
+/** Splits `styles:` / `subject:` / `art:` lines out of an fx block body; the rest is the note. */
+function takeFxOptions(lines: string[]): { fx?: PlanFxOptions; body: string[] } {
+    const fx: PlanFxOptions = {};
+    const body: string[] = [];
+    for (const raw of lines) {
+        const option = FX_OPTION_RE.exec(raw.trim());
+        if (!option) {
+            body.push(raw);
+            continue;
+        }
+        const key = option[1].toLowerCase() as keyof PlanFxOptions;
+        if (key === 'subject') fx.subject = option[2].trim();
+        else fx[key] = option[2].split(',').map((v) => v.trim()).filter((v) => v !== '');
+    }
+    return Object.keys(fx).length > 0 ? { fx, body } : { body };
+}
 
 /**
  * Parses a plan body into blocks: `#` headings, paragraphs (consecutive lines joined), nested `-`
@@ -101,8 +135,9 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
         const missing: PlanPaletteColor = { hex: '', label: '' };
         let primary: PlanPaletteColor = missing;
         let secondary: PlanPaletteColor = missing;
+        const options = palette.variant === 'fx' ? takeFxOptions(palette.lines) : { body: palette.lines };
         const body: string[] = [];
-        for (const raw of palette.lines) {
+        for (const raw of options.body) {
             const color = PALETTE_COLOR_RE.exec(raw.trim());
             if (color) {
                 const slot: PlanPaletteColor = { hex: color[2], label: color[3].trim() };
@@ -119,11 +154,15 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
             secondary,
             blocks: parsePlanMarkdown(body.join('\n')),
             variant: palette.variant,
+            ...(options.fx ? { fx: options.fx } : {}),
         });
         palette = null;
     };
     const flushStudio = () => {
-        if (studio) blocks.push({ type: 'fxStudio', title: studio.title, blocks: parsePlanMarkdown(studio.lines.join('\n')) });
+        if (studio) {
+            const { fx, body } = takeFxOptions(studio.lines);
+            blocks.push({ type: 'fxStudio', title: studio.title, blocks: parsePlanMarkdown(body.join('\n')), ...(fx ? { fx } : {}) });
+        }
         studio = null;
     };
 

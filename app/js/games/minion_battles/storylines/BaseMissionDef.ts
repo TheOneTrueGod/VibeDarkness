@@ -71,7 +71,7 @@ import {
     applyAbilityResearchModifiersToRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbilitiesFromResearch, getMissionStartResourcesFromResearch } from '../../../researchTrees/evaluator';
+import { computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbilitiesFromResearch, getMissionStartResourcesFromResearch, getSenseGrantsFromResearch, getAttachedResourcesFromResearch } from '../../../researchTrees/evaluator';
 import { expandAttachedAbilityIds } from './questPrepLoadout';
 import { PassiveStatKey } from '../../../researchTrees/types';
 import { getPetDef } from '../game/units/pet_defs/petDef';
@@ -129,6 +129,22 @@ function attachAmmoIfNeeded(engine: GameEngine, unit: Unit): void {
     unit.attachResource(new Ammo(), engine.eventBus);
 }
 
+/**
+ * Research `attachResource` effects: attach each resource the unit does not have yet (item
+ * `resourcesToAdd` may already have brought it). Runs before mission-start grants are added.
+ */
+export function attachResourcesFromResearch(
+    unit: Unit,
+    researchTrees: Record<string, string[]> | undefined,
+    eventBus: EventBus,
+): void {
+    for (const rid of getAttachedResourcesFromResearch(researchTrees)) {
+        if (unit.getResource(rid)) continue;
+        const resource = createResourceFromId(rid);
+        if (resource) unit.attachResource(resource, eventBus);
+    }
+}
+
 function applyMissionStartResourcesFromResearch(
     unit: Unit,
     researchTrees: Record<string, string[]> | undefined,
@@ -137,6 +153,16 @@ function applyMissionStartResourcesFromResearch(
     for (const [resourceId, amount] of grants) {
         const resource = unit.getResource(resourceId);
         if (resource) resource.add(amount);
+    }
+}
+
+/** Research `grantSense` effects become instance sense grants on the unit (serialized with it). */
+function applySenseGrantsFromResearch(
+    unit: Unit,
+    researchTrees: Record<string, string[]> | undefined,
+): void {
+    for (const grant of getSenseGrantsFromResearch(researchTrees)) {
+        unit.addSenseGrant(grant);
     }
 }
 
@@ -484,7 +510,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
             attachResourcesFromEquipment(equippedIds, unit, engine.eventBus);
+            attachResourcesFromResearch(unit, researchByPlayer[pu.playerId], engine.eventBus);
             applyMissionStartResourcesFromResearch(unit, researchByPlayer[pu.playerId]);
+            applySenseGrantsFromResearch(unit, researchByPlayer[pu.playerId]);
             for (const resource of unit.resources) {
                 resource.primeDisplayContext?.(unit, engine);
             }

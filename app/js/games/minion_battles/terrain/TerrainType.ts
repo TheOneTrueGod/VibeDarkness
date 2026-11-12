@@ -69,6 +69,19 @@ export interface TerrainProperties {
      * Read through `TerrainManager.isProjectileObstructedAt`, which uses effective terrain.
      */
     blocksProjectiles: boolean;
+    /**
+     * Whether this terrain stops sight lines (team vision, glimpses). Rock and Impassable block,
+     * the same set as `blocksProjectiles` / `TerrainGrid.hasLineOfSight`. The blocking tile itself
+     * stays visible (its face can be seen); only tiles behind it are hidden. Read through
+     * `TerrainManager.blocksVisionAt` (effective terrain) and trace with `terrain/tileLine.ts`.
+     */
+    blocksVision: boolean;
+    /**
+     * Whether this terrain stops light from a source reaching tiles behind it. Same set as
+     * `blocksVision`. The blocking tile itself still receives light, so a wall's face is lit.
+     * Read through `TerrainManager.blocksLightAt` (effective terrain).
+     */
+    blocksLight: boolean;
     /** Which layer renderer to use for this terrain type. */
     renderStrategy: TerrainRenderStrategy;
     /** If true, soft-terrain (marching-squares) layers must not bleed into cells of this type. */
@@ -87,6 +100,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         pathfindingWeight: 1.0,
         projectilePassable: true,
         blocksProjectiles: false,
+        blocksVision: false,
+        blocksLight: false,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
         hardEdgeFamily: [],
@@ -100,6 +115,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         pathfindingWeight: 1.0,
         projectilePassable: true,
         blocksProjectiles: false,
+        blocksVision: false,
+        blocksLight: false,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
         hardEdgeFamily: [],
@@ -113,6 +130,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         pathfindingWeight: 1.5,
         projectilePassable: true,
         blocksProjectiles: false,
+        blocksVision: false,
+        blocksLight: false,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
         hardEdgeFamily: [],
@@ -126,6 +145,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         pathfindingWeight: Infinity,
         projectilePassable: true,
         blocksProjectiles: true,
+        blocksVision: true,
+        blocksLight: true,
         renderStrategy: 'hard-edge',
         blocksBleed: true,
         hardEdgeFamily: [],
@@ -139,6 +160,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         pathfindingWeight: 1.2,
         projectilePassable: true,
         blocksProjectiles: false,
+        blocksVision: false,
+        blocksLight: false,
         renderStrategy: 'hard-edge',
         blocksBleed: true,
         hardEdgeFamily: [TerrainType.Rock],
@@ -155,6 +178,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         pathfindingWeight: Infinity,
         projectilePassable: true,
         blocksProjectiles: true,
+        blocksVision: true,
+        blocksLight: true,
         // Unused: excluded from TerrainRenderer's LAYER_ORDER, so no layer renderer ever runs for it.
         renderStrategy: 'hard-edge',
         blocksBleed: true,
@@ -171,6 +196,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         pathfindingWeight: Infinity,
         projectilePassable: true,
         blocksProjectiles: false,
+        blocksVision: false,
+        blocksLight: false,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
         hardEdgeFamily: [],
@@ -185,6 +212,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         pathfindingWeight: 2.0,
         projectilePassable: true,
         blocksProjectiles: false,
+        blocksVision: false,
+        blocksLight: false,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
         hardEdgeFamily: [],
@@ -200,6 +229,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         pathfindingWeight: Infinity,
         projectilePassable: true,
         blocksProjectiles: false,
+        blocksVision: false,
+        blocksLight: false,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
         hardEdgeFamily: [],
@@ -212,7 +243,11 @@ export const GROUND_RAISE = {
     gravel: 1,
 } as const;
 
-/** Terrain for each water level; level 0 (water filled in) is gravel. */
+/**
+ * Terrain for each water level when stone fills water in; level 0 is gravel (the stone is still
+ * there). Draining water away (`lowerWaterLevel`) bottoms out at Dirt instead: a dried-up puddle,
+ * not filled-in water.
+ */
 const TERRAIN_FOR_WATER_LEVEL: readonly TerrainType[] = [
     TerrainType.Gravel,
     TerrainType.ShallowWater,
@@ -233,4 +268,17 @@ export function raiseGround(type: TerrainType, amount: number): TerrainType | nu
     const level = TERRAIN_PROPERTIES[type].waterLevel;
     if (!level) return null;
     return TERRAIN_FOR_WATER_LEVEL[Math.max(0, level - amount)];
+}
+
+/** Terrain a drained-dry tile (water level 0) becomes. Unlike `raiseGround`, no stone is left behind. */
+const DRAINED_DRY_TERRAIN = TerrainType.Dirt;
+
+/**
+ * What a water tile becomes when it is drained by one level: deep -> water -> shallow -> dirt.
+ * Null for non-water. See `TerrainManager.drainWater`.
+ */
+export function lowerWaterLevel(type: TerrainType): TerrainType | null {
+    const level = TERRAIN_PROPERTIES[type].waterLevel;
+    if (!level) return null;
+    return level <= 1 ? DRAINED_DRY_TERRAIN : TERRAIN_FOR_WATER_LEVEL[level - 1];
 }

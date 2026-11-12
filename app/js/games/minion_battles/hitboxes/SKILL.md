@@ -56,6 +56,16 @@ A line segment with thickness. Use for melee swings, lunges, and linear AoE. Imp
 
 **Non-line enemy hit previews** — For **cone, quad, circle, or other filled region** in `renderActivePreview`, use `abilities/previewHelpers.ts` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`, etc.). If the shape does not map cleanly, confirm the telegraph with the player.
 
+### OrientedRectHitbox
+
+A rectangle centred on the aim point and aimed along caster -> aim (`hitboxes/OrientedRectHitbox.ts`). Factory: `orientedRectAtPointHitbox({ length, width, maxRange, numTargets?, style? })`. `length` runs along the aim, `width` across it. Use it for ground fields and placed areas that turn to face away from the caster.
+
+- **Aim:** the centre is the aim clamped to `maxRange`. A zero-length aim keeps the centre on the caster and faces the caster's optional `facing` (radians), else +x.
+- **Units:** `resolveTargets` / `resolveHits` take units whose collision circle overlaps the rectangle, nearest the centre first. `resolveHits` is enemies-only and combat-filtered. `numTargets` defaults to 99 (everything inside); set the select step's `numTargets: 0` for a ground-only pick.
+- **Cells:** `resolveCells(caster, aim)` returns the tiles whose centre lies inside, row-major and not bounds-filtered. Place ground hazards from these so the hazard and the hit share one geometry.
+- **Geometry:** `getRect` (centre, axes, half extents, corners) for renderers and active-cast telegraphs. `orientedRectAt`, `pointInOrientedRect`, `unitOverlapsOrientedRect` and `cellsInOrientedRect` are exported for non-select callers.
+- **Style:** `style` takes a `TELEGRAPH_STYLES` palette (default `danger`), e.g. `themedTelegraphStyle(abilityId)`.
+
 ### TileAreaHitboxSpec
 
 Ground-only select for tile areas (`hitboxes/TileAreaHitboxSpec.ts`). It never locks on to a unit and never hits; the committed order is the pixel. The ability derives its cells from that pixel with `resolveCells`, the same call the preview uses.

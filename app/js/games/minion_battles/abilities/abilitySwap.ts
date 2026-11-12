@@ -10,11 +10,17 @@
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
 import { getAbility } from './AbilityRegistry';
-import { ensureAbilityRuntimeState } from './abilityUses';
+import { canUseAbilityNow, ensureAbilityRuntimeState } from './abilityUses';
+import { canAffordAbility, type AbilityStatic } from './Ability';
 
+/**
+ * `refresh` re-checks the state triggers (`whileCastable`). Send it once per unit tick and after
+ * anything that changes uses outside a tick (round start).
+ */
 export type SwapEvent =
     | { type: 'buffApplied'; buffType: string }
-    | { type: 'abilityExhausted'; abilityId: string };
+    | { type: 'abilityExhausted'; abilityId: string }
+    | { type: 'refresh' };
 
 /**
  * Swap two entries in `unit.abilities` so the swap ability occupies the
@@ -45,7 +51,7 @@ function activateSwappedAbility(unit: Unit, abilityId: string): boolean {
     const ability = getAbility(abilityId);
     if (!ability?.swapConfig) return false;
 
-    const { replacesAbilityId, usesOnActivation } = ability.swapConfig;
+    const { replacesAbilityId, usesOnActivation, activateTrigger } = ability.swapConfig;
 
     // Guard: only activate if the ability being replaced is currently active.
     ensureAbilityRuntimeState(unit, replacesAbilityId);
@@ -58,7 +64,10 @@ function activateSwappedAbility(unit: Unit, abilityId: string): boolean {
     // Activate this ability.
     runtime.active = true;
     runtime.replacedAbilityId = replacesAbilityId;
-    runtime.currentUses = usesOnActivation ?? runtime.maxUses;
+    // A `whileCastable` swap keeps its own uses: granting uses on activation would make it castable forever.
+    if (activateTrigger.type !== 'whileCastable') {
+        runtime.currentUses = usesOnActivation ?? runtime.maxUses;
+    }
 
     // Show the swap ability in the replaced ability's bar slot.
     swapAbilityBarSlots(unit, abilityId, replacesAbilityId);
@@ -92,17 +101,75 @@ function deactivateSwappedAbility(unit: Unit, abilityId: string): boolean {
     return true;
 }
 
+/** The unit could start a cast of this ability right now: a use left and the resource cost paid. */
+function isCastableNow(unit: Unit, ability: AbilityStatic): boolean {
+    return canUseAbilityNow(unit, ability) && canAffordAbility(unit, ability);
+}
+
+/**
+ * True while either card of a swap pair (or one of their mode abilities) is mid-cast. The slot is left
+ * alone then and settles on the first refresh after the cast ends.
+ */
+function isSwapSlotMidCast(unit: Unit, swapAbilityId: string, replacedAbilityId: string): boolean {
+    if (unit.activeAbilities.length === 0) return false;
+    const ids = new Set<string>([swapAbilityId, replacedAbilityId]);
+    for (const id of [swapAbilityId, replacedAbilityId]) {
+        for (const modeId of Object.values(getAbility(id)?.abilityModes?.modeAbilityIds ?? {})) ids.add(modeId);
+    }
+    return unit.activeAbilities.some((active) => ids.has(active.abilityId));
+}
+
+/**
+ * Settle every `whileCastable` swap on the unit: swap in while castable, give the slot back when not.
+ * Returns true when any slot changed.
+ */
+function settleWhileCastableSwaps(unit: Unit): boolean {
+    let changed = false;
+    // Copy: activating / deactivating reorders `unit.abilities`.
+    for (const abilityId of [...unit.abilities]) {
+        const ability = getAbility(abilityId);
+        const swapConfig = ability?.swapConfig;
+        if (!ability || !swapConfig) continue;
+        const { activateTrigger, deactivateTrigger, replacesAbilityId } = swapConfig;
+        if (activateTrigger.type !== 'whileCastable' && deactivateTrigger.type !== 'whileCastable') continue;
+
+        ensureAbilityRuntimeState(unit, abilityId);
+        const runtime = unit.abilityRuntime[abilityId];
+        if (!runtime) continue;
+        const isSwappedIn = runtime.active !== false && runtime.replacedAbilityId != null;
+        const isHidden = runtime.active === false;
+        if (!isSwappedIn && !isHidden) continue;
+
+        const wantsIn = isHidden && activateTrigger.type === 'whileCastable' && isCastableNow(unit, ability);
+        const wantsOut = isSwappedIn && deactivateTrigger.type === 'whileCastable' && !isCastableNow(unit, ability);
+        if (!wantsIn && !wantsOut) continue;
+
+        const replacedId = runtime.replacedAbilityId ?? replacesAbilityId;
+        if (isSwapSlotMidCast(unit, abilityId, replacedId)) continue;
+
+        if (wantsIn ? activateSwappedAbility(unit, abilityId) : deactivateSwappedAbility(unit, abilityId)) {
+            changed = true;
+        }
+    }
+    return changed;
+}
+
 /**
  * Evaluate swap triggers for all abilities on a unit in response to an engine event.
  *
  * Call this:
  * - After `unit.addBuff(...)` with `{ type: 'buffApplied', buffType: buff._type }`.
  * - After `runtime.currentUses` reaches 0 with `{ type: 'abilityExhausted', abilityId }`.
+ * - Once per unit tick and at round start with `{ type: 'refresh' }` (state triggers such as `whileCastable`).
+ *
+ * Emits `ability_bar_changed` only when a slot actually changed.
  */
 export function evaluateSwapTriggers(unit: Unit, event: SwapEvent, eventBus?: EventBus): void {
     let changed = false;
 
-    if (event.type === 'buffApplied') {
+    if (event.type === 'refresh') {
+        changed = settleWhileCastableSwaps(unit);
+    } else if (event.type === 'buffApplied') {
         // Scan for inactive abilities whose activateTrigger matches this buff.
         for (const abilityId of unit.abilities) {
             ensureAbilityRuntimeState(unit, abilityId);
@@ -132,6 +199,8 @@ export function evaluateSwapTriggers(unit: Unit, event: SwapEvent, eventBus?: Ev
                 }
             }
             // selfUsed is not handled by exhaustion events — it fires immediately after each use.
+            // whileCastable is not either: the use is spent as its cast starts, so it settles on the
+            // first refresh after that cast ends.
         }
     }
 

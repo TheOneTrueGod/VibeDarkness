@@ -324,6 +324,8 @@ export class UnitManager {
                 for (const resource of unit.resources) {
                     resource.onTick?.(unit, engine, dt);
                 }
+                // State swap triggers (`whileCastable`) settle after this tick's casts and resource gains.
+                unit.refreshSwapNetwork(engine.eventBus);
             }
         });
         // Phase 2a: occupancy rebuild + shove displacement

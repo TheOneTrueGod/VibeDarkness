@@ -5,7 +5,7 @@
  * Knife, so the mage can chip at enemies between the slower, riskier Mend / Burst / Protect casts.
  */
 
-import type { AbilityRecoveryRule, AttackBlockedInfo } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
@@ -136,8 +136,10 @@ const shardLaunch = CastBehaviours.ProjectileLaunch()
 /**
  * Blood Splinters: a shard bursts out of every bleeding enemy in range. Each hits its host, eats
  * some of its bleed, then flies toward the target and hits the first other enemy.
+ * Shared by every card that throws with Blood Splinters (Blood Shard, Ice Shards `1502`): put it in a
+ * throw's release frame, aimed at that throw's target. Damage is credited to the casting ability.
  */
-const splinterLaunch = CastBehaviours.ProjectileLaunch()
+export const bloodSplinterLaunch = CastBehaviours.ProjectileLaunch()
     .withSpeed(BLOOD_SHARD_PROJECTILE_SPEED)
     .withMaxRange(BLOOD_SHARD_RANGE)
     .withBaseDamage(BLOOD_SPLINTER_FLIGHT_DAMAGE)
@@ -153,7 +155,7 @@ const splinterLaunch = CastBehaviours.ProjectileLaunch()
                 attackerX: ctx.caster.x,
                 attackerY: ctx.caster.y,
                 attackerId: ctx.caster.id,
-                abilityId: CARD_ID,
+                abilityId: ctx.abilityId,
                 damage: BLOOD_SPLINTER_HOST_DAMAGE,
                 attackType: 'ranged' as 'melee' | 'charging',
             });
@@ -162,8 +164,27 @@ const splinterLaunch = CastBehaviours.ProjectileLaunch()
         },
     );
 
-function hasSplinters(engine: AbilityEngineContext | undefined, caster: Unit | undefined): boolean {
+/** Whether the caster's owner has researched Blood Splinters (also accepts a research-hover snapshot). */
+export function hasBloodSplinters(engine: AbilityEngineContext | undefined, caster: Unit | undefined): boolean {
     return hasResearchNode(engine, caster, BLOOD_MAGE_TREE_ID, BLOOD_MAGE_NODE_SPLINTERS);
+}
+
+/** Draws the Blood Splinters preview (host rings and host -> aim lines) when the research is owned. */
+export function drawBloodSplinterPreview(
+    gr: IAbilityPreviewGraphics,
+    caster: Unit,
+    aim: { x: number; y: number },
+    units: readonly Unit[],
+    gameState: unknown,
+): void {
+    if (!hasBloodSplinters(gameState as AbilityEngineContext | undefined, caster)) return;
+    for (const { host, from, to } of getBloodSplinterPreviewSegments(caster, aim, units)) {
+        gr.circle(host.x, host.y, host.radius + 6);
+        gr.stroke({ color: SPLINTER_PREVIEW_COLOR, width: 2, alpha: 0.9 });
+        gr.moveTo(from.x, from.y);
+        gr.lineTo(to.x, to.y);
+        gr.stroke({ color: SPLINTER_PREVIEW_COLOR, width: 1, alpha: 0.6 });
+    }
 }
 
 function buildBloodShardTimings(withSplinters: boolean) {
@@ -181,7 +202,7 @@ function buildBloodShardTimings(withSplinters: boolean) {
         ],
         // Paid at release (the doNotRefund frame), so a cast cancelled during windup is free.
         // Splinters fire on the same frame as the main shard.
-        releaseBehaviours: [payHpCostBehaviour(BLOOD_SHARD_HP_COST), ...(withSplinters ? [splinterLaunch] : [])],
+        releaseBehaviours: [payHpCostBehaviour(BLOOD_SHARD_HP_COST), ...(withSplinters ? [bloodSplinterLaunch] : [])],
         onProjectileHit: [
             {
                 type: 'effect',
@@ -201,15 +222,20 @@ const TOOLTIP_LINES = [
     'Costs {{HP_COST}} HP to cast.',
 ] as const;
 
-const SPLINTER_TOOLTIP_LINE =
+/** Blood Splinters tooltip line; pair with `BLOOD_SPLINTER_TOOLTIP_BINDINGS`. */
+export const BLOOD_SPLINTER_TOOLTIP_LINE =
     'Each bleeding enemy in range bursts a shard: {{SPLINTER_HOST_DAMAGE}} damage to it, consumes up to {{SPLINTER_BLEED}} bleeding stacks, then flies at the target for {{SPLINTER_FLIGHT_DAMAGE}} damage.';
+
+export const BLOOD_SPLINTER_TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    SPLINTER_HOST_DAMAGE: { kind: 'damage', base: BLOOD_SPLINTER_HOST_DAMAGE },
+    SPLINTER_FLIGHT_DAMAGE: { kind: 'damage', base: BLOOD_SPLINTER_FLIGHT_DAMAGE },
+    SPLINTER_BLEED: { kind: 'plain', value: BLOOD_SPLINTER_BLEED_CONSUMED },
+};
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: BLOOD_SHARD_DAMAGE },
     HP_COST: { kind: 'plain', value: BLOOD_SHARD_HP_COST },
-    SPLINTER_HOST_DAMAGE: { kind: 'damage', base: BLOOD_SPLINTER_HOST_DAMAGE },
-    SPLINTER_FLIGHT_DAMAGE: { kind: 'damage', base: BLOOD_SPLINTER_FLIGHT_DAMAGE },
-    SPLINTER_BLEED: { kind: 'plain', value: BLOOD_SPLINTER_BLEED_CONSUMED },
+    ...BLOOD_SPLINTER_TOOLTIP_BINDINGS,
 };
 
 export const BloodShardAbility_0304 = defineAbility({
@@ -226,7 +252,7 @@ export const BloodShardAbility_0304 = defineAbility({
     aiSettings: { minRange: 0, maxRange: BLOOD_SHARD_RANGE },
     abilityTimings: buildBloodShardTimings(false),
     getAbilityTimings(caster, gameState) {
-        return buildBloodShardTimings(hasSplinters(gameState as AbilityEngineContext | undefined, caster));
+        return buildBloodShardTimings(hasBloodSplinters(gameState as AbilityEngineContext | undefined, caster));
     },
     targets: ONE_PIXEL_TARGET,
 
@@ -240,19 +266,12 @@ export const BloodShardAbility_0304 = defineAbility({
 
     renderTargetingPreviewSelectedTargets(gr, caster, _currentTargets, mouseWorld, units, gameState): void {
         drawClampedLine(gr, caster, mouseWorld, BLOOD_SHARD_RANGE, { color: PREVIEW_COLOR, width: 2, alpha: 0.75 });
-        if (!hasSplinters(gameState as AbilityEngineContext | undefined, caster)) return;
-        for (const { host, from, to } of getBloodSplinterPreviewSegments(caster, mouseWorld, units)) {
-            gr.circle(host.x, host.y, host.radius + 6);
-            gr.stroke({ color: SPLINTER_PREVIEW_COLOR, width: 2, alpha: 0.9 });
-            gr.moveTo(from.x, from.y);
-            gr.lineTo(to.x, to.y);
-            gr.stroke({ color: SPLINTER_PREVIEW_COLOR, width: 1, alpha: 0.6 });
-        }
+        drawBloodSplinterPreview(gr, caster, mouseWorld, units, gameState);
     },
 
     getTooltipText(gameState?: unknown): string[] {
         const lines: string[] = [...TOOLTIP_LINES];
-        if (hasSplinters(gameState as AbilityEngineContext | undefined, undefined)) lines.push(SPLINTER_TOOLTIP_LINE);
+        if (hasBloodSplinters(gameState as AbilityEngineContext | undefined, undefined)) lines.push(BLOOD_SPLINTER_TOOLTIP_LINE);
         return formatTooltipLegacyLines(
             lines,
             TOOLTIP_BINDINGS,

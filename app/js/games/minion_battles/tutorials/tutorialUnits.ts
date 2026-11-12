@@ -6,8 +6,7 @@ import type { Camera } from '../game/Camera';
 import type { GameEngine } from '../game/GameEngine';
 import type { Unit } from '../game/units/Unit';
 import { areEnemies, type TeamId } from '../game/teams';
-import { DarknessLevel } from '../game/darknessLevels';
-import { CELL_SIZE } from '../terrain/TerrainGrid';
+import { getUnitDetection, isDetectionVisible } from '../game/visibility/teamPerception';
 import { unitMatchesTutorialFilter, type TutorialUnitView } from './tutorialLogic';
 import type { TutorialUnitFilter } from './tutorialTypes';
 
@@ -25,15 +24,15 @@ export function tutorialUnitView(unit: Unit, localTeamId: TeamId): TutorialUnitV
 }
 
 /**
- * Whether the player can see the unit now: its centre is inside the camera's viewport and, for an enemy, it
- * is not hidden in full darkness (the same rule `UnitRenderer` uses).
+ * Whether the player can see the unit now: its centre is inside the camera's viewport and, for an enemy, the
+ * local team sees or glimpses it (`getUnitDetection` + `isDetectionVisible`, the same rule `UnitRenderer`
+ * uses). Heard, felt and hidden enemies do not count.
  */
 export function isUnitOnScreen(unit: Unit, camera: Camera, engine: GameEngine, localTeamId: TeamId): boolean {
     const s = camera.worldToScreen(unit.x, unit.y);
     if (s.x < 0 || s.y < 0 || s.x > camera.viewportWidth || s.y > camera.viewportHeight) return false;
     if (!areEnemies(localTeamId, unit.teamId)) return true;
-    const light = engine.getLightAt(Math.floor(unit.x / CELL_SIZE), Math.floor(unit.y / CELL_SIZE));
-    return light === null || light > DarknessLevel.FULL_DARKNESS;
+    return isDetectionVisible(getUnitDetection(engine, localTeamId, unit));
 }
 
 /** Views of the living units the player can see on screen now. */

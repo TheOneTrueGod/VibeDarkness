@@ -74,6 +74,8 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
         setJsPerformanceTracking,
         darkOverlayEnabled,
         setDarkOverlayEnabled,
+        revealAllUnits,
+        setRevealAllUnits,
         enemyMovementTrailLimit,
         setEnemyMovementTrailLimit,
     } = useDebugSettings();
@@ -302,6 +304,19 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                 <span className="text-[11px] text-muted">
                     When off, hides the light/darkness overlay and reveals all enemy units and their ability previews,
                     regardless of darkness.
+                </span>
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+                <span>Reveal all units</span>
+                <DebugOnOffButton
+                    enabled={revealAllUnits}
+                    onToggle={() => setRevealAllUnits(!revealAllUnits)}
+                    onLabel="On"
+                    offLabel="Off"
+                />
+                <span className="text-[11px] text-muted">
+                    When on, draws every unit as seen, ignoring vision, hearing and tremorsense. The darkness overlay
+                    stays.
                 </span>
             </div>
             <div className="grid grid-cols-2 gap-x-8 gap-y-3 items-start">

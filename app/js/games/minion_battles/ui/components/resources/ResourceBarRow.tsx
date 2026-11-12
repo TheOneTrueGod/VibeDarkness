@@ -6,6 +6,7 @@ import { GravityBar } from './GravityBar';
 import { LightBar } from './LightBar';
 import { GenericResourceBar } from './GenericResourceBar';
 import { PipResourceBar } from './PipResourceBar';
+import { LiquidResourceBar } from './LiquidResourceBar';
 
 interface ResourceBarRowProps {
     resource: ResourceDisplay;
@@ -22,10 +23,34 @@ function ResourceBarContent({ resource }: { resource: ResourceDisplay }) {
         case 'light':
             return <LightBar current={resource.current} max={resource.max} />;
         default:
-            return resource.barStyle === 'pips'
-                ? <PipResourceBar resource={resource} />
-                : <GenericResourceBar resource={resource} />;
+            switch (resource.barStyle) {
+                case 'pips':
+                    return <PipResourceBar resource={resource} />;
+                case 'liquid':
+                    return <LiquidResourceBar resource={resource} />;
+                default:
+                    return <GenericResourceBar resource={resource} />;
+            }
     }
+}
+
+/** A leading "+N" (e.g. "+0.5/s in or beside water") is drawn in the resource colour. */
+const LEADING_GAIN_RE = /^\+(\d+(?:\.\d+)?)(.*)$/;
+
+/** One `tooltipLines` entry. The first line reads as the headline; later lines are muted. */
+function TooltipLine({ line, color, muted }: { line: string; color: string; muted: boolean }) {
+    const gain = LEADING_GAIN_RE.exec(line);
+    return (
+        <div className={`whitespace-nowrap${muted ? ' text-gray-400' : ''}`}>
+            {gain ? (
+                <>
+                    +<span style={{ color }}>{gain[1]}</span>{gain[2]}
+                </>
+            ) : (
+                line
+            )}
+        </div>
+    );
 }
 
 export function ResourceBarRow({ resource }: ResourceBarRowProps) {
@@ -39,7 +64,11 @@ export function ResourceBarRow({ resource }: ResourceBarRowProps) {
                         +<span style={{ color: '#fef08a' }}>{resource.perRoundGain}</span> per round
                     </div>
                 )}
-                {resource.perSecondGain !== undefined && resource.perSecondGain > 0 && (
+                {resource.tooltipLines?.map((line, i) => (
+                    <TooltipLine key={i} line={line} color={resource.color} muted={i > 0} />
+                ))}
+                {/* `tooltipLines` already say how the resource fills, so they replace the live "+N/s" line. */}
+                {resource.tooltipLines === undefined && resource.perSecondGain !== undefined && resource.perSecondGain > 0 && (
                     <div className="whitespace-nowrap">
                         + <span style={{ color: resource.color }}>{resource.perSecondGain.toFixed(1)}</span>/s
                     </div>

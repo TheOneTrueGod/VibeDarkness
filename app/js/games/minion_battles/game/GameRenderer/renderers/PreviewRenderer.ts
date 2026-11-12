@@ -26,6 +26,7 @@ import { cellsAroundPoint } from '../../../hitboxes/TileAreaHitboxSpec';
 import { resolveMidCastSourceUnit } from '../../../abilities/abilitySourceUnits';
 import { getUnitAtPosition } from '../../../abilities/targeting';
 import { areEnemies } from '../../teams';
+import { getUnitDetection, isDetectionVisible } from '../../visibility/teamPerception';
 import type { TeamId } from '../../teams';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import type { AssetRegistry } from '../AssetRegistry';
@@ -517,7 +518,7 @@ export class PreviewRenderer {
             if (!unit.active || !unit.isAlive()) continue;
             if (!unit.movement || unit.movement.path.length === 0) continue;
             if (!areEnemies(localTeamId, unit.teamId)) continue;
-            if (this.enemyUnitHiddenInFullDarkness(unit, localTeamId)) continue;
+            if (!this.isUnitPerceived(engine, unit, localTeamId)) continue;
             this.drawEnemyGhostMovePath(this.ghostPreviewGraphics, unit.x, unit.y, unit.movement.path);
         }
 
@@ -534,7 +535,9 @@ export class PreviewRenderer {
             const path = entry.order.movePath;
             if (path && path.length > 0) {
                 if (areEnemies(localTeamId, unit.teamId)) {
-                    if (!this.enemyUnitHiddenInFullDarkness(unit, localTeamId)) {
+                    // A move path would give away an unseen enemy's position, so only seen or glimpsed
+                    // enemies show theirs.
+                    if (this.isUnitPerceived(engine, unit, localTeamId)) {
                         this.drawEnemyGhostMovePath(this.ghostPreviewGraphics, unit.x, unit.y, path);
                     }
                 } else {
@@ -547,7 +550,7 @@ export class PreviewRenderer {
 
             const ability = getAbility(abilityId);
             if (!ability) continue;
-            if (areEnemies(localTeamId, unit.teamId) && this.enemyUnitHiddenInFullDarkness(unit, localTeamId)) continue;
+            // Targeting indicators always render, even for enemies the local team cannot perceive.
 
             const mouseWorld = this.mouseWorldForGhostAbilityPreview(entry.order.targets, engine, unit.x, unit.y);
 
@@ -878,17 +881,9 @@ export class PreviewRenderer {
         }
     }
 
-    private enemyUnitHiddenInFullDarkness(unit: Unit, localTeamId: TeamId): boolean {
-        if (
-            !debugSettingsSnapshot.darkOverlayEnabled ||
-            !areEnemies(localTeamId, unit.teamId) ||
-            !this.overlayRenderer.isLightSystemActive()
-        )
-            return false;
-        const col = Math.floor(unit.x / CELL_SIZE);
-        const row = Math.floor(unit.y / CELL_SIZE);
-        const light = this.overlayRenderer.getLightAt(col, row);
-        return light !== null && light <= DarknessLevel.FULL_DARKNESS;
+    /** Whether the local team sees or glimpses the unit (its body is drawn), via team perception. */
+    private isUnitPerceived(engine: GameEngine, unit: Unit, localTeamId: TeamId): boolean {
+        return isDetectionVisible(getUnitDetection(engine, localTeamId, unit));
     }
 
     private mouseWorldForGhostAbilityPreview(

@@ -23,7 +23,7 @@ This directory contains two distinct classes of objects that both produce visual
 
 An effect that belongs to one cast sets `effectData.castBound = { abilityId, castAt? }` and `ownerActorId` (`castBound.ts`). Each render frame `EffectManager` checks the owner still has that cast active; if it is gone before `castAt` (share of the effect's life where the cast lands), the effect freezes, `effectData.fizzle` ramps 0 to 1 over `CAST_BOUND_FIZZLE_SECONDS` of wall time, and it is removed. Painters fade with `castBoundAlpha(effect)`.
 
-Spell circles (`game/spellCircles/spellCircles.ts`) are the main user: one style per core tree (`SpellCircleStyleDef`: effect type, radius, linger, colours), painted in `effect_defs/spellCircleEffects.ts` (storm, earth, light) and `weaponEffects.ts` (the armory conjure orbit). They are owner-clocked, `'hold'` at a pause plane, and follow the caster. Spawn with `CastBehaviours.SpellCircle({ style })` or `spawnSpellCircle`.
+Spell circles (`game/spellCircles/spellCircles.ts`) are the main user: one style per core tree (`SpellCircleStyleDef`: effect type, radius, linger, colours), painted in `effect_defs/spellCircleEffects.ts` (storm, earth, light), `weaponEffects.ts` (the armory conjure orbit), `commandEffects.ts` (command) and the data-driven `moteRingSpellCircle.ts` (`SpellCircleMoteRing`: a ring and rune band whose rim motes are a `rimMotes: { spec: MoteSpec, count }[]` list in the style data; used by `water`). A new circle that is "a ring shedding particles" should be a `SpellCircleMoteRing` style, not a new painter. They are owner-clocked, `'hold'` at a pause plane, and follow the caster. Spawn with `CastBehaviours.SpellCircle({ style })` or `spawnSpellCircle`.
 
 ### Adding a new Effect
 
@@ -39,12 +39,16 @@ Spell circles (`game/spellCircles/spellCircles.ts`) are the main user: one style
 
 - **Off a unit:** a `motes` entry on a particle aura (`BUFF_PARTICLE_AURA_PRESETS.spiritMotes()`), declared on a buff (`Buff.particleAura`) or on a unit def (`UnitDefEntry.particleAura`; the engine passes `getUnitParticleAura` to `BuffRenderEmitterSystem.update`). A buff's aura wins.
 - **Behind a projectile:** `ProjectileLaunch().withParticleTrail(PROJECTILE_PARTICLE_TRAIL_PRESETS.spiritMotes())`; the def is serialized on the projectile, and `projectileParticleTrails.ts` sheds motes along each frame's flight.
-- **Round a spell circle:** the `command` style (`SpellCircleCommand` in `effect_defs/commandEffects.ts`).
+- **Round a spell circle:** the `command` style (`SpellCircleCommand` in `effect_defs/commandEffects.ts`), and any `SpellCircleMoteRing` style (the `water` circle's ice shards and gravity droplets). Inline painters that loop a mote at a fixed anchor use `loopingMotePose(spec, seed, seconds)`, which moves it exactly as `createMote` would.
 - **A command:** `createCommandCue` (`commandCue.ts`), played for every pet command by `playCommandCues` in `abilities/petCommands.ts`.
 
 Concept art and the palette decision: `docs/ideas/plans/0004_2026-11-08_command-core-spirit-animal.md`.
 
+**Shapes and gravity are data.** `MoteSpec.shape` picks `'spark'` (default), `'frost'` (six-armed crystal that turns), `'shard'` (faceted sliver that tumbles) or `'droplet'` (bead with a highlight); `MoteSpec.gravityPx` makes a mote climb `risePx`, arc over and land that far below its start. `createMote` copies both onto `MoteEffectData` (with a random start `angle` / `spin` for frost and shards, and the derived `arcPx`), so the `Mote` painter needs nothing else. Painters that draw motes inline pass `{ shape, angle }` as `drawMote`'s last argument and add `moteDrawOffsetY(data, p)` for gravity motes. Presets: `MOTE_PRESETS.frost(themeId)` / `frostTrail(themeId)` / `iceShards(themeId)` / `droplets(themeId)` and `PROJECTILE_PARTICLE_TRAIL_PRESETS.frost(themeId)`. A spec without `shape` makes exactly the same sparks (and RNG draws) as before. One-shot spawners: `motesAlongSegment` (a trail laid along a slash; claw combos' `ClawSlashStyle.trail`) and `moteBurst` (chips on a hit; `ClawSlashStyle.hitBurst`). Studio reference: the `frost` / `shards` / `droplets` styles in `components/minionBattlesHomePage/Ideas/ParticleFxPreview.tsx` and plan `docs/ideas/plans/0005_2026-11-11_water-tree.md`.
+
 Glow effects (motes, the spirit silhouette, cues, slashes, fields) pick colours with `themeGlowPair(theme)` (lighter = spark/core, darker = halo), not by role, so they stay bright-on-dark whichever role holds the light colour.
+
+**Spikes rise** (`spikesRise.ts`, painter `SpikesRise` in `effect_defs/spikesRiseEffects.ts`): upright spikes that spring out of the ground across an oriented rectangle (`OrientedRect` from `hitboxes/OrientedRectHitbox.ts`), hold, then fade. Render-only telegraph of a ground strike about to land (Frozen Field's rising ice); colours and sizes are `SpikesRiseStyle` data, placement and timing a pure function of the data and `seed` (`spikesRiseLayout`). World time, so it holds at a pause plane. Spawn with `createSpikesRise({ rect, seconds, style, seed })`.
 
 **Spirit slash** (`slashTrail.ts`, painter `SpiritSlash`): a cut that grows along a fast straight dash, then fades; left by `DashStrikeBehaviour` and `PetRelocateBehaviour`. Not the Armory's `SlashTrail`.
 

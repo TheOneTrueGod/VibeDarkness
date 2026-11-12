@@ -1,0 +1,28 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="iceShardsCardMist" cx="0.5" cy="0.55" r="0.6">
+      <stop offset="0%" stop-color="#1e3a8a" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="iceShardsCardBody" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="22%" stop-color="#5eead4"/>
+      <stop offset="50%" stop-color="#5eead4"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="64" height="64" rx="6" fill="#0b1a3a"/>
+  <circle cx="32" cy="34" r="28" fill="url(#iceShardsCardMist)"/>
+  <g transform="translate(-10 4)">
+    <polygon points="40,6 45,20 23,46 19,36" fill="url(#iceShardsCardBody)" stroke="#0f1d45" stroke-width="1.5" stroke-linejoin="round"/>
+    <polygon points="40,8 42.5,18 36.5,20" fill="#ffffff" opacity="0.6"/>
+    <line x1="40" y1="6" x2="21" y2="41" stroke="#ffffff" stroke-width="0.7" stroke-opacity="0.55"/>
+  </g>
+  <g transform="translate(9 9)">
+    <polygon points="40,6 45,20 23,46 19,36" fill="url(#iceShardsCardBody)" stroke="#0f1d45" stroke-width="1.5" stroke-linejoin="round"/>
+    <polygon points="40,8 42.5,18 36.5,20" fill="#ffffff" opacity="0.6"/>
+    <line x1="40" y1="6" x2="21" y2="41" stroke="#ffffff" stroke-width="0.7" stroke-opacity="0.55"/>
+  </g>
+  <ellipse cx="20" cy="31" rx="1.8" ry="3" transform="rotate(30 20 31)" fill="#b91c1c" opacity="0.9"/>
+  <circle cx="8" cy="52" r="1.6" fill="#7f1d1d"/>
+</svg>

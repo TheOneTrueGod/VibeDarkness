@@ -150,6 +150,8 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         abilityModifiers: unit.abilityModifiers,
         stamina: unit.stamina,
         buffs: unit.buffs.map((b) => b.toJSON()),
+        // Instance sense grants (research, abilities). Omitted when empty so old checkpoints stay unchanged.
+        ...(unit.senseGrants.length > 0 ? { senseGrants: unit.senseGrants.map((g) => ({ ...g })) } : {}),
         // Local clock (see game/time/AGENTS.md). Omitted until the engine starts it, and timeDebt when 0.
         ...(unit.localClockActive ? { localTime: unit.localTime } : {}),
         ...(unit.timeDebt !== 0 ? { timeDebt: unit.timeDebt } : {}),

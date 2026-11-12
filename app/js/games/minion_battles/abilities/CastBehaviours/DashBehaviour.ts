@@ -16,6 +16,8 @@
  *  - withConstantSpeed(): covers `maxDistance` over the window, so a short dash arrives early and
  *    waits instead of slowing down to fill the window.
  *  - addHitbox(..., { maxTargets }): cap on the distinct units one dash may hit.
+ *  - withOnEndWithoutHit(cb): called once when the window ends and the hitbox hit nothing (a whiff),
+ *    so an ability can follow up where the dash landed (Pounce's Spirit Flurry).
  */
 
 import type { Unit } from '../../game/units/Unit';
@@ -67,6 +69,8 @@ interface DashPayload {
     // When stopAfterHits is set, set to true once that many units have been hit so
     // subsequent ticks skip movement.
     stopped: boolean;
+    // True once the end-without-hit callback has run (it fires at most once per dash).
+    endHandled?: boolean;
 }
 
 export class DashBehaviour implements CastBehaviour {
@@ -78,6 +82,7 @@ export class DashBehaviour implements CastBehaviour {
     /** Stop dash movement after this many successful hits; null = never stop on hit. */
     private _stopAfterHits: number | null = null;
     private _onHitCallback: ((hitUnit: Unit, ctx: CastBehaviourTickContext) => void) | null = null;
+    private _onEndWithoutHit: ((ctx: CastBehaviourTickContext) => void) | null = null;
     /** When true the dash ignores terrain collision (see {@link withPassThroughTerrain}). */
     private _passThroughTerrain: boolean = false;
     /** When true the dash covers `maxDistance` over the window instead of the clamped distance. */
@@ -103,6 +108,15 @@ export class DashBehaviour implements CastBehaviour {
     /** Optional callback fired once per hit unit during `_processHitbox`. Runs after the hit is confirmed. */
     withOnHit(cb: (hitUnit: Unit, ctx: CastBehaviourTickContext) => void): this {
         this._onHitCallback = cb;
+        return this;
+    }
+
+    /**
+     * Optional callback fired once on the window's last tick when the dash hit no unit (including a dash
+     * with nowhere to go). Runs after that tick's movement and hit checks, with the caster at the end point.
+     */
+    withOnEndWithoutHit(cb: (ctx: CastBehaviourTickContext) => void): this {
+        this._onEndWithoutHit = cb;
         return this;
     }
 
@@ -225,7 +239,21 @@ export class DashBehaviour implements CastBehaviour {
 
     onTick(ctx: CastBehaviourTickContext): void {
         const payload = ctx.behaviourPayload as DashPayload | null;
-        if (!payload || payload.totalDistance <= 0) return;
+        if (!payload) return;
+        if (payload.totalDistance > 0) this._tickDash(ctx, payload);
+        if (ctx.isLastTick) this._handleEnd(ctx, payload);
+    }
+
+    /** Fires the end-without-hit callback once, when nothing was hit. */
+    private _handleEnd(ctx: CastBehaviourTickContext, payload: DashPayload): void {
+        if (!this._onEndWithoutHit || payload.endHandled) return;
+        payload.endHandled = true;
+        ctx.setBehaviourPayload(payload);
+        if ((payload.hitIds?.size ?? 0) > 0) return;
+        this._onEndWithoutHit(ctx);
+    }
+
+    private _tickDash(ctx: CastBehaviourTickContext, payload: DashPayload): void {
 
         const distToEnd = Math.hypot(payload.endX - ctx.caster.x, payload.endY - ctx.caster.y);
         const stillDashing = !payload.stopped && distToEnd > 0;

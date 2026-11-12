@@ -37,6 +37,7 @@ import {
     getUnitComponentSpecs,
     getUnitTerrainCrushDamage,
     getUnitCrowdMassOverride,
+    getUnitSensesDef,
     isEtherealCharacter,
     PLAYER_CHARACTER_ID,
     resolvePlayerUnitRadius,
@@ -85,6 +86,7 @@ import { applyDamageToUnit, applyDamageToUnitDetailed, tickUnitDarknessCorruptio
 import type { FrozenHitPolicy } from '../time/timeConstants';
 import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
 import { MIN_EFFECTIVE_MAX_HP_PCT } from './unitHeal';
+import type { SenseGrant, SenseProfile } from '../visibility/senses';
 
 export type {
     AISettings,
@@ -295,6 +297,17 @@ export class Unit extends GameObject {
     get crowdMassOverride(): number | undefined {
         return getUnitCrowdMassOverride(this.characterId);
     }
+
+    /** Def baseline senses (`UnitDefEntry.senses`, default `DEFAULT_UNIT_SENSES`). Def-sourced. Resolve with `getUnitSenses`. */
+    get baseSenses(): Readonly<SenseProfile> {
+        return getUnitSensesDef(this.characterId);
+    }
+
+    /**
+     * Instance sense grants (research, abilities), merged over `baseSenses` by `getUnitSenses`.
+     * Serialized when non-empty. Add with {@link addSenseGrant}.
+     */
+    senseGrants: SenseGrant[] = [];
 
     ccArmour: UnitCcArmourState = createCcArmourState();
 
@@ -649,6 +662,11 @@ export class Unit extends GameObject {
         evaluateSwapTriggers(this, { type: 'buffApplied', buffType: buff._type }, eventBus);
     }
 
+    /** Add an instance sense grant (a copy is stored, so frozen presets can be passed directly). */
+    addSenseGrant(grant: SenseGrant): void {
+        this.senseGrants.push({ ...grant });
+    }
+
     /** Interrupt all active abilities (e.g. when stunned). Refunds unless skip-to-cooldown. */
     /** Stun / hard-CC interrupt. Same pipeline as knockback interrupts (see `interruptUnitAbilities`). */
     interruptAllAbilities(engine: EngineContext): void { interruptUnitAbilities(this, engine); }
@@ -660,7 +678,19 @@ export class Unit extends GameObject {
         tickUnitActiveAbilities(this, dt, engine, onNaturalCompletion);
     }
 
-    onRoundStart(_roundNumber: number, engine: EngineContext): void { unitRoundStart(this, engine); }
+    /**
+     * Re-check the swap network's state triggers (`whileCastable`) and settle any slot that should change.
+     * Called once per unit tick (UnitManager, after resource ticks) and at round start. Emits
+     * `ability_bar_changed` only when a slot changed.
+     */
+    refreshSwapNetwork(eventBus?: EventBus): void {
+        evaluateSwapTriggers(this, { type: 'refresh' }, eventBus);
+    }
+
+    onRoundStart(_roundNumber: number, engine: EngineContext): void {
+        unitRoundStart(this, engine);
+        this.refreshSwapNetwork(engine.eventBus);
+    }
 
     onRoundEnd(_roundNumber: number): void {
         tickHardCcChainDecayAtRoundEnd(this);

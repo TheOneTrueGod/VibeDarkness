@@ -8,6 +8,9 @@
  * Scenario B — light_delayed_fade:
  *   Verifies that removing a light source causes tiles to darken gradually (one step
  *   per lightGameTick) rather than instantly.
+ *
+ * Scenario E — light_blocked_by_walls:
+ *   Verifies that walls cast shadows: the rock tile is lit, the tile behind it stays at global light.
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -19,6 +22,7 @@ import {
     spawnTinyPlayerUnit,
 } from '../../harness/buildTinyBattleEngine';
 import { LightSource } from '../../../game/lightSources/LightSource';
+import { TerrainType } from '../../../terrain/TerrainType';
 
 const CELL = 40;
 
@@ -359,5 +363,82 @@ export const lightingBaseOverlapScenario: ScenarioDefinition = {
         const pos = worldCenter(BASE_TEST_COL, BASE_TEST_ROW);
         const level = engine.getLightLevelAt(pos.x, pos.y);
         return `Expected tile light ${BASE_TEST_GLOBAL - 1}, got ${level}`;
+    },
+};
+
+// ============================================================================
+// Scenario E — light_blocked_by_walls
+// A lantern sits two tiles left of a full-height rock column. Walls block light: the rock tile
+// itself is lit (its face catches the light), but the tile behind it stays at the global level,
+// although it is well inside the source's range (unoccluded it would read emission − 1).
+// ============================================================================
+
+const WALL_GRID_W = 12;
+const WALL_GRID_H = 8;
+const WALL_SOURCE = { col: 3, row: 4, emission: 5, radius: 2 };
+const WALL_COL = 5;
+/** Two tiles past the wall: rounded distance 4 from the source, so unoccluded light would be 3. */
+const BEHIND_WALL = { col: 7, row: 4 };
+const WALL_GLOBAL = DarknessLevel.FULL_DARKNESS;
+
+export const lightBlockedByWallsScenario: ScenarioDefinition = {
+    id: 'light_blocked_by_walls',
+    title: 'Lighting: walls block light (wall face lit, far side dark)',
+    category: 'general',
+    generalSection: 'Lighting',
+    renderLighting: true,
+    maxDurationMs: 2000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({
+            gridW: WALL_GRID_W,
+            gridH: WALL_GRID_H,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+        });
+        const tm = engine.terrainManager!;
+        for (let row = 0; row < WALL_GRID_H; row++) tm.grid.set(WALL_COL, row, TerrainType.Rock);
+
+        const playerPos = worldCenter(1, 1);
+        spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerPos.x,
+            y: playerPos.y,
+            abilities: [],
+        });
+
+        const pos = worldCenter(WALL_SOURCE.col, WALL_SOURCE.row);
+        engine.addLightSource(new LightSource({
+            x: pos.x,
+            y: pos.y,
+            lightAmount: WALL_SOURCE.emission,
+            radius: WALL_SOURCE.radius,
+            decay: {
+                roundCreated: 0,
+                initialLightAmount: WALL_SOURCE.emission,
+                initialRadius: WALL_SOURCE.radius,
+                roundsTotal: 9999,
+                noDecay: true,
+            },
+        }));
+        engine.setMissionLightConfig(true, WALL_GLOBAL);
+        engine.applyInstantLightingPass();
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.units.find((u) => u.ownerId === TINY_BATTLE_PLAYER_ID);
+        return player ? [{ unitId: player.id, abilityId: 'wait', targets: [] }] : [];
+    },
+
+    assertPass(engine) {
+        const wall = engine.getLightAt(WALL_COL, WALL_SOURCE.row);
+        const behind = engine.getLightAt(BEHIND_WALL.col, BEHIND_WALL.row);
+        return wall !== null && wall > WALL_GLOBAL && behind === WALL_GLOBAL;
+    },
+
+    failureMessage(engine) {
+        const wall = engine.getLightAt(WALL_COL, WALL_SOURCE.row);
+        const behind = engine.getLightAt(BEHIND_WALL.col, BEHIND_WALL.row);
+        return `Expected wall tile light > ${WALL_GLOBAL} and tile behind the wall == ${WALL_GLOBAL}. Got wall=${wall}, behind=${behind}`;
     },
 };

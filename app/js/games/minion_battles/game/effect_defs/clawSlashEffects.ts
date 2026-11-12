@@ -4,8 +4,8 @@ import type { IEffectDef, IEffectRenderContext } from './types';
 
 /**
  * Claw slash: parallel streaks ("fingers") that sweep from the effect's position along
- * (`dx`, `dy`), then fade. Data-driven so any claw/slash strike can reuse it; Bloody Claws
- * (0306) spawns one per claw hitbox.
+ * (`dx`, `dy`), then fade. Data-driven so any claw/slash strike can reuse it; `abilities/clawCombo.ts`
+ * spawns one per claw hitbox (Bloody Claws 0306 in the default red, Ice Claws 1501 in Tidewater colours).
  */
 
 export const CLAW_SLASH_EFFECT_TYPE = 'ClawSlash';

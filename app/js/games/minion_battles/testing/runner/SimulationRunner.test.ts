@@ -60,7 +60,13 @@ import {
     petCommandPreemptsBiteScenario,
     petSicEmPounceScenario,
 } from '../scenarios/general/pets';
-import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
+import {
+    lightingIlluminatesAreaScenario,
+    lightDelayedFadeScenario,
+    campfireDecayScenario,
+    lightBlockedByWallsScenario,
+} from '../scenarios/general/lightingSystem';
+import { visibilitySensesTiersScenario } from '../scenarios/general/visibility';
 import { aiPlanHoldStabilityScenario } from '../scenarios/ai/ai_plan_hold_stability';
 import { aiTerrainInterruptScenario } from '../scenarios/ai/ai_terrain_interrupt';
 import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario } from '../scenarios/general/worldModifiers';
@@ -398,6 +404,16 @@ describe('runScenarioHeadless', () => {
 
     it('passes campfire light decay scenario', () => {
         const r = runScenarioHeadless(campfireDecayScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes light blocked by walls scenario (wall face lit, far side at global light)', () => {
+        const r = runScenarioHeadless(lightBlockedByWallsScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes visibility senses tiers scenario (seen, glimpsed, heard, felt, hidden)', () => {
+        const r = runScenarioHeadless(visibilitySensesTiersScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

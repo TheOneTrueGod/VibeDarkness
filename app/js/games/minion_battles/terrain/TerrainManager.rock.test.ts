@@ -24,6 +24,24 @@ describe('TerrainManager.isInBounds', () => {
     });
 });
 
+describe('TerrainManager.blocksVisionAt / blocksLightAt', () => {
+    it('blocks on rock and out of bounds, and stops blocking once the rock is destroyed', () => {
+        const grid = TerrainGrid.createFilledTerrain(3, 3, CELL_SIZE, TerrainType.Grass);
+        grid.set(1, 1, TerrainType.Rock);
+        const manager = makeManager(grid);
+        expect(manager.blocksVisionAt(1, 1)).toBe(true);
+        expect(manager.blocksLightAt(1, 1)).toBe(true);
+        expect(manager.blocksVisionAt(0, 0)).toBe(false);
+        expect(manager.blocksLightAt(0, 0)).toBe(false);
+        expect(manager.blocksVisionAt(-1, 0)).toBe(true);
+        expect(manager.blocksLightAt(0, 3)).toBe(true);
+
+        manager.destroyRock(1, 1);
+        expect(manager.blocksVisionAt(1, 1)).toBe(false);
+        expect(manager.blocksLightAt(1, 1)).toBe(false);
+    });
+});
+
 describe('TerrainManager.isIntactRockAt', () => {
     it('is true for bedrock rock and false for grass', () => {
         const grid = TerrainGrid.createFilledTerrain(3, 3, CELL_SIZE, TerrainType.Grass);

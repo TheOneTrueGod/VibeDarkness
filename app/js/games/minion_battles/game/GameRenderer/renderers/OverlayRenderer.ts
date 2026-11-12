@@ -15,6 +15,9 @@ import {
     dayLightDiskPulseDurationSec,
     type DayLightTile,
 } from '../../lighting/dayLightVfx';
+import type { TeamId } from '../../teams';
+import { getTeamPerception } from '../../visibility/teamPerception';
+import { darknessOverlayTileAlpha } from './visibilityRenderRules';
 
 const Z_CRYSTAL_AURA = 2;
 const Z_DARKNESS = 5;
@@ -36,6 +39,8 @@ export class OverlayRenderer {
     private dayLightPulseActive = false;
 
     private lastOverlayTick: number = -1;
+    /** `TeamPerception.revision` the overlay texture was last built from (-1 = none). */
+    private lastPerceptionRevision: number = -1;
     private lastRenderTime: number = 0;
     private lightSystemActive: boolean = false;
 
@@ -127,6 +132,7 @@ export class OverlayRenderer {
     /** Reset overlay state when the engine is unbound (e.g. mission restart). */
     reset(): void {
         this.lastOverlayTick = -1;
+        this.lastPerceptionRevision = -1;
         this.lightSystemActive = false;
         this.lastRenderTime = 0;
         this.clearDayLightDiskPulse();
@@ -157,12 +163,15 @@ export class OverlayRenderer {
         this.dayLightPulseActive = true;
     }
 
-    /** Main render call. Handles darkness overlay, fog animation, and crystal auras. */
-    render(engine: GameEngine, realDt = 0): void {
+    /**
+     * Main render call. Handles darkness overlay, fog animation, and crystal auras.
+     * `localTeamId` picks whose vision lifts the overlay on dark tiles in sight.
+     */
+    render(engine: GameEngine, realDt = 0, localTeamId: TeamId = 'player'): void {
         this.currentEngine = engine;
 
         if (this.lightLevelEnabled && engine.terrainManager && debugSettingsSnapshot.darkOverlayEnabled) {
-            this.updateDarknessOverlay(engine);
+            this.updateDarknessOverlay(engine, localTeamId);
             if (this.fogFilter) {
                 const now = performance.now();
                 if (this.lastRenderTime > 0) {
@@ -184,15 +193,24 @@ export class OverlayRenderer {
         this.advanceDayLightDiskPulse(realDt);
     }
 
-    private updateDarknessOverlay(engine: GameEngine): void {
+    private updateDarknessOverlay(engine: GameEngine, localTeamId: TeamId): void {
         const terrainGrid = engine.terrainManager!.grid;
         const width = terrainGrid.width;
         const height = terrainGrid.height;
 
         this.lightSystemActive = engine.state.lightLevelEnabled;
 
-        if (engine.state.gameTick !== this.lastOverlayTick && this.darknessOverlaySprite) {
+        // Dark tiles inside the local team's vision get a lighter overlay so the terrain shows faintly.
+        const perception = getTeamPerception(engine, localTeamId);
+        const visibleTiles =
+            perception.width === width && perception.height === height ? perception.visibleTiles : null;
+
+        if (
+            (engine.state.gameTick !== this.lastOverlayTick || perception.revision !== this.lastPerceptionRevision) &&
+            this.darknessOverlaySprite
+        ) {
             this.lastOverlayTick = engine.state.gameTick;
+            this.lastPerceptionRevision = perception.revision;
             const worldW = width * CELL_SIZE;
             const worldH = height * CELL_SIZE;
             const canvas = document.createElement('canvas');
@@ -205,7 +223,10 @@ export class OverlayRenderer {
                     // outside the map bounds, which this overlay's grid never even reaches.
                     if (terrainGrid.get(col, row) === TerrainType.Impassable) continue;
                     const level = engine.getLightAt(col, row) ?? engine.state.globalLightLevel;
-                    const alpha = OverlayRenderer.lightLevelToAlpha(level);
+                    const alpha = darknessOverlayTileAlpha(
+                        OverlayRenderer.lightLevelToAlpha(level),
+                        visibleTiles !== null && visibleTiles[row * width + col] === 1,
+                    );
                     if (alpha > 0) {
                         ctx.fillStyle = `rgba(20,0,35,${alpha})`;
                         ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);

@@ -26,9 +26,20 @@ export interface ResourceDisplay {
     barStyle?: ResourceBarStyle;
     /** `pips` bars only: CSS colour of a small lightning crackle animated over each filled orb (Static). */
     pipCrackleColor?: string;
+    /** `liquid` bars only: CSS colour of the deep end of the fill gradient (the tree theme's primary). Defaults to a darkened `color`. */
+    barDeepColor?: string;
+    /**
+     * If present, the tooltip shows these lines under the name (a short "how it fills" summary) in place of
+     * the live "+N/s" line. A leading "+N" on a line is drawn in the resource colour.
+     */
+    tooltipLines?: readonly string[];
 }
 
-export type ResourceBarStyle = 'bar' | 'pips';
+/**
+ * `bar`: plain fill. `pips`: one orb per point of max. `liquid`: a fill whose leading edge is a moving
+ * liquid surface, with a caustic glint, bubbles and faint ticks every 4 (`LiquidResourceBar`).
+ */
+export type ResourceBarStyle = 'bar' | 'pips' | 'liquid';
 
 export abstract class Resource {
     /** Unique resource type ID (e.g. 'rage', 'mana'). */
@@ -43,6 +54,10 @@ export abstract class Resource {
     readonly barStyle?: ResourceBarStyle;
     /** See `ResourceDisplay.pipCrackleColor`. */
     readonly pipCrackleColor?: string;
+    /** See `ResourceDisplay.barDeepColor`. */
+    readonly barDeepColor?: string;
+    /** See `ResourceDisplay.tooltipLines`. */
+    readonly tooltipLines?: readonly string[];
 
     /** Current value. */
     current: number;

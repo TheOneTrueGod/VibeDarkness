@@ -16,9 +16,13 @@ const SVG_SOURCES = import.meta.glob('../card_defs/**/*.svg', {
 
 /**
  * Per-file extra colours, keyed by path relative to `card_defs/` (e.g. `10_armory_core/foo.svg`).
- * Every entry needs a comment saying why it is not a theme colour. Empty today.
+ * Every entry needs a comment saying why it is not a theme colour.
  */
-const PER_FILE_ALLOW: Readonly<Record<string, readonly string[]>> = {};
+const PER_FILE_ALLOW: Readonly<Record<string, readonly string[]>> = {
+    // Ice Shards: a bead of frozen blood in the back shard and a blood drop below it (Blood Mage reds),
+    // because the card still feeds on bleeding enemies (Blood Splinters). Artbook `IceShardsIcon`.
+    '15_water/1502_IceShards/iceShards.svg': ['#b91c1c', '#7f1d1d'],
+};
 
 /**
  * Two-tone groups whose card art is raster (PNG) only, so there is no SVG to guard yet. Each entry says why.

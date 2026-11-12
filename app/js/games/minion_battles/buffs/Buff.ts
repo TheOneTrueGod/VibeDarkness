@@ -17,6 +17,7 @@ import type { EngineContext } from '../game/EngineContext';
 import type { Effect } from '../game/effects/Effect';
 import type { TimeModifier } from '../game/time/TimeModifier';
 import type { BuffParticleAuraDef, BuffRenderEmitContext } from '../game/effects/buffParticleAura';
+import type { SenseGrant } from '../game/visibility/senses';
 
 /**
  * Which clock a timed buff's duration runs on. `'world'` (default): `engine.gameTime`. `'owner'`: the
@@ -87,6 +88,12 @@ export abstract class Buff {
      * `BuffParticleAuraSystem`, so they keep animating while paused. See `game/effects/buffParticleAura.ts`.
      */
     readonly particleAura?: BuffParticleAuraDef;
+
+    /**
+     * Senses granted while this buff is on the holder (def-pattern property; subclasses set it). Default none.
+     * Merged by `getUnitSenses`, so the grant appears and disappears with the buff. See `game/visibility/senses.ts`.
+     */
+    readonly senseGrants?: readonly SenseGrant[];
 
     /**
      * Optional render-time visual emission for state the buff represents (e.g. a field). Called every render frame

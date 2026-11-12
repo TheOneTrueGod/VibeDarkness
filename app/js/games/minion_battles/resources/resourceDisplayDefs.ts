@@ -3,6 +3,7 @@ import { LIGHT_RESOURCE_COLOR, LIGHT_STARTING_MAX } from './Light';
 import { CHARGE_MAX, CHARGE_PER_ROUND, CHARGE_RESOURCE_COLOR } from './Charge';
 import { MOVEMENT_BASE_MAX } from './Movement';
 import { STATIC_MAX, STATIC_PIP_CRACKLE_COLOR, STATIC_RESOURCE_COLOR } from './Static';
+import { WATER_BAR_DEEP_COLOR, WATER_BAR_STYLE, WATER_MAX, WATER_RESOURCE_COLOR, WATER_TOOLTIP_LINES } from './Water';
 
 /** All known resource types with their display metadata, ordered for the debug panel. */
 export const ALL_RESOURCE_DISPLAY_DEFS: Array<Omit<ResourceDisplay, 'current'>> = [
@@ -20,6 +21,7 @@ export const ALL_RESOURCE_DISPLAY_DEFS: Array<Omit<ResourceDisplay, 'current'>> 
     { id: 'movement_points', name: 'Movement Points', color: '#22c55e', iconName: 'Footprints', max: MOVEMENT_BASE_MAX },
     { id: 'charge', name: 'Charge', color: CHARGE_RESOURCE_COLOR, iconName: 'Swords', max: CHARGE_MAX, perRoundGain: CHARGE_PER_ROUND, barStyle: 'pips' },
     { id: 'static', name: 'Static', color: STATIC_RESOURCE_COLOR, iconName: 'CloudLightning', max: STATIC_MAX, barStyle: 'pips', pipCrackleColor: STATIC_PIP_CRACKLE_COLOR },
+    { id: 'water', name: 'Water', color: WATER_RESOURCE_COLOR, iconName: 'Droplet', max: WATER_MAX, barStyle: WATER_BAR_STYLE, barDeepColor: WATER_BAR_DEEP_COLOR, tooltipLines: WATER_TOOLTIP_LINES },
 ];
 
 /** Convenience export for the handful of places that render a plain shield icon/overlay (not via ResourceIcon). */

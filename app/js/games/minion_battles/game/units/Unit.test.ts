@@ -15,6 +15,7 @@ import { WAIT_ABILITY_MODE_FAR } from '../../abilities/WaitAbility';
 import { lanterniteStateOf } from './components/lanterniteComponent';
 import { swarmStateOf } from './components/swarmComponent';
 import { petStateOf } from './components/petComponent';
+import { TREMORSENSE_GRANT } from '../visibility/senses';
 
 /** Tick passed to toJSON/fromJSON in the golden checkpoint snapshot test. */
 const GOLDEN_SERIALIZATION_TICK = 5;
@@ -62,6 +63,7 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
     unit.wallStuckTime = 1.25;
     unit.ephemeralDespawnAtGameTime = 99.5;
     unit.tags = [UnitTag.Boss, UnitTag.Enraged];
+    unit.addSenseGrant(TREMORSENSE_GRANT);
 
     unit.setMovement(
         [{ col: 2, row: 3 }, { col: 3, row: 4 }],
@@ -436,6 +438,12 @@ describe('Unit', () => {
                 "current": 75,
                 "id": "mana",
                 "max": 100,
+              },
+            ],
+            "senseGrants": [
+              {
+                "kind": "tremorsense",
+                "range": 6,
               },
             ],
             "softCcArmourFloor": 1,

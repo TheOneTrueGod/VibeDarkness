@@ -3,7 +3,8 @@
  *
  * A spell circle is a classification of windup visual, not a single effect. It is roughly circular,
  * roughly symmetrical, follows the caster, runs on the caster's clock (haste and slow change its pace),
- * freezes at a pause plane, and fizzles out if the cast is cut (`game/effects/castBound.ts`). Each core
+ * freezes at a pause plane, fizzles out if the cast is cut (`game/effects/castBound.ts`), and hides while
+ * its caster is invisible to the local team (`Effect.concealedWithOwner`). Each core
  * tree has one style, so a glance tells you whose power is gathering.
  *
  * A style is a {@link SpellCircleStyleDef}: the effect type that paints it plus its default size, colours
@@ -17,8 +18,10 @@
 import { Effect } from '../effects/Effect';
 import type { CastBoundData } from '../effects/castBound';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
-import { COMMAND_THEME, EARTH_THEME, LIGHT_THEME, STORM_THEME } from '../../themes/abilityThemes';
+import { COMMAND_THEME, EARTH_THEME, LIGHT_THEME, STORM_THEME, WATER_THEME } from '../../themes/abilityThemes';
 import { COMMAND_SPELL_CIRCLE_EFFECT_TYPE } from '../effect_defs/commandEffects';
+import { MOTE_RING_SPELL_CIRCLE_EFFECT_TYPE, type RimMoteKind } from '../effect_defs/moteRingSpellCircle';
+import { MOTE_PRESETS } from '../effects/motes';
 import { resolveAbilityTheme, themeGlowPair } from '../../themes/abilityTheme';
 import { WEAPON_ORBIT_EFFECT_TYPE } from '../effect_defs/weaponEffects';
 import { DEFAULT_WEAPON_ORBIT_RADIUS } from '../effect_defs/weaponOrbit';
@@ -74,11 +77,13 @@ export const SPELL_CIRCLE_STYLE_EARTH_LIGHT = 'earth_light';
 export const SPELL_CIRCLE_STYLE_ARMORY = 'armory';
 export const SPELL_CIRCLE_STYLE_LIGHT = 'light';
 export const SPELL_CIRCLE_STYLE_COMMAND = 'command';
+export const SPELL_CIRCLE_STYLE_WATER = 'water';
 
 const storm = resolveAbilityTheme(STORM_THEME);
 const earth = resolveAbilityTheme(EARTH_THEME);
 const light = resolveAbilityTheme(LIGHT_THEME);
 const commandGlow = themeGlowPair(resolveAbilityTheme(COMMAND_THEME));
+const water = resolveAbilityTheme(WATER_THEME);
 
 /**
  * Storm: a ring of lightning crackles into being around the caster, then bolts join it one pair at a
@@ -181,8 +186,37 @@ const COMMAND_STYLE: SpellCircleStyleDef = {
     },
 };
 
+/**
+ * Water (Tidewater): a navy ring with a turning band of seafoam rune dashes. Ice shards tumble off its rim
+ * and water droplets are flicked up and fall back (`gravityPx`), interleaved round it. At the cast the ring
+ * flares and the motes burst away. Painted by the data-driven `SpellCircleMoteRing`; the counts sit a little
+ * under the particle studio's Ring counts (shards 16, droplets 18) since the two kinds share one rim.
+ */
+const WATER_RIM_MOTES: readonly RimMoteKind[] = [
+    { spec: MOTE_PRESETS.iceShards(WATER_THEME.id), count: 14 },
+    { spec: MOTE_PRESETS.droplets(WATER_THEME.id), count: 16 },
+];
+
+const WATER_STYLE: SpellCircleStyleDef = {
+    id: SPELL_CIRCLE_STYLE_WATER,
+    effectType: MOTE_RING_SPELL_CIRCLE_EFFECT_TYPE,
+    radius: 1.2 * CELL_SIZE,
+    linger: 0.25,
+    data: {
+        ringColor: water.primaryNum,
+        runeColor: water.secondaryNum,
+        // The studio ring turns once every 4 s.
+        runeTurnsPerSec: 0.25,
+        runePairs: 10,
+        rimMotes: WATER_RIM_MOTES,
+    },
+};
+
 const STYLES = new Map<string, SpellCircleStyleDef>(
-    [STORM_STYLE, EARTH_STYLE, EARTH_LIGHT_STYLE, LIGHT_STYLE, ARMORY_STYLE, COMMAND_STYLE].map((s) => [s.id, s]),
+    [STORM_STYLE, EARTH_STYLE, EARTH_LIGHT_STYLE, LIGHT_STYLE, ARMORY_STYLE, COMMAND_STYLE, WATER_STYLE].map((s) => [
+        s.id,
+        s,
+    ]),
 );
 
 /** Add or replace a style. Content registers its own styles at load (like conjured weapons). */
@@ -241,6 +275,8 @@ export function createSpellCircleEffect(
         timeDomain: 'owner',
         ownerActorId: caster.id,
         pauseBehaviour: 'hold',
+        // A spell circle would give away a caster the local team can't see.
+        concealedWithOwner: true,
         effectData: data,
     });
 }

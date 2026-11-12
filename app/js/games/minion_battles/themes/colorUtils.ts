@@ -20,3 +20,12 @@ export function darkenCssHex(hex: string, factor: number): string {
     const channel = (shift: number) => Math.round(((n >> shift) & 255) * factor).toString(16).padStart(2, '0');
     return `#${channel(16)}${channel(8)}${channel(0)}`;
 }
+
+/** Linear blend of two CSS hexes per channel: `t = 0` is `a`, `t = 1` is `b` (rounded to the nearest integer). */
+export function mixCssHex(a: string, b: string, t: number): string {
+    const na = cssHexToNumber(a);
+    const nb = cssHexToNumber(b);
+    const channel = (shift: number) =>
+        Math.round(((na >> shift) & 255) * (1 - t) + ((nb >> shift) & 255) * t).toString(16).padStart(2, '0');
+    return `#${channel(16)}${channel(8)}${channel(0)}`;
+}

@@ -67,7 +67,7 @@ export class TerrainEffectRenderer {
 
             const texture = this.textureCache.get(record.effectType)?.[stage];
             if (texture) {
-                const visual = this.createEffectVisual(id, record, def.layer, texture);
+                const visual = this.createEffectVisual(id, record, def, texture);
                 if (visual) {
                     this.effectVisuals.set(visualKey, visual);
                     this.applyLifetimeFade(visual, record, def, engine.gameTime);
@@ -151,21 +151,22 @@ export class TerrainEffectRenderer {
     private createEffectVisual(
         recordId: string,
         record: TerrainEffectRecord,
-        layer: 'ground' | 'air',
+        def: TerrainEffectVisualDef,
         texture: Texture,
     ): EffectVisual | null {
         const cells = rasterizeArea(record.area);
         if (cells.length === 0) return null;
 
         const container = new Container();
-        const yOffset = layer === 'ground' ? CELL_SIZE * 0.75 : CELL_SIZE * 0.25;
+        const fullCell = def.footprint === 'fullCell';
+        const yOffset = fullCell ? CELL_SIZE * 0.5 : def.layer === 'ground' ? CELL_SIZE * 0.75 : CELL_SIZE * 0.25;
         const sprites: EffectVisual['sprites'] = [];
 
         for (const { col, row } of cells) {
             const sprite = new Sprite(texture);
             sprite.anchor.set(0.5, 0.5);
             sprite.width = CELL_SIZE;
-            sprite.height = CELL_SIZE / 2;
+            sprite.height = fullCell ? CELL_SIZE : CELL_SIZE / 2;
             sprite.x = col * CELL_SIZE + CELL_SIZE / 2;
             sprite.y = row * CELL_SIZE + yOffset;
             container.addChild(sprite);

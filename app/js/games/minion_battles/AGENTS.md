@@ -43,6 +43,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `game/effects/` | In-battle effect runtime objects: `Effect.ts`, `EffectManager.ts`, `EffectEmitter.ts`, `EffectEmitterManager.ts`. See `game/effects/AGENTS.md` for the Effect/EffectEmitter system. |
 | `game/effect_defs/` | Visual effect definitions (replaced the old `game/effectDef.ts`). |
 | `game/spellCircles/` | Spell circles: the tree-styled windup visual around a charging caster (style registry, `spawnSpellCircle`). Painters in `game/effect_defs/spellCircleEffects.ts`; usage rules in the **creating-an-ability** skill. |
+| `game/visibility/` | Unit senses (vision, hearing, tremorsense) and presentation-only team perception that decides how enemies are drawn. See `game/visibility/AGENTS.md`. |
 | `game/time/` | Time dilation: tempo, local clocks, world pace, step pieces, Time Stop. Read `game/time/AGENTS.md` (and the **time-dilation** skill) before touching any clock, `gameTime`, or cast elapsed. |
 | `game/conjuredWeapons/` | Conjured weapon definitions (with their art) and the equip / release runtime. Content registers weapons. See `game/conjuredWeapons/AGENTS.md`. |
 | `game/fieldObjects/` | Dropped weapon tokens and placed deployables (`DeployableDef`: turret, Repair Post), landing, concealed arrival. See `game/fieldObjects/AGENTS.md`. Engine code must not import content folders (`game/contentLayering.test.ts`). |
@@ -58,7 +59,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `terrain/` | Bedrock grid, terrain manager. See `terrain/AGENTS.md` (mutable floor/ground/air overlays live on `game/TerrainLayerManager`; pathfinding guide at `pathfinding/AGENTS.md`). |
 | `abilities/` | Ability classes, timings, targeting, CastBehaviours, previews. See `abilities/AGENTS.md`. |
 | `crowdControl/` | Hard CC apply paths, knockback keywords, boss CC armour. See `crowdControl/AGENTS.md`. |
-| `card_defs/` | One folder per card/ability definition asset. Armory's concealed-token pattern is in `card_defs/10_armory_core/AGENTS.md`. |
+| `card_defs/` | One folder per card/ability definition asset. Armory's concealed-token pattern is in `card_defs/10_armory_core/AGENTS.md`; the Water tree's Blood Mage overlap is in `card_defs/15_water/AGENTS.md`. |
 | `character_defs/` | Playable character definitions, portraits, items, loadout resolver. See `character_defs/AGENTS.md`. |
 | `constants/` | Shared numeric/template constants (enemy templates re-export from `game/` where appropriate). |
 | `buffs/` | Buff defs and runtime buff logic. |

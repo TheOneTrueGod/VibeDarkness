@@ -6,6 +6,7 @@
 
 import type { Unit } from './units/Unit';
 import { getLightGrid, type LightSource } from './LightGrid';
+import type { LightOcclusionCache } from './lighting/lightOcclusion';
 import { getUnitLightHateDef } from './units/unit_defs/unitDef';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 
@@ -27,6 +28,8 @@ export function getLightLevelAtWorldPx(
         globalLightLevel: number;
         grid: TerrainGrid | null | undefined;
         sources: LightSource[];
+        /** Wall occlusion (the engine's `getLightOcclusion()`), so walls shade Light Hate too. */
+        occlusion?: LightOcclusionCache;
     },
 ): number {
     if (!args.lightLevelEnabled || !args.grid) return 0;
@@ -36,7 +39,7 @@ export function getLightLevelAtWorldPx(
     const h = grid.height;
     const safeRow = Math.max(0, Math.min(h - 1, row));
     const safeCol = Math.max(0, Math.min(w - 1, col));
-    const lg = getLightGrid(args.globalLightLevel, w, h, args.sources);
+    const lg = getLightGrid(args.globalLightLevel, w, h, args.sources, args.occlusion);
     return lg[safeRow]![safeCol]!;
 }
 
@@ -48,6 +51,7 @@ export function isLightHateWeakened(
         globalLightLevel: number;
         terrainManager: { grid: TerrainGrid } | null;
         getAllLightSources(): LightSource[];
+        getLightOcclusion?(): LightOcclusionCache | undefined;
     },
 ): boolean {
     const def = getLightHateDef(unit.characterId);
@@ -57,6 +61,7 @@ export function isLightHateWeakened(
         globalLightLevel: engine.globalLightLevel,
         grid: engine.terrainManager?.grid,
         sources: engine.getAllLightSources(),
+        occlusion: engine.getLightOcclusion?.(),
     });
     return level >= def.threshold;
 }

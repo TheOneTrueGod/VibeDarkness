@@ -283,6 +283,10 @@ export const PERF_UNITS_TARGETS = 'targets' as const;
 export const PERF_ENGINE_PROJECTILES = 'projectiles' as const;
 export const PERF_ENGINE_EFFECTS = 'effects' as const;
 export const PERF_ENGINE_LIGHTING = 'lighting' as const;
+/** Light occlusion mask builds (verbose); nests under the caller's scope, usually `engine.lighting`. */
+export const PERF_LIGHT_OCCLUSION = 'lightOcclusion' as const;
+/** Team perception recompute (vision, glimpse, hearing…); nests under the caller's scope, usually a canvas renderer. */
+export const PERF_TEAM_PERCEPTION = 'teamPerception' as const;
 export const PERF_ENGINE_NESTS = 'nests' as const;
 export const PERF_ENGINE_CLEANUP = 'cleanup' as const;
 export const PERF_ENGINE_RENDER_TICK = 'renderTick' as const;
