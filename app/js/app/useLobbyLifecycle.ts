@@ -14,7 +14,7 @@ import type {
     PollMessagePayload,
     ChatMessageData,
 } from '../types';
-import { campaignPathForTab, playerCharacterPath } from '../components/ability-tests/campaignTabPaths';
+import { campaignHomePath, playerCharacterPath } from '../components/ability-tests/campaignTabPaths';
 import { ENABLE_WEBRTC_LOBBY, LOBBY_PATH_PREFIX } from './constants';
 import { joinLobbyAllowingAdminBypass } from './joinLobbyWithAdminBypass';
 import type { LobbySessionSetters, ShowToast, UserDataUser } from './types';
@@ -330,8 +330,7 @@ export function useLobbyLifecycle({
         setCurrentCampaignId(null);
         setLastPollMessageId(null);
         setPollMessagesReady(false);
-        const home =
-            isAdmin ? campaignPathForTab('campaign_summary') : campaignPathForTab('join_mission');
+        const home = campaignHomePath(isAdmin, user?.id);
         // typeof guard: DOM onClick handlers can leak a MouseEvent into this optional param
         const target = typeof characterId === 'string' && user?.id ? playerCharacterPath(user.id, characterId) : home;
         navigate(target, { replace: true });
@@ -371,7 +370,7 @@ export function useLobbyLifecycle({
         setLastPollMessageId(null);
         setPollMessagesReady(false);
 
-        const home = isAdmin ? campaignPathForTab('campaign_summary') : campaignPathForTab('join_mission');
+        const home = campaignHomePath(isAdmin, user?.id);
         const target = characterId && user?.id ? playerCharacterPath(user.id, characterId) : home;
         navigate(target, {
             replace: true,

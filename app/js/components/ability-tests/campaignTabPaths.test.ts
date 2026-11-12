@@ -2,12 +2,35 @@ import { describe, expect, it } from 'vitest';
 import {
     CHARACTER_INNER_TAB_SLUG,
     DEFAULT_CHARACTER_INNER_TAB,
+    campaignHomePath,
+    campaignPathForTab,
     ideasPath,
     parseIdeasSubpath,
     playerCharacterPath,
+    playerCharactersPath,
     playerCharacterRootPath,
     tabFromCharacterInnerSlug,
 } from './campaignTabPaths';
+
+describe('campaignHomePath', () => {
+    it('opens Characters for an admin with an account id', () => {
+        expect(campaignHomePath(true, 19)).toBe(playerCharactersPath(19));
+        expect(campaignHomePath(true, 19, { appEntry: true })).toBe(playerCharactersPath(19));
+    });
+
+    it('opens Characters for any signed-in player entering the app', () => {
+        expect(campaignHomePath(false, 19, { appEntry: true })).toBe(playerCharactersPath(19));
+    });
+
+    it('opens Join Mission when a non-admin leaves without a character', () => {
+        expect(campaignHomePath(false, 19)).toBe(campaignPathForTab('join_mission'));
+    });
+
+    it('opens Campaign Summary only when an admin has no account id', () => {
+        expect(campaignHomePath(true, null)).toBe(campaignPathForTab('campaign_summary'));
+        expect(campaignHomePath(true, '')).toBe(campaignPathForTab('campaign_summary'));
+    });
+});
 
 describe('character inner tab paths', () => {
     it('defaults playerCharacterPath to the map tab', () => {

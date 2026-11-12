@@ -37,6 +37,26 @@ export function playerCharactersPath(playerId: number | string): string {
     return `/players/${playerId}/characters`;
 }
 
+function hasAccountId(userId: number | string | null | undefined): userId is number | string {
+    return userId != null && `${userId}` !== '';
+}
+
+/**
+ * Page to open when loading the app, failing to rejoin a lobby, or leaving a mission
+ * with no character to reopen. Admins open their Characters page. Non-admins open
+ * Join Mission, except on app entry, which also opens Characters.
+ */
+export function campaignHomePath(
+    isAdmin: boolean,
+    userId: number | string | null | undefined,
+    options?: { appEntry?: boolean },
+): string {
+    if (hasAccountId(userId) && (isAdmin || options?.appEntry)) {
+        return playerCharactersPath(userId);
+    }
+    return campaignPathForTab(isAdmin ? 'campaign_summary' : 'join_mission');
+}
+
 /** Inner tabs on a campaign-home character sheet. */
 export type CharacterInnerTabId = 'map' | 'upgrades' | 'bonuses' | 'equipment';
 

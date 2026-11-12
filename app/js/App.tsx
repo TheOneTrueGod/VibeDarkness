@@ -23,7 +23,7 @@ import { Messages } from './MessageTypes';
 import type { LobbyState, PlayerState, AccountState } from './types';
 import { WebRtcMeshProvider, type WebRtcMeshHandle } from './contexts/WebRtcMeshContext';
 import { GameSyncProvider } from './contexts/GameSyncContext';
-import { campaignPathForTab } from './components/ability-tests/campaignTabPaths';
+import { campaignHomePath } from './components/ability-tests/campaignTabPaths';
 import { resolveCampaignInstanceId } from './resolveCampaignInstanceId';
 import { ENABLE_WEBRTC_LOBBY } from './app/constants';
 import { AuthGate, CampaignIndexRedirect } from './app/AuthGate';
@@ -294,7 +294,7 @@ function AppInner() {
                         (error instanceof Error ? error.message : 'Unknown error'),
                     'error'
                 );
-                navigate(isAdmin ? campaignPathForTab('campaign_summary') : campaignPathForTab('join_mission'), {
+                navigate(campaignHomePath(isAdmin, user?.id), {
                     replace: true,
                 });
             }
