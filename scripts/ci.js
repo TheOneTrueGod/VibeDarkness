@@ -91,7 +91,14 @@ function parseLintResults() {
 
 function parseTestResults() {
     const outputFile = path.join(os.tmpdir(), `vibe-ci-vitest-${Date.now()}.json`);
-    const result = runCommand('npx', ['vitest', 'run', '--reporter=json', `--outputFile=${outputFile}`]);
+    const result = runCommand('npm', [
+        'run',
+        'test:all',
+        '--',
+        '--reporter=json',
+        `--outputFile=${outputFile}`,
+    ]);
+
     let passed = 0;
     let failed = 0;
     const failedNames = [];

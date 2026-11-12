@@ -5,9 +5,9 @@ description: How to pick the smallest Vitest run for a change. Use after code ed
 
 # Scoped testing
 
-**Vitest, not Jest.** Full-suite backstop: **`npm run ci`** (30-minute loop: lint, all tests, `tsc`).
+**Vitest, not Jest.** Scripts: **`npm run test`** = unit project; **`npm run test:sim`** = headless AbilityTest / sim project; **`npm run test:all`** = both. Full-suite backstop: **`npm run ci`** (30-minute loop: lint, `test:all`, `tsc`).
 
-After a code change, run the **smallest** set that still covers what you changed. For small and medium changes that set is **explicit test files** (`npx vitest run path/to/A.test.ts`). `npx vitest run --changed` and `npm run test` stay available for deliberate broader checks; they are not the default.
+After a code change, run the **smallest** set that still covers what you changed. For small and medium changes that set is **explicit test files** (`npx vitest run path/to/A.test.ts`). `npx vitest run --changed` and `npm run test` (unit project) stay available for deliberate broader **unit** checks; they are not the default when a smaller file list exists.
 
 ## Picking the minimal set (in order)
 
@@ -26,9 +26,9 @@ After a code change, run the **smallest** set that still covers what you changed
    ```bash
    npx vitest related app/js/path/to/Changed.ts --run
    ```
-   One `related` call per independent changed non-test file is usually enough.
+   One `related` call per independent changed non-test file is usually enough. Limit `related` (and `--changed`) to **one** non-hub file with no co-located test.
 
-4. **Deliberate changed-graph check** — not the default when several files changed or the import graph is unclear. Name the test files instead. Use this only when you mean to cover the work you actually changed:
+4. **Deliberate changed-graph check** — not the default when several files changed or the import graph is unclear. Name the test files instead. Use this only when you mean to cover the work you actually changed, and only for one non-hub file with no co-located test:
    ```bash
    npx vitest run --changed
    ```
@@ -39,11 +39,11 @@ After a code change, run the **smallest** set that still covers what you changed
    - Card/ability → co-located `NNNNAbility.test.ts` and often `app/js/games/minion_battles/abilities`
    - New UI helper under `app/js/ci/` → `npx vitest run app/js/ci`
 
-6. **Full suite** — `npm run test` — when you deliberately want the whole suite:
-   - User explicitly asks
-   - Large cross-cutting refactor (serialization, tick loop, shared `types.ts`, managers)
-   - Deliberate pre-merge / handoff check
-   - **Not** the default after a small or medium edit (CI covers this routinely). Extra flags such as `--changed` do not make `npm run test` a scoped run; use `npx vitest run ...` for anything smaller.
+6. **Scripts — do not escalate for "cross-cutting" edits**:
+   - Prefer named co-located files even for `GameEngine.ts`, `game/types.ts`, `storylines/index.ts`, serialization, tick loop, and shared types.
+   - **`npm run test`** runs the **unit** project. Still not the default when you can name specific test files.
+   - **`npm run test:sim`** only when the edit changes the scenario registry, `SimulationRunner`, or a file under `testing/scenarios/`.
+   - **`npm run test:all`** only when the user explicitly asks for the full suite (unit + sim). **`npm run ci`** is the scheduled backstop.
 
 ## Hub files and registry leaves — do **not** use `vitest related`
 
@@ -64,7 +64,7 @@ For those, prefer:
 
 1. Co-located / newly written `*.test.ts` for the change
 2. A **named** small set (e.g. `GameEngine.test.ts` only if engine behaviour changed)
-3. `npx vitest run --changed` only when you intentionally want broad coverage (still not `npm run test` unless step 6 applies)
+3. `npx vitest run --changed` only when you intentionally want broad unit coverage (still not `test:all` unless the user asks)
 
 On Windows PowerShell, do not pipe Vitest through `Select-Object -Last N` while waiting — it buffers until exit and looks hung.
 
@@ -76,10 +76,10 @@ On Windows PowerShell, do not pipe Vitest through `Select-Object -Last N` while 
 | Changed `X.ts`, existing `X.test.ts` | `npx vitest run X.test.ts` only — **not** `related` |
 | Mission / registry leaf + co-located test | That mission test file only |
 | Changed leaf `X.ts`, no dedicated test | `npx vitest related X.ts --run` (skip if hub/registry leaf) |
-| Changed **hub** (Engine / shared types / `storylines/index` / debug store) | Co-located + named small set — **not** `related` |
+| Changed **hub** (Engine / shared types / `storylines/index` / debug store) | Co-located + named small set — **not** `related`, **not** `test:all` |
 | React component + unit tests for helpers | Helper test files; skip full UI unless you changed integration behaviour |
 | PHP API handler | No Vitest unless TS client types/tests exist; lint TS if types changed |
-| Engine / shared types (cross-cutting) | Prefer named tests; use `--changed` only when deliberate; full suite only if step 6 |
+| Scenario registry / `SimulationRunner` / `testing/scenarios/` | Co-located or named unit tests as usual; **`npm run test:sim`** when you need the full scenario project |
 
 ## TypeScript
 
@@ -95,4 +95,4 @@ Use that **exact** HTML (green text). Post it again before each Vitest re-run af
 
 ## Reporting
 
-Tell the user how many tests **you actually ran**, e.g. `All (7) scoped tests have passed` — not the full-suite count unless you ran `npm run test`.
+Tell the user how many tests **you actually ran**, e.g. `All (7) scoped tests have passed` — not the full-suite count unless you ran `npm run test:all`.

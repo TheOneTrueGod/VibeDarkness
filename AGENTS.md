@@ -4,21 +4,15 @@
 
 Tests use **Vitest**, not Jest. Never use `npx jest` — it will fail.
 
-### Selecting which tests to run
+After file create/save/delete, follow **`.cursor/rules/post-change-test-hook.mdc`**: `npm run lint:changed`, then the smallest named Vitest set. Decision tree: **`.cursor/skills/scoped-testing/SKILL.md`**.
 
-Run the **smallest** set that covers the change — not the whole suite on every edit. **`npm run ci`** runs lint, the full Vitest suite, and `tsc` every 30 minutes locally; use that as the broad regression backstop.
+Scripts:
 
-See **`.cursor/skills/scoped-testing/SKILL.md`** for the full decision tree. Quick reference:
+- **`npm run test`** — unit project
+- **`npm run test:sim`** — headless AbilityTest / sim project
+- **`npm run test:all`** — both projects (full suite; CI / when the user asks)
 
-- **Small or medium change:** `npx vitest run` the explicit test files you chose (usually the co-located `*.test.ts`). Several files means those named paths. If no test file covers the edit, skip Vitest.
-- **New or edited test file** → `npx vitest run path/to/That.test.ts`
-- **Changed source with co-located `*.test.ts`** → that test file only (do **not** also `vitest related`)
-- **Changed leaf with no co-located test** → `npx vitest related <file> --run` (skip hubs / `MISSION_MAP` missions / `storylines/index`)
-- **`npx vitest run --changed`** → a deliberate git-aware check, not the default. Skip it when unrelated files are also dirty. Clean tree: `--changed HEAD~1`.
-- **Domain folders:** `game/battlenet/**` → battlenet test dir; card/ability → co-located `NNNNAbility.test.ts` + `abilities/`
-- **Full suite (`npm run test`)** → cross-cutting refactors, pre-merge handoff, or when the user asks — not after a small or medium edit. Extra flags such as `--changed` do not make `npm run test` a scoped run.
-
-Vitest config lives in `vite.config.ts` (`test.include` / `test.exclude`). Discovery is scoped to `app/**/*.{test,spec}.{ts,tsx}` so `node_modules` and `.claude/worktrees/**` are never collected.
+Vitest discovery lives in `vitest.workspace.ts` (unit + sim). Root `vite.config.ts` keeps shared `globals` / `environment` / `setupFiles` only.
 
 ## Debugging behavior bugs
 

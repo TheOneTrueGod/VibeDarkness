@@ -79,7 +79,7 @@ See **`## Command cards and delegated abilities`** in `card_defs/SKILL.md` and t
 ## Modifying behaviour safely
 
 - Prefer changing **scenario setup/assertions** before changing core engine idle rules, so battle semantics stay centralized.
-- After edits under `app/js/`: run **`npm run lint`** (ESLint: `eslint .`) **first** and fix reported **errors** before starting Vitest. Then run Vitest **twice**: (1) **`npx vitest run --changed`** — tests tied to uncommitted changes; if the working tree is clean vs `HEAD`, use **`npx vitest run --changed HEAD~1`** for the latest commit — (2) **`npm run test`** for the full suite (`SimulationRunner.test.ts` and ability tests as applicable). Do not run Vitest until ESLint has completed successfully.
+- **Headless coverage:** add the scenario to **`ALL_ABILITY_TEST_SCENARIOS`** in `registry.ts`. Do **not** add a hand-written `it` in `SimulationRunner.test.ts`. After ability/code edits, follow the post-change hook: `npm run lint:changed`, then the **co-located ability test** (`NNNNAbility.test.ts`). Use **`npm run test:sim`** only when you need an explicit full scenario run (registry / `SimulationRunner` / `testing/scenarios/` edits) — it is not the default per-edit check.
 - UI-only tweaks (layout, `cellPx`, playback controls) stay in `AbilityTestPage` / `MiniTerrainView` unless scenario data must change.
 
 ## Related skills

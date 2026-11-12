@@ -16,9 +16,9 @@ Include an **Agent Instructions** section that says the plan is executed by `/jp
 
 Plans were taking too long because every step re-ran broad test suites. Follow this split:
 
-- **Per step:** at most `npm run lint` (and `npx tsc --noEmit` when the step crosses interface boundaries) plus **only the specific test files the step touches or creates**. Never instruct a full-suite, whole-directory, or AbilityTest/E2E run inside a regular step.
-- **Final step:** one dedicated verification step at the end of the plan runs the expensive things exactly once — the relevant AbilityTest scenarios, the broad vitest run, and any manual browser checklist.
+- **Per step:** at most `npm run lint:changed` (and `npx tsc --noEmit` when the step crosses interface boundaries) plus **only the specific test files the step touches or creates**. Never instruct a full-suite (`npm run test:all`), whole-directory, or AbilityTest/E2E run inside a regular step.
+- **Final step:** one dedicated verification step at the end. Run `npm run test:sim` only when the plan needs a full scenario run; do **not** make Completion run `npm run test:all`. Prefer naming specific test files. Include any manual browser checklist when needed.
 
 ## AbilityTest coverage
 
-Consider what AbilityTests need to exist to cover the work. Keep them high level: they must run deterministically and quickly, and cover high-level features and systems, not low-level number checks. Think of them like E2E tests — powerful, but expensive, which is why they run once in the final verification step, not per step.
+Consider what AbilityTests need to exist to cover the work. Keep them high level: they must run deterministically and quickly, and cover high-level features and systems, not low-level number checks. Think of them like E2E tests — powerful, but expensive, which is why they run once in the final verification step (via `npm run test:sim` when the plan says so), not per step.

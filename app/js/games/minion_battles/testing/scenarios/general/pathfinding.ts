@@ -82,7 +82,11 @@ export const pathStraightMoveScenario: ScenarioDefinition = {
     },
 };
 
-/** Path must detour around a rock wall blocking the direct corridor. */
+/**
+ * Path must detour around a rock wall blocking the direct corridor.
+ * Barrier is a tall column (not a 1-row stub) so sparse smoothed waypoints stay clear of rock
+ * corners — a 2×1 stub let the first diagonal segment clip cell (4,4) and cancel movement.
+ */
 export const pathAroundRockScenario: ScenarioDefinition = {
     id: 'path_around_rock',
     title: 'Grid path finds route around rock barrier',
@@ -97,8 +101,11 @@ export const pathAroundRockScenario: ScenarioDefinition = {
             grass: true,
         });
         const tm = engine.terrainManager!;
+        // Leave row 1 open as the northern detour; block the east corridor otherwise.
         for (let c = 4; c <= 5; c++) {
-            tm.grid.set(c, 4, TerrainType.Rock);
+            for (let r = 2; r <= 6; r++) {
+                tm.grid.set(c, r, TerrainType.Rock);
+            }
         }
         const { x, y } = tm.grid.gridToWorld(1, 4);
         spawnTinyPlayerUnit(engine, {

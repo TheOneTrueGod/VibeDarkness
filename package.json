@@ -15,8 +15,11 @@
     "lint:changed": "node scripts/lint-changed.js",
     "typecheck": "tsc --noEmit",
     "ci": "node scripts/ci.js",
-    "test": "npx vitest run",
-    "test:watch": "npx vitest",
+    "test": "npx vitest run --project unit",
+    "test:sim": "npx vitest run --project sim --minWorkers=1 --maxWorkers=50%",
+    "test:all": "npx vitest run --minWorkers=1 --maxWorkers=50%",
+    "test:watch": "npx vitest --project unit",
+
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test e2e/smoke.spec.ts",
     "test:e2e:ui": "playwright test --ui",

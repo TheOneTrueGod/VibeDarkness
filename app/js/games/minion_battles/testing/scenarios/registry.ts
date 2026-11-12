@@ -40,6 +40,7 @@ import {
 } from './abilities/punchResearch';
 import { doublePunchDeathFallbackScenario } from './abilities/doublePunchScenario';
 import {
+    throwRockExactlyOnceScenario,
     throwRockMorePowerScenario,
     throwRockMoreRockScenario,
     throwRockNoResearchScenario,
@@ -152,6 +153,7 @@ import {
     earthCoreStoneyPunchBaselineScenario,
     earthCoreStoneyPunchArmourScenario,
     earthCoreDiggingClawsScenario,
+    earthCoreDiggingClawsRetargetScenario,
     earthCoreDiggingClawsThrowRockEntombScenario,
     earthCoreImpactConversionScenario,
     earthCoreBedrockScavengerScenario,
@@ -196,6 +198,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     doublePunchMovementReplanScenario,
     doublePunchDeathFallbackScenario,
     throwRockNoResearchScenario,
+    throwRockExactlyOnceScenario,
     throwRockMorePowerScenario,
     throwRockMoreRockScenario,
     swingSwordNoneScenario,
@@ -246,6 +249,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     earthCoreStoneyPunchBaselineScenario,
     earthCoreStoneyPunchArmourScenario,
     earthCoreDiggingClawsScenario,
+    earthCoreDiggingClawsRetargetScenario,
     earthCoreDiggingClawsThrowRockEntombScenario,
     earthCoreImpactConversionScenario,
     earthCoreBedrockScavengerScenario,

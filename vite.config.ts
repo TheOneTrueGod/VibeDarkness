@@ -28,17 +28,9 @@ export default defineConfig({
         globals: true,
         environment: 'node',
         setupFiles: ['./app/js/test/vitestSetup.ts'],
-        // Only discover project tests under app/. Vitest replaces default exclude when
-        // `exclude` is set, so list node_modules/worktrees explicitly (see vitest.config
-        // docs). `include` is the primary guard against dependency test files.
-        include: ['app/**/*.{test,spec}.{ts,tsx}'],
-        exclude: [
-            '**/node_modules/**',
-            '**/.claude/worktrees/**',
-            'dist/**',
-            'app/js-out/**',
-        ],
+        // Discovery (include/exclude) lives in vitest.workspace.ts projects.
     },
+
     build: {
         outDir: 'dist',
         emptyOutDir: true,

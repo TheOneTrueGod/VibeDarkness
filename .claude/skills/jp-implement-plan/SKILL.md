@@ -23,7 +23,7 @@ Only **top-level `- [ ]` items directly under a `### Step N` heading** are track
 
 2. **Find the next step:** the **lowest-numbered** step that still has at least one unchecked item (`- [ ]`). Steps run in document order (1, then 2, …). Never pick the highest-numbered incomplete step.
 
-3. **Cheap baseline (once, at start).** Run `npm run lint`, then `npx vitest run --changed`. Note pre-existing failures to pass to every worker. Do not run the full suite here unless the user asks.
+3. **Cheap baseline (once, at start).** Note any known pre-existing failures to pass to every worker. Do **not** run a start-of-plan `--changed` baseline or full `npm run lint` / `npm run test:all` unless the plan's Agent Instructions say otherwise.
 
 4. **Loop:** for each incomplete step in order, spawn **one** worker and **wait for it to finish** before spawning the next:
    - Use the Task tool with `subagent_type: "generalPurpose"`.
@@ -51,7 +51,7 @@ You handle **exactly** the step named in your prompt. Never start another step. 
    - Apply relevant project skills as needed.
    - After each item: `- [ ]` → `- [x]`, add a **one-line summary** of what actually changed, save the plan.
 
-4. **Verify once per step** (unless the plan's Agent Instructions specify narrower commands): `npm run lint`, then the step's listed tests (or `npx vitest run --changed`). Fix what you broke; listed pre-existing failures are not yours. Everything else must be green before you finish.
+4. **Verify once per step** (unless the plan's Agent Instructions specify narrower commands): `npm run lint:changed`, then the test files named in the step. Fix what you broke; listed pre-existing failures are not yours. Everything else in that scoped run must be green before you finish.
 
 5. **Pause on ambiguity.** Return the question as your final output so the orchestrator can surface it and stop.
 
@@ -63,7 +63,7 @@ You handle **exactly** the step named in your prompt. Never start another step. 
 
 When no unchecked items remain:
 
-1. Run final verification: `npm run lint`, then `npm run test` (or the plan's final-step verify list if it is more specific).
+1. Run final verification: `npm run lint:changed`, then the final step's listed tests. Do **not** run `npm run test:all` at Completion. Run `npm run test:sim` only when the plan's final step says so.
 2. Write a short completion note at the top of the plan (date + one-paragraph summary, including follow-ups).
 3. **Report plan complete to the user** in this chat — automated results, anything still needing a human (e.g. browser checklist), and open questions.
 4. Ask whether to archive the plan (e.g. `done/` next to it) — do not move or delete it unprompted.
@@ -76,6 +76,6 @@ When no unchecked items remain:
 - **Never skip a step** — items and steps in document order.
 - **One step per worker** — fresh context; orchestrator only coordinates and reports.
 - **Never modify checked items** — only unchecked → checked (summary line beneath is fine).
-- **Lint before tests** — always `npm run lint` before any Vitest run.
-- **Targeted tests per step; full suite at Completion** — unless the plan's final step says otherwise.
+- **Lint before tests** — always `npm run lint:changed` before any Vitest run (not full `npm run lint` unless the plan says so).
+- **Targeted tests per step** — named files from the step; Completion does not imply `test:all`.
 - **Always update the plan file** before a worker finishes — surprises go in the plan, not only in chat.

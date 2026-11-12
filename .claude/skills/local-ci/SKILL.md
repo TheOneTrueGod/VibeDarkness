@@ -18,10 +18,11 @@ Entry point: `scripts/ci.js`. Interval and results path: `scripts/ciConstants.js
 In order, against the full tree:
 
 1. **ESLint** (`npx eslint .`) — counts `errorCount`
-2. **Vitest full suite** (`npx vitest run`) — pass/fail counts + failed test names
+2. **Vitest both projects** (`npm run test:all`) — unit + sim, with `--reporter=json` / `--outputFile=…` forwarded; pass/fail counts + failed test names
 3. **TypeScript** (`npx tsc --noEmit`) — counts `error TS…` lines
 
-Wall time, counts, and failure names are written when the cycle finishes. The loop then sleeps **30 minutes** and repeats.
+Wall time, counts, and failure names are written when the cycle finishes. The loop then sleeps **30 minutes** and repeats. Agents still run scoped named files (or `npm run test` for the unit project), not `test:all`, after ordinary edits.
+
 
 ## Results “log”
 
