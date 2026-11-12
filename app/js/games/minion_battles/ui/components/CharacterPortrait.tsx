@@ -41,6 +41,8 @@ export interface CharacterPortraitProps {
     footerTrailing?: React.ReactNode;
     /** Optional extra class names for the outer wrapper. */
     className?: string;
+    /** Drawn over the portrait image, inside the frame (not the name footer). */
+    imageOverlay?: React.ReactNode;
 }
 
 function isUrl(picture: string): boolean {
@@ -59,6 +61,7 @@ export default function CharacterPortrait({
     showBorder = true,
     footerTrailing,
     className = '',
+    imageOverlay,
 }: CharacterPortraitProps) {
     const px = sizePx ?? SIZE_PX[size];
     const showFooter = name != null || characterId != null || footerTrailing != null;
@@ -91,6 +94,7 @@ export default function CharacterPortrait({
         >
             <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-background">
                 {imageInner}
+                {imageOverlay}
             </div>
             {showFooter && (
                 <div className="flex min-w-0 shrink-0 items-center gap-1 bg-surface-light px-2 py-1.5">

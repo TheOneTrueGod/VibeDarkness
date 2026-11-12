@@ -50,6 +50,7 @@ import { useChapterSkip } from './useChapterSkip';
 import CharacterEditorTabBar from './CharacterEditorTabBar';
 import StatBonusesTab from './StatBonusesTab';
 import { PortraitCycleButtons } from './PortraitCycleButtons';
+import { PortraitEquipmentMarks } from './PortraitEquipmentMarks';
 import { characterHasResearch, shouldShowUpgradesTab } from '../../../../../components/CampaignHomeScreen/CharactersTab/Upgrades/Upgrades';
 import { characterHasStatBonuses } from '../../../../../components/CampaignHomeScreen/CharactersTab/StatBonuses/StatBonuses';
 import { CharactersTabLayerOne } from '../../../../../components/CampaignHomeScreen/CharactersTab/CharactersTabLayerOne';
@@ -527,6 +528,7 @@ export default function CharacterEditor({
             <CharacterPortrait
                 picture={portrait?.picture ?? ''}
                 sizePx={CHARACTER_EDITOR_PORTRAIT_SIZE_PX}
+                imageOverlay={<PortraitEquipmentMarks equipment={equipment} />}
             />
         </div>
     );
