@@ -24,6 +24,8 @@ import {
     AbilityPhase,
     buildPrimaryTimelineSegments,
     computeVisiblePrimarySegments,
+    visibleConditionalCancelMarks,
+    type TimelineCancelMark,
     getEnemyActionWindowFromIntervals,
     getTotalAbilityDurationForCast,
     normalizeAbilityTimingsToIntervals,
@@ -611,6 +613,23 @@ function AbilityIconInBox({ html, className = '' }: { html: string; className?: 
     );
 }
 
+function castTimelineView(
+    ability: AbilityStatic,
+    unit: Unit,
+    engine: GameEngine,
+    elapsed: number,
+    windowSeconds: number,
+): {
+    segments: ReturnType<typeof computeVisiblePrimarySegments>;
+    cancelMarks: TimelineCancelMark[];
+} {
+    const intervals = intervalsForAbility(ability, unit, engine);
+    return {
+        segments: computeVisiblePrimarySegments(buildPrimaryTimelineSegments(intervals), elapsed, windowSeconds),
+        cancelMarks: visibleConditionalCancelMarks(intervals, elapsed, windowSeconds),
+    };
+}
+
 function renderPlayerTimelineTrack(
     rowKey: string,
     unit: Unit,
@@ -622,6 +641,7 @@ function renderPlayerTimelineTrack(
         label: string;
         description: string;
     }[],
+    cancelMarks: TimelineCancelMark[],
     hasTimeline: boolean,
     displayAbility: AbilityStatic,
     previewLevel: 'none' | 'preview' | 'ghost',
@@ -659,6 +679,29 @@ function renderPlayerTimelineTrack(
                                         ability: displayAbility,
                                         phaseLabel: seg.label,
                                         phaseDescription: seg.description,
+                                    })
+                                }
+                            />
+                        ))}
+                        {cancelMarks.map((mark, markIndex) => (
+                            <TimelinePhaseSegment
+                                key={`cancel-${mark.start}`}
+                                phase="cancel"
+                                leftPercent={(mark.start / windowSeconds) * 100}
+                                widthPercent={(mark.duration / windowSeconds) * 100}
+                                label={mark.label}
+                                description={mark.description}
+                                isHighlighted={
+                                    hover?.rowKey === rowKey && hover.segmentIndex === segments.length + markIndex
+                                }
+                                onPointerEnter={() =>
+                                    setHover({
+                                        rowKey,
+                                        segmentIndex: segments.length + markIndex,
+                                        unit,
+                                        ability: displayAbility,
+                                        phaseLabel: mark.label,
+                                        phaseDescription: mark.description,
                                     })
                                 }
                             />
@@ -731,32 +774,32 @@ function renderPlayerUnitTimelineUnified(
         label: string;
         description: string;
     }[] = [];
+    let cancelMarks: TimelineCancelMark[] = [];
     let previewLevel: 'none' | 'preview' | 'ghost' = 'none';
 
     let isWaitLockout = false;
     if (active && ability) {
         // A real cast in progress (including ITS playahead) always wins over a stale
         // order-submission preview — the engine state is live and must drive the timeline.
-        const intervals = intervalsForAbility(ability, unit, engine);
-        const merged = buildPrimaryTimelineSegments(intervals);
-        const elapsed = getCastElapsed(unit, active, engine);
-        segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+        const view = castTimelineView(ability, unit, engine, getCastElapsed(unit, active, engine), windowSeconds);
+        segments = view.segments;
+        cancelMarks = view.cancelMarks;
     } else if (showPreview && previewAbility) {
-        const intervals = intervalsForAbility(previewAbility, unit, engine);
-        const merged = buildPrimaryTimelineSegments(intervals);
-        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
+        const view = castTimelineView(previewAbility, unit, engine, 0, windowSeconds);
+        segments = view.segments;
+        cancelMarks = view.cancelMarks;
         previewLevel = 'preview';
     } else if (unit.isInWaitLockout() && unit.waitMaxEndTime !== null) {
         const waitDuration = getTotalAbilityDurationForCast(WaitAbility, unit, engine);
         const elapsed = Math.max(0, waitDuration - (unit.waitMaxEndTime - now));
-        const intervals = intervalsForAbility(WaitAbility, unit, engine);
-        const merged = buildPrimaryTimelineSegments(intervals);
-        segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+        const view = castTimelineView(WaitAbility, unit, engine, elapsed, windowSeconds);
+        segments = view.segments;
+        cancelMarks = view.cancelMarks;
         isWaitLockout = true;
     } else if (ghostAbility) {
-        const intervals = intervalsForAbility(ghostAbility, unit, engine);
-        const merged = buildPrimaryTimelineSegments(intervals);
-        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
+        const view = castTimelineView(ghostAbility, unit, engine, 0, windowSeconds);
+        segments = view.segments;
+        cancelMarks = view.cancelMarks;
         previewLevel = 'ghost';
     }
 
@@ -776,6 +819,7 @@ function renderPlayerUnitTimelineUnified(
                   unit,
                   windowSeconds,
                   segments,
+                  cancelMarks,
                   true,
                   displayAbility,
                   previewLevel,
@@ -978,32 +1022,32 @@ function renderPlayerRow(
         label: string;
         description: string;
     }[] = [];
+    let cancelMarks: TimelineCancelMark[] = [];
     let previewLevel: 'none' | 'preview' | 'ghost' = 'none';
 
     let isWaitLockout = false;
     if (active && ability) {
         // A real cast in progress (including ITS playahead) always wins over a stale
         // order-submission preview — the engine state is live and must drive the timeline.
-        const intervals = intervalsForAbility(ability, unit, engine);
-        const merged = buildPrimaryTimelineSegments(intervals);
-        const elapsed = getCastElapsed(unit, active, engine);
-        segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+        const view = castTimelineView(ability, unit, engine, getCastElapsed(unit, active, engine), windowSeconds);
+        segments = view.segments;
+        cancelMarks = view.cancelMarks;
     } else if (showPreview && previewAbility) {
-        const intervals = intervalsForAbility(previewAbility, unit, engine);
-        const merged = buildPrimaryTimelineSegments(intervals);
-        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
+        const view = castTimelineView(previewAbility, unit, engine, 0, windowSeconds);
+        segments = view.segments;
+        cancelMarks = view.cancelMarks;
         previewLevel = 'preview';
     } else if (unit.isInWaitLockout() && unit.waitMaxEndTime !== null) {
         const waitDuration = getTotalAbilityDurationForCast(WaitAbility, unit, engine);
         const elapsed = Math.max(0, waitDuration - (unit.waitMaxEndTime - now));
-        const intervals = intervalsForAbility(WaitAbility, unit, engine);
-        const merged = buildPrimaryTimelineSegments(intervals);
-        segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+        const view = castTimelineView(WaitAbility, unit, engine, elapsed, windowSeconds);
+        segments = view.segments;
+        cancelMarks = view.cancelMarks;
         isWaitLockout = true;
     } else if (ghostAbility) {
-        const intervals = intervalsForAbility(ghostAbility, unit, engine);
-        const merged = buildPrimaryTimelineSegments(intervals);
-        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
+        const view = castTimelineView(ghostAbility, unit, engine, 0, windowSeconds);
+        segments = view.segments;
+        cancelMarks = view.cancelMarks;
         previewLevel = 'ghost';
     }
 
@@ -1018,6 +1062,7 @@ function renderPlayerRow(
                   unit,
                   windowSeconds,
                   segments,
+                  cancelMarks,
                   true,
                   displayAbility,
                   previewLevel,

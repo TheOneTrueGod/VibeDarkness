@@ -3,6 +3,9 @@ import {
     AbilityPhase,
     activeTimingIds,
     buildPrimaryTimelineSegments,
+    TIMELINE_CANCEL_MARK_LABEL,
+    TIMELINE_CANCEL_SECTION_SECONDS,
+    visibleConditionalCancelMarks,
     computeTickElapsed,
     elapsedIsInCoopCooldown,
     enteredTimingIds,
@@ -269,6 +272,40 @@ describe('buildPrimaryTimelineSegments (first-listed wins on overlap)', () => {
         const overlap = merged.find((s) => s.start === 1 && s.end === 2);
         expect(overlap?.sourceId).toBe('first');
         expect(overlap?.abilityPhase).toBe(AbilityPhase.Windup);
+    });
+});
+
+describe('visibleConditionalCancelMarks', () => {
+    const intervals = [
+        { id: 'hold', start: 0, end: 1.5, abilityPhase: AbilityPhase.Active, conditionalCancel: { condition: () => true } },
+        { id: 'after', start: 1.5, end: 3, abilityPhase: AbilityPhase.Active },
+    ];
+
+    it('marks the end of a cancel interval that is still ahead in the window', () => {
+        const marks = visibleConditionalCancelMarks(intervals, 0, 2);
+        expect(marks).toHaveLength(1);
+        expect(marks[0]?.start).toBeCloseTo(1.5 - TIMELINE_CANCEL_SECTION_SECONDS);
+        expect(marks[0]?.duration).toBeCloseTo(TIMELINE_CANCEL_SECTION_SECONDS);
+        expect(marks[0]?.label).toBe(TIMELINE_CANCEL_MARK_LABEL);
+        expect(marks[0]?.description).toBe('Another ability can end the rest of this cast. Passing keeps it going.');
+    });
+
+    it('names the tag filter when the cancel only accepts some abilities', () => {
+        const tagged = [{
+            id: 'hold',
+            start: 0,
+            end: 1,
+            abilityPhase: AbilityPhase.Active,
+            conditionalCancel: { condition: () => true, abilityTagFilter: ['melee' as const] },
+        }];
+        expect(visibleConditionalCancelMarks(tagged, 0, 2)[0]?.description).toBe(
+            'An ability tagged melee can end the rest of this cast.',
+        );
+    });
+
+    it('drops a cancel that has already passed or sits past the window', () => {
+        expect(visibleConditionalCancelMarks(intervals, 1.5, 2)).toEqual([]);
+        expect(visibleConditionalCancelMarks(intervals, 0, 1)).toEqual([]);
     });
 });
 

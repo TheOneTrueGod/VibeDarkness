@@ -492,7 +492,7 @@ export function exitedTimingIds(
     return out;
 }
 
-export type BattleTimelinePhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown' | 'waiting' | 'defensive' | 'controlled';
+export type BattleTimelinePhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown' | 'waiting' | 'defensive' | 'controlled' | 'cancel';
 
 export interface PrimaryTimelineSegment {
     start: number;
@@ -639,8 +639,51 @@ export function computeVisiblePrimarySegments(
     return segments;
 }
 
+/** Timeline label for a conditional-cancel frame. */
+export const TIMELINE_CANCEL_MARK_LABEL = 'Cancel';
+
 /** Length (seconds) of the enemy timeline danger tick for `timelineDanger: 'end'` windows. */
 export const TIMELINE_DANGER_TICK_SECONDS = 0.1;
+
+/** How long the cancel section is. Same width as an enemy danger tick, ending on the cancel frame. */
+export const TIMELINE_CANCEL_SECTION_SECONDS = TIMELINE_DANGER_TICK_SECONDS;
+
+export interface TimelineCancelMark {
+    /** Seconds from now to the start of the coloured section. */
+    start: number;
+    duration: number;
+    label: string;
+    description: string;
+}
+
+/**
+ * Coloured sections for conditional cancels still ahead of `elapsed` and inside the timeline window.
+ * Each section ends when that interval exits, which is the decision frame.
+ */
+export function visibleConditionalCancelMarks(
+    intervals: AbilityTimingInterval[],
+    elapsed: number,
+    windowSeconds: number,
+): TimelineCancelMark[] {
+    const marks: TimelineCancelMark[] = [];
+    for (const interval of intervals) {
+        const cancel = interval.conditionalCancel;
+        if (!cancel) continue;
+        const end = interval.end - elapsed;
+        if (end <= 0) continue;
+        const start = Math.max(0, end - TIMELINE_CANCEL_SECTION_SECONDS);
+        if (start >= windowSeconds) continue;
+        const visibleEnd = Math.min(end, windowSeconds);
+        const duration = visibleEnd - start;
+        if (duration <= 0) continue;
+        const tags = cancel.abilityTagFilter;
+        const description = tags != null && tags.length > 0
+            ? `An ability tagged ${tags.join(', ')} can end the rest of this cast.`
+            : 'Another ability can end the rest of this cast. Passing keeps it going.';
+        marks.push({ start, duration, label: TIMELINE_CANCEL_MARK_LABEL, description });
+    }
+    return marks;
+}
 
 /**
  * Enemy row "action" bar: first interval with Active phase in declaration order (a short tick at its

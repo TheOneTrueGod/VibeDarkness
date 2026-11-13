@@ -1,6 +1,6 @@
 import React from 'react';
 
-type PhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown' | 'waiting' | 'defensive' | 'controlled';
+type PhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown' | 'waiting' | 'defensive' | 'controlled' | 'cancel';
 
 export interface TimelinePhaseSegmentProps {
     phase: PhaseId;
@@ -64,6 +64,12 @@ const PHASE_STYLE: Record<
         baseHeight: 'h-[4px]',
         hoverHeight: 'group-hover:h-[6px]',
         colorClass: 'bg-black',
+    },
+    /** Fuchsia, unused by the other phase bars and the amber clock ticks. */
+    cancel: {
+        baseHeight: 'h-[4px]',
+        hoverHeight: 'group-hover:h-[6px]',
+        colorClass: 'bg-fuchsia-400',
     },
 };
 
