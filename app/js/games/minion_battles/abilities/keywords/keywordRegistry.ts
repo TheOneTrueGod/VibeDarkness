@@ -71,7 +71,7 @@ export function keywordGlossaryEntries(keywordTexts: readonly string[]): Keyword
     const seen = new Set<string>();
     for (const text of keywordTexts) {
         const lower = text.trim().toLowerCase();
-        // `Stun 2` and `Echo: Sword` both match on the leading word.
+        // `Stun 2` and `Echo 2` both match on the leading word.
         const word = lower.replace(/\s+[\d./]+$/, '').replace(/:.*$/, '');
         for (const term of glossaryTerms) {
             if (seen.has(term.title) || !term.matches.some((m) => m.toLowerCase() === word)) continue;
@@ -160,7 +160,7 @@ registerGlossaryTerm({
 registerGlossaryTerm({
     title: 'Echo',
     matches: ['echo'],
-    description: 'This also happens at each of your tokens of that type, then those tokens are destroyed.',
+    description: 'This also happens at that many of your closest dropped weapons, then those weapons are destroyed.',
 });
 
 registerGlossaryTerm({

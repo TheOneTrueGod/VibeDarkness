@@ -51,8 +51,8 @@ export const EARTH_CORE_MISSION_START_ROCK_AMOUNT = 6;
  */
 export const GATHER_STONE_ROCK_DAMAGE = 50;
 
-/** Rock resource granted per rock tile Gather Stone damages. */
-export const GATHER_STONE_ROCK_RESOURCE_PER_TILE = 1;
+/** Rock resource granted per rock tile's full durability Gather Stone removes (two half-damaged tiles = one tile). */
+export const GATHER_STONE_ROCK_RESOURCE_PER_TILE = 0.5;
 
 /** Research node 2: flat damage to an enemy standing on a rubble tile in the area. */
 export const GATHER_STONE_RUBBLE_DAMAGE = 6;

@@ -61,6 +61,20 @@ Weapon roots are free virtual roots. Weapons tree upgrades are metal-only (stand
 ### Persistence
 Research is stored on `CampaignCharacter` as `researchTrees` (node ids), `researchNodeLevels`, and `researchSources` (per-level `Purchased` / `Admin` / `QuestReward`). Missing sources on legacy characters count as Purchased. Effective resources subtract **only Purchased** costs. Mission/quest grants persist `QuestReward`; plain clicks on Upgrades persist `Purchased` (admins included: costs and requirements apply); **Shift+click as admin** persists `Admin` and grants that node even when it would not be available to the player (skips cost, requirements, prereqs, exclusivity, and disabled-node checks; does not auto-grant prereqs). The Upgrades Resources row has **Reset Research** (strips Purchased) and an admin-only **Reset Admin Research** button.
 
+### Ranks and tree levels (core trees)
+
+A node's `tier` is its **rank** in trees tagged `core`:
+
+| Rank | Contents |
+|------|----------|
+| 10 | The tree's core (mission reward only). Command Core's Loyal Companion also grants Heel and Sic 'Em. |
+| 11 | First set of abilities (Storm: Thunderclap, Static Step; Earth: Digging Claws, Stone Tomb; Command: Mimic Thorn, Mimic Brambles; Light: Imbuement, Shield of Light; Gravity: Collapse, Lift, Locus; Blood: Claws, Burst, Pact; Armory: Mace, Shield, Repair Post) |
+| 12 | Upgrades to those abilities (Forked Lightning, Blood Splinters, Repulse, Radiant Reach, Blinding Flare, Empower Pet) |
+| 13 | Remaining nodes (Earth's others, Light's Gather Light / Increased Radiance / Attuned / Lay Hands, Ease Burdens) |
+| 14 | Upgrades to rank-13 abilities (Grinding Debris) |
+
+Each character has a **tree level** per core tree (`CampaignCharacter.researchTreeLevels`, PHP `Character::researchTreeLevels`). Rank `N` needs tree level `N - 10`; `canResearchNode` returns `tree_level_too_low` otherwise (`researchTrees/treeLevels.ts`). A missing stored level counts as 2 when the tree's core is researched (legacy saves), else 0. Core Awakening's options carry `setTreeLevel: 2`, sent in the `STORY_CHOICE` message and applied by `LobbyManager::grantQuestResearchToCharacter` (chapter skip applies it client-side). Admins see and set the level beside **Reset research** in the tree view. Mission and quest rewards bypass the gate. Chapter 2 campsites use `minTier: 11, maxTier: 11` filter slots. Costs follow `researchCostPolicy.ts` by rank.
+
 ## Querying available nodes
 
 `getAvailableResearchNodes(researchedTrees, { treeId?, tier? })` in `evaluator.ts` returns nodes the character hasn't researched yet and can structurally unlock:

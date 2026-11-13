@@ -23,6 +23,9 @@ import {
     EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE,
 } from '../../../../../researchTrees/trees/earth';
 import {
+    EARTH_CORE_STONE_HEALTH,
+    GATHER_STONE_ROCK_DAMAGE,
+    GATHER_STONE_ROCK_RESOURCE_PER_TILE,
     GATHER_STONE_RUBBLE_DAMAGE,
     ROCK_SLIDE_DAMAGE,
     STONE_TOMB_STAGE1_DAMAGE,
@@ -982,6 +985,8 @@ const GS_PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (14
 const GS_DUMMY_POS = { x: 4 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (180, 220)
 const GS_TARGET_POS = { x: 4 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // region center at cell (4,5)
 const GS_ROCK_CELLS: Array<[number, number]> = [[3, 4], [4, 4], [5, 4], [4, 6]];
+/** Each tile loses GATHER_STONE_ROCK_DAMAGE of its full health, at GATHER_STONE_ROCK_RESOURCE_PER_TILE rock per full tile. */
+const GS_EXPECTED_ROCK = GS_ROCK_CELLS.length * (GATHER_STONE_ROCK_DAMAGE / EARTH_CORE_STONE_HEALTH) * GATHER_STONE_ROCK_RESOURCE_PER_TILE;
 
 export const earthCoreGatherStoneRockHarvestScenario: ScenarioDefinition = {
     id: 'earth_core_0536_gather_stone_rock_harvest',
@@ -1008,11 +1013,11 @@ export const earthCoreGatherStoneRockHarvestScenario: ScenarioDefinition = {
     },
     assertPass(e) {
         const player = e.getLocalPlayerUnit();
-        return Boolean(player && player.getResource('rock')?.current === GS_ROCK_CELLS.length);
+        return Boolean(player && Math.abs((player.getResource('rock')?.current ?? 0) - GS_EXPECTED_ROCK) < 1e-9);
     },
     failureMessage(e) {
         const player = e.getLocalPlayerUnit();
-        return `rock resource = ${player?.getResource('rock')?.current ?? '?'}, expected ${GS_ROCK_CELLS.length}`;
+        return `rock resource = ${player?.getResource('rock')?.current ?? '?'}, expected ${GS_EXPECTED_ROCK}`;
     },
 };
 

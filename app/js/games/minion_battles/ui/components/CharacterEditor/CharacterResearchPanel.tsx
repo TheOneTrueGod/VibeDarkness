@@ -23,6 +23,8 @@ export interface CharacterResearchPanelProps {
     character: CampaignCharacter;
     equipment: string[];
     viewResearch: ReturnType<typeof mergeDarknessUpgradesIntoResearchView>;
+    researchTreeLevels: Record<string, number>;
+    onSetTreeLevel: (treeId: string, level: number) => void | Promise<void>;
     saving: boolean;
     grantResourceKey: CampaignResourceKey;
     onGrantResourceKeyChange: (key: CampaignResourceKey) => void;
@@ -52,6 +54,8 @@ export default function CharacterResearchPanel({
     character,
     equipment,
     viewResearch,
+    researchTreeLevels,
+    onSetTreeLevel,
     saving,
     grantResourceKey,
     onGrantResourceKeyChange,
@@ -142,6 +146,8 @@ export default function CharacterResearchPanel({
                         researchTrees={viewResearch.researchTrees}
                         researchNodeLevels={viewResearch.researchNodeLevels}
                         researchSources={viewResearch.researchSources}
+                        researchTreeLevels={researchTreeLevels}
+                        onSetTreeLevel={isAdmin ? (level) => void onSetTreeLevel(selectedTree.id, level) : undefined}
                         campaignResources={resolvedCampaign.resources}
                         saving={saving}
                         canResetResearch={isAdmin}
@@ -173,6 +179,8 @@ export default function CharacterResearchPanel({
                 equipment={equipment}
                 researchNodeLevels={viewResearch.researchNodeLevels}
                 researchSources={viewResearch.researchSources}
+                researchTreeLevels={researchTreeLevels}
+                onSetTreeLevel={isAdmin ? (treeId, level) => void onSetTreeLevel(treeId, level) : undefined}
                 campaignResources={resolvedCampaign?.resources}
                 onResearchNode={(treeId, nodeId, asAdmin) => void onResearchNode(treeId, nodeId, asAdmin)}
                 saving={saving}

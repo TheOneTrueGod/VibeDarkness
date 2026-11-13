@@ -152,7 +152,7 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
     }
 
     /**
-     * Echo: after the hit, burst at each of the caster's tokens of `spec.tokenType`, then destroy
+     * Echo: after the hit, burst at the caster's closest dropped weapons (`spec.count`), then destroy
      * them. Tokens are read before the impact VFX, so a token this hit drops does not echo.
      */
     withEcho(spec: EchoSpec, burst: EchoBurstSpec): this {

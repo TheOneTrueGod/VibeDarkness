@@ -39,6 +39,17 @@ player sees their own.
    pointer. Step text may use `{stackSize}` (the pointed unit's stack count; `formatTutorialStepText`).
    Live unit lookups (on screen, nearest, darkness) are in `tutorialUnits.ts`.
 
+5. Options on a tutorial:
+   - `pauseGame: true` holds this player's simulation (`GameState.localSimulationHold`, local only, never
+     synced) while the tutorial is up and lets it start on any frame, not just on their turn (the hook polls
+     every 50 ms for these). The game resumes on Next / Skip. Use it for mechanics that only appear mid-fight.
+   - `TutorialUnitFilter.inJuggernautWindow` matches units whose juggernaut border is showing (same rule as
+     the renderer). Combine with `unitOnScreen` for "first time you see X".
+   - Step text: `\n` is a line break; `{Juggernaut}` renders the word in the juggernaut colour
+     (`TUTORIAL_TEXT_TERM_COLORS`; add a term there and in `TutorialTextTerm`).
+   - `hudAnchor` pointers: `bossCcArmour` is the boss CC protection circles / Exposed timer. The panel moves
+     below its pointer target when they would overlap.
+
 ## Extending
 
 - **New trigger:** add a variant to `TutorialTrigger` and a case in `triggerMatches`; feed the context it

@@ -68,7 +68,7 @@ describe('getPetsFromResearch', () => {
     });
 
     it('returns [] when a different node is researched', () => {
-        const research = { [COMMAND_CORE_TREE_ID]: ['heel'] };
+        const research = { [COMMAND_CORE_TREE_ID]: ['empower_pet'] };
         expect(getPetsFromResearch(research)).toEqual([]);
     });
 });

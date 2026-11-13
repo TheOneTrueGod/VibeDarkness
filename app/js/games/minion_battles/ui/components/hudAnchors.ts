@@ -8,6 +8,8 @@ import { useCallback } from 'react';
  */
 export type HudAnchorId =
     | 'objectives'
+    /** The crowd control protection circles (or Exposed timer) under the boss health bar. */
+    | 'bossCcArmour'
     /** A card in the local player's battle hand (see {@link abilityCardHudAnchorId}). */
     | `abilityCard:${string}`;
 

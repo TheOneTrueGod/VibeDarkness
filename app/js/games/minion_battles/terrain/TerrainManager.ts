@@ -349,6 +349,11 @@ export class TerrainManager {
         });
     }
 
+    /** Current durability of the intact rock at (col, row), or 0 when none. */
+    getRockHealth(col: number, row: number): number {
+        return this.isIntactRockAt(col, row) ? this.implicitRockHealth(col, row) : 0;
+    }
+
     /** Max durability of the intact rock at (col, row) (bedrock: `EARTH_CORE_STONE_HEALTH`), or 0 when none. */
     getRockMaxHealth(col: number, row: number): number {
         if (!this.isIntactRockAt(col, row)) return 0;

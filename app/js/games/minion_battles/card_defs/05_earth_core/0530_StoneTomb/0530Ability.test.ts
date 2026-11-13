@@ -308,6 +308,20 @@ describe('Stone Tomb (0530)', () => {
         expect(enemy.hp).toBe(100 - STONE_TOMB_STAGE1_DAMAGE);
     });
 
+    it('damages each enemy once per cast: a centre victim knocked into the gravel is spared by stage 2', () => {
+        const caster = makeUnit('c', 'player', 5, 9);
+        const victim = makeUnit('a', 'enemy', 5, 5);
+        const inArm = makeUnit('b', 'enemy', 4, 5);
+        caster.activeAbilities.push({ abilityId: '0530', startTime: 0, targets: target(5, 5) });
+        const { engine } = setup([caster, victim, inArm]);
+        enterInterval('stage1', engine, caster, target(5, 5));
+        // Knocked out of the centre into an arm tile before stage 2 lands.
+        Object.assign(victim, center(6, 5));
+        enterInterval('stage2', engine, caster, target(5, 5));
+        expect(victim.hp).toBe(100 - STONE_TOMB_STAGE1_DAMAGE);
+        expect(inArm.hp).toBe(100 - STONE_TOMB_STAGE2_DAMAGE);
+    });
+
     it('stage 2 damages every plus tile (centre included) and turns the 4 outer tiles to gravel, not rock', () => {
         const caster = makeUnit('c', 'player', 5, 9);
         const inCenter = makeUnit('a', 'enemy', 5, 5);

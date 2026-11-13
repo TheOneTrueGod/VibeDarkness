@@ -35,6 +35,7 @@ export interface ChapterSkipCharacterState {
     researchTrees: Record<string, string[]>;
     researchNodeLevels: ResearchNodeLevels;
     researchSources: ResearchNodeSources;
+    researchTreeLevels: Record<string, number>;
 }
 
 export interface ChapterSkipContext {
@@ -257,8 +258,18 @@ function applyAction(
             const extra = action.alsoGrantResearch;
             return extra ? grant(equipped, extra.treeId, extra.nodeId) : equipped;
         }
-        case 'grant_research_to_player':
-            return grant(state, action.treeId, action.nodeId);
+        case 'grant_research_to_player': {
+            const granted = grant(state, action.treeId, action.nodeId);
+            if (action.setTreeLevel == null) return granted;
+            const current = granted.researchTreeLevels[action.treeId] ?? 0;
+            return {
+                ...granted,
+                researchTreeLevels: {
+                    ...granted.researchTreeLevels,
+                    [action.treeId]: Math.max(current, action.setTreeLevel),
+                },
+            };
+        }
         case 'grant_research_conditional': {
             const match = action.candidates.find((c) => state.equipment.includes(c.equippedItemId));
             return match ? grant(state, match.treeId, match.nodeId) : state;

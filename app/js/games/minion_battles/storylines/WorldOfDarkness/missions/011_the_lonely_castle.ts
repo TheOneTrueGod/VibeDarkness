@@ -30,7 +30,7 @@ import { DarknessLevel } from '../../../game/darknessLevels';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
 import { SLIME } from '../../../game/units/dark_animals/slime';
 import { scatterPositionsInCircle } from '../../missionSpawnHelpers';
-import { WOD_CH3_MAP_X_COL0, WOD_CH3_MAP_Y_ROW0 } from '../chapter3Map';
+import { WOD_CH3_MAP_X_COL1, WOD_CH3_MAP_Y_ROW0 } from '../chapter3Map';
 import { CRYSTAL_TILE_DEFAULTS } from '../MapSegments/50_50_crystal_cave';
 import { EAST_CAVE_SEGMENT_ID } from '../MapSegments/59_50_east_cave';
 import {
@@ -257,7 +257,7 @@ export class TheLonelyCastleMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     missionId = TheLonelyCastleMission.missionId;
     name = TheLonelyCastleMission.nameStr;
-    mapPosition = { x: WOD_CH3_MAP_X_COL0, y: WOD_CH3_MAP_Y_ROW0 };
+    mapPosition = { x: WOD_CH3_MAP_X_COL1, y: WOD_CH3_MAP_Y_ROW0 };
     missionType = 'battle' as const;
     description = chapter3Scripts.the_lonely_castle.description;
 

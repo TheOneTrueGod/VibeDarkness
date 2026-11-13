@@ -35,7 +35,7 @@ import {
 } from '../../0115_SwingBat/0115Ability';
 import {
     ARMORY_ECHO_CHARGE_COST,
-    ARMORY_MACE_ECHO,
+    ARMORY_ECHO,
     ARMORY_PRIMARY_COLOR_NUM,
     ARMORY_SECONDARY_COLOR_NUM,
     WHIRL_ABILITY_ID,
@@ -64,7 +64,7 @@ const WHIRL_SWEEP: ArcSweepConfig = {
         stunSeconds: MACE_WHIRL_STUN_SECONDS,
     },
     visual: { colorFrom: ARMORY_PRIMARY_COLOR_NUM, colorTo: ARMORY_SECONDARY_COLOR_NUM },
-    echo: ARMORY_MACE_ECHO,
+    echo: ARMORY_ECHO,
     onStart: (ctx) => releaseHeldConjuredWeapon(ctx.caster, ctx.engine, { leaveToken: true }),
 };
 
@@ -91,7 +91,7 @@ const TOOLTIP_LINES = [
     'Deal {{DAMAGE}} damage to {{MAX_TARGETS}} adjacent enemies. The mace drops.',
     `{Knockback ${SWING_BAT_KNOCKBACK_TIER}}`,
     `{Stun ${MACE_WHIRL_STUN_SECONDS}}`,
-    formatEchoLine(ARMORY_MACE_ECHO),
+    formatEchoLine(ARMORY_ECHO),
 ];
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -156,7 +156,7 @@ export const WhirlAbility_1007 = defineAbility({
         WHIRL_HITBOX.renderTargetingPreview(gr, caster, { x: caster.x, y: caster.y }, units);
     },
     renderSelectTargetPreviewExtras(gr: IAbilityPreviewGraphics, caster: Unit, gameState?: unknown): void {
-        drawEchoBurstPreviews(gr, gameState, caster, ARMORY_MACE_ECHO, MACE_WHIRL_OUTER_RADIUS, {
+        drawEchoBurstPreviews(gr, gameState, caster, ARMORY_ECHO, MACE_WHIRL_OUTER_RADIUS, {
             color: ARMORY_SECONDARY_COLOR_NUM,
         });
     },

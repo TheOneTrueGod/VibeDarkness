@@ -32,6 +32,8 @@ import {
 import { listTier10RootCoreCandidates } from '../../storylines/WorldOfDarkness/missions/006_core_awakening';
 import {
     ARMORY_CREATE_CHARGE_COST,
+    ARMORY_DEPLOYABLE_WEAPON_COST,
+    ARMORY_ECHO,
     ARMORY_ECHO_CHARGE_COST,
     ARMORY_CREATE_MAX_USES,
     ARMORY_MACE_WEAPON_ID,
@@ -102,6 +104,7 @@ import { DEPLOYABLE_DELIVERY_PROJECTILE_TYPE } from '../../game/fieldObjects/dep
 import { CreateSwordAbility } from './1001_CreateSword/1001Ability';
 import { IMPROVISED_SWORD_IMPACT_TIME, ImprovisedSwordAbility } from './1002_ImprovisedSword/1002Ability';
 import { ThrowSwordAbility } from './1003_ThrowSword/1003Ability';
+import { findEchoTokens } from '../../abilities/echo/echo';
 import { DeployTurretAbility, validateTurretPlacement } from './1004_DeployTurret/1004Ability';
 import { CreateMaceAbility_1005 } from './1005_CreateMace/1005Ability';
 import { CHARGE_MACE_IMPACT_TIME, ChargeMaceAbility_1006 } from './1006_ChargeMace/1006Ability';
@@ -356,6 +359,7 @@ describe('Armory Core', () => {
     it('keeps the place ring up and rejects ground outside it or on a blocked tile', () => {
         const { engine } = armoryBattle();
         const player = engine.units[0]!;
+        dropTurretWeapons(engine, player);
         const select = placeSelect();
         expect(select.clampPixelToRange).toBe(false);
 
@@ -395,9 +399,33 @@ describe('Armory Core', () => {
         ]);
     });
 
+    it('costs no Charge, but needs the weapons in reach, and says so while placing', () => {
+        const { engine } = armoryBattle();
+        const player = engine.units[0]!;
+        const inside = { x: player.x + 2 * CELL_SIZE, y: player.y };
+        const pick = { caster: player, engine, pick: { type: 'pixel' as const, position: inside } };
+        expect(DeployTurretAbility.resourceCost).toBeNull();
+        expect(placeSelect().label).toContain(String(ARMORY_DEPLOYABLE_WEAPON_COST));
+        expect(DeployTurretAbility.getTooltipText().join(' ')).toMatch(/Needs .?4.? of your dropped weapons/);
+
+        dropTurretWeapons(engine, player, ARMORY_DEPLOYABLE_WEAPON_COST - 1);
+        expect(validateTurretPlacement(pick)).toBe(false);
+        // An ally's weapon, or one out of reach, does not count.
+        placeToken(engine, player, DROPPED_WEAPON_KIND_SWORD, { x: player.x, y: player.y + CELL_SIZE }, 'ally');
+        placeToken(engine, player, DROPPED_WEAPON_KIND_SWORD, { x: player.x + TURRET_PLACE_RANGE + CELL_SIZE, y: player.y });
+        expect(validateTurretPlacement(pick)).toBe(false);
+        const { gr, circles } = previewRecorder();
+        DeployTurretAbility.renderSelectTargetPreviewExtras!(gr, player, engine);
+        expect(circles).toContainEqual({ x: player.x, y: player.y, r: TURRET_PLACE_RANGE });
+
+        placeToken(engine, player, DROPPED_WEAPON_KIND_MACE, { x: player.x, y: player.y - CELL_SIZE });
+        expect(validateTurretPlacement(pick)).toBe(true);
+    });
+
     it('flies a folded turret on the simulation clock and leaves the sentry when it arrives', () => {
         const { engine } = armoryBattle();
         const player = engine.units[0]!;
+        const paid = dropTurretWeapons(engine, player);
         const place = { x: player.x + TURRET_PLACE_RANGE, y: player.y };
         const aim = { x: place.x, y: place.y + CELL_SIZE };
         const facing = Math.atan2(aim.y - place.y, aim.x - place.x);
@@ -419,6 +447,7 @@ describe('Armory Core', () => {
         expect(delivery!.maxDistance).toBeCloseTo(TURRET_PLACE_RANGE);
         expect(delivery!.velocityX).toBeCloseTo(TURRET_DEPLOY_SPEED);
         expect(engine.state.fieldObjects.placedDeployables).toHaveLength(0);
+        for (const id of paid) expect(tokenIds(engine)).not.toContain(id);
 
         step(engine, TURRET_FLIGHT_DURATION);
         expect(engine.projectiles.some((projectile) => projectile.projectileType === DEPLOYABLE_DELIVERY_PROJECTILE_TYPE)).toBe(false);
@@ -437,6 +466,7 @@ describe('Armory Core', () => {
     it('spawns the sentry from a live order after the caster clock is already running', () => {
         const { engine } = armoryBattle();
         const player = engine.units[0]!;
+        dropTurretWeapons(engine, player);
         // Cast starts once local time has been stepped twice. The next addition rounds high
         // ((t + dt) - t > dt), so the place window's previous sample is a hair inside the window.
         const clockStepsBeforeOrder = 1;
@@ -1010,6 +1040,13 @@ function placeToken(engine: GameEngine, owner: Unit, kind: string, at: { x: numb
     return id;
 }
 
+/** Drop {@link ARMORY_DEPLOYABLE_WEAPON_COST} of the player's weapons right beside them, paying for a turret. */
+function dropTurretWeapons(engine: GameEngine, player: Unit, count = ARMORY_DEPLOYABLE_WEAPON_COST): string[] {
+    return Array.from({ length: count }, (_, i) =>
+        placeToken(engine, player, DROPPED_WEAPON_KIND_SWORD, { x: player.x - 10 - i * 5, y: player.y + CELL_SIZE }),
+    );
+}
+
 function tokenIds(engine: GameEngine): string[] {
     return engine.state.fieldObjects.droppedWeapons.map((weapon) => weapon.id);
 }
@@ -1028,9 +1065,19 @@ describe('Echo', () => {
         }
         expect(THROW_SWORD_DAMAGE).toBe(6);
         expect(RELEASE_CHARGE_DAMAGE).toBe(10);
-        expect(ThrowSwordAbility.getTooltipText()).toContain('{Echo: Sword}');
-        expect(WhirlAbility_1007.getTooltipText()).toContain('{Echo: Mace}');
-        expect(ReleaseChargeAbility_1009.getTooltipText()).toContain('{Echo: Shield}');
+        expect(ThrowSwordAbility.getTooltipText()).toContain('{Echo 2}');
+        expect(WhirlAbility_1007.getTooltipText()).toContain('{Echo 2}');
+        expect(ReleaseChargeAbility_1009.getTooltipText()).toContain('{Echo 2}');
+    });
+
+    it('Echo 2 uses only the two closest dropped weapons, of any kind', () => {
+        const { engine } = armoryBattle();
+        const player = engine.units[0]!;
+        const closeSword = placeToken(engine, player, DROPPED_WEAPON_KIND_SWORD, { x: player.x, y: player.y + CELL_SIZE * 2 });
+        const closeMace = placeToken(engine, player, DROPPED_WEAPON_KIND_MACE, { x: player.x, y: player.y - CELL_SIZE * 3 });
+        const farShield = placeToken(engine, player, DROPPED_WEAPON_KIND_SHIELD, { x: player.x + CELL_SIZE * 4, y: player.y });
+        expect(findEchoTokens(engine, player, ARMORY_ECHO).map((token) => token.id)).toEqual([closeSword, closeMace]);
+        expect(findEchoTokens(engine, player, { count: 3 }).map((token) => token.id)).toContain(farShield);
     });
 
     it('Throw Sword also throws from each of your dropped swords, each aimed at the cursor, and destroys them', () => {

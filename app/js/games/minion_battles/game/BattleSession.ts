@@ -602,6 +602,13 @@ export class BattleSession implements BattleSessionHandle {
         return this.engine?.waitingForOrders ?? null;
     }
 
+    /** Hold or release this client's simulation (local only; see `GameState.localSimulationHold`). */
+    setLocalSimulationHold(held: boolean): void {
+        const eng = this.engine;
+        if (!eng) return;
+        eng.state.localSimulationHold = held;
+    }
+
     isDebugSimulationFrozen(): boolean {
         return debugSettingsSnapshot.debugPauseMode === true;
     }

@@ -1,7 +1,7 @@
 /**
  * Gather Stone — Earth Core ground ability. The caster marks a 3x3 tile patch up to
  * two tiles away and, half a second later, cracks every intact rock tile in it for a
- * fixed durability hit, banking one rock pebble per tile (and feeding Resonance to
+ * fixed durability hit, banking half a rock per full tile of durability removed (and feeding Resonance to
  * nearby Earth allies for free via the stone-damage event). The "Grinding Debris"
  * research node adds a bite: enemies standing on rubble in the patch take 6 damage,
  * once each, and that hit can be blocked. It is stationary space control that turns cleared
@@ -81,8 +81,8 @@ function gatherCells(ctx: CastBehaviourTickContext): TileCoord[] {
 const gatherHarvest = CastBehaviours.TerrainStrike()
     .atTiles(gatherCells)
     .damageRock(GATHER_STONE_ROCK_DAMAGE)
-    .onStruck((ctx, struck) => {
-        ctx.caster.getResource('rock')?.add(struck.length * GATHER_STONE_ROCK_RESOURCE_PER_TILE);
+    .onStruck((ctx, struck, rockDamaged) => {
+        ctx.caster.getResource('rock')?.add(rockDamaged * GATHER_STONE_ROCK_RESOURCE_PER_TILE);
         spawnGatherStoneRockImpacts(ctx.engine, ctx.caster, struck);
     });
 
@@ -209,7 +209,7 @@ export const GatherStoneAbility_0536: AbilityStatic = {
     getTooltipText(): string[] {
         return [
             `Mark a 3x3 patch of ground within ${GATHER_STONE_MAX_TILE_OFFSET} tiles`,
-            `After ${GATHER_STONE_PREFIRE}s, crack each rock tile in the patch and bank ${GATHER_STONE_ROCK_RESOURCE_PER_TILE} rock per tile`,
+            `After ${GATHER_STONE_PREFIRE}s, crack each rock tile in the patch and bank ${GATHER_STONE_ROCK_RESOURCE_PER_TILE} rock per tile's worth of rock durability damaged`,
             `Grinding Debris: enemies on rubble in the patch take {${GATHER_STONE_RUBBLE_DAMAGE}} damage`,
         ];
     },

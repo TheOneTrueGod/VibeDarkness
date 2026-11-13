@@ -18,7 +18,8 @@ import {
     getActiveResearchTrees,
     getInactiveResearchNodeIds,
 } from '../../../researchTrees/activeResearch';
-import { canLevelUpNode } from '../../../researchTrees/passiveBonuses';
+import { canLevelUpNode, getNodeLevel } from '../../../researchTrees/passiveBonuses';
+import { getNodeRankForLevel } from '../../../researchTrees/treeLevels';
 
 /** Player data the strict (random-slot) checks need beyond research and equipment. */
 export interface ResearchRewardContext {
@@ -139,8 +140,10 @@ export function resolveResearchRewardSlots(
                 if (isVirtualRootNode(node) || inactive.has(node.id)) continue;
                 if (researchedSet.has(node.id) && !canLevelUpNode(node, tree.id, researched, researchNodeLevels)) continue;
                 if (slot.tag && !getResearchNodeTags(tree, node).includes(slot.tag)) continue;
-                if (slot.minTier !== undefined && (node.tier ?? 0) < slot.minTier) continue;
-                if (slot.maxTier !== undefined && (node.tier ?? 0) > slot.maxTier) continue;
+                // Multi-level nodes are offered at the rank of the level they would grant next.
+                const nextRank = getNodeRankForLevel(node, getNodeLevel(tree.id, node.id, researched, researchNodeLevels) + 1) ?? 0;
+                if (slot.minTier !== undefined && nextRank < slot.minTier) continue;
+                if (slot.maxTier !== undefined && nextRank > slot.maxTier) continue;
                 if (claimedKeys.has(`${tree.id}:${node.id}`)) continue;
                 const requirementsMet = slot.random
                     ? requirementsStrictlyMet(node.requirements, strict)

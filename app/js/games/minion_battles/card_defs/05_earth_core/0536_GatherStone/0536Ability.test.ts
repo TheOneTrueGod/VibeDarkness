@@ -19,6 +19,7 @@ import {
 } from '../../../../../researchTrees/trees/earth';
 import {
     GATHER_STONE_ROCK_DAMAGE,
+    GATHER_STONE_ROCK_RESOURCE_PER_TILE,
     GATHER_STONE_RUBBLE_DAMAGE,
 } from '../earthCoreConstants';
 
@@ -39,6 +40,8 @@ function makeUnit(config: { id: string; teamId: 'player' | 'enemy'; col: number;
     });
 }
 
+const STONE_HEALTH = 100;
+
 interface TerrainStub {
     types: Map<string, TerrainType>;
     width: number;
@@ -57,7 +60,11 @@ function makeEngine(opts: {
     const types = new Map<string, TerrainType>(Object.entries(opts.terrain ?? {}) as [string, TerrainType][]);
     const width = opts.gridW ?? 40;
     const height = opts.gridH ?? 40;
-    const damageRock = vi.fn();
+    const health = new Map<string, number>();
+    const damageRock = vi.fn((col: number, row: number, amount: number) => {
+        const key = `${col},${row}`;
+        health.set(key, Math.max(0, (health.get(key) ?? STONE_HEALTH) - amount));
+    });
     const terrain: TerrainStub = { types, width, height, damageRock };
     const engine = {
         units: opts.units ?? [],
@@ -77,6 +84,8 @@ function makeEngine(opts: {
             isIntactRockAt: (col: number, row: number) =>
                 col >= 0 && row >= 0 && col < width && row < height && types.get(`${col},${row}`) === TerrainType.Rock,
             damageRock,
+            getRockHealth: (col: number, row: number) => health.get(`${col},${row}`) ?? STONE_HEALTH,
+            getRockMaxHealth: () => STONE_HEALTH,
             grid: { gridToWorld: (col: number, row: number) => center(col, row) },
         },
     };
@@ -174,7 +183,7 @@ describe('Gather Stone (0536) cast behaviours', () => {
         expect(terrain.damageRock).toHaveBeenCalledTimes(1);
     });
 
-    it('cracks each intact rock tile in the 3x3 and banks 1 rock per tile', () => {
+    it('cracks each intact rock tile in the 3x3 and banks 0.5 rock per full tile of durability damaged', () => {
         const caster = makeUnit({ id: 'caster', teamId: 'player', col: 5, row: 5 });
         caster.attachResource(new Rock(), new EventBus());
         const { engine, terrain } = makeEngine({
@@ -193,7 +202,8 @@ describe('Gather Stone (0536) cast behaviours', () => {
         for (const c of [[4, 5], [5, 5], [6, 5]]) {
             expect(terrain.damageRock).toHaveBeenCalledWith(c[0], c[1], GATHER_STONE_ROCK_DAMAGE, caster.id);
         }
-        expect(caster.getResource('rock')!.current).toBe(3);
+        // Each tile loses half its durability: 3 * 0.5 tiles' worth, at 0.5 rock per tile.
+        expect(caster.getResource('rock')!.current).toBeCloseTo(3 * 0.5 * GATHER_STONE_ROCK_RESOURCE_PER_TILE);
     });
 
     it('skips out-of-bounds cells so edge-of-map voids do not grant rock', () => {
@@ -208,7 +218,7 @@ describe('Gather Stone (0536) cast behaviours', () => {
 
         expect(terrain.damageRock).toHaveBeenCalledTimes(2);
         expect(terrain.damageRock).not.toHaveBeenCalledWith(6, 5, expect.anything(), expect.anything());
-        expect(caster.getResource('rock')!.current).toBe(2);
+        expect(caster.getResource('rock')!.current).toBeCloseTo(2 * 0.5 * GATHER_STONE_ROCK_RESOURCE_PER_TILE);
     });
 
     it('does not strike rubble-standing enemies without the Grinding Debris node', () => {

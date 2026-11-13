@@ -30,11 +30,11 @@ export const LIGHT_NODE_BLINDING_FLARE = 'blinding_flare';
 export const LIGHT_NODE_LAY_HANDS = 'lay_hands';
 export const LIGHT_RADIANT_REACH_LEVELS = 2;
 export const LIGHT_ATTUNED_TIER = 13;
-export const LIGHT_SHIELD_TIER = 13;
-export const LIGHT_SHIELD_FLARE_TIER = 14;
+export const LIGHT_SHIELD_TIER = 11;
+export const LIGHT_SHIELD_FLARE_TIER = 12;
 export const LIGHT_CORE_FOLLOWUP_TIER = 12;
 export const LIGHT_IMBUEMENT_TIER = 11;
-export const LIGHT_LAY_HANDS_TIER = 14;
+export const LIGHT_LAY_HANDS_TIER = 13;
 export const LIGHT_GATHER_LIGHT_LEVELS = 2;
 export const LIGHT_GATHER_LIGHT_AMOUNT_PER_RANK = 1;
 export const LIGHT_GATHER_LIGHT_AMOUNT_ADD = LIGHT_GATHER_LIGHT_AMOUNT_PER_RANK * LIGHT_GATHER_LIGHT_LEVELS;
@@ -213,7 +213,7 @@ export const lightTree: ResearchTreeDef = {
                 `Imbued Mace's light cone reaches a {${DescriptiveValue.Huge}} amount farther per rank (doubles at max).`,
             flavorText: 'Light stretches until the dark has nowhere left to stand.',
             order: 11,
-            tier: 3,
+            tier: 12,
             position: { x: 660, y: 290 },
             prereqNodeIds: [LIGHT_NODE_IMBUEMENT],
             exclusiveWithNodeIds: [],

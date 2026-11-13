@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { useHudAnchorRef } from '../hudAnchors';
 import { BossArcadeHpBar, type BossArcadeHpBarProps } from './BossArcadeHpBar';
 import { AlphaWolfHpBar } from './AlphaWolfHpBar';
 import { BossCcArmourRow } from './BossCcArmourRow';
@@ -50,7 +51,15 @@ type BossFightHudProps = {
  * Boss name inside HP bar, signature charges (when configured), CC pips; overlays the battle view.
  */
 export default function BossFightHud({ boss, onRegisterCcStatusTarget }: BossFightHudProps) {
-    const ccStatusRef = useRef<HTMLDivElement>(null);
+    const ccStatusRef = useRef<HTMLDivElement | null>(null);
+    const ccAnchorRef = useHudAnchorRef('bossCcArmour');
+    const setCcStatusEl = useCallback(
+        (el: HTMLDivElement | null) => {
+            ccStatusRef.current = el;
+            ccAnchorRef(el);
+        },
+        [ccAnchorRef],
+    );
 
     useEffect(() => {
         if (!onRegisterCcStatusTarget || !ccStatusRef.current) return;
@@ -98,7 +107,7 @@ export default function BossFightHud({ boss, onRegisterCcStatusTarget }: BossFig
                                 />
                             ) : null}
                         </div>
-                        <div ref={ccStatusRef} className="flex shrink-0 justify-end">
+                        <div ref={setCcStatusEl} className="flex shrink-0 justify-end">
                             {boss.exposedSecondsRemaining != null && boss.exposedTotalDuration != null ? (
                                 <BossExposedTimerBar
                                     secondsRemaining={boss.exposedSecondsRemaining}

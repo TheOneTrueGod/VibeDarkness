@@ -1,3 +1,4 @@
+import { CAMPSITE_3_MISSION_ID } from '../questMissions/campsite';
 import { describe, it, expect } from 'vitest';
 import { GameEngine } from '../../../game/GameEngine';
 import { resetGameObjectIdCounter } from '../../../game/GameObject';
@@ -59,12 +60,12 @@ function step(engine: GameEngine, ticks: number): void {
 const centre = (c: { col: number; row: number }) => ({ x: (c.col + 0.5) * CELL_SIZE, y: (c.row + 0.5) * CELL_SIZE });
 
 describe('The Lonely Castle (011)', () => {
-    it('opens Chapter 3, reached from the last Chapter 2 campsite', () => {
+    it('opens Chapter 3 after its opening campsite, itself reached from Displacer', () => {
         const ch3 = WorldOfDarknessStoryline.chapters?.find((c) => c.id === 'wod_ch3');
-        expect(ch3?.missionIds?.[0]).toBe(THE_LONELY_CASTLE_MISSION_ID);
+        expect(ch3?.missionIds?.[1]).toBe(THE_LONELY_CASTLE_MISSION_ID);
         expect(ch3?.unlockAfterMissionId).toBe('displacer');
         expect(WorldOfDarknessStoryline.edges).toContainEqual(
-            expect.objectContaining({ fromMissionId: 'displacer', toMissionId: THE_LONELY_CASTLE_MISSION_ID }),
+            expect.objectContaining({ fromMissionId: CAMPSITE_3_MISSION_ID, toMissionId: THE_LONELY_CASTLE_MISSION_ID }),
         );
     });
 

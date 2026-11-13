@@ -35,6 +35,7 @@ function makeCtx(): ResearchContext {
             campaignId: 'world_of_darkness',
             missionId: '',
             researchTrees: { [LIGHT_TREE_ID]: [LIGHT_NODE_CORE] },
+            researchTreeLevels: { [LIGHT_TREE_ID]: 3 },
         }),
         campaignResources: { vigor: 100, metal: 100, population: 10, attunement: 100 } as CampaignResources,
     };

@@ -6,8 +6,16 @@ import {
     nextButtonLabel,
     progressAfterStep,
     stepAdvancedBy,
+    TUTORIAL_TEXT_TERM_COLORS,
+    tutorialTextSegments,
     unitMatchesTutorialFilter,
 } from './tutorialLogic';
+import { ABILITY_TIMING_TAG_COLORS } from '../abilities/abilityTimings';
+import {
+    TUTORIAL_CC_RESISTANCE,
+    TUTORIAL_JUGGERNAUT_FRAMES,
+    WORLD_OF_DARKNESS_TUTORIALS,
+} from '../storylines/WorldOfDarkness/tutorials';
 import type { TutorialDef } from './tutorialTypes';
 
 const MOVE_THEN_PUNCH: TutorialDef = {
@@ -116,9 +124,9 @@ describe('unitOnScreen trigger', () => {
         trigger: { type: 'unitOnScreen', unit: { minStackSize: 2, hostile: true } },
         steps: [{ text: 'A stack of {stackSize}.', advance: { type: 'next' } }],
     };
-    const lone = { characterId: 'wolf', stackSize: 1, hostile: true };
-    const stack = { characterId: 'wolf', stackSize: 3, hostile: true };
-    const alliedStack = { characterId: 'wolf', stackSize: 3, hostile: false };
+    const lone = { characterId: 'wolf', stackSize: 1, hostile: true, inJuggernautWindow: false };
+    const stack = { characterId: 'wolf', stackSize: 3, hostile: true, inJuggernautWindow: false };
+    const alliedStack = { characterId: 'wolf', stackSize: 3, hostile: false, inJuggernautWindow: false };
     const ctx = (unitsOnScreen: typeof lone[]) => ({ missionId: 'any', gameTimeSeconds: 40, unitsOnScreen });
 
     it('fires in any mission, at any time, once a matching unit is on screen', () => {
@@ -141,5 +149,54 @@ describe('unitOnScreen trigger', () => {
     it('fills {stackSize} from the pointed unit', () => {
         expect(formatTutorialStepText('A stack of {stackSize}.', stack)).toBe('A stack of 3.');
         expect(formatTutorialStepText('A stack of {stackSize}.', null)).toBe('A stack of several.');
+    });
+});
+
+describe('juggernaut frames and pauseGame', () => {
+    const JUGGERNAUT: TutorialDef = {
+        id: 'jug',
+        knowledgeKey: 'TutorialTest',
+        title: 'Jug',
+        trigger: { type: 'unitOnScreen', unit: { hostile: true, inJuggernautWindow: true } },
+        pauseGame: true,
+        steps: [{ text: 'This enemy has {Juggernaut} armour.', advance: { type: 'next' } }],
+    };
+    const calm = { characterId: 'alpha_wolf', stackSize: 1, hostile: true, inJuggernautWindow: false };
+    const braced = { ...calm, inJuggernautWindow: true };
+    const ctx = (unitsOnScreen: (typeof calm)[]) => ({ missionId: 'any', gameTimeSeconds: 40, unitsOnScreen });
+
+    it('fires only while an enemy shows its juggernaut border', () => {
+        expect(findTriggeredTutorial([JUGGERNAUT], {}, ctx([calm]))).toBeNull();
+        expect(findTriggeredTutorial([JUGGERNAUT], {}, ctx([calm, braced]))).toEqual({ def: JUGGERNAUT, step: 0 });
+        expect(findTriggeredTutorial([JUGGERNAUT], {}, ctx([{ ...braced, hostile: false }]))).toBeNull();
+    });
+
+    it('can be limited to pauseGame tutorials', () => {
+        const onlyPausing = (def: TutorialDef) => def.pauseGame === true;
+        expect(findTriggeredTutorial([MOVE_THEN_PUNCH, JUGGERNAUT], {}, ctx([braced]), undefined, onlyPausing)?.def).toBe(
+            JUGGERNAUT,
+        );
+        expect(findTriggeredTutorial([MOVE_THEN_PUNCH], {}, atStart('m1'), undefined, onlyPausing)).toBeNull();
+    });
+
+    it('splits step text into plain and coloured-term runs', () => {
+        expect(tutorialTextSegments('This enemy has {Juggernaut} armour.')).toEqual([
+            { text: 'This enemy has ' },
+            { text: 'Juggernaut', color: TUTORIAL_TEXT_TERM_COLORS.Juggernaut },
+            { text: ' armour.' },
+        ]);
+        expect(tutorialTextSegments('No terms {unknown} here')).toEqual([{ text: 'No terms {unknown} here' }]);
+        expect(TUTORIAL_TEXT_TERM_COLORS.Juggernaut).toBe(ABILITY_TIMING_TAG_COLORS.juggernaut);
+    });
+});
+
+describe('boss tutorials', () => {
+    it('are registered with their own knowledge keys', () => {
+        expect(TUTORIAL_CC_RESISTANCE.knowledgeKey).toBe('TutorialCcResistance');
+        expect(TUTORIAL_CC_RESISTANCE.steps).toHaveLength(2);
+        expect(TUTORIAL_JUGGERNAUT_FRAMES.knowledgeKey).toBe('TutorialJuggernautFrames');
+        expect(TUTORIAL_JUGGERNAUT_FRAMES.pauseGame).toBe(true);
+        expect(WORLD_OF_DARKNESS_TUTORIALS).toContain(TUTORIAL_CC_RESISTANCE);
+        expect(WORLD_OF_DARKNESS_TUTORIALS).toContain(TUTORIAL_JUGGERNAUT_FRAMES);
     });
 });

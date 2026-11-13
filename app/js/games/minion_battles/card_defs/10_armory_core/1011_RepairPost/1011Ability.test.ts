@@ -22,7 +22,12 @@ import {
     ARMORY_TREE_ID,
     armoryTree,
 } from '../../../../../researchTrees/trees/armory';
-import { ARMORY_REPAIR_POST_DEF_ID, REPAIR_POST_ABILITY_ID } from '../armoryConstants';
+import {
+    ARMORY_DEPLOYABLE_WEAPON_COST,
+    ARMORY_REPAIR_POST_DEF_ID,
+    DROPPED_WEAPON_KIND_SWORD,
+    REPAIR_POST_ABILITY_ID,
+} from '../armoryConstants';
 import { registerArmoryContent } from '../register';
 import { RepairPostAbility_1011 } from './1011Ability';
 import {
@@ -46,6 +51,24 @@ function step(engine: GameEngine, seconds: number): void {
     }
 }
 
+/** Drop the weapons the post costs beside the player. */
+function dropWeapons(engine: GameEngine, count = ARMORY_DEPLOYABLE_WEAPON_COST): void {
+    const player = engine.units[0]!;
+    for (let i = 0; i < count; i++) {
+        engine.state.fieldObjects.droppedWeapons.push({
+            id: `post_cost_${i}`,
+            x: player.x - 10 - i * 5,
+            y: player.y + 20,
+            kind: DROPPED_WEAPON_KIND_SWORD,
+            ownerUnitId: player.id,
+            teamId: player.teamId,
+            abilityId: 'test',
+            spawnedAtGameTime: 0,
+            facing: 0,
+        });
+    }
+}
+
 function repairBattle(): GameEngine {
     const engine = buildTinyBattleEngine({ gridW: 20, gridH: 20, localPlayerId: TINY_BATTLE_PLAYER_ID });
     placePlayerFromLoadout(engine, {
@@ -56,6 +79,7 @@ function repairBattle(): GameEngine {
     });
     engine.waitingForOrders = null;
     engine.isPaused = false;
+    dropWeapons(engine);
     return engine;
 }
 
@@ -71,13 +95,13 @@ describe('Repair Post (1011)', () => {
         registerArmoryContent();
     });
 
-    it('is unlocked by its own tier-15 Armory node, and the player gets the card', () => {
+    it('is unlocked by its own tier-11 Armory node, and the player gets the card', () => {
         const node = armoryTree.nodes.find((entry) => entry.id === ARMORY_NODE_REPAIR_POST)!;
-        expect(node.tier).toBe(15);
+        expect(node.tier).toBe(11);
         expect(node.prereqNodeIds).toEqual([ARMORY_NODE_CORE]);
         expect(node.effects).toContainEqual({ type: 'addCard', cardId: REPAIR_POST_ABILITY_ID });
         const total = (node.cost.attunement ?? 0) + (node.cost.vigor ?? 0) + (node.cost.metal ?? 0);
-        expect(total).toBe(30);
+        expect(total).toBe(22);
         expect(repairBattle().units[0]!.abilities).toContain(REPAIR_POST_ABILITY_ID);
     });
 
@@ -146,6 +170,22 @@ describe('Repair Post (1011)', () => {
         const outside = { type: 'pixel' as const, position: { x: PLAYER.x + REPAIR_POST_PLACE_RANGE + 20, y: PLAYER.y } };
         expect(validate({ caster: player, engine, pick: inside })).toBe(true);
         expect(validate({ caster: player, engine, pick: outside })).toBe(false);
+    });
+
+    it('costs no Charge, needs the weapons in reach, and destroys them when the post is thrown', () => {
+        expect(RepairPostAbility_1011.resourceCost).toBeNull();
+        type Select = { targetDef?: { label?: string; validatePick?: (ctx: unknown) => boolean } };
+        const select = RepairPostAbility_1011.abilityTimings[0] as Select;
+        expect(select.targetDef!.label).toContain(String(ARMORY_DEPLOYABLE_WEAPON_COST));
+
+        const short = repairBattle();
+        short.state.fieldObjects.droppedWeapons.pop();
+        expect(select.targetDef!.validatePick!({ caster: short.units[0]!, engine: short, pick: { type: 'pixel', position: PLACE } })).toBe(false);
+
+        const engine = repairBattle();
+        castRepairPost(engine);
+        expect(engine.state.fieldObjects.droppedWeapons).toHaveLength(0);
+        expect(engine.state.fieldObjects.placedDeployables).toHaveLength(1);
     });
 
     it('folded, the arcs sit on the core and the pips are inside it; placed, the arcs open out', () => {

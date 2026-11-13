@@ -13,6 +13,7 @@ import {
 } from '../../../../../researchTrees/evaluator';
 import { getNodeMaxLevels } from '../../../../../researchTrees/passiveBonuses';
 import { removeResearchNode, stripResearchBySource } from '../../../../../researchTrees/researchSources';
+import { MAX_TREE_LEVEL } from '../../../../../researchTrees/treeLevels';
 import {
     canInteractWithDarknessUpgradeTree,
     DARKNESS_UPGRADES_TREE_ID,
@@ -67,6 +68,7 @@ export interface UseResearchActionsArgs {
     researchTrees: Record<string, string[]>;
     researchNodeLevels: Record<string, Record<string, number>>;
     researchSources: ResearchNodeSources;
+    researchTreeLevels: Record<string, number>;
     activeResearchTrees: Record<string, string[]>;
     activeResearchNodeLevels: Record<string, Record<string, number>>;
     viewResearch: ReturnType<typeof mergeDarknessUpgradesIntoResearchView>;
@@ -81,6 +83,7 @@ export interface UseResearchActionsArgs {
     setResearchTrees: Dispatch<SetStateAction<Record<string, string[]>>>;
     setResearchNodeLevels: Dispatch<SetStateAction<Record<string, Record<string, number>>>>;
     setResearchSources: Dispatch<SetStateAction<ResearchNodeSources>>;
+    setResearchTreeLevels: Dispatch<SetStateAction<Record<string, number>>>;
     setEquipment: Dispatch<SetStateAction<string[]>>;
 }
 
@@ -97,6 +100,7 @@ export function useResearchActions({
     researchTrees,
     researchNodeLevels,
     researchSources,
+    researchTreeLevels,
     activeResearchTrees,
     activeResearchNodeLevels,
     viewResearch,
@@ -111,6 +115,7 @@ export function useResearchActions({
     setResearchTrees,
     setResearchNodeLevels,
     setResearchSources,
+    setResearchTreeLevels,
     setEquipment,
 }: UseResearchActionsArgs) {
     const handleResetResearch = useCallback(
@@ -317,6 +322,7 @@ export function useResearchActions({
                     researchTrees: activeResearchTrees,
                     researchNodeLevels: activeResearchNodeLevels,
                     researchSources,
+                    researchTreeLevels,
                 } as CampaignCharacter,
                 campaignResources: resolvedCampaign.resources,
             };
@@ -404,5 +410,30 @@ export function useResearchActions({
         ],
     );
 
-    return { handleResetResearch, handleResetResearchBySource, handleResearchNode, handleRemoveResearchNode };
+    /** Admin: set a core tree's level (gates which research ranks can be purchased). */
+    const handleSetTreeLevel = useCallback(
+        async (treeId: string, level: number) => {
+            if (permissionAccount?.role !== 'admin') return;
+            const clamped = Math.max(0, Math.min(MAX_TREE_LEVEL, Math.floor(level)));
+            const next = { ...researchTreeLevels, [treeId]: clamped };
+            setSaving(true);
+            try {
+                const updated = await api.updateCharacter(character.id, { researchTreeLevels: next });
+                setResearchTreeLevels(updated.researchTreeLevels ?? next);
+            } catch (e) {
+                console.error('Failed to set tree level:', e);
+            } finally {
+                setSaving(false);
+            }
+        },
+        [api, character.id, permissionAccount?.role, researchTreeLevels, setResearchTreeLevels, setSaving],
+    );
+
+    return {
+        handleResetResearch,
+        handleResetResearchBySource,
+        handleResearchNode,
+        handleRemoveResearchNode,
+        handleSetTreeLevel,
+    };
 }

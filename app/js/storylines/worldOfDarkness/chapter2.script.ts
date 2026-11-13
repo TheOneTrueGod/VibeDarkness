@@ -11,13 +11,22 @@ export const CAMPSITE_CHOICE_ID = 'campsite_research_choice';
 export const CAMPSITE_HUNGER_RECOVERY = 20;
 /** Core picks offered at a campsite, at most. */
 export const CAMPSITE_CORE_PICKS = 6;
+/** Chapter 2 campsites only grant rank 11 core research: the first set of abilities in each core tree. */
+export const CAMPSITE_RESEARCH_MIN_TIER = 11;
+export const CAMPSITE_RESEARCH_MAX_TIER = 11;
 /**
  * Random core reward slots. The choice grid fills row-major from the top left, so the picks run
  * across and then down. A slot with no core research left is dropped, keeping the rest packed.
  */
 export const CAMPSITE_RESEARCH_SLOTS: ResearchRewardSlot[] = Array.from(
     { length: CAMPSITE_CORE_PICKS },
-    () => ({ tag: 'core', random: true, omitWhenUnavailable: true }),
+    () => ({
+        tag: 'core' as const,
+        random: true,
+        omitWhenUnavailable: true,
+        minTier: CAMPSITE_RESEARCH_MIN_TIER,
+        maxTier: CAMPSITE_RESEARCH_MAX_TIER,
+    }),
 );
 export const CAMPSITE_RESEARCH_OPTION_COUNT = CAMPSITE_RESEARCH_SLOTS.length;
 export const CAMPSITE_INTRO_TEXT = 'You have discovered a campsite';

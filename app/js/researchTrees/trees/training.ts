@@ -23,6 +23,11 @@ export const TRAINING_NODE_DARKVISION = 'darkvision';
 export const TRAINING_NODE_TREMORSENSE = 'tremorsense';
 
 /** Max levels / max bonus for Healthy passive (maxHealth add). */
+/** Rank of each level of a multi-level node: first rank at `first`, one higher per further rank. */
+function rankTiers(first: number, levels: number): number[] {
+    return Array.from({ length: levels }, (_, i) => first + i);
+}
+
 export const TRAINING_HEALTHY_LEVELS = 5;
 export const TRAINING_HEALTHY_MAX_HEALTH_ADD = 50;
 
@@ -55,7 +60,7 @@ export const trainingTree: ResearchTreeDef = {
             description: `{${DescriptiveValue.Tiny}} Damage boost and {${DescriptiveValue.Small}} Max Health boost.`,
             flavorText: 'Learn to brace with the terrain before every strike.',
             order: 10,
-            tier: 1,
+            tier: 12,
             position: { x: 240, y: 130 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
@@ -150,6 +155,7 @@ export const trainingTree: ResearchTreeDef = {
             flavorText: 'Endure a little longer each outing.',
             order: 60,
             tier: 11,
+            levelTiers: rankTiers(11, TRAINING_HEALTHY_LEVELS),
             position: { x: 240, y: 280 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
@@ -170,6 +176,7 @@ export const trainingTree: ResearchTreeDef = {
             flavorText: 'Every blow hits a little harder.',
             order: 70,
             tier: 11,
+            levelTiers: rankTiers(11, TRAINING_MIGHTY_LEVELS),
             position: { x: 240, y: 430 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],

@@ -21,17 +21,17 @@ export const STORM_CORE_ATTUNEMENT_COST = 10;
 export const STORM_CORE_VIGOR_COST = 8;
 export const STORM_CORE_METAL_COST = 2;
 
-export const STORM_STATIC_STEP_ATTUNEMENT_COST = 6;
-export const STORM_STATIC_STEP_VIGOR_COST = 10;
-export const STORM_STATIC_STEP_METAL_COST = 4;
+export const STORM_STATIC_STEP_ATTUNEMENT_COST = 10;
+export const STORM_STATIC_STEP_VIGOR_COST = 9;
+export const STORM_STATIC_STEP_METAL_COST = 3;
 
-export const STORM_THUNDERCLAP_ATTUNEMENT_COST = 7;
+export const STORM_THUNDERCLAP_ATTUNEMENT_COST = 10;
 export const STORM_THUNDERCLAP_VIGOR_COST = 9;
-export const STORM_THUNDERCLAP_METAL_COST = 4;
+export const STORM_THUNDERCLAP_METAL_COST = 3;
 
-export const STORM_FORKED_LIGHTNING_ATTUNEMENT_COST = 6;
-export const STORM_FORKED_LIGHTNING_VIGOR_COST = 9;
-export const STORM_FORKED_LIGHTNING_METAL_COST = 6;
+export const STORM_FORKED_LIGHTNING_ATTUNEMENT_COST = 10;
+export const STORM_FORKED_LIGHTNING_VIGOR_COST = 10;
+export const STORM_FORKED_LIGHTNING_METAL_COST = 4;
 
 const CORE_SWAP_SOURCES = [
     CORE_ITEM_IDS.BasicCore,
@@ -91,7 +91,7 @@ export const stormTree: ResearchTreeDef = {
                 'You learn to dart a short way as lightning, striking and marking every enemy you pass through.',
             flavorText: 'For a heartbeat you are the flash, and then you are somewhere else.',
             order: 10,
-            tier: 2,
+            tier: 11,
             position: { x: 420, y: 230 },
             prereqNodeIds: [STORM_NODE_CORE],
             exclusiveWithNodeIds: [],
@@ -115,7 +115,7 @@ export const stormTree: ResearchTreeDef = {
                 `You learn to split Chain Lightning as it leaps. It reaches {${FORKED_LIGHTNING_EXTRA_JUMPS}} more enemies.`,
             flavorText: 'One path is never enough for it.',
             order: 11,
-            tier: 3,
+            tier: 12,
             position: { x: 420, y: 100 },
             prereqNodeIds: [STORM_NODE_CORE],
             exclusiveWithNodeIds: [],
@@ -137,7 +137,7 @@ export const stormTree: ResearchTreeDef = {
                 'You learn to let your Static go in a burst that throws back everything near you, draws charge back out of Conductive enemies and lights the dark.',
             flavorText: 'Run far enough, and the sky has a lot to say.',
             order: 12,
-            tier: 2,
+            tier: 11,
             position: { x: 420, y: 370 },
             prereqNodeIds: [STORM_NODE_CORE],
             exclusiveWithNodeIds: [],

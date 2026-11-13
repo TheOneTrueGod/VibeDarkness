@@ -14,6 +14,7 @@ import type { PostMissionChoiceResolveParams } from '../../types';
 import { chapter1Scripts } from '../../../../../storylines/worldOfDarkness/chapter1.script';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { CORE_AWAKENING_TREE_LEVEL } from '../../../../../researchTrees/treeLevels';
 import { RESEARCH_TREES, getResearchNode } from '../../../../../researchTrees/list';
 import { nodeGrantsEquippedItem } from '../../../../../researchTrees/evaluator';
 import { isDisabledResearchNode, isDraftResearchNode } from '../../../../../researchTrees/types';
@@ -217,7 +218,7 @@ export class CoreAwakeningMission extends BaseMissionDef {
             id,
             label,
             forYou: isCoreForPlayer({ targetPlayerIds }, params.playerId),
-            action: { type: 'grant_research_to_player', treeId, nodeId },
+            action: { type: 'grant_research_to_player', treeId, nodeId, setTreeLevel: CORE_AWAKENING_TREE_LEVEL },
         }));
     }
 

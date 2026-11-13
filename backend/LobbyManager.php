@@ -1468,7 +1468,8 @@ class LobbyManager
         ?string $actionType = null,
         ?string $treeId = null,
         ?string $nodeId = null,
-        array $prepLoadoutPrimaryIds = []
+        array $prepLoadoutPrimaryIds = [],
+        ?int $setTreeLevel = null
     ): bool {
         $lobby = $this->getLobby($lobbyId);
         if ($lobby === null) {
@@ -1548,7 +1549,7 @@ class LobbyManager
             $selections = $currentState['characterSelections'] ?? $currentState['character_selections'] ?? [];
             $characterId = is_array($selections) ? ($selections[$playerId] ?? null) : null;
             if (is_string($characterId) && $characterId !== '') {
-                $this->grantQuestResearchToCharacter($characterId, $treeId, $nodeId);
+                $this->grantQuestResearchToCharacter($characterId, $treeId, $nodeId, $setTreeLevel);
             }
         }
 
@@ -1933,20 +1934,29 @@ class LobbyManager
         return true;
     }
 
-    private function grantQuestResearchToCharacter(string $characterId, string $treeId, string $nodeId): void
-    {
+    private function grantQuestResearchToCharacter(
+        string $characterId,
+        string $treeId,
+        string $nodeId,
+        ?int $setTreeLevel = null
+    ): void {
         $characterManager = CharacterManager::getInstance();
         $character = $characterManager->getCharacter($characterId);
         if ($character === null) {
             return;
         }
-        if (!$character->addResearchLevel($treeId, $nodeId, Character::RESEARCH_SOURCE_QUEST_REWARD, 1)) {
+        $added = $character->addResearchLevel($treeId, $nodeId, Character::RESEARCH_SOURCE_QUEST_REWARD, 1);
+        if ($setTreeLevel !== null) {
+            $character->raiseResearchTreeLevel($treeId, $setTreeLevel);
+        }
+        if (!$added && $setTreeLevel === null) {
             return;
         }
         $characterManager->updateCharacter($characterId, [
             'researchTrees' => $character->getResearchTrees(),
             'researchNodeLevels' => $character->getResearchNodeLevels(),
             'researchSources' => $character->getResearchSources(),
+            'researchTreeLevels' => $character->getResearchTreeLevels(),
         ]);
     }
 

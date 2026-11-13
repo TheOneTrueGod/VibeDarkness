@@ -7,6 +7,7 @@ import type { GameEngine } from '../game/GameEngine';
 import type { Unit } from '../game/units/Unit';
 import { areEnemies, type TeamId } from '../game/teams';
 import { getUnitDetection, isDetectionVisible } from '../game/visibility/teamPerception';
+import { shouldShowJuggernautRing } from '../game/GameRenderer/renderers/juggernautRing';
 import { unitMatchesTutorialFilter, type TutorialUnitView } from './tutorialLogic';
 import type { TutorialUnitFilter } from './tutorialTypes';
 
@@ -15,11 +16,14 @@ function localTeamOf(engine: GameEngine): TeamId {
     return engine.getLocalPlayerUnit()?.teamId ?? 'player';
 }
 
-export function tutorialUnitView(unit: Unit, localTeamId: TeamId): TutorialUnitView {
+export function tutorialUnitView(unit: Unit, localTeamId: TeamId, gameTime: number): TutorialUnitView {
+    const hostile = areEnemies(localTeamId, unit.teamId);
     return {
         characterId: unit.characterId,
         stackSize: unit.stackSize,
-        hostile: areEnemies(localTeamId, unit.teamId),
+        hostile,
+        // The same condition the renderer draws the juggernaut border on.
+        inJuggernautWindow: shouldShowJuggernautRing(unit, gameTime, hostile),
     };
 }
 
@@ -40,7 +44,7 @@ export function tutorialUnitsOnScreen(engine: GameEngine, camera: Camera): Tutor
     const localTeamId = localTeamOf(engine);
     return engine.units
         .filter((u) => u.isAlive() && isUnitOnScreen(u, camera, engine, localTeamId))
-        .map((u) => tutorialUnitView(u, localTeamId));
+        .map((u) => tutorialUnitView(u, localTeamId, engine.gameTime));
 }
 
 /**
@@ -50,7 +54,7 @@ export function tutorialUnitsOnScreen(engine: GameEngine, camera: Camera): Tutor
 export function findTutorialUnit(engine: GameEngine, filter: TutorialUnitFilter, camera?: Camera): Unit | undefined {
     const localTeamId = localTeamOf(engine);
     const matches = engine.units.filter(
-        (u) => u.isAlive() && unitMatchesTutorialFilter(tutorialUnitView(u, localTeamId), filter),
+        (u) => u.isAlive() && unitMatchesTutorialFilter(tutorialUnitView(u, localTeamId, engine.gameTime), filter),
     );
     const onScreen = camera ? matches.filter((u) => isUnitOnScreen(u, camera, engine, localTeamId)) : [];
     const pool = onScreen.length > 0 ? onScreen : matches;

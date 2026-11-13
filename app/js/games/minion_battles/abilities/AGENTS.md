@@ -18,7 +18,7 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 | `hitboxDef.ts` | Pure hitbox data + `resolveHitbox`. When a `priorityUnitId` is set and that unit is out of the shape, the result is empty (miss), not a redirect to another unit. |
 | `castBehaviourTypes.ts` / `resolveCastBehaviourTarget.ts` | Behaviour context, `targetIndex`, interrupt typing. |
 | `targetDowngrade.ts` | Freezes unit targets to pixels when they die (pair with evade/tether handling in the ability tick). |
-| `echo/` | Echo: an ability also happens at each of the caster's tokens of one type (`Deployable.subtype`), then destroys them. Burst echoes via `MeleeAttack.withEcho`, sweeps via `ArcSweep`'s `echo`; `defineThrownWeapon` and `defineConeStrike` take an `echo` config. Tooltip line `{Echo: Sword}` has a glossary card. |
+| `echo/` | Echo N: an ability also happens at the N closest dropped weapons of the caster (any kind), then destroys them. Burst echoes via `MeleeAttack.withEcho`, sweeps via `ArcSweep`'s `echo`; `defineThrownWeapon` and `defineConeStrike` take an `echo` config. Tooltip line `{Echo 2}` has a glossary card. |
 | `keywords/` | Reusable ability keywords (`bright`, `knockback`, `devourLight`), registry, and cast-time runner. See `keywords/AGENTS.md`. |
 
 ## Per-cast ability modes

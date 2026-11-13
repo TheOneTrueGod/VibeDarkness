@@ -695,6 +695,8 @@ export interface CampaignChapterDef {
     numeral: string;
     /** Longer name for tooltip / aria-label (optional). */
     title?: string;
+    /** Design notes for this chapter (e.g. which research tier its campsites grant). Not shown to players. */
+    description?: string;
     /** Mission ids in this chapter, in map display order. */
     missionIds: string[];
     /** Quest slot bank ids shown on this chapter's Mission Map canvas. */

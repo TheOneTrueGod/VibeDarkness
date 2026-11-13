@@ -33,6 +33,8 @@ function makeEngine(units: Unit[], intactRock: boolean) {
             grid: { worldToGrid: () => ({ col: 2, row: 2 }) },
             isIntactRockAt: () => intactRock,
             damageRock,
+            getRockHealth: () => 100,
+            getRockMaxHealth: () => 100,
         },
     } as unknown as AbilityEngineContext;
     return { engine, damageRock };

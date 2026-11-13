@@ -255,15 +255,30 @@ describe('Blood Splinters runtime', () => {
         expect(stacksOf(far)).toBe(6);
     });
 
-    it('does nothing extra when the upgrade is not researched', () => {
-        const host = bleeding('host', HOST_POS, 6);
-        const mid = makeEnemy('mid', MID_POS.x, MID_POS.y);
-        const { projectiles } = runCast([host, mid], false);
+    it('without the upgrade, only the nearest bleeding enemy bursts a shard', () => {
+        const nearHost = bleeding('near', HOST_POS, 6);
+        const farHost = bleeding('far', { x: 20, y: 140 }, 6);
+        const { projectiles } = runCast([nearHost, farHost], false);
 
-        expect(projectiles).toHaveLength(1);
-        expect(host.hp).toBe(100);
-        expect(stacksOf(host)).toBe(6);
-        expect(mid.hp).toBe(100);
+        expect(projectiles).toHaveLength(2);
+        expect(nearHost.hp).toBe(100 - BLOOD_SPLINTER_HOST_DAMAGE);
+        expect(farHost.hp).toBe(100);
+        expect(stacksOf(farHost)).toBe(6);
+    });
+
+    it('with Blood Splinters, the nearest 3 bleeding enemies burst shards', () => {
+        const hosts = [
+            bleeding('a', { x: 60, y: 90 }, 6),
+            bleeding('b', { x: 20, y: 140 }, 6),
+            bleeding('c', { x: 80, y: -120 }, 6),
+            bleeding('d', { x: -150, y: 100 }, 6),
+        ];
+        const { projectiles } = runCast(hosts, true);
+
+        expect(projectiles).toHaveLength(4);
+        // Splinter flights may clip other hosts, so judge by bleed consumed rather than hp.
+        expect(hosts.slice(0, 3).map(stacksOf)).toEqual([2, 2, 2]);
+        expect(stacksOf(hosts[3])).toBe(6);
     });
 });
 
@@ -280,6 +295,7 @@ describe('Blood Splinters hosts and previews', () => {
 
         const hosts = findBloodSplinterHosts(caster, [far, clean, outOfRange, near, ally]);
         expect(hosts.map((h) => h.id)).toEqual(['near', 'far']);
+        expect(findBloodSplinterHosts(caster, [far, near], 1).map((h) => h.id)).toEqual(['near']);
     });
 
     it('builds one segment per host, with the end clamped to range from the host', () => {
