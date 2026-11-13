@@ -1093,7 +1093,7 @@ describe('Echo', () => {
             expect(ability.resourceCost).toEqual({ resourceId: 'charge', amount: ARMORY_ECHO_CHARGE_COST });
         }
         expect(THROW_SWORD_DAMAGE).toBe(6);
-        expect(RELEASE_CHARGE_DAMAGE).toBe(10);
+        expect(RELEASE_CHARGE_DAMAGE).toBe(8);
         expect(ThrowSwordAbility.getTooltipText()).toContain('{Echo 2}');
         expect(WhirlAbility_1007.getTooltipText()).toContain('{Echo 2}');
         expect(ReleaseChargeAbility_1009.getTooltipText()).toContain('{Echo 2}');
