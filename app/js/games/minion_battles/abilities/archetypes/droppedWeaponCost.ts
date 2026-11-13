@@ -9,6 +9,14 @@
 import type { IAbilityPreviewGraphics } from '../Ability';
 import type { Deployable, DeployableQuery } from '../../game/deployables/Deployable';
 import type { Unit } from '../../game/units/Unit';
+import { INVALID_PICK_CROSS_HALF_SIZE } from '../../hitboxes/invalidPickPreview';
+
+/** Reach ring and scrap label when the caster is short of dropped weapons. */
+export const DROPPED_WEAPON_SHORT_COLOR = 0xef4444;
+/** Player-facing name for a dropped weapon spent on a deployable. */
+export const SCRAP_WORD = 'scrap';
+/** Gap between the bottom of the invalid-pick cross and the scrap label, in px. */
+export const SCRAP_LABEL_GAP_PX = 4;
 
 export interface DroppedWeaponCost {
     /** Weapons needed, and destroyed. */
@@ -39,6 +47,31 @@ export function findCostWeapons(engine: unknown, caster: Unit, cost: DroppedWeap
 
 export function canPayDroppedWeaponCost(engine: unknown, caster: Unit, cost: DroppedWeaponCost): boolean {
     return findCostWeapons(engine, caster, cost).length >= cost.count;
+}
+
+/** `2/4 scrap` while short. Null once the caster can pay, so the label stays hidden. */
+export function scrapShortfallLabel(engine: unknown, caster: Unit, cost: DroppedWeaponCost): string | null {
+    const have = findCostWeapons(engine, caster, cost).length;
+    if (have >= cost.count) return null;
+    return `${have}/${cost.count} ${SCRAP_WORD}`;
+}
+
+/** Red scrap count centred under the invalid-pick cross. No-op when the cost can be paid. */
+export function drawScrapShortfallLabel(
+    gr: IAbilityPreviewGraphics,
+    engine: unknown,
+    caster: Unit,
+    cost: DroppedWeaponCost,
+    aim: { x: number; y: number },
+): void {
+    const label = scrapShortfallLabel(engine, caster, cost);
+    if (!label) return;
+    gr.label?.(
+        label,
+        aim.x,
+        aim.y + INVALID_PICK_CROSS_HALF_SIZE + SCRAP_LABEL_GAP_PX,
+        DROPPED_WEAPON_SHORT_COLOR,
+    );
 }
 
 /** Destroy the weapons. Returns false, and destroys nothing, when there are too few. */

@@ -4,6 +4,12 @@ import { isAbilityTimingInterval } from '../../abilities/abilityTimings';
 import { pointInCone } from '../../abilities/coneGeometry';
 import type { IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { isSelectTargetDef } from '../../abilities/timingTargetDef';
+import {
+    DROPPED_WEAPON_SHORT_COLOR,
+    SCRAP_LABEL_GAP_PX,
+    SCRAP_WORD,
+} from '../../abilities/archetypes/droppedWeaponCost';
+import { INVALID_PICK_CROSS_HALF_SIZE } from '../../hitboxes/invalidPickPreview';
 import { findPreviewDeferredSelectLabel } from '../../game/interaction/selectTargetLookahead';
 import { resolveItsSelectTargetForClick } from '../../game/interaction/itsCanvasInput';
 import { FIXED_DT, ROUND_DURATION } from '../../game/gameConstants';
@@ -410,6 +416,27 @@ describe('Armory Core', () => {
 
         dropTurretWeapons(engine, player, ARMORY_DEPLOYABLE_WEAPON_COST - 1);
         expect(validateTurretPlacement(pick)).toBe(false);
+        const labels: Array<{ text: string; x: number; y: number; color: number }> = [];
+        const labelGr: IAbilityPreviewGraphics = {
+            clear(): void {},
+            moveTo(): void {},
+            lineTo(): void {},
+            circle(): void {},
+            fill(): void {},
+            stroke(): void {},
+            label(text, x, y, color): void { labels.push({ text, x, y, color }); },
+        };
+        const aim = { x: player.x + CELL_SIZE, y: player.y };
+        DeployTurretAbility.renderInvalidSelectCaption!(labelGr, player, aim, engine, placeSelect());
+        expect(labels).toEqual([{
+            text: `${ARMORY_DEPLOYABLE_WEAPON_COST - 1}/${ARMORY_DEPLOYABLE_WEAPON_COST} ${SCRAP_WORD}`,
+            x: aim.x,
+            y: aim.y + INVALID_PICK_CROSS_HALF_SIZE + SCRAP_LABEL_GAP_PX,
+            color: DROPPED_WEAPON_SHORT_COLOR,
+        }]);
+        labels.length = 0;
+        DeployTurretAbility.renderInvalidSelectCaption!(labelGr, player, aim, engine, { label: TURRET_AIM_LABEL });
+        expect(labels).toEqual([]);
         // An ally's weapon, or one out of reach, does not count.
         placeToken(engine, player, DROPPED_WEAPON_KIND_SWORD, { x: player.x, y: player.y + CELL_SIZE }, 'ally');
         placeToken(engine, player, DROPPED_WEAPON_KIND_SWORD, { x: player.x + TURRET_PLACE_RANGE + CELL_SIZE, y: player.y });
@@ -420,6 +447,8 @@ describe('Armory Core', () => {
 
         placeToken(engine, player, DROPPED_WEAPON_KIND_MACE, { x: player.x, y: player.y - CELL_SIZE });
         expect(validateTurretPlacement(pick)).toBe(true);
+        DeployTurretAbility.renderInvalidSelectCaption!(labelGr, player, aim, engine, placeSelect());
+        expect(labels).toEqual([]);
     });
 
     it('flies a folded turret on the simulation clock and leaves the sentry when it arrives', () => {

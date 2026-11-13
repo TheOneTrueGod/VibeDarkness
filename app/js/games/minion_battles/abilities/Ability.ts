@@ -28,6 +28,8 @@ export interface IAbilityPreviewGraphics {
     circle(x: number, y: number, radius: number): void;
     fill(options: { color: number; alpha?: number }): void;
     stroke(options: { color: number; width: number; alpha?: number }): void;
+    /** World-space label. Omitted by recorders that only care about shapes. */
+    label?(text: string, x: number, y: number, color: number): void;
 }
 
 export interface AbilityRenderOffset {
@@ -727,6 +729,18 @@ export interface AbilityStatic {
         gr: IAbilityPreviewGraphics,
         caster: Unit,
         gameState?: unknown,
+    ): void;
+
+    /**
+     * Optional. Drawn with the invalid-pick cross. Deploy Turret and Repair Post use it for the
+     * scrap count under that cross while the caster is short of dropped weapons.
+     */
+    renderInvalidSelectCaption?(
+        gr: IAbilityPreviewGraphics,
+        caster: Unit,
+        aim: { x: number; y: number },
+        gameState: unknown,
+        select: { label: string },
     ): void;
 
     /**

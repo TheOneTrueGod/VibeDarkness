@@ -34,6 +34,7 @@ import type { OverlayRenderer } from './OverlayRenderer';
 import type { AbilityStatic, AbilityTelegraph, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { asTelegraphPayload, telegraphWindupProgress } from '../../../abilities/telegraphTracking';
 import { LitClippingPreviewGraphics } from './LitClippingPreviewGraphics';
+import { LabelledPreviewGraphics } from './labelledPreviewGraphics';
 import type { ResolvedTarget, GhostPlanData, ActiveAbility } from '../../types';
 import type { ConfirmRadiusTargetDef, SelectTargetDef } from '../../../abilities/timingTargetDef';
 import { isConfirmRadiusTargetDef, isSelectTargetDef } from '../../../abilities/timingTargetDef';
@@ -285,7 +286,9 @@ function renderInvalidSelectTargetDef(
     const effectiveCaster: HitboxPreviewCaster = state
         ? { x: state.virtualX, y: state.virtualY, abilityModifiers: caster.abilityModifiers }
         : caster;
-    selectDef.hitbox.renderInvalidPreview(gr, effectiveCaster, state ? state.adjustedMouse : aimPoint);
+    const aim = state ? state.adjustedMouse : aimPoint;
+    selectDef.hitbox.renderInvalidPreview(gr, effectiveCaster, aim);
+    ability.renderInvalidSelectCaption?.(gr, caster, aim, engine, selectDef);
     if (state) {
         renderLungeIndicator(gr, caster, state.virtualX, state.virtualY);
     }
@@ -336,8 +339,10 @@ export class PreviewRenderer {
     private raisedUnitIds = new Set<string>();
     private abilityPreviewGraphics: Graphics = new Graphics();
     private targetingPreviewGraphics: Graphics = new Graphics();
+    private targetingPreview: LabelledPreviewGraphics = new LabelledPreviewGraphics(this.targetingPreviewGraphics);
     private ghostPreviewGraphics: Graphics = new Graphics();
     private ghostPlanPreviewGraphics: Graphics = new Graphics();
+    private ghostPlanPreview: LabelledPreviewGraphics = new LabelledPreviewGraphics(this.ghostPlanPreviewGraphics);
 
     constructor(
         private readonly gameContainer: Container,
@@ -815,24 +820,24 @@ export class PreviewRenderer {
     ): void {
         const ts = targetingState;
         if (!ts) {
-            this.targetingPreviewGraphics.clear();
+            this.targetingPreview.clear();
             return;
         }
         const ability = ts.selectedAbility;
         const previewUnitId = ts.previewOrderUnitId ?? ts.waitingForOrders?.unitId;
         if (!ability || !previewUnitId) {
-            this.targetingPreviewGraphics.clear();
+            this.targetingPreview.clear();
             return;
         }
 
         const caster = engine.getUnit(previewUnitId);
         if (!caster) {
-            this.targetingPreviewGraphics.clear();
+            this.targetingPreview.clear();
             return;
         }
 
-        this.targetingPreviewGraphics.clear();
-        const gr = this.targetingPreviewGraphics as unknown as import('../../../abilities/Ability').IAbilityPreviewGraphics;
+        this.targetingPreview.clear();
+        const gr = this.targetingPreview;
 
         const interactiveDefs = getInteractiveTargetDefsFromTimings(ability, caster, engine);
         if (interactiveDefs.length > 0) {
@@ -903,11 +908,11 @@ export class PreviewRenderer {
     }
 
     private renderGhostPlanPreviews(engine: GameEngine, ghostPlans: Record<string, GhostPlanData>): void {
-        this.ghostPlanPreviewGraphics.clear();
+        this.ghostPlanPreview.clear();
         this.ghostPlanPreviewGraphics.alpha = GHOST_PLAN_LAYER_ALPHA;
 
         const plans = Object.values(ghostPlans).filter((p) => !p.sequentialTargeting);
-        const gr = this.ghostPlanPreviewGraphics as unknown as import('../../../abilities/Ability').IAbilityPreviewGraphics;
+        const gr = this.ghostPlanPreview;
 
         for (const plan of plans) {
             const caster = engine.getUnit(plan.unitId);

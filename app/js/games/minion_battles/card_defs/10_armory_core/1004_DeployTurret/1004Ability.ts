@@ -27,6 +27,7 @@ import { deployablePlacementValidator } from '../../../abilities/archetypes/depl
 import {
     droppedWeaponCostValidator,
     drawDroppedWeaponCostPreview,
+    drawScrapShortfallLabel,
     payDroppedWeaponCost,
     type DroppedWeaponCost,
 } from '../../../abilities/archetypes/droppedWeaponCost';
@@ -232,6 +233,10 @@ export const DeployTurretAbility = defineAbility({
             shortColor: SHORT_COLOR,
             markRadius: TURRET_BODY_RADIUS,
         });
+    },
+    renderInvalidSelectCaption(gr, caster, aim, gameState, select): void {
+        if (select.label !== TURRET_PLACE_LABEL) return;
+        drawScrapShortfallLabel(gr, gameState, caster, WEAPON_COST, aim);
     },
     getTooltipText(gameState?: unknown): string[] {
         return formatTooltipLegacyLines(

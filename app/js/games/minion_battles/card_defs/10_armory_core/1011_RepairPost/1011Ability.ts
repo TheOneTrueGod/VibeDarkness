@@ -26,6 +26,7 @@ import { deployablePlacementValidator } from '../../../abilities/archetypes/depl
 import {
     droppedWeaponCostValidator,
     drawDroppedWeaponCostPreview,
+    drawScrapShortfallLabel,
     payDroppedWeaponCost,
     type DroppedWeaponCost,
 } from '../../../abilities/archetypes/droppedWeaponCost';
@@ -169,6 +170,10 @@ export const RepairPostAbility_1011 = defineAbility({
             shortColor: SHORT_COLOR,
             markRadius: WEAPON_MARK_RADIUS,
         });
+    },
+    renderInvalidSelectCaption(gr, caster, aim, gameState, select): void {
+        if (select.label !== REPAIR_POST_PLACE_LABEL) return;
+        drawScrapShortfallLabel(gr, gameState, caster, WEAPON_COST, aim);
     },
     getTooltipText(gameState?: unknown): string[] {
         return formatTooltipLegacyLines(

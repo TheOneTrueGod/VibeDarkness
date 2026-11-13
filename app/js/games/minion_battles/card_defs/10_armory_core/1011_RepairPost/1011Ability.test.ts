@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import '../../../abilities/AbilityRegistry';
+import type { IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import { SCRAP_WORD } from '../../../abilities/archetypes/droppedWeaponCost';
 import { FIXED_DT, ROUND_DURATION } from '../../../game/gameConstants';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { UnitHealedEvent } from '../../../game/EventBus';
@@ -36,6 +38,7 @@ import {
     REPAIR_POST_HEAL,
     REPAIR_POST_HEAL_RADIUS,
     REPAIR_POST_PLACE_RANGE,
+    REPAIR_POST_PLACE_LABEL,
     REPAIR_POST_PULSE_INTERVAL,
     REPAIR_POST_PULSES,
 } from './1011Constants';
@@ -181,6 +184,22 @@ describe('Repair Post (1011)', () => {
         const short = repairBattle();
         short.state.fieldObjects.droppedWeapons.pop();
         expect(select.targetDef!.validatePick!({ caster: short.units[0]!, engine: short, pick: { type: 'pixel', position: PLACE } })).toBe(false);
+        const labels: string[] = [];
+        const gr: IAbilityPreviewGraphics = {
+            clear(): void {},
+            moveTo(): void {},
+            lineTo(): void {},
+            circle(): void {},
+            fill(): void {},
+            stroke(): void {},
+            label(text): void { labels.push(text); },
+        };
+        RepairPostAbility_1011.renderInvalidSelectCaption!(gr, short.units[0]!, PLACE, short, { label: REPAIR_POST_PLACE_LABEL });
+        expect(labels).toEqual([`${ARMORY_DEPLOYABLE_WEAPON_COST - 1}/${ARMORY_DEPLOYABLE_WEAPON_COST} ${SCRAP_WORD}`]);
+        labels.length = 0;
+        const paid = repairBattle();
+        RepairPostAbility_1011.renderInvalidSelectCaption!(gr, paid.units[0]!, PLACE, paid, { label: REPAIR_POST_PLACE_LABEL });
+        expect(labels).toEqual([]);
 
         const engine = repairBattle();
         castRepairPost(engine);
