@@ -2,7 +2,9 @@
  * AbilityModeStrip - always-visible row of per-cast mode buttons rendered directly under a hand card.
  *
  * Equal-width segments fill the parent width (works for 2-3 modes in a 108px card). Clicks never
- * bubble to the card so choosing a mode does not select the ability.
+ * bubble to the card so choosing a mode does not select the ability. Renders nothing for fewer than
+ * two modes. Every mode stays selectable; a mode that can't be cast now only says why in its tooltip
+ * (the card itself shows disabled when that mode is picked).
  */
 
 import React from 'react';
@@ -16,6 +18,8 @@ export interface AbilityModeStripProps {
     labels?: Readonly<Record<string, string>>;
     /** Mode id → one-sentence description used as the segment tooltip. */
     descriptions?: Readonly<Record<string, string>>;
+    /** Mode id → why that mode can't be cast right now, added to its tooltip. The segment looks and works as normal. */
+    unavailableReasons?: Readonly<Record<string, string>>;
     onSelectMode: (mode: string) => void;
     /** False when it is not the player's turn: still shown, but dimmed and inert. */
     interactive: boolean;
@@ -28,6 +32,7 @@ export function AbilityModeStrip({
     currentMode,
     labels,
     descriptions,
+    unavailableReasons,
     onSelectMode,
     interactive,
     testIdSuffix,
@@ -39,6 +44,9 @@ export function AbilityModeStrip({
     const baseTestId = testIdSuffix
         ? `${TestIds.battleAbilityModeStrip}-${testIdSuffix}`
         : TestIds.battleAbilityModeStrip;
+
+    // Fewer than 2 available modes: nothing to toggle.
+    if (modes.length < 2) return null;
 
     return (
         <div
@@ -52,13 +60,16 @@ export function AbilityModeStrip({
             {modes.map((mode) => {
                 const label = labels?.[mode] ?? mode;
                 const description = descriptions?.[mode];
-                const title = description ? `${label}: ${description}` : label;
+                const reason = unavailableReasons?.[mode];
+                const baseTitle = description ? `${label}: ${description}` : label;
+                const title = reason ? `${baseTitle} (${reason})` : baseTitle;
                 const selected = currentMode === mode;
                 return (
                     <button
                         key={mode}
                         type="button"
                         data-testid={`${baseTestId}-${mode}`}
+                        data-unavailable-reason={reason}
                         title={title}
                         aria-label={title}
                         aria-pressed={selected}

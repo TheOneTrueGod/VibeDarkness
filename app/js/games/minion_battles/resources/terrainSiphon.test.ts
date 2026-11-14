@@ -184,6 +184,29 @@ describe('terrain siphon (Water)', () => {
         expect(resource.current).toBe(0);
     });
 
+    it('records the tiles it drew on for the renderer, and clears them when it stops', () => {
+        const { engine, unit, resource } = setup([
+            [CENTER, CENTER, TerrainType.Water],
+            [CENTER + 1, CENTER, TerrainType.DeepWater],
+        ]);
+        expect(resource.siphonTiles).toEqual([]);
+        tickFor(FIXED_DT, resource, unit, engine);
+        expect(resource.siphonTiles.map((t) => [t.col, t.row])).toEqual([[CENTER + 1, CENTER], [CENTER, CENTER]]);
+        // A paused tick (dt 0) keeps the last tiles so the visual holds still.
+        resource.onTick(unit, engine, 0);
+        expect(resource.siphonTiles).toHaveLength(2);
+        resource.current = WATER_MAX;
+        tickFor(FIXED_DT, resource, unit, engine);
+        expect(resource.siphonTiles).toEqual([]);
+    });
+
+    it('never serializes the render-only siphon tiles', () => {
+        const { engine, unit, resource } = setup([[CENTER, CENTER, TerrainType.Water]]);
+        tickFor(FIXED_DT, resource, unit, engine);
+        expect(resource.siphonTiles).toHaveLength(1);
+        expect(JSON.stringify(resource.toJSON())).not.toContain('siphon');
+    });
+
     it('draws on every water type by default', () => {
         expect(WATER_SIPHON.terrains).toBe(WATER_TERRAIN_TYPES);
         expect([...WATER_TERRAIN_TYPES].sort()).toEqual(

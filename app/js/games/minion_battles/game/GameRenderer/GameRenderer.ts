@@ -31,6 +31,7 @@ import { FloorTileRenderer } from './renderers/FloorTileRenderer';
 import { MapNetworkRenderer } from './renderers/MapNetworkRenderer';
 import { FieldObjectRenderer } from './renderers/FieldObjectRenderer';
 import { SenseIndicatorRenderer } from './renderers/SenseIndicatorRenderer';
+import { TerrainSiphonRenderer } from './renderers/TerrainSiphonRenderer';
 import { getUnitDetection, isDetectionVisible } from '../visibility/teamPerception';
 import { isRenderLayerVisible } from '../../../../debug/renderVisibilityStore';
 import {
@@ -75,6 +76,7 @@ export class GameRenderer {
 	private mapNetworkRenderer!: MapNetworkRenderer;
 	private fieldObjectRenderer!: FieldObjectRenderer;
 	private senseIndicatorRenderer!: SenseIndicatorRenderer;
+	private terrainSiphonRenderer!: TerrainSiphonRenderer;
 
 	/** Optional debug: draw a yellow outline around this unit. */
 	private debugUnitOutlineId: string | null = null;
@@ -186,6 +188,7 @@ export class GameRenderer {
 		this.mapNetworkRenderer = new MapNetworkRenderer(this.gameContainer);
 		this.fieldObjectRenderer = new FieldObjectRenderer(this.gameContainer);
 		this.senseIndicatorRenderer = new SenseIndicatorRenderer(this.gameContainer);
+		this.terrainSiphonRenderer = new TerrainSiphonRenderer(this.gameContainer);
 
 		const afterLoad = (): void => {
 			const tex = this.assetRegistry.getEffectTexture('darkBlob');
@@ -327,10 +330,13 @@ export class GameRenderer {
 				const unitsVisible = isRenderLayerVisible('units');
 				this.unitRenderer.setLayerVisible(unitsVisible);
 				this.senseIndicatorRenderer.setLayerVisible(unitsVisible);
+				this.terrainSiphonRenderer.setLayerVisible(unitsVisible);
 				if (unitsVisible) {
 					this.unitRenderer.render(engine, this.localTeamId, this.debugUnitOutlineId);
 					// Pulses for units the local team only hears or feels (their bodies are hidden above).
 					this.senseIndicatorRenderer.render(engine, this.localTeamId);
+					// Rings and droplets for units drawing a resource out of the ground (terrainSiphon).
+					this.terrainSiphonRenderer.render(engine, this.localTeamId);
 				}
 			});
 
@@ -429,6 +435,7 @@ export class GameRenderer {
 		this.lightSourceRenderer.destroy();
 		this.previewRenderer.destroy();
 		this.senseIndicatorRenderer.destroy();
+		this.terrainSiphonRenderer.destroy();
 		this.gameContainer.destroy();
 		this.initInFlight = null;
 		this.app.destroy();

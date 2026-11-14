@@ -1,8 +1,8 @@
 /**
  * Ice Shards — Blood Shard (0304) frozen solid: two quick throws, each at its own target, each shard
  * punching through the first enemy and stopping on the second. The cast costs Water instead of HP.
- * It holds Blood Shard's bar slot while the caster has the Water and a use to pay for it, then hands
- * the slot back. With Blood Splinters researched, each throw also bursts splinters out of bleeding
+ * The slot has an Ice / Blood mode strip: when Ice can't be paid for, it casts Blood Shard instead (when
+ * the character owns it). With Blood Splinters researched, each throw also bursts splinters out of bleeding
  * enemies, exactly as Blood Shard does.
  */
 
@@ -44,9 +44,12 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Water)}02`;
 
 export const ICE_SHARDS_DAMAGE = 12;
 export const ICE_SHARDS_WATER_COST = 4;
+/** Mode ids on the card's Ice / Blood strip. */
+export const ICE_SHARDS_ICE_MODE = 'ice';
+export const ICE_SHARDS_BLOOD_MODE = 'blood';
 /** Each shard passes through this many enemies and stops on the next. */
 export const ICE_SHARDS_PIERCE = 1;
-/** Same uses (and round refill) as Blood Shard; the swap also needs a use left. */
+/** Same uses (and round refill) as Blood Shard; the Ice mode also needs a use left. */
 export const ICE_SHARDS_MAX_USES = BLOOD_SHARD_MAX_USES;
 export const ICE_SHARDS_RANGE = BLOOD_SHARD_RANGE;
 export const ICE_SHARDS_PROJECTILE_SPEED = BLOOD_SHARD_PROJECTILE_SPEED;
@@ -98,7 +101,7 @@ function buildIceShardsTimings(withSplinters: boolean) {
 
 const TOOLTIP_LINES = [
     'Throw {{THROWS}} shards of ice, each at its own target, dealing {{DAMAGE}} damage to the first {{HITS}} enemies hit.',
-    "Takes Blood Shard's slot while you can pay for it.",
+    "When you can't pay for it, the slot casts Blood Shard instead.",
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -125,10 +128,19 @@ export const IceShardsAbility_1502 = defineAbility({
         return buildIceShardsTimings(hasBloodSplinters(gameState as AbilityEngineContext | undefined, caster));
     },
     targets: TARGETS,
-    swapConfig: {
-        activateTrigger: { type: 'whileCastable' },
-        deactivateTrigger: { type: 'whileCastable' },
-        replacesAbilityId: BloodShardAbility_0304.id,
+    abilityModes: {
+        // Blood is always the left segment of a Blood / Ice strip.
+        modes: [ICE_SHARDS_BLOOD_MODE, ICE_SHARDS_ICE_MODE],
+        defaultMode: ICE_SHARDS_ICE_MODE,
+        toggleStyle: 'cycle',
+        modeAbilityIds: { [ICE_SHARDS_BLOOD_MODE]: BloodShardAbility_0304.id },
+        modeLabels: { [ICE_SHARDS_ICE_MODE]: 'Ice', [ICE_SHARDS_BLOOD_MODE]: 'Blood' },
+        modeDescriptions: {
+            [ICE_SHARDS_ICE_MODE]: 'Throw two piercing shards of ice, paying Water',
+            [ICE_SHARDS_BLOOD_MODE]: 'Cast Blood Shard instead, paying HP',
+        },
+        fallbackMode: ICE_SHARDS_BLOOD_MODE,
+        ownedCardModes: [ICE_SHARDS_BLOOD_MODE],
     },
 
     getAbilityStates(currentTime) {

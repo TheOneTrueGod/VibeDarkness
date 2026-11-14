@@ -6,6 +6,7 @@
 import { abilityHasTag } from '../abilities/Ability';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { resolveCharacterLoadout } from '../character_defs/characterLoadout';
+import { applyCardReplacements, getCardReplacementsFromResearch } from '../../../researchTrees/evaluator';
 
 /** Max primary ability slots a player may fill during Quest Prep / mission ability selection. */
 export const PREP_ABILITY_SLOT_COUNT = 7;
@@ -22,6 +23,20 @@ export function buildAccessibleAbilityIds(
     researchTrees: Record<string, string[]> | undefined,
 ): string[] {
     return resolveCharacterLoadout(equipment, researchTrees).abilityIds;
+}
+
+/**
+ * Saved prep picks mapped through the research card replacements (an old pick of a replaced card
+ * becomes its replacement) and de-duplicated, so a stale loadout never brings both cards.
+ * `activeResearchTrees` should be active research (see `resolveCharacterLoadout`).
+ */
+export function mapPrepPicksThroughReplacements(
+    picks: readonly string[],
+    activeResearchTrees: Record<string, string[]> | undefined,
+): string[] {
+    const replacements = getCardReplacementsFromResearch(activeResearchTrees);
+    if (replacements.size === 0) return [...new Set(picks)];
+    return applyCardReplacements([...picks], replacements);
 }
 
 /**

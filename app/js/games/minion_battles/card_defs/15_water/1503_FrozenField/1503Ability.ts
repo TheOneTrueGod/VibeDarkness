@@ -3,8 +3,8 @@
  * circle gathers for 0.8 s, then the target is picked (0.2 s before the hit) while ice rises across the
  * field; at 1.0 s a rectangle of ice lands centred on the target, aimed along caster -> target. It deals
  * impact damage and stuns every enemy inside, then lies on the ground for 3 s, hurting and re-stunning
- * enemies on it every 0.5 s. It holds Blood Burst's bar slot while the caster can pay for it, and its mode
- * strip still casts Blood Burst from the slot.
+ * enemies on it every 0.5 s. Its Frozen / Blood mode strip casts Blood Burst from the slot, and the slot
+ * falls back to Blood Burst when the field can't be paid for (when the character owns it).
  *
  * Built from engine blocks: `SpellCircle` (water style), `orientedRectAtPointHitbox` (one geometry for the
  * pick, the hit, the rising ice and the ground cells), `landAreaStrike`, the `SpikesRise` effect, and
@@ -45,7 +45,7 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Water)}03`;
 
 /** All of a full Water bar (max 16). */
 export const FROZEN_FIELD_WATER_COST = 16;
-/** Same uses (and round refill) as Blood Burst; the swap also needs a use left. */
+/** Same uses (and round refill) as Blood Burst; the Frozen mode also needs a use left. */
 export const FROZEN_FIELD_MAX_USES = BURST_MAX_USES;
 /** Extent along caster -> target (px). */
 export const FROZEN_FIELD_LENGTH = 160;
@@ -70,7 +70,7 @@ export const FROZEN_FIELD_TIMINGS = {
 } as const;
 
 /** Mode ids on the card's mode strip. */
-export const FROZEN_FIELD_MODE = 'frozen';
+export const FROZEN_FIELD_MODE = 'ice';
 export const FROZEN_FIELD_BLOOD_MODE = 'blood';
 export const FROZEN_FIELD_TARGET_LABEL = 'Field centre';
 
@@ -216,7 +216,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
 const TOOLTIP_LINES = [
     'Freeze the ground ahead: deal {{DAMAGE}} damage to enemies in the field and stun them for {{STUN}}s.',
     'The ice lasts {{LIFETIME}}s, dealing {{PULSE_DAMAGE}} damage every {{EVERY}}s and stunning enemies on it again.',
-    "Takes Blood Burst's slot while you can pay for it.",
+    "When you can't pay for it, the slot casts Blood Burst instead.",
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -241,16 +241,15 @@ export const FrozenFieldAbility_1503 = defineAbility({
     aiSettings: { minRange: 0, maxRange: FROZEN_FIELD_RANGE },
     abilityTimings: ABILITY_TIMINGS,
     targets: [],
-    swapConfig: {
-        activateTrigger: { type: 'whileCastable' },
-        deactivateTrigger: { type: 'whileCastable' },
-        replacesAbilityId: BurstAbility_0302.id,
-    },
     abilityModes: {
-        modes: [FROZEN_FIELD_MODE, FROZEN_FIELD_BLOOD_MODE],
+        // Blood is always the left segment of a Blood / Ice strip.
+        modes: [FROZEN_FIELD_BLOOD_MODE, FROZEN_FIELD_MODE],
         defaultMode: FROZEN_FIELD_MODE,
+        toggleStyle: 'cycle',
+        fallbackMode: FROZEN_FIELD_BLOOD_MODE,
+        ownedCardModes: [FROZEN_FIELD_BLOOD_MODE],
         modeAbilityIds: { [FROZEN_FIELD_BLOOD_MODE]: BurstAbility_0302.id },
-        modeLabels: { [FROZEN_FIELD_MODE]: 'Frozen Field', [FROZEN_FIELD_BLOOD_MODE]: 'Blood Burst' },
+        modeLabels: { [FROZEN_FIELD_MODE]: 'Ice', [FROZEN_FIELD_BLOOD_MODE]: 'Blood' },
         modeDescriptions: {
             [FROZEN_FIELD_MODE]: 'Freeze a field of ice that stuns the enemies on it',
             [FROZEN_FIELD_BLOOD_MODE]: 'Cast Blood Burst instead, paying HP',

@@ -119,6 +119,10 @@ interface AbilitySlotProps {
     /** Per-cast modes; with `onSetAbilityMode` an always-visible mode strip is shown under the card. */
     abilityModes?: AbilityModesConfig;
     currentAbilityMode?: string;
+    /** Mode id → why it can't be cast now (added to that segment's tooltip). */
+    modeUnavailableReasons?: Readonly<Record<string, string>>;
+    /** Modes shown on the strip (defaults to all of `abilityModes.modes`; locked modes are omitted). */
+    availableModes?: readonly string[];
     /** Select a mode from the strip (never selects the card). Omit to render the card without a strip. */
     onSetAbilityMode?: (mode: string) => void;
     /** Strip buttons are only clickable when true (the player's turn); otherwise shown dimmed. */
@@ -146,6 +150,8 @@ export default function AbilitySlot({
     onPrimaryRecoveryPillRef,
     abilityModes,
     currentAbilityMode,
+    modeUnavailableReasons,
+    availableModes,
     onSetAbilityMode,
     modeStripInteractive = false,
     heightPx = ABILITY_SLOT_HEIGHT_PX,
@@ -203,7 +209,8 @@ export default function AbilitySlot({
     const maxUses = Math.max(1, anim.maxUses);
     const isAtFullUses = usesLeft >= maxUses;
     const showRecovery = hasRecovery && !isAtFullUses;
-    const showModeStrip = usesHandModeStrip(abilityModes) && Boolean(onSetAbilityMode);
+    const stripModes = availableModes ?? abilityModes?.modes ?? [];
+    const showModeStrip = usesHandModeStrip(abilityModes) && Boolean(onSetAbilityMode) && stripModes.length >= 2;
     const selectLift = liftOnHover ? '-translate-y-2' : '';
     const hoverLift = liftOnHover ? '-translate-y-1' : '';
     const cardHeightPx = showModeStrip
@@ -350,8 +357,9 @@ export default function AbilitySlot({
             {showModeStrip && abilityModes && onSetAbilityMode && (
                 <div style={{ width: ABILITY_SLOT_WIDTH_PX, marginTop: ABILITY_MODE_STRIP_GAP_PX }}>
                     <AbilityModeStrip
-                        modes={abilityModes.modes}
+                        modes={stripModes}
                         currentMode={currentAbilityMode}
+                        unavailableReasons={modeUnavailableReasons}
                         labels={abilityModes.modeLabels}
                         descriptions={abilityModes.modeDescriptions}
                         onSelectMode={onSetAbilityMode}

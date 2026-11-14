@@ -31,7 +31,7 @@ import {
     syncNestedCardAbilityState,
 } from '../../abilities/abilityUses';
 import { initTelegraphCastPayload } from '../../abilities/telegraphTracking';
-import { resolveActiveAbilityMode } from '../../abilities/resolveAbilityMode';
+import { resolveActiveAbilityMode, resolveEffectiveMode, resolveModeAbilityId } from '../../abilities/resolveAbilityMode';
 
 function findCooldownInterval(intervals: AbilityTimingInterval[]): AbilityTimingInterval | undefined {
     return intervals.find(
@@ -283,13 +283,24 @@ export function fizzleUnitActiveAbility(unit: Unit, active: ActiveAbility, engin
 
 export function executeUnitAbility(
     unit: Unit,
-    ability: AbilityStatic,
+    abilityArg: AbilityStatic,
     targets: ResolvedTarget[],
     engine: EngineContext,
-    orderAbilityMode?: string,
+    orderAbilityModeArg?: string,
     /** Stamped on the new cast as `ActiveAbility.castPriority` (from `BattleOrder.castPriority`); omitted when undefined. */
     castPriority?: number,
 ): void {
+    // Cast-time fallback (e.g. Ice -> Blood when Water ran out since the order was submitted): same pure
+    // resolver as the UI and order submission, so host and clients agree.
+    let ability = abilityArg;
+    let orderAbilityMode = orderAbilityModeArg;
+    if (abilityArg.abilityModes?.fallbackMode !== undefined) {
+        const effective = resolveEffectiveMode(unit, abilityArg, orderAbilityModeArg);
+        if (effective !== undefined && effective !== orderAbilityModeArg) {
+            orderAbilityMode = effective;
+            ability = getAbility(resolveModeAbilityId(abilityArg, effective)) ?? abilityArg;
+        }
+    }
     ensureAbilityRuntimeState(unit, ability.id);
     if (!canUseAbilityNow(unit, ability)) return;
     if (!spendAbilityCost(unit, ability)) return;

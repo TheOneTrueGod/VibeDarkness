@@ -226,6 +226,12 @@ export class Unit extends GameObject {
 
     /** Optional tags (crystal aura, boss UI, etc.). Serialized for checkpoints when non-empty. */
     tags: UnitTag[] = [];
+    /**
+     * Ability modes removed from a bar slot for this unit (slot ability id -> locked mode ids), e.g. a
+     * mode that needs an ability card the unit doesn't own (`AbilityModesConfig.ownedCardModes`).
+     * Set at spawn from the loadout; serialized.
+     */
+    lockedAbilityModes: Record<string, string[]> = {};
 
     /**
      * When false, this unit is never auto-assigned to a player via npc control (default true).
@@ -696,19 +702,7 @@ export class Unit extends GameObject {
         tickUnitActiveAbilities(this, dt, engine, onNaturalCompletion);
     }
 
-    /**
-     * Re-check the swap network's state triggers (`whileCastable`) and settle any slot that should change.
-     * Called once per unit tick (UnitManager, after resource ticks) and at round start. Emits
-     * `ability_bar_changed` only when a slot changed.
-     */
-    refreshSwapNetwork(eventBus?: EventBus): void {
-        evaluateSwapTriggers(this, { type: 'refresh' }, eventBus);
-    }
-
-    onRoundStart(_roundNumber: number, engine: EngineContext): void {
-        unitRoundStart(this, engine);
-        this.refreshSwapNetwork(engine.eventBus);
-    }
+    onRoundStart(_roundNumber: number, engine: EngineContext): void { unitRoundStart(this, engine); }
 
     onRoundEnd(_roundNumber: number): void {
         tickHardCcChainDecayAtRoundEnd(this);

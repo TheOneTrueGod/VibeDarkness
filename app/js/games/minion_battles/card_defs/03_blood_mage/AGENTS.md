@@ -15,7 +15,7 @@ Blood Mend's `floorAtOne` HP gate exists specifically so a
 dying Blood Mage can still land one last desperate save (it can never be blocked by the HP
 cost, only clamped so it can't kill the caster).
 
-**Water overlap:** three Blood Mage research nodes (`researchTrees/trees/blood_mage.ts`) grant the Water tree's ice cards (`card_defs/15_water/AGENTS.md`) beside their blood cards: Ice Claws (`1501`, requires Bloody Claws), Ice Shards (`1502`, requires the Core, for Blood Shard) and Frozen Field (`1503`, requires Blood Burst). Each node also has an `attachResource` `water` effect, so the unit starts the mission with an empty Water resource (`grantMissionStartResource` only adds to a resource the unit already has). Each ice card takes its blood card's slot while castable (`whileCastable` swap) and gives it back when the Water or uses run out. A standalone Water core comes later.
+**Water overlap:** three Blood Mage research nodes (`researchTrees/trees/blood_mage.ts`) **replace** their blood cards with the Water tree's ice cards (`card_defs/15_water/AGENTS.md`, `replaceCard`): Ice Claws (`1501`, requires Bloody Claws, replaces `0306`), Ice Shards (`1502`, requires the Core, replaces `0304`) and Frozen Field (`1503`, requires Blood Burst, replaces `0302`). Prep offers one card per pair. Each ice card's slot has an Ice / Blood mode strip (`fallbackMode`, `ownedCardModes`) and casts the blood card when Ice can't be paid for. Water is attached at spawn (starting at 5) because an ability costs it (`attachForAbilityCosts`). A standalone Water core comes later.
 
 | Path | Purpose |
 |---|---|

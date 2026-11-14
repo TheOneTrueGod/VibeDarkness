@@ -214,6 +214,17 @@ export interface AbilityModesConfig {
      * runtime state / recovery but never occupies a bar slot of its own.
      */
     modeAbilityIds?: Readonly<Record<string, string>>;
+    /**
+     * Mode the slot falls back to when the chosen mode's ability can't be cast right now (no resource,
+     * no uses, HP gate). Applies only while that mode is available for the unit and castable.
+     */
+    fallbackMode?: string;
+    /**
+     * Modes that exist only when the unit owns that mode's ability card (`modeAbilityIds`). Modes not
+     * listed (held-weapon specials, Charged Rock, ...) are always available. The unit's
+     * `lockedAbilityModes` removes the ones it doesn't own.
+     */
+    ownedCardModes?: readonly string[];
 }
 
 /** Engine slice handed to `renderActivePreview`. */
@@ -320,29 +331,19 @@ export interface AbilityRecoveryRule {
     usesRecovered: number;
 }
 
-/**
- * `whileCastable`: a state trigger, not an event. The swap ability holds its target's slot while the
- * unit can pay its resource cost and has a use left (`canAffordAbility` + `canUseAbilityNow`), and gives
- * the slot back as soon as either fails. Pair it with `DeactivateTrigger` `whileCastable`. Settled once per
- * unit tick and at round start (`evaluateSwapTriggers` `{ type: 'refresh' }`), never while either card is
- * mid-cast. Activation keeps the swap ability's own uses (`usesOnActivation` is ignored).
- */
 export type SwapTrigger =
-    | { type: 'buffApplied'; buffType: string }
-    | { type: 'whileCastable' };
+    | { type: 'buffApplied'; buffType: string };
 
-/** `whileCastable`: deactivate as soon as the swap ability can no longer be cast (see `SwapTrigger`). */
 export type DeactivateTrigger =
     | { type: 'selfExhausted' }
-    | { type: 'selfUsed' }
-    | { type: 'whileCastable' };
+    | { type: 'selfUsed' };
 
 export interface AbilitySwapConfig {
     /** The trigger that causes this ability to activate and push aside `replacesAbilityId`. */
     activateTrigger: SwapTrigger;
     /** The ability ID that this ability replaces when it activates. */
     replacesAbilityId: string;
-    /** Uses to grant when activating. Defaults to this ability's own `maxUses`. Ignored by `whileCastable` (it keeps its own uses). */
+    /** Uses to grant when activating. Defaults to this ability's own `maxUses`. */
     usesOnActivation?: number;
     /** The trigger that causes this ability to deactivate and restore `replacedAbilityId`. */
     deactivateTrigger: DeactivateTrigger;

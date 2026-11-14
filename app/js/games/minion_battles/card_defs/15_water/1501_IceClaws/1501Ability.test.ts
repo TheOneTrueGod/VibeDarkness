@@ -12,6 +12,8 @@ import type { AbilityStatic } from '../../../abilities/Ability';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { CLAW_COMBO_LABELS } from '../../../abilities/clawCombo';
 import { Water } from '../../../resources/Water';
+import { applyLockedAbilityModes, attachResourcesForAbilityCosts } from '../../../storylines/BaseMissionDef';
+import { getAvailableModes, resolveEffectiveMode, resolveModeAbilityId } from '../../../abilities/resolveAbilityMode';
 import { GameEngine } from '../../../game/GameEngine';
 import { FIXED_DT } from '../../../game/gameConstants';
 import { buildTinyBattleEngine, spawnTinyPlayerUnit, TINY_BATTLE_PLAYER_ID } from '../../../testing/harness/buildTinyBattleEngine';
@@ -166,14 +168,18 @@ describe('IceClawsAbility_1501', () => {
         expect(motes.some((m) => m.effectData.shape === 'shard')).toBe(true);
     });
 
-    it('is registered with its card and replaces Bloody Claws while castable', () => {
+    it('is registered with its card and has an Ice / Blood mode strip', () => {
         expect(getAbility(ICE_ID)).toBe(IceClawsAbility_1501);
         expect(getCardDef(ICE_ID)?.abilityId).toBe(ICE_ID);
-        expect(IceClawsAbility_1501.swapConfig).toEqual({
-            activateTrigger: { type: 'whileCastable' },
-            deactivateTrigger: { type: 'whileCastable' },
-            replacesAbilityId: BLOODY_ID,
-        });
+        expect(IceClawsAbility_1501.swapConfig).toBeUndefined();
+        const modes = IceClawsAbility_1501.abilityModes!;
+        expect(modes.modes).toEqual(['blood', 'ice']);
+        expect(modes.defaultMode).toBe('ice');
+        expect(modes.toggleStyle).toBe('cycle');
+        expect(modes.modeAbilityIds).toEqual({ blood: BLOODY_ID });
+        expect(modes.modeLabels).toEqual({ ice: 'Ice', blood: 'Blood' });
+        expect(modes.fallbackMode).toBe('blood');
+        expect(modes.ownedCardModes).toEqual(['blood']);
         expect(IceClawsAbility_1501.maxUses).toBe(3);
         expect(IceClawsAbility_1501.hpCost ?? 0).toBe(0);
         expect(ICE_CLAWS_DAMAGE).toBeGreaterThan(BLOODY_CLAWS_DAMAGE);
@@ -181,7 +187,7 @@ describe('IceClawsAbility_1501', () => {
 });
 
 // ---------------------------------------------------------------------------
-// The swap: Ice Claws holds Bloody Claws' slot while castable (real tiny engine)
+// The Ice / Blood modes: the slot falls back to Bloody Claws when Ice can't be paid (real tiny engine)
 // ---------------------------------------------------------------------------
 
 const P = TINY_BATTLE_PLAYER_ID;
@@ -197,62 +203,79 @@ function stepTicks(engine: GameEngine, ticks: number): void {
     }
 }
 
-function buildSwapEngine(startWater: number) {
+/** `abilities` defaults to both cards owned; pass `[ICE_ID]` for a unit without Bloody Claws. */
+function buildModeEngine(startWater: number, abilities: string[] = [ICE_ID, BLOODY_ID]) {
     const engine = buildTinyBattleEngine({ gridW: 8, gridH: 8, localPlayerId: P, grass: true });
-    const player = spawnTinyPlayerUnit(engine, {
-        playerId: P,
-        x: PLAYER_POS.x,
-        y: PLAYER_POS.y,
-        abilities: [BLOODY_ID, ICE_ID],
-    });
-    const water = new Water();
+    const player = spawnTinyPlayerUnit(engine, { playerId: P, x: PLAYER_POS.x, y: PLAYER_POS.y, abilities });
+    // The spawn path (BaseMissionDef) attaches Water from the ability costs and locks unowned modes.
+    attachResourcesForAbilityCosts(player, engine.eventBus);
+    applyLockedAbilityModes(player, { abilityIds: abilities, replacedCardIds: [] });
+    const water = player.getResource('water') as Water;
     water.current = startWater;
-    player.attachResource(water, engine.eventBus);
     stepTicks(engine, 1);
     return { engine, player, water };
 }
 
-const slotHolder = (player: Unit) => player.abilities[0];
-
-function castIceClaws(player: Unit, engine: GameEngine) {
-    cast(player, IceClawsAbility_1501, engine, px(player.x, player.y - 60));
+/** The player's order for the slot: `mode` is what the UI would send. */
+function castSlot(player: Unit, engine: GameEngine, mode: string) {
+    const aim = px(player.x, player.y - 60);
+    // Like the UI: a non-default mode casts its own ability; the engine applies the cast-time fallback.
+    const ability = getAbility(resolveModeAbilityId(IceClawsAbility_1501, mode)) ?? IceClawsAbility_1501;
+    executeUnitAbility(player, ability, [aim, aim, aim], engine as unknown as EngineContext, mode);
 }
 
-describe('Ice Claws swap', () => {
-    it('holds the slot with 3 Water and leaves Bloody Claws there below 3', () => {
-        expect(slotHolder(buildSwapEngine(ICE_CLAWS_WATER_COST).player)).toBe(ICE_ID);
-        expect(slotHolder(buildSwapEngine(ICE_CLAWS_WATER_COST - 1).player)).toBe(BLOODY_ID);
+describe('Ice Claws Ice / Blood modes', () => {
+    it('starts with 5 Water and nothing locked when both cards are owned', () => {
+        const { player, water } = buildModeEngine(5);
+        expect(water.current).toBe(5);
+        expect(player.lockedAbilityModes[ICE_ID] ?? []).toEqual([]);
+        expect(getAvailableModes(player, IceClawsAbility_1501)).toEqual(['blood', 'ice']);
     });
 
-    it('casts with 5 Water, then Bloody Claws is back in the slot at 2 Water', () => {
-        const { engine, player, water } = buildSwapEngine(5);
-        expect(slotHolder(player)).toBe(ICE_ID);
+    it('casts Ice with 3+ Water and Bloody Claws (HP, no Water) through the effective mode at 2 Water', () => {
+        const { engine, player, water } = buildModeEngine(5);
+        expect(resolveEffectiveMode(player, IceClawsAbility_1501, 'ice')).toBe('ice');
 
-        castIceClaws(player, engine);
+        castSlot(player, engine, 'ice');
         expect(water.current).toBe(2);
-        // Mid-cast the slot is left alone.
-        stepTicks(engine, 5);
-        expect(slotHolder(player)).toBe(ICE_ID);
-
+        expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([ICE_ID]);
         stepTicks(engine, CAST_TICKS);
-        expect(player.activeAbilities.some((a) => a.abilityId === ICE_ID)).toBe(false);
+        expect(player.activeAbilities).toHaveLength(0);
+
+        // Now below the cost: Ice resolves to Blood, and the cast is Bloody Claws.
+        expect(resolveEffectiveMode(player, IceClawsAbility_1501, 'ice')).toBe('blood');
+        const hpBefore = player.hp;
+        castSlot(player, engine, 'ice');
+        expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([BLOODY_ID]);
         expect(water.current).toBe(2);
-        expect(slotHolder(player)).toBe(BLOODY_ID);
-        expect(player.abilityRuntime[BLOODY_ID]?.active).toBe(true);
+        // Bloody Claws pay their HP as the first strike starts.
+        stepTicks(engine, CAST_TICKS);
+        expect(player.hp).toBeLessThan(hpBefore);
     });
 
-    it('spends 3 Water per cast across two casts and keeps its own uses', () => {
-        const { engine, player, water } = buildSwapEngine(9);
-        castIceClaws(player, engine);
+    it("spends each mode's own uses", () => {
+        const { engine, player } = buildModeEngine(9);
+        castSlot(player, engine, 'ice');
         stepTicks(engine, CAST_TICKS);
-        expect(water.current).toBe(6);
         expect(player.abilityRuntime[ICE_ID]?.currentUses).toBe(ICE_CLAWS_MAX_USES - 1);
-        expect(slotHolder(player)).toBe(ICE_ID);
+        expect(player.abilityRuntime[BLOODY_ID]?.currentUses).toBe(BLOODY_CLAWS_MAX_USES);
 
-        castIceClaws(player, engine);
+        castSlot(player, engine, 'blood');
+        expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([BLOODY_ID]);
         stepTicks(engine, CAST_TICKS);
-        expect(water.current).toBe(3);
-        expect(player.abilityRuntime[ICE_ID]?.currentUses).toBe(ICE_CLAWS_MAX_USES - 2);
-        expect(slotHolder(player)).toBe(ICE_ID);
+        expect(player.abilityRuntime[ICE_ID]?.currentUses).toBe(ICE_CLAWS_MAX_USES - 1);
+        expect(player.abilityRuntime[BLOODY_ID]?.currentUses).toBe(BLOODY_CLAWS_MAX_USES - 1);
+    });
+
+    it('keeps casting only Ice when the Blood mode is locked (no Bloody Claws owned)', () => {
+        const { engine, player, water } = buildModeEngine(2, [ICE_ID]);
+        expect(player.lockedAbilityModes[ICE_ID]).toEqual(['blood']);
+        expect(getAvailableModes(player, IceClawsAbility_1501)).toEqual(['ice']);
+        // No fallback: the mode stays Ice, and the cast is refused for lack of Water.
+        expect(resolveEffectiveMode(player, IceClawsAbility_1501, 'ice')).toBe('ice');
+        expect(resolveEffectiveMode(player, IceClawsAbility_1501, 'blood')).toBe('ice');
+        castSlot(player, engine, 'ice');
+        expect(player.activeAbilities).toHaveLength(0);
+        expect(water.current).toBe(2);
     });
 });

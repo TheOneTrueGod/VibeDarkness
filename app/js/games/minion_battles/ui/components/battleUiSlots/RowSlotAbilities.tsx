@@ -5,7 +5,12 @@
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getAbility } from '../../../abilities/AbilityRegistry';
-import { resolveModeAbilityId } from '../../../abilities/resolveAbilityMode';
+import {
+    getAvailableModes,
+    getModeUnavailableReason,
+    resolveSlotMode,
+    resolveModeAbilityId,
+} from '../../../abilities/resolveAbilityMode';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { Unit, UnitAbilityRuntimeState } from '../../../game/units/Unit';
 import { getAbilityDisabledReason, getDisabledReasonDisplay } from '../abilityDisabledReason';
@@ -162,10 +167,13 @@ export default function RowSlotAbilities({
                 const slotAbility = getAbility(abilityId);
                 if (!slotAbility || !playerUnit) return null;
                 // A mode toggle can swap the slot to another ability (Charged Rock and Throw Rock).
-                const slotMode = slotAbility.abilityModes
-                    ? (abilityModeByAbilityId[abilityId] ?? slotAbility.abilityModes.defaultMode)
+                // A mode picked on the strip is shown even when it can't be cast; with no pick the slot
+                // follows the default mode, or its fallback while the default can't be cast.
+                const slotMode = slotAbility.abilityModes ? abilityModeByAbilityId[abilityId] : undefined;
+                const effectiveMode = slotAbility.abilityModes
+                    ? resolveSlotMode(playerUnit, slotAbility, slotMode)
                     : undefined;
-                const shownId = resolveModeAbilityId(slotAbility, slotMode);
+                const shownId = resolveModeAbilityId(slotAbility, effectiveMode);
                 const ability = getAbility(shownId) ?? slotAbility;
                 const runtime = (playerUnit.abilityRuntime[ability.id] ?? playerUnit.abilityRuntime[abilityId]) as
                     UnitAbilityRuntimeState | undefined;
@@ -175,6 +183,7 @@ export default function RowSlotAbilities({
                     slotAbilityId: abilityId,
                     slotAbility,
                     slotMode,
+                    effectiveMode,
                     ability,
                     runtime,
                 };
@@ -184,6 +193,7 @@ export default function RowSlotAbilities({
                 slotAbilityId: string;
                 slotAbility: AbilityStatic;
                 slotMode: string | undefined;
+                effectiveMode: string | undefined;
                 ability: AbilityStatic;
                 runtime: UnitAbilityRuntimeState;
             } => Boolean(entry));
@@ -408,7 +418,15 @@ export default function RowSlotAbilities({
         });
         // Mode config lives on the slot's own ability (it stays put while the shown ability swaps).
         const abilityModes = card.slotAbility.abilityModes;
-        const currentAbilityMode = card.slotMode;
+        const availableModes = getAvailableModes(playerUnit, card.slotAbility);
+        // The strip highlights the mode the card is showing (the pick, or the default / its fallback).
+        const currentAbilityMode = card.effectiveMode;
+        const modeUnavailableReasons: Record<string, string> = {};
+        // Only cards with a fallback mode explain an unusable mode (in the segment tooltip).
+        for (const mode of abilityModes?.fallbackMode !== undefined ? availableModes : []) {
+            const reason = getModeUnavailableReason(playerUnit, card.slotAbility, mode);
+            if (reason) modeUnavailableReasons[mode] = reason;
+        }
 
         return (
             <div
@@ -451,6 +469,8 @@ export default function RowSlotAbilities({
                     }}
                     abilityModes={abilityModes}
                     currentAbilityMode={currentAbilityMode}
+                    availableModes={availableModes}
+                    modeUnavailableReasons={modeUnavailableReasons}
                     onSetAbilityMode={
                         abilityModes && onSetAbilityMode
                             ? (mode) => onSetAbilityMode(card.slotAbilityId, mode)

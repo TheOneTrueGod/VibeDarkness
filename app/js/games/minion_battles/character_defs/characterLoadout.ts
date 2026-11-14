@@ -66,6 +66,11 @@ export interface CharacterLoadout {
      * only if they remain on the bar. Cards that non-weapon research adds are never weapon abilities.
      */
     weaponAbilityIds: string[];
+    /**
+     * Cards a research `replaceCard` actually replaced (they were in the pool when replaced). A card
+     * replaced more than once counts once. Used to tell which replaced cards the character once owned.
+     */
+    replacedCardIds: string[];
 }
 
 const FALLBACK_ABILITY_IDS = ['0101', '0120'];
@@ -77,7 +82,7 @@ function applyCardEffectsPhase(
     abilities: string[],
     activeResearchTrees: Record<string, string[]>,
     predicate: TreePredicate,
-    opts: { addCards?: boolean } = {},
+    opts: { addCards?: boolean; replacedCardIds?: Set<string> } = {},
 ): string[] {
     let out = [...abilities];
     if (opts.addCards !== false) {
@@ -88,7 +93,14 @@ function applyCardEffectsPhase(
     const removed = getRemovedCardsFromResearch(activeResearchTrees, predicate);
     if (removed.size > 0) out = out.filter((id) => !removed.has(id));
     const replacements = getCardReplacementsFromResearch(activeResearchTrees, predicate);
-    if (replacements.size > 0) out = applyCardReplacements(out, replacements);
+    if (replacements.size > 0) {
+        if (opts.replacedCardIds) {
+            for (const id of out) {
+                if (replacements.has(id)) opts.replacedCardIds.add(id);
+            }
+        }
+        out = applyCardReplacements(out, replacements);
+    }
     return out;
 }
 
@@ -113,8 +125,9 @@ export function resolveCharacterLoadout(
     // Fallback if no equipment (should not happen if new characters get a core).
     if (abilities.length === 0) abilities.push(...FALLBACK_ABILITY_IDS);
 
-    abilities = applyCardEffectsPhase(abilities, activeResearchTrees, isWeaponTree);
-    abilities = applyCardEffectsPhase(abilities, activeResearchTrees, isNonWeaponTree);
+    const replacedCardIds = new Set<string>();
+    abilities = applyCardEffectsPhase(abilities, activeResearchTrees, isWeaponTree, { replacedCardIds });
+    abilities = applyCardEffectsPhase(abilities, activeResearchTrees, isNonWeaponTree, { replacedCardIds });
 
     if (abilities.length === 0) abilities.push(...FALLBACK_ABILITY_IDS);
 
@@ -126,7 +139,13 @@ export function resolveCharacterLoadout(
     const onBar = new Set(abilities);
     const weaponAbilityIds = weaponAbilities.filter((id) => onBar.has(id));
 
-    return { activeResearchTrees, battleEquipmentIds, abilityIds: abilities, weaponAbilityIds };
+    return {
+        activeResearchTrees,
+        battleEquipmentIds,
+        abilityIds: abilities,
+        weaponAbilityIds,
+        replacedCardIds: [...replacedCardIds],
+    };
 }
 
 function weaponSeedAbilityIds(equipmentIds: readonly string[]): string[] {

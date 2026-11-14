@@ -71,13 +71,15 @@ import {
     applyAbilityResearchModifiersToRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbilitiesFromResearch, getMissionStartResourcesFromResearch, getSenseGrantsFromResearch, getAttachedResourcesFromResearch } from '../../../researchTrees/evaluator';
-import { expandAttachedAbilityIds } from './questPrepLoadout';
+import { computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbilitiesFromResearch, getMissionStartResourcesFromResearch, getSenseGrantsFromResearch } from '../../../researchTrees/evaluator';
+import { expandAttachedAbilityIds, mapPrepPicksThroughReplacements } from './questPrepLoadout';
+import { getAbility } from '../abilities/AbilityRegistry';
+import type { CharacterLoadout } from '../character_defs/characterLoadout';
 import { PassiveStatKey } from '../../../researchTrees/types';
 import { getPetDef } from '../game/units/pet_defs/petDef';
 import { inheritOwnerAbilityModifiers } from '../game/units/petHelpers';
 import { AbilityGroupId, formatGroupId } from '../card_defs/AbilityGroupId';
-import { getAbilityTagsForId } from '../abilities/Ability';
+import { getAbilityTagsForId, getAbilityResourceCosts } from '../abilities/Ability';
 import { expandAbilityIdsForResearchModifiers } from '../abilities/abilityModifierHelpers';
 import { Ammo } from '../resources/Ammo';
 import { Movement } from '../resources/Movement';
@@ -130,18 +132,52 @@ function attachAmmoIfNeeded(engine: GameEngine, unit: Unit): void {
 }
 
 /**
- * Research `attachResource` effects: attach each resource the unit does not have yet (item
- * `resourcesToAdd` may already have brought it). Runs before mission-start grants are added.
+ * Locks, on each of the unit's ability slots with `abilityModes.ownedCardModes`, every listed mode whose
+ * ability the character never owned (neither in the loadout nor a card research replaced). Shared by the
+ * battle spawn and the tiny-battle harness.
  */
-export function attachResourcesFromResearch(
+export function applyLockedAbilityModes(
     unit: Unit,
-    researchTrees: Record<string, string[]> | undefined,
-    eventBus: EventBus,
+    loadout: Pick<CharacterLoadout, 'abilityIds' | 'replacedCardIds'>,
 ): void {
-    for (const rid of getAttachedResourcesFromResearch(researchTrees)) {
+    const owned = new Set<string>([...loadout.abilityIds, ...loadout.replacedCardIds]);
+    const locked: Record<string, string[]> = {};
+    for (const abilityId of unit.abilities) {
+        const modes = getAbility(abilityId)?.abilityModes;
+        if (!modes?.ownedCardModes) continue;
+        const lockedModes = modes.ownedCardModes.filter((mode) => {
+            const modeAbilityId = modes.modeAbilityIds?.[mode];
+            return !!modeAbilityId && !owned.has(modeAbilityId);
+        });
+        if (lockedModes.length > 0) locked[abilityId] = lockedModes;
+    }
+    unit.lockedAbilityModes = locked;
+}
+
+/**
+ * Attaches every resource flagged `attachForAbilityCosts` that any of the unit's abilities, or the abilities
+ * of their modes (`modeAbilityIds`), costs. Each starts at its `startingAmount` (capped at max) and is
+ * skipped when the unit already has it. Call after the unit's abilities are final.
+ */
+export function attachResourcesForAbilityCosts(unit: Unit, eventBus: EventBus): void {
+    const costed = new Set<string>();
+    const visit = (abilityId: string): void => {
+        const ability = getAbility(abilityId);
+        if (!ability) return;
+        for (const cost of getAbilityResourceCosts(ability)) costed.add(cost.resourceId);
+    };
+    for (const abilityId of unit.abilities) {
+        visit(abilityId);
+        for (const modeAbilityId of Object.values(getAbility(abilityId)?.abilityModes?.modeAbilityIds ?? {})) {
+            visit(modeAbilityId);
+        }
+    }
+    for (const rid of costed) {
         if (unit.getResource(rid)) continue;
         const resource = createResourceFromId(rid);
-        if (resource) unit.attachResource(resource, eventBus);
+        if (!resource?.attachForAbilityCosts) continue;
+        resource.current = Math.min(resource.max, resource.startingAmount);
+        unit.attachResource(resource, eventBus);
     }
 }
 
@@ -419,7 +455,10 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 params.questPrepLoadoutsByPlayer?.[pu.playerId]
                 ?? (charId ? params.questAbilityLoadoutsByCharacterId?.[charId] : undefined);
             const missionPrimaries = params.missionPrepLoadoutsByPlayer?.[pu.playerId];
-            const prepPrimaries = questPrimaries ?? missionPrimaries;
+            const rawPrepPrimaries = questPrimaries ?? missionPrimaries;
+            const prepPrimaries = rawPrepPrimaries
+                ? mapPrepPicksThroughReplacements(rawPrepPrimaries, researchByPlayer[pu.playerId])
+                : undefined;
             if (prepPrimaries) {
                 abilities.length = 0;
                 abilities.push(...expandAttachedAbilityIds(prepPrimaries, accessibleBeforePrep));
@@ -485,6 +524,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 engine,
             );
             unit.weaponAbilityIds = weaponAbilityIds;
+            applyLockedAbilityModes(unit, loadout);
             const maxHunger = getCharacterMaxHunger(
                 researchByPlayer[pu.playerId],
                 researchLevelsByPlayer[pu.playerId],
@@ -510,7 +550,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
             attachResourcesFromEquipment(equippedIds, unit, engine.eventBus);
-            attachResourcesFromResearch(unit, researchByPlayer[pu.playerId], engine.eventBus);
+            attachResourcesForAbilityCosts(unit, engine.eventBus);
             applyMissionStartResourcesFromResearch(unit, researchByPlayer[pu.playerId]);
             applySenseGrantsFromResearch(unit, researchByPlayer[pu.playerId]);
             for (const resource of unit.resources) {

@@ -281,7 +281,7 @@ Files: new `testing/scenarios/abilities/waterScenarios.ts`, `testing/scenarios/r
 - [x] Run the four new scenarios headlessly and the scenarios for Bloody Claws, Blood Shard and Burst (regressions).
   - Done: `water.scenarios.test.ts` — the four new scenarios plus Burst (it had no other headless wiring). Bloody Claws (3) and Blood Shard passed in `SimulationRunner.test.ts`.
 - [ ] Run `npm run test` once and `npx tsc --noEmit`, and fix any failures the plan caused.
-- [ ] Browser check (dev server, a tiny battle by water):
+- [ ] Browser check (dev server, a tiny battle by water): **SUPERSEDED by `docs/plans/water-overlap-ice-blood-modes.md` (Step 7 browser check; the swap model it described was replaced by Ice / Blood modes).** Original list:
   - the Water bar fills with the moving surface and its tooltip shows the three lines;
   - tiles visibly drop a level;
   - the three ice cards swap in and out of their slots;

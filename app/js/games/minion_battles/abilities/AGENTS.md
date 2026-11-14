@@ -26,6 +26,8 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 - `abilityModes` (`AbilityModesConfig` in `Ability.ts`) declares per-cast modes. Cards with modes show an always-visible `AbilityModeStrip` under the card (card shrinks so card + gap + strip = `ABILITY_SLOT_HEIGHT_PX`); `toggleStyle: 'segmentedAbove'` (Wait) is separate.
 - New abilities with modes must supply `modeLabels` (short, fits 3 segments in a 108px card) **and** `modeDescriptions` (one terse sentence per mode, used as the segment tooltip). Shared label sets live next to the family constants (e.g. `GRAVITY_ABILITY_MODE_LABELS`).
 
+- **Fallback and owned-card modes:** `fallbackMode` is the mode a slot drops to when the chosen mode's ability can't be cast now (no resource, no uses, HP gate); `ownedCardModes` lists modes that exist only if the unit owns that mode's card. `Unit.lockedAbilityModes` (slot id to locked mode ids, set at spawn, serialized) removes modes. `resolveAbilityMode.ts` has the pure helpers the UI, order submission and the engine share: `getAvailableModes`, `getModeUnavailableReason` (e.g. "Needs 3 Water"), `resolveEffectiveMode` and `resolveSlotMode`. A hand slot uses `resolveSlotMode`: a mode the player picked on the strip is shown and submitted even when it can't be cast (the card shows disabled); with no pick it follows the default mode or its fallback. `executeUnitAbility` re-resolves the mode at cast time, so host and clients fall back identically.
+
 ## Swap network (`swapConfig`)
 
 An ability with `swapConfig` starts hidden (`runtime.active === false`) and, when its `activateTrigger` fires, takes the bar slot of `replacesAbilityId` (`abilitySwap.ts`, `evaluateSwapTriggers`). Its `deactivateTrigger` gives the slot back. `runtime.active`, `runtime.replacedAbilityId` and the `unit.abilities` order are serialized, so a checkpoint keeps the slot as it was.
@@ -34,14 +36,6 @@ An ability with `swapConfig` starts hidden (`runtime.active === false`) and, whe
 |---|---|---|
 | `buffApplied` (activate) | `Unit.addBuff` with that buff type | Imbued Mace (0803) on Light Imbue |
 | `selfExhausted` (deactivate) | the swap ability's uses reach 0 | Imbued Mace |
-| `whileCastable` (both) | a state trigger: in while the unit can pay the cost and has a use (`canAffordAbility` + `canUseAbilityNow`), out as soon as either fails | Water ice cards over their Blood Mage cards (`card_defs/15_water/AGENTS.md`) |
-
-`whileCastable` rules:
-
-- Settled by `{ type: 'refresh' }`: `Unit.refreshSwapNetwork`, called once per unit tick (UnitManager, after resource `onTick`) and at the end of `Unit.onRoundStart` (refilled uses show before the order pause).
-- Never changes a slot while either card, or one of their `abilityModes.modeAbilityIds`, is mid-cast. The slot settles on the first refresh after the cast ends.
-- Activation keeps the swap ability's own uses; `usesOnActivation` is ignored.
-- `ability_bar_changed` is emitted only when a slot changed, never on a steady state.
 
 ## CastBehaviours — load-bearing rules
 

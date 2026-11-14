@@ -30,7 +30,7 @@ Research trees are a **meta-game** system — they belong to campaign characters
 
 ### One loadout resolver
 
-`resolveCharacterLoadout(equipment, researchTrees)` in `character_defs/characterLoadout.ts` is the only place that turns equipment and research into abilities. Phases: active research, core swaps, item `cardsToAdd`, then card effects from **weapon trees (with virtual roots) first**, then **all other trees**; each phase applies `addCard`, `removeCard`, then chained `replaceCard` (`applyCardReplacements` follows `from` to `to` chains to a fixed point). Replacement maps are per phase, so a core tree cannot overwrite a weapon tree's swap.
+`resolveCharacterLoadout(equipment, researchTrees)` in `character_defs/characterLoadout.ts` is the only place that turns equipment and research into abilities. Phases: active research, core swaps, item `cardsToAdd`, then card effects from **weapon trees (with virtual roots) first**, then **all other trees**; each phase applies `addCard`, `removeCard`, then chained `replaceCard` (`applyCardReplacements` follows `from` to `to` chains to a fixed point). Replacement maps are per phase, so a core tree cannot overwrite a weapon tree's swap. The loadout also returns `replacedCardIds` (cards a `replaceCard` replaced while they were in the pool). At spawn `applyLockedAbilityModes` (`BaseMissionDef`, shared with the tiny-battle harness) locks each `abilityModes.ownedCardModes` mode whose card is in neither `abilityIds` nor `replacedCardIds`; saved prep picks go through `mapPrepPicksThroughReplacements` (old 0306 pick becomes 1501, duplicates dropped). The Blood Mage Water nodes use `replaceCard` (0306 to 1501, 0304 to 1502, 0302 to 1503).
 
 ## Definitions
 
@@ -107,7 +107,7 @@ Research effects are applied to player units in `storylines/BaseMissionDef.ts`, 
 - Stat bonuses (health, damage, stamina recovery) via research callback helpers
 - Ability runtime modifiers via `applyXxxResearchToAbilityRuntime(unit, getResearchNodes)`
 
-- Battle resources: `attachResource` effects attach a resource (`createResourceFromId`) the unit's items did not bring (`attachResourcesFromResearch`), then `grantMissionStartResource` adds to resources the unit has. A grant alone never attaches a resource. The tiny-battle harness (`placePlayerFromLoadout`) mirrors both.
+- Battle resources: items bring resources (`resourcesToAdd`); a resource with `attachForAbilityCosts` (Water) is also attached when any of the unit's abilities, or their mode abilities, costs it, starting at `startingAmount` (`attachResourcesForAbilityCosts`). Then `grantMissionStartResource` adds to resources the unit has; a grant alone never attaches a resource. The tiny-battle harness (`placePlayerFromLoadout`) mirrors both.
 
 When adding new research effects that affect battle, wire them here — not via in-battle lookups.
 

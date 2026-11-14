@@ -173,6 +173,13 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             ? { ephemeralDespawnAtGameTime: unit.ephemeralDespawnAtGameTime }
             : {}),
         ...(unit.tags.length > 0 ? { tags: [...unit.tags] } : {}),
+        ...(Object.keys(unit.lockedAbilityModes).length > 0
+            ? {
+                lockedAbilityModes: Object.fromEntries(
+                    Object.entries(unit.lockedAbilityModes).map(([id, modes]) => [id, [...modes]]),
+                ),
+            }
+            : {}),
         ...(unit.controllable === false ? { controllable: false } : {}),
         ...(unit.controlGroupId != null ? { controlGroupId: unit.controlGroupId } : {}),
         // Component slices (lanternite, swarm, pet, ...) write their own top-level keys; see components/unitComponent.ts.

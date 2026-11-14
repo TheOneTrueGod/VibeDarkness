@@ -104,7 +104,7 @@ export function terrainSiphonGainPerSec(
 /**
  * One tick of the siphon. Does nothing at max or without terrain. Otherwise drains each picked tile
  * by `drainPerTilePerSec * dt` and adds `gainPerSec * dt` to the resource (clamped to max). Returns
- * the tiles drawn on.
+ * the tiles drawn on, and records them on `resource.siphonTiles` for the renderer.
  */
 export function tickTerrainSiphon(
     resource: Resource,
@@ -114,8 +114,14 @@ export function tickTerrainSiphon(
     config: TerrainSiphonConfig,
 ): SiphonTile[] {
     const terrain = engine.terrainManager;
-    if (!terrain || !(dt > 0) || resource.current >= resource.max) return [];
+    // A paused tick (dt 0) keeps the last tiles so the drain visual holds still instead of flickering off.
+    if (!terrain || resource.current >= resource.max) {
+        resource.siphonTiles = [];
+        return [];
+    }
+    if (!(dt > 0)) return [];
     const tiles = pickSiphonTiles(unit, terrain, config);
+    resource.siphonTiles = tiles;
     if (tiles.length === 0) return [];
     const fraction = config.drainPerTilePerSec * dt;
     for (const tile of tiles) {

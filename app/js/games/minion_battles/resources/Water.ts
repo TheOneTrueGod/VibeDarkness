@@ -19,6 +19,9 @@ import { tickTerrainSiphon, terrainSiphonGainPerSec, type TerrainSiphonConfig } 
 /** Most Water the unit can hold. */
 export const WATER_MAX = 16;
 
+/** Water a unit starts a battle with when it is attached because an ability costs it. */
+export const WATER_STARTING_AMOUNT = 5;
+
 /** Water is the tree's "event" colour: the theme secondary (seafoam). */
 export const WATER_RESOURCE_COLOR = getThemeById('water').secondary;
 
@@ -51,6 +54,8 @@ export class Water extends Resource {
     readonly barStyle = WATER_BAR_STYLE;
     readonly barDeepColor = WATER_BAR_DEEP_COLOR;
     readonly tooltipLines = WATER_TOOLTIP_LINES;
+    override readonly attachForAbilityCosts = true;
+    override readonly startingAmount = WATER_STARTING_AMOUNT;
 
     private _unit: Unit | null = null;
     private _engine: EngineContext | null = null;

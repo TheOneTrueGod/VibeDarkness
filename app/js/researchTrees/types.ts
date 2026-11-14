@@ -40,16 +40,9 @@ export type ResearchEffect =
     | { type: 'grantPetAbility'; petId: string; abilityId: string }
     /**
      * Adds `amount` to a battle resource the unit already has at mission start. It never attaches the
-     * resource: a unit without it (no item `resourcesToAdd`, no `attachResource`) gets nothing.
+     * resource: a unit without it (no item `resourcesToAdd`, no ability that costs it) gets nothing.
      */
     | { type: 'grantMissionStartResource'; resourceId: string; amount: number }
-    /**
-     * Attaches a battle resource (by serializable resource id, `createResourceFromId`) to the player unit
-     * at mission start, starting at the resource's own default amount. Like an item's `resourcesToAdd`,
-     * for research that grants cards paid with a resource the unit's equipment does not bring.
-     * Pair with `grantMissionStartResource` for a non-default starting amount.
-     */
-    | { type: 'attachResource'; resourceId: string }
     /**
      * Adds a sense grant (darkvision, tremorsense, ...) to the player unit at mission start
      * (`Unit.addSenseGrant`). Merge rules live in `game/visibility/senses.ts`.

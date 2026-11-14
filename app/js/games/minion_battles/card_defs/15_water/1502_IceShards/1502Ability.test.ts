@@ -10,6 +10,8 @@ import { getTotalAbilityDuration } from '../../../abilities/abilityTimings';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { applyBleedStack } from '../../../buffs/bleedRuntime';
 import { Water } from '../../../resources/Water';
+import { applyLockedAbilityModes, attachResourcesForAbilityCosts } from '../../../storylines/BaseMissionDef';
+import { getAvailableModes, resolveEffectiveMode, resolveModeAbilityId } from '../../../abilities/resolveAbilityMode';
 import { GameEngine } from '../../../game/GameEngine';
 import { FIXED_DT } from '../../../game/gameConstants';
 import { buildTinyBattleEngine, spawnTinyPlayerUnit, TINY_BATTLE_PLAYER_ID } from '../../../testing/harness/buildTinyBattleEngine';
@@ -17,7 +19,7 @@ import type { TeamId } from '../../../game/teams';
 import type { ResolvedTarget } from '../../../game/types';
 import { BLOOD_MAGE_NODE_SPLINTERS, BLOOD_MAGE_TREE_ID } from '../../../../../researchTrees/trees/blood_mage';
 import { getCardDef } from '../../index';
-import { BLOOD_SHARD_DAMAGE, BLOOD_SPLINTER_HOST_DAMAGE, BloodShardAbility_0304 } from '../../03_blood_mage/0304_BloodShard/0304Ability';
+import { BLOOD_SHARD_DAMAGE, BLOOD_SHARD_MAX_USES, BLOOD_SPLINTER_HOST_DAMAGE, BloodShardAbility_0304 } from '../../03_blood_mage/0304_BloodShard/0304Ability';
 import {
     ICE_SHARDS_DAMAGE,
     ICE_SHARDS_MAX_USES,
@@ -169,14 +171,18 @@ describe('IceShardsAbility_1502', () => {
         expect(shard.hitPolicy.damagingHits).toBe(2);
     });
 
-    it('is registered with its card and replaces Blood Shard while castable', () => {
+    it('is registered with its card and has an Ice / Blood mode strip', () => {
         expect(getAbility(ICE_ID)).toBe(IceShardsAbility_1502);
         expect(getCardDef(ICE_ID)?.abilityId).toBe(ICE_ID);
-        expect(IceShardsAbility_1502.swapConfig).toEqual({
-            activateTrigger: { type: 'whileCastable' },
-            deactivateTrigger: { type: 'whileCastable' },
-            replacesAbilityId: SHARD_ID,
-        });
+        expect(IceShardsAbility_1502.swapConfig).toBeUndefined();
+        const modes = IceShardsAbility_1502.abilityModes!;
+        expect(modes.modes).toEqual(['blood', 'ice']);
+        expect(modes.defaultMode).toBe('ice');
+        expect(modes.toggleStyle).toBe('cycle');
+        expect(modes.modeAbilityIds).toEqual({ blood: SHARD_ID });
+        expect(modes.modeLabels).toEqual({ ice: 'Ice', blood: 'Blood' });
+        expect(modes.fallbackMode).toBe('blood');
+        expect(modes.ownedCardModes).toEqual(['blood']);
         expect(IceShardsAbility_1502.maxUses).toBe(3);
         expect(IceShardsAbility_1502.recoveries).toEqual(BloodShardAbility_0304.recoveries);
         expect(IceShardsAbility_1502.hpCost ?? 0).toBe(0);
@@ -220,11 +226,12 @@ describe('Ice Shards with Blood Splinters', () => {
 });
 
 // ---------------------------------------------------------------------------
-// The swap: Ice Shards holds Blood Shard's slot while castable (real tiny engine)
+// The Ice / Blood modes: the slot falls back to Blood Shard when Ice can't be paid (real tiny engine)
 // ---------------------------------------------------------------------------
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
+const SHARD_CAST_TICKS = Math.ceil(ICE_SHARDS_PACING.totalDuration / FIXED_DT) + 2;
 
 function stepTicks(engine: GameEngine, ticks: number): void {
     for (let i = 0; i < ticks; i++) {
@@ -234,24 +241,79 @@ function stepTicks(engine: GameEngine, ticks: number): void {
     }
 }
 
-function slotHolderWith(startWater: number): string {
+/** `abilities` defaults to both cards owned; pass `[ICE_ID]` for a unit without Blood Shard. */
+function buildModeEngine(startWater: number, abilities: string[] = [ICE_ID, SHARD_ID]) {
     const engine = buildTinyBattleEngine({ gridW: 8, gridH: 8, localPlayerId: P, grass: true });
     const player = spawnTinyPlayerUnit(engine, {
         playerId: P,
         x: 3 * CELL + CELL / 2,
         y: 5 * CELL + CELL / 2,
-        abilities: [SHARD_ID, ICE_ID],
+        abilities,
     });
-    const water = new Water();
+    // The spawn path (BaseMissionDef) attaches Water from the ability costs and locks unowned modes.
+    attachResourcesForAbilityCosts(player, engine.eventBus);
+    applyLockedAbilityModes(player, { abilityIds: abilities, replacedCardIds: [] });
+    const water = player.getResource('water') as Water;
     water.current = startWater;
-    player.attachResource(water, engine.eventBus);
     stepTicks(engine, 1);
-    return player.abilities[0];
+    return { engine, player, water };
 }
 
-describe('Ice Shards swap', () => {
-    it('holds the slot with 4 Water and leaves Blood Shard there below 4', () => {
-        expect(slotHolderWith(ICE_SHARDS_WATER_COST)).toBe(ICE_ID);
-        expect(slotHolderWith(ICE_SHARDS_WATER_COST - 1)).toBe(SHARD_ID);
+function castSlot(player: Unit, engine: GameEngine, mode: string) {
+    // Like the UI: a non-default mode casts its own ability; the engine applies the cast-time fallback.
+    const ability = getAbility(resolveModeAbilityId(IceShardsAbility_1502, mode)) ?? IceShardsAbility_1502;
+    executeUnitAbility(player, ability, [px(player.x + 100, player.y)], engine as unknown as EngineContext, mode);
+}
+
+describe('Ice Shards Ice / Blood modes', () => {
+    it('starts with 5 Water and nothing locked when both cards are owned', () => {
+        const { player, water } = buildModeEngine(5);
+        expect(water.current).toBe(5);
+        expect(getAvailableModes(player, IceShardsAbility_1502)).toEqual(['blood', 'ice']);
+    });
+
+    it('casts Ice with 4+ Water and Blood Shard (HP, no Water) through the effective mode at 3 Water', () => {
+        const { engine, player, water } = buildModeEngine(7);
+        expect(resolveEffectiveMode(player, IceShardsAbility_1502, 'ice')).toBe('ice');
+
+        castSlot(player, engine, 'ice');
+        expect(water.current).toBe(3);
+        expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([ICE_ID]);
+        stepTicks(engine, SHARD_CAST_TICKS);
+        expect(player.activeAbilities).toHaveLength(0);
+
+        expect(resolveEffectiveMode(player, IceShardsAbility_1502, 'ice')).toBe('blood');
+        const hpBefore = player.hp;
+        castSlot(player, engine, 'ice');
+        expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([SHARD_ID]);
+        expect(water.current).toBe(3);
+        // Blood Shard pays its HP on release.
+        stepTicks(engine, SHARD_CAST_TICKS);
+        expect(player.hp).toBeLessThan(hpBefore);
+    });
+
+    it("spends each mode's own uses", () => {
+        const { engine, player } = buildModeEngine(16);
+        castSlot(player, engine, 'ice');
+        stepTicks(engine, SHARD_CAST_TICKS);
+        expect(player.abilityRuntime[ICE_ID]?.currentUses).toBe(ICE_SHARDS_MAX_USES - 1);
+        expect(player.abilityRuntime[SHARD_ID]?.currentUses).toBe(BLOOD_SHARD_MAX_USES);
+
+        castSlot(player, engine, 'blood');
+        expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([SHARD_ID]);
+        stepTicks(engine, SHARD_CAST_TICKS);
+        expect(player.abilityRuntime[ICE_ID]?.currentUses).toBe(ICE_SHARDS_MAX_USES - 1);
+        expect(player.abilityRuntime[SHARD_ID]?.currentUses).toBe(BLOOD_SHARD_MAX_USES - 1);
+    });
+
+    it('keeps casting only Ice when the Blood mode is locked (no Blood Shard owned)', () => {
+        const { engine, player, water } = buildModeEngine(3, [ICE_ID]);
+        expect(player.lockedAbilityModes[ICE_ID]).toEqual(['blood']);
+        expect(getAvailableModes(player, IceShardsAbility_1502)).toEqual(['ice']);
+        expect(resolveEffectiveMode(player, IceShardsAbility_1502, 'ice')).toBe('ice');
+        expect(resolveEffectiveMode(player, IceShardsAbility_1502, 'blood')).toBe('ice');
+        castSlot(player, engine, 'ice');
+        expect(player.activeAbilities).toHaveLength(0);
+        expect(water.current).toBe(3);
     });
 });

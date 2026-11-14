@@ -3,7 +3,7 @@ import { Graphics } from 'pixi.js';
 import '../../../abilities/AbilityRegistry';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { getTotalAbilityDuration } from '../../../abilities/abilityTimings';
-import { resolveModeAbilityId } from '../../../abilities/resolveAbilityMode';
+import { getAvailableModes, resolveEffectiveMode, resolveModeAbilityId } from '../../../abilities/resolveAbilityMode';
 import { SpellCircleBehaviour } from '../../../abilities/CastBehaviours/SpellCircleBehaviour';
 import { executeUnitAbility } from '../../../game/units/unitAbilityLifecycle';
 import { findPreviewDeferredSelectLabel } from '../../../game/interaction/selectTargetLookahead';
@@ -25,6 +25,8 @@ import { FIXED_DT } from '../../../game/gameConstants';
 import type { EngineContext } from '../../../game/EngineContext';
 import type { ResolvedTarget } from '../../../game/types';
 import { Water } from '../../../resources/Water';
+import { applyLockedAbilityModes, attachResourcesForAbilityCosts } from '../../../storylines/BaseMissionDef';
+import type { Unit } from '../../../game/units/Unit';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
     buildTinyBattleEngine,
@@ -37,6 +39,7 @@ import { BURST_HP_COST, BurstAbility_0302 } from '../../03_blood_mage/0302_Burst
 import {
     FROZEN_FIELD_BLOOD_MODE,
     FROZEN_FIELD_HITBOX,
+    FROZEN_FIELD_MODE,
     FROZEN_FIELD_IMPACT_DAMAGE,
     FROZEN_FIELD_LENGTH,
     FROZEN_FIELD_LIFETIME_SEC,
@@ -68,9 +71,11 @@ function stepTicks(engine: GameEngine, ticks: number): void {
 function buildFieldEngine(water = 16) {
     const engine = buildTinyBattleEngine({ gridW: 10, gridH: 10, localPlayerId: P, grass: true });
     const player = spawnTinyPlayerUnit(engine, { playerId: P, x: 100, y: 200, abilities: [BURST_ID, FIELD_ID] });
-    const res = new Water();
+    // The spawn path (BaseMissionDef) attaches Water from the ability costs and locks unowned modes.
+    attachResourcesForAbilityCosts(player, engine.eventBus);
+    applyLockedAbilityModes(player, { abilityIds: [BURST_ID, FIELD_ID], replacedCardIds: [] });
+    const res = player.getResource('water') as Water;
     res.current = water;
-    player.attachResource(res, engine.eventBus);
     // Field centred at (200, 200), aimed along +x: x 120..280, y 140..260.
     const inside = placeTargetDummy(engine, { x: 200, y: 220 }, 'inside');
     const outside = placeTargetDummy(engine, { x: 200, y: 330 }, 'outside');
@@ -191,28 +196,71 @@ describe('FrozenFieldAbility_1503 in a battle', () => {
     });
 });
 
-describe('Frozen Field swap and card', () => {
-    function slotHolderWith(startWater: number): string {
-        return buildFieldEngine(startWater).player.abilities[0];
+describe('Frozen Field modes and card', () => {
+    function castField(player: Unit, engine: GameEngine, mode: string): void {
+        // Like the UI: a non-default mode casts its own ability; the engine applies the cast-time fallback.
+        const ability = getAbility(resolveModeAbilityId(FrozenFieldAbility_1503, mode)) ?? FrozenFieldAbility_1503;
+        executeUnitAbility(player, ability, [px(200, 200)], engine as unknown as EngineContext, mode);
     }
 
-    it('holds Blood Burst\'s slot with 16 Water and leaves Blood Burst there below 16', () => {
-        expect(slotHolderWith(FROZEN_FIELD_WATER_COST)).toBe(FIELD_ID);
-        expect(slotHolderWith(FROZEN_FIELD_WATER_COST - 1)).toBe(BURST_ID);
-    });
-
-    it('is registered with its card, Blood Burst\'s uses and a whileCastable swap', () => {
+    it("is registered with its card, Blood Burst's uses and a Frozen / Blood mode strip", () => {
         expect(getAbility(FIELD_ID)).toBe(FrozenFieldAbility_1503);
         expect(getCardDef(FIELD_ID)?.abilityId).toBe(FIELD_ID);
-        expect(FrozenFieldAbility_1503.swapConfig).toEqual({
-            activateTrigger: { type: 'whileCastable' },
-            deactivateTrigger: { type: 'whileCastable' },
-            replacesAbilityId: BURST_ID,
-        });
+        expect(FrozenFieldAbility_1503.swapConfig).toBeUndefined();
+        const modes = FrozenFieldAbility_1503.abilityModes!;
+        expect(modes.modes).toEqual(['blood', 'ice']);
+        expect(modes.toggleStyle).toBe('cycle');
+        expect(modes.fallbackMode).toBe(FROZEN_FIELD_BLOOD_MODE);
+        expect(modes.ownedCardModes).toEqual([FROZEN_FIELD_BLOOD_MODE]);
         expect(FrozenFieldAbility_1503.maxUses).toBe(2);
         expect(FROZEN_FIELD_MAX_USES).toBe(BurstAbility_0302.maxUses);
         expect(FrozenFieldAbility_1503.resourceCost).toEqual({ resourceId: 'water', amount: 16 });
         expect(FrozenFieldAbility_1503.getTooltipText(undefined).length).toBe(3);
+    });
+
+    it('casts the field with a full Water bar', () => {
+        const { engine, player, water } = buildFieldEngine(FROZEN_FIELD_WATER_COST);
+        expect(resolveEffectiveMode(player, FrozenFieldAbility_1503, FROZEN_FIELD_MODE)).toBe(FROZEN_FIELD_MODE);
+        castField(player, engine, FROZEN_FIELD_MODE);
+        expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([FIELD_ID]);
+        expect(water.current).toBe(0);
+    });
+
+    it('falls back to Blood Burst (HP, no Water) when the field cannot be paid for', () => {
+        const { engine, player, water } = buildFieldEngine(FROZEN_FIELD_WATER_COST - 1);
+        expect(resolveEffectiveMode(player, FrozenFieldAbility_1503, FROZEN_FIELD_MODE)).toBe(FROZEN_FIELD_BLOOD_MODE);
+        castField(player, engine, FROZEN_FIELD_MODE);
+        expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([BURST_ID]);
+        stepTicks(engine, Math.round(1 / FIXED_DT));
+        expect(player.hp).toBe(player.maxHp - BURST_HP_COST);
+        expect(water.current).toBe(FROZEN_FIELD_WATER_COST - 1);
+    });
+
+    it("spends each mode's own uses", () => {
+        const { engine, player } = buildFieldEngine(FROZEN_FIELD_WATER_COST);
+        castField(player, engine, FROZEN_FIELD_MODE);
+        stepTicks(engine, Math.round(T.cooldownEnd / FIXED_DT) + 2);
+        expect(player.abilityRuntime[FIELD_ID]?.currentUses).toBe(FROZEN_FIELD_MAX_USES - 1);
+        expect(player.abilityRuntime[BURST_ID]?.currentUses).toBe(BurstAbility_0302.maxUses);
+        castField(player, engine, 'blood');
+        expect(player.abilityRuntime[BURST_ID]?.currentUses).toBe(BurstAbility_0302.maxUses! - 1);
+        expect(player.abilityRuntime[FIELD_ID]?.currentUses).toBe(FROZEN_FIELD_MAX_USES - 1);
+    });
+
+    it('keeps casting only the field when the Blood mode is locked (no Blood Burst owned)', () => {
+        const engine = buildTinyBattleEngine({ gridW: 10, gridH: 10, localPlayerId: P, grass: true });
+        const player = spawnTinyPlayerUnit(engine, { playerId: P, x: 100, y: 200, abilities: [FIELD_ID] });
+        attachResourcesForAbilityCosts(player, engine.eventBus);
+        applyLockedAbilityModes(player, { abilityIds: [FIELD_ID], replacedCardIds: [] });
+        const water = player.getResource('water') as Water;
+        water.current = 5;
+        stepTicks(engine, 1);
+        expect(player.lockedAbilityModes[FIELD_ID]).toEqual([FROZEN_FIELD_BLOOD_MODE]);
+        expect(getAvailableModes(player, FrozenFieldAbility_1503)).toEqual([FROZEN_FIELD_MODE]);
+        expect(resolveEffectiveMode(player, FrozenFieldAbility_1503, FROZEN_FIELD_MODE)).toBe(FROZEN_FIELD_MODE);
+        castField(player, engine, FROZEN_FIELD_MODE);
+        expect(player.activeAbilities).toHaveLength(0);
+        expect(water.current).toBe(5);
     });
 });
 

@@ -2,7 +2,9 @@
  * Water tree (15xx) high-level AbilityTests through the real order path.
  *
  * - `water_siphon_e2e` — a caster beside deep water gains Water and the tile drops a level.
- * - `ice_claws_swap_e2e` — Ice Claws casts for its Water cost, then Bloody Claws is back in the slot.
+ * - `ice_claws_swap_e2e` — with both cards, Ice Claws casts for its Water cost, then the same slot casts Bloody Claws.
+ * - `ice_claws_ice_only_e2e` — with the Blood mode locked (no owned blood card), the slot stays Ice.
+ * - `water_starting_amount_e2e` — a Water-card unit starts at 5 Water; a plain Blood Mage has no Water bar.
  * - `ice_shards_pierce_e2e` — two shards each pass one enemy and stop on the next.
  * - `frozen_field_e2e` — enemies in the field stay stunned and take damage until the field ends.
  *
@@ -25,11 +27,13 @@ import {
     spawnTinyPlayerUnit,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
+import { applyLockedAbilityModes, attachResourcesForAbilityCosts } from '../../../storylines/BaseMissionDef';
+import { getAvailableModes } from '../../../abilities/resolveAbilityMode';
 import { CORE_ITEM_IDS } from '../../../character_defs/items';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { ResourceId } from '../../../resources/resourceIds';
-import { Water, WATER_SIPHON } from '../../../resources/Water';
+import { Water, WATER_SIPHON, WATER_STARTING_AMOUNT } from '../../../resources/Water';
 import {
     BLOOD_MAGE_NODE_BURST,
     BLOOD_MAGE_NODE_CLAWS,
@@ -40,11 +44,10 @@ import {
     BLOOD_MAGE_TREE_ID,
 } from '../../../../../researchTrees/trees/blood_mage';
 import {
+    BLOODY_CLAWS_MAX_USES,
     BLOODY_CLAWS_TIMINGS,
     BloodyClawsAbility_0306,
 } from '../../../card_defs/03_blood_mage/0306_BloodyClaws/0306Ability';
-import { BloodShardAbility_0304 } from '../../../card_defs/03_blood_mage/0304_BloodShard/0304Ability';
-import { BurstAbility_0302 } from '../../../card_defs/03_blood_mage/0302_Burst/0302Ability';
 import {
     ICE_CLAWS_WATER_COST,
     IceClawsAbility_1501,
@@ -54,7 +57,6 @@ import {
     ICE_SHARDS_PACING,
     ICE_SHARDS_PROJECTILE_SPEED,
     ICE_SHARDS_RANGE,
-    ICE_SHARDS_WATER_COST,
     IceShardsAbility_1502,
 } from '../../../card_defs/15_water/1502_IceShards/1502Ability';
 import {
@@ -79,9 +81,7 @@ const SIPHON_WATCH_SLACK_SEC = 1;
 const ICE_ID = IceClawsAbility_1501.id;
 const BLOODY_ID = BloodyClawsAbility_0306.id;
 const SHARDS_ID = IceShardsAbility_1502.id;
-const SHARD_ID = BloodShardAbility_0304.id;
 const FIELD_ID = FrozenFieldAbility_1503.id;
-const BURST_ID = BurstAbility_0302.id;
 
 const CLAW_AIM_LABELS = [CLAW_COMBO_LABELS.swipeLeft, CLAW_COMBO_LABELS.swipeRight, CLAW_COMBO_LABELS.xStrike];
 
@@ -123,28 +123,6 @@ function keepSimRunning(engine: GameEngine, seconds: number): void {
         abilityId: 'wait',
         targets: [],
     });
-}
-
-function iceHoldsSlot(player: Unit, iceId: string): boolean {
-    const runtime = player.abilityRuntime[iceId];
-    return runtime?.active !== false && runtime?.replacedAbilityId != null;
-}
-
-/**
- * One tick so `whileCastable` can take the blood card's slot before the order is applied.
- * That tick also pauses for orders; clear the pause so the cast applies now. Left in the batch,
- * the runner's auto-wait replaces it.
- */
-function settleSwap(engine: GameEngine, iceId: string): Unit {
-    engine.stepSimulationFixedTicks(1);
-    engine.waitingForOrders = null;
-    engine.deferredOrderPause = null;
-    engine.isPaused = false;
-    const player = engine.getLocalPlayerUnit();
-    if (!player || !iceHoldsSlot(player, iceId)) {
-        throw new Error(`${iceId} did not take its blood card's slot`);
-    }
-    return player;
 }
 
 function buildMageEngine(gridW: number, gridH: number, at: { x: number; y: number }, nodeId: string, prereq: string): GameEngine {
@@ -199,24 +177,35 @@ export const waterSiphonScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// Ice Claws swap
+// Ice Claws: Ice / Blood modes
 // ---------------------------------------------------------------------------
 
 const CLAW_CASTER = { x: 200, y: 200 };
 const CLAW_AIM = { x: CLAW_CASTER.x + CELL_SIZE, y: CLAW_CASTER.y };
+/** After the first cast's cooldown, with a couple of ticks of slack. */
+const CLAW_SECOND_CAST_TICK = Math.ceil(BLOODY_CLAWS_TIMINGS.cooldownEnd / FIXED_DT) + 2;
+const CLAW_WATCH_SEC = BLOODY_CLAWS_TIMINGS.cooldownEnd * 2 + SIPHON_WATCH_SLACK_SEC;
+
+/** Both casts are plain orders on the Ice slot (no `abilityMode`): the engine resolves the mode at cast time. */
+function queueSecondClawCast(engine: GameEngine, player: Unit): void {
+    engine.state.orderMgr.queueOrder(
+        CLAW_SECOND_CAST_TICK,
+        labeledOrder(player.id, ICE_ID, sameAim(CLAW_AIM_LABELS, CLAW_AIM)),
+    );
+}
 
 export const iceClawsSwapScenario: ScenarioDefinition = {
     id: 'ice_claws_swap_e2e',
-    title: 'Ice Claws (1501): casts with its Water cost, then Bloody Claws is back in the slot',
+    title: 'Ice Claws (1501): casts Ice for its Water cost, then the same slot casts Bloody Claws',
     category: 'ability',
-    maxDurationMs: (BLOODY_CLAWS_TIMINGS.cooldownEnd + SIPHON_WATCH_SLACK_SEC) * 1000,
+    maxDurationMs: CLAW_WATCH_SEC * 1000,
 
     buildEngine() {
         const engine = buildMageEngine(12, 8, CLAW_CASTER, BLOOD_MAGE_NODE_ICE_CLAWS, BLOOD_MAGE_NODE_CLAWS);
         const player = engine.getLocalPlayerUnit()!;
-        fillWater(player, ICE_CLAWS_WATER_COST);
-        settleSwap(engine, ICE_ID);
-        keepSimRunning(engine, BLOODY_CLAWS_TIMINGS.cooldownEnd + SIPHON_WATCH_SLACK_SEC);
+        // Starts at 5 Water: one Ice cast (3) leaves 2, below the cost, so the second order falls back to Blood.
+        queueSecondClawCast(engine, player);
+        keepSimRunning(engine, CLAW_WATCH_SEC);
         return engine;
     },
 
@@ -228,21 +217,107 @@ export const iceClawsSwapScenario: ScenarioDefinition = {
     assertPass(engine) {
         const player = engine.getLocalPlayerUnit();
         if (!player) return false;
-        const water = player.getResource(ResourceId.Water)?.current ?? ICE_CLAWS_WATER_COST;
-        const castFinished = player.activeAbilities.every((active) => active.abilityId !== ICE_ID);
-        return water < ICE_CLAWS_WATER_COST
-            && player.hp === player.maxHp
-            && castFinished
-            && !iceHoldsSlot(player, ICE_ID)
-            && player.abilityRuntime[BLOODY_ID]?.active !== false;
+        const water = player.getResource(ResourceId.Water)?.current;
+        return engine.gameTick > CLAW_SECOND_CAST_TICK
+            && water === WATER_STARTING_AMOUNT - ICE_CLAWS_WATER_COST
+            && player.abilityRuntime[BLOODY_ID]?.currentUses === BLOODY_CLAWS_MAX_USES - 1
+            && player.hp < player.maxHp
+            && player.activeAbilities.length === 0;
     },
 
     failureMessage(engine) {
         const player = engine.getLocalPlayerUnit();
         const water = player?.getResource(ResourceId.Water)?.current;
-        const ice = player?.abilityRuntime[ICE_ID];
-        const bloody = player?.abilityRuntime[BLOODY_ID];
-        return `water=${water} (want < ${ICE_CLAWS_WATER_COST}); hp=${player?.hp}/${player?.maxHp}; ice active=${ice?.active} replaced=${ice?.replacedAbilityId}; bloody active=${bloody?.active}; casting=${player?.activeAbilities.map((a) => a.abilityId).join(',') || 'none'}`;
+        return `water=${water} (want ${WATER_STARTING_AMOUNT - ICE_CLAWS_WATER_COST}); hp=${player?.hp}/${player?.maxHp} (want < max: Blood paid HP) bloody uses=${player?.abilityRuntime[BLOODY_ID]?.currentUses}; casting=${player?.activeAbilities.map((a) => a.abilityId).join(',') || 'none'}; tick=${engine.gameTick}`;
+    },
+};
+
+// Why a second Ice Claws scenario: the first proves the Blood fallback; this one proves a unit that never owned the
+// blood card has no Blood mode to fall back to (the slot stays Ice and simply cannot cast).
+export const iceClawsIceOnlyScenario: ScenarioDefinition = {
+    id: 'ice_claws_ice_only_e2e',
+    title: 'Ice Claws (1501): with the Blood mode locked, the slot stays Ice and does not cast Bloody Claws',
+    category: 'ability',
+    maxDurationMs: CLAW_WATCH_SEC * 1000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 12, gridH: 8, localPlayerId: P, grass: true });
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: P,
+            x: CLAW_CASTER.x,
+            y: CLAW_CASTER.y,
+            abilities: [ICE_ID],
+        });
+        // The tiny-battle spawn skips these two spawn steps (placePlayerFromLoadout does them).
+        attachResourcesForAbilityCosts(player, engine.eventBus);
+        applyLockedAbilityModes(player, { abilityIds: [ICE_ID], replacedCardIds: [] });
+        queueSecondClawCast(engine, player);
+        keepSimRunning(engine, CLAW_WATCH_SEC);
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        return [labeledOrder(player.id, ICE_ID, sameAim(CLAW_AIM_LABELS, CLAW_AIM))];
+    },
+
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        if (!player) return false;
+        const water = player.getResource(ResourceId.Water)?.current;
+        return engine.gameTick > CLAW_SECOND_CAST_TICK
+            && getAvailableModes(player, IceClawsAbility_1501).join() === 'ice'
+            && water === WATER_STARTING_AMOUNT - ICE_CLAWS_WATER_COST
+            && player.hp === player.maxHp
+            && player.activeAbilities.length === 0;
+    },
+
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        return `modes=${player ? getAvailableModes(player, IceClawsAbility_1501).join() : 'none'} (want ice); water=${player?.getResource(ResourceId.Water)?.current} (want ${WATER_STARTING_AMOUNT - ICE_CLAWS_WATER_COST}); hp=${player?.hp}/${player?.maxHp} (want full); tick=${engine.gameTick}`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Starting Water
+// ---------------------------------------------------------------------------
+
+const PLAIN_MAGE_ID = 'p_plain_mage';
+
+export const waterStartingAmountScenario: ScenarioDefinition = {
+    id: 'water_starting_amount_e2e',
+    title: 'Water: a unit with a Water card starts at 5, a plain Blood Mage has no Water bar',
+    category: 'ability',
+    maxDurationMs: 1000,
+
+    buildEngine() {
+        const engine = buildMageEngine(12, 8, CLAW_CASTER, BLOOD_MAGE_NODE_ICE_CLAWS, BLOOD_MAGE_NODE_CLAWS);
+        // Blood Mage core + Claws only (no Water node): Bloody Claws costs HP, so no Water is attached.
+        placePlayerFromLoadout(engine, {
+            playerId: PLAIN_MAGE_ID,
+            world: { x: CLAW_CASTER.x, y: CLAW_CASTER.y + CELL_SIZE * 2 },
+            equipment: [...EQUIPMENT],
+            researchTrees: { [BLOOD_MAGE_TREE_ID]: [BLOOD_MAGE_NODE_CORE, BLOOD_MAGE_NODE_CLAWS] },
+        });
+        keepSimRunning(engine, 1);
+        return engine;
+    },
+
+    getInitialOrders: () => [],
+
+    assertPass(engine) {
+        const water = engine.getLocalPlayerUnit()?.getResource(ResourceId.Water);
+        const plain = engine.units.find((u) => u.ownerId === PLAIN_MAGE_ID);
+        return water?.current === WATER_STARTING_AMOUNT
+            && water.max > WATER_STARTING_AMOUNT
+            && !!plain
+            && plain.getResource(ResourceId.Water) == null;
+    },
+
+    failureMessage(engine) {
+        const water = engine.getLocalPlayerUnit()?.getResource(ResourceId.Water);
+        const plain = engine.units.find((u) => u.ownerId === PLAIN_MAGE_ID);
+        return `water=${water?.current}/${water?.max} (want ${WATER_STARTING_AMOUNT}); plain mage found=${!!plain} water=${plain?.getResource(ResourceId.Water)?.current}`;
     },
 };
 
@@ -272,9 +347,7 @@ export const iceShardsPierceScenario: ScenarioDefinition = {
 
     buildEngine() {
         const engine = buildMageEngine(16, 10, SHARD_CASTER, BLOOD_MAGE_NODE_ICE_SHARDS, BLOOD_MAGE_NODE_CORE);
-        fillWater(engine.getLocalPlayerUnit()!, ICE_SHARDS_WATER_COST);
         for (const enemy of SHARD_LINE) placeTargetDummy(engine, enemy.at, enemy.id);
-        settleSwap(engine, SHARDS_ID);
         keepSimRunning(engine, ICE_SHARDS_PACING.totalDuration + SHARD_FLIGHT_SEC + SIPHON_WATCH_SLACK_SEC);
         return engine;
     },
@@ -297,7 +370,7 @@ export const iceShardsPierceScenario: ScenarioDefinition = {
 
     failureMessage(engine) {
         const lines = SHARD_LINE.map((enemy) => `${enemy.id}=${shardLoss(engine.getUnit(enemy.id))}`);
-        return `${lines.join(', ')} (want ${ICE_SHARDS_DAMAGE * 2}, ${ICE_SHARDS_DAMAGE * 2}, 0); slot ice=${iceHoldsSlot(engine.getLocalPlayerUnit()!, SHARDS_ID)} blood=${SHARD_ID}`;
+        return `${lines.join(', ')} (want ${ICE_SHARDS_DAMAGE * 2}, ${ICE_SHARDS_DAMAGE * 2}, 0)`;
     },
 };
 
@@ -326,7 +399,6 @@ export const frozenFieldScenario: ScenarioDefinition = {
         fillWater(engine.getLocalPlayerUnit()!, FROZEN_FIELD_WATER_COST);
         placeTargetDummy(engine, FIELD_AIM, FIELD_INSIDE_ID);
         placeTargetDummy(engine, { x: FIELD_CASTER.x, y: FIELD_CASTER.y - CELL_SIZE * 4 }, FIELD_OUTSIDE_ID);
-        settleSwap(engine, FIELD_ID);
         keepSimRunning(engine, FIELD_END_SEC + SIPHON_WATCH_SLACK_SEC);
         return engine;
     },
@@ -351,13 +423,15 @@ export const frozenFieldScenario: ScenarioDefinition = {
         const inside = engine.getUnit(FIELD_INSIDE_ID);
         const outside = engine.getUnit(FIELD_OUTSIDE_ID);
         const loss = inside ? inside.maxHp - inside.hp : 0;
-        return `t=${engine.gameTime.toFixed(2)} (want >= ${FIELD_CHECK_SEC}); inside loss=${loss} (want >= ${FIELD_MIN_LOSS}) stunned=${inside?.hasBuff(STUNNED_BUFF_TYPE)}; outside hp=${outside?.hp}/${outside?.maxHp}; slot ice=${iceHoldsSlot(engine.getLocalPlayerUnit()!, FIELD_ID)} burst=${BURST_ID}`;
+        return `t=${engine.gameTime.toFixed(2)} (want >= ${FIELD_CHECK_SEC}); inside loss=${loss} (want >= ${FIELD_MIN_LOSS}) stunned=${inside?.hasBuff(STUNNED_BUFF_TYPE)}; outside hp=${outside?.hp}/${outside?.maxHp}`;
     },
 };
 
 export const WATER_SCENARIOS: ScenarioDefinition[] = [
     waterSiphonScenario,
     iceClawsSwapScenario,
+    iceClawsIceOnlyScenario,
+    waterStartingAmountScenario,
     iceShardsPierceScenario,
     frozenFieldScenario,
 ];

@@ -2,7 +2,6 @@
 import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_ICON_BLOOD_MAGE } from '../researchTreeChrome';
-import { ResourceId } from '../../games/minion_battles/resources/resourceIds';
 
 export const BLOOD_MAGE_TREE_ID = 'blood_mage';
 export const BLOOD_MAGE_NODE_CORE = 'blood_mage_core';
@@ -196,8 +195,7 @@ export const bloodMageTree: ResearchTreeDef = {
                 metal: ICE_CLAWS_METAL_COST,
             },
             effects: [
-                { type: 'addCard', cardId: '1501' },
-                { type: 'attachResource', resourceId: ResourceId.Water },
+                { type: 'replaceCard', fromCardId: '0306', toCardId: '1501' },
             ],
         },
         {
@@ -220,8 +218,7 @@ export const bloodMageTree: ResearchTreeDef = {
                 metal: ICE_SHARDS_METAL_COST,
             },
             effects: [
-                { type: 'addCard', cardId: '1502' },
-                { type: 'attachResource', resourceId: ResourceId.Water },
+                { type: 'replaceCard', fromCardId: '0304', toCardId: '1502' },
             ],
         },
         {
@@ -244,8 +241,7 @@ export const bloodMageTree: ResearchTreeDef = {
                 metal: FROZEN_FIELD_METAL_COST,
             },
             effects: [
-                { type: 'addCard', cardId: '1503' },
-                { type: 'attachResource', resourceId: ResourceId.Water },
+                { type: 'replaceCard', fromCardId: '0302', toCardId: '1503' },
             ],
         },
     ],

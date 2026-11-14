@@ -3,7 +3,6 @@ import type { RefObject } from 'react';
 import type { BattleSession } from '../../../game/BattleSession';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { BattleOrder, WaitingForOrders } from '../../../game/types';
-import { getAbility } from '../../../abilities/AbilityRegistry';
 import type { AbilityBarChangedEvent } from '../../../game/EventBus';
 
 interface UseInteractionManagerBridgeParams {
@@ -54,11 +53,9 @@ export function useInteractionManagerBridge({
         mgr.setCanUseOrderUi(canUseOrderUi);
         mgr.setWaitingForOrders(waitingForOrders);
         mgr.setMyAbilityIds(myAbilityIds);
-        mgr.setAbilityModeResolver((abilityId) => {
-            const stored = abilityModeByAbilityIdRef.current[abilityId];
-            if (stored !== undefined) return stored;
-            return getAbility(abilityId)?.abilityModes?.defaultMode;
-        });
+        // The mode the player picked on the strip, or undefined: the manager then follows the
+        // default mode (or its fallback while the default can't be cast) via `resolveSlotMode`.
+        mgr.setAbilityModeResolver((abilityId) => abilityModeByAbilityIdRef.current[abilityId]);
     }, [canUseOrderUi, waitingForOrders, myAbilityIds, battleInitPhase, abilityModeByAbilityId, sessionRef]);
 
     // A Create card's replacement starts on its first mode, even if that card was toggled earlier.

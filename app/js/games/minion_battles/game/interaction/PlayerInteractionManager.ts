@@ -13,7 +13,7 @@ import { resolveClick, getInteractiveTargetDefsFromTimings } from '../../abiliti
 import { getAutoEndTurn } from '../autoEndTurnSetting';
 import { USE_SEQUENTIAL_TARGETING } from '../../featureFlags';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { resolveModeAbilityId } from '../../abilities/resolveAbilityMode';
+import { resolveModeAbilityId, resolveSlotMode } from '../../abilities/resolveAbilityMode';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import { logOrderUiKeyAction } from './itsLobbyLog';
 import { isAtConditionalCancelDecision, isAtMissingPickDecision, isITSPreviewComplete } from './isITSPreviewComplete';
@@ -129,11 +129,28 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         this.resolveAbilityMode = resolver;
     }
 
+    /**
+     * The mode the slot actually shows/casts (`resolveSlotMode`): the mode picked on the strip, or with no
+     * pick the default / its fallback, so orders and previews match the shown card.
+     */
+    private effectiveAbilityMode(abilityId: string): string | undefined {
+        const picked = this.resolveAbilityMode?.(abilityId);
+        const slotAbility = getAbility(abilityId);
+        if (!slotAbility?.abilityModes) return picked;
+        const unit = this.ctx
+            ? (() => {
+                const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
+                return (active ? this.ctx.engine.getUnit(active.unitId) : null) ?? this.ctx.engine.getLocalPlayerUnit();
+            })()
+            : null;
+        return unit ? resolveSlotMode(unit, slotAbility, picked) : (picked ?? slotAbility.abilityModes.defaultMode);
+    }
+
     /** Re-submit nonconfirmed order when the player toggles mode mid-targeting. */
     refreshNonconfirmedAbilityMode(abilityId: string): void {
         const order = this.uiState.nonconfirmedOrder;
         if (!order || order.abilityId !== abilityId || !this.ctx) return;
-        const mode = this.resolveAbilityMode?.(abilityId);
+        const mode = this.effectiveAbilityMode(abilityId);
         const updated: BattleOrder = {
             ...order,
             ...(mode !== undefined ? { abilityMode: mode } : {}),
@@ -286,7 +303,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
                 const slotAbility = slotAbilityId ? getAbility(slotAbilityId) : null;
                 // Honour a mode toggle that swaps the slot to another ability.
                 const ability = slotAbility
-                    ? (getAbility(resolveModeAbilityId(slotAbility, this.resolveAbilityMode?.(slotAbility.id))) ?? slotAbility)
+                    ? (getAbility(resolveModeAbilityId(slotAbility, this.effectiveAbilityMode(slotAbility.id))) ?? slotAbility)
                     : null;
                 if (ability) {
                     e.preventDefault();
@@ -441,6 +458,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             return;
         }
 
+        const effectiveMode = this.effectiveAbilityMode(abilityId);
         order = {
             unitId: active.unitId,
             abilityId,
@@ -449,9 +467,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             moveTargetUnitId: moveTargetUnitId ?? undefined,
             moveTargetPixel: moveTargetPixel ?? undefined,
             ...(targetsByLabel && Object.keys(targetsByLabel).length > 0 ? { targetsByLabel } : {}),
-            ...(this.resolveAbilityMode?.(abilityId) !== undefined
-                ? { abilityMode: this.resolveAbilityMode!(abilityId) }
-                : {}),
+            ...(effectiveMode !== undefined ? { abilityMode: effectiveMode } : {}),
             // Carry any previously chosen special alongside the primary.
             ...(prev?.specialAction ? { specialAction: prev.specialAction } : {}),
         };

@@ -210,6 +210,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         ? (data.pendingFrozenHits as PendingFrozenHit[]).map((h) => ({ ...h }))
         : [];
     unit.tags = parseUnitTagsFromJSON(data.tags);
+    unit.lockedAbilityModes = parseLockedAbilityModes(data.lockedAbilityModes);
     unit.weaponAbilityIds = Array.isArray(data.weaponAbilityIds)
         ? (data.weaponAbilityIds as unknown[]).filter((id): id is string => typeof id === 'string')
         : [];
@@ -259,4 +260,14 @@ function parseHeldConjuredWeapon(raw: unknown): HeldConjuredWeaponState | null {
         ? rec.stowedAbilityIds.filter((id): id is string => typeof id === 'string')
         : [];
     return { defId: rec.defId, stowedAbilityIds };
+}
+
+function parseLockedAbilityModes(raw: unknown): Record<string, string[]> {
+    const out: Record<string, string[]> = {};
+    if (raw === null || typeof raw !== 'object') return out;
+    for (const [abilityId, modes] of Object.entries(raw as Record<string, unknown>)) {
+        if (!Array.isArray(modes)) continue;
+        out[abilityId] = modes.filter((m): m is string => typeof m === 'string');
+    }
+    return out;
 }
