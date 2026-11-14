@@ -1,36 +1,41 @@
 import { getItemDef, getSlotContents, ITEM_ICON_URLS } from '../../../character_defs/items';
 
-const MARK_CLASS =
-    'pointer-events-none absolute flex h-9 w-9 items-center justify-center rounded-md border border-border-custom bg-dark-900/90 shadow';
+type MarkCorner = 'topLeft' | 'bottomRight';
 
-function ItemMark({ itemId, corner }: { itemId: string; corner: 'topLeft' | 'bottomRight' }) {
-    const def = getItemDef(itemId);
+const CORNER_CLASS: Record<MarkCorner, string> = {
+    topLeft: '-left-1 -top-1',
+    bottomRight: '-bottom-1 -right-1',
+};
+
+/** Small round badge straddling a corner of the (circular) avatar; the name shows as a tooltip. */
+function ItemMark({ itemId, corner }: { itemId: string; corner: MarkCorner }) {
     const iconUrl = ITEM_ICON_URLS[itemId];
     if (!iconUrl) return null;
-    const name = def?.name ?? itemId;
+    const name = getItemDef(itemId)?.name ?? itemId;
     return (
-        <div
+        <span
             data-className="ItemMark"
-            className={`${MARK_CLASS} ${corner === 'topLeft' ? 'left-1 top-1' : 'bottom-1 right-1'}`}
+            className={`absolute ${CORNER_CLASS[corner]} flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border-custom bg-dark-900 shadow`}
             title={name}
             aria-label={name}
         >
-            <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-zinc-200">
-                <img src={iconUrl} alt="" className="h-6 w-6 object-contain" />
-            </span>
-        </div>
+            <img src={iconUrl} alt="" className="h-full w-full rounded-full object-contain p-[1px]" />
+        </span>
     );
 }
 
-/** Equipped weapon (top left) and core (bottom right) over a character token. */
+/**
+ * Equipped weapon (top left) and core (bottom right) badges. Render inside a `relative` wrapper
+ * around the avatar, outside any `overflow-hidden` so the badges can overlap the avatar's edge.
+ */
 export function PortraitEquipmentMarks({ equipment }: { equipment: string[] }) {
     const { core, weapon } = getSlotContents(equipment);
     const weaponId = weapon.find((id): id is string => id != null) ?? null;
     if (!weaponId && !core) return null;
     return (
-        <div data-className="PortraitEquipmentMarks" className="pointer-events-none absolute inset-0">
+        <>
             {weaponId && <ItemMark itemId={weaponId} corner="topLeft" />}
             {core && <ItemMark itemId={core} corner="bottomRight" />}
-        </div>
+        </>
     );
 }

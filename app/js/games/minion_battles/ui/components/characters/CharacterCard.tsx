@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import { getPortrait } from '../../../character_defs/portraits';
+import { PortraitEquipmentMarks } from '../CharacterEditor/PortraitEquipmentMarks';
 import { characterCardTestId } from '../../../../../testing/testIds';
 
 export function CharacterCard({
@@ -38,12 +39,15 @@ export function CharacterCard({
                 >
                     <div className="flex items-center gap-3">
                         {portrait?.picture && (
-                            <div className="h-10 w-10 shrink-0 rounded-full border border-border-custom overflow-hidden bg-dark-700" aria-hidden="true">
-                                {portrait.picture.trimStart().startsWith('<') ? (
-                                    <div dangerouslySetInnerHTML={{ __html: portrait.picture }} className="w-full h-full" />
-                                ) : (
-                                    <img src={portrait.picture} alt="" className="w-full h-full object-cover" />
-                                )}
+                            <div className="relative h-10 w-10 shrink-0">
+                                <div className="h-full w-full rounded-full border border-border-custom overflow-hidden bg-dark-700" aria-hidden="true">
+                                    {portrait.picture.trimStart().startsWith('<') ? (
+                                        <div dangerouslySetInnerHTML={{ __html: portrait.picture }} className="w-full h-full" />
+                                    ) : (
+                                        <img src={portrait.picture} alt="" className="w-full h-full object-cover" />
+                                    )}
+                                </div>
+                                <PortraitEquipmentMarks equipment={character.equipment ?? []} />
                             </div>
                         )}
                         <div className="min-w-0 flex-1">
