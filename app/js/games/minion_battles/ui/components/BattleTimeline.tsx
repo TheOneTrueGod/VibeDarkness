@@ -275,6 +275,11 @@ interface BattleTimelineProps {
      * instead of the live preview engine.
      */
     playerTileOrderContext?: PlayerTileOrderContext | null;
+    /**
+     * Ability id to outline in green on the timeline while ITS playahead is running.
+     * Null at a pause plane so the icon returns to the ordinary border.
+     */
+    playaheadAbilityId?: string | null;
     /** When true, small PlayerTiles show WebRTC connected/disconnected (local player always connected). */
     showWebRtcConnectionStatus?: boolean;
     /**
@@ -647,11 +652,16 @@ function renderPlayerTimelineTrack(
     previewLevel: 'none' | 'preview' | 'ghost',
     hover: TimelinePanelHover,
     setHover: (next: TimelinePanelHover) => void,
+    playaheadAbilityId: string | null,
 ): React.ReactNode {
     const segmentsOpacityClass = previewLevel === 'preview' ? 'opacity-70' : previewLevel === 'ghost' ? 'opacity-40' : '';
     // Icon stays fully opaque for ghost plans — the faded segments already signal "ghost" status,
     // and dark-coloured SVGs would disappear against the dark background at lower opacity.
     const iconOpacityClass = previewLevel === 'preview' ? 'opacity-70' : '';
+    const playaheadIcon = playaheadAbilityId != null && displayAbility.id === playaheadAbilityId;
+    const iconBorderClass = playaheadIcon
+        ? 'border-green-500 shadow-md shadow-green-500/40'
+        : 'border-dark-600';
     return (
         <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
             <TimelineTimeRuler windowSeconds={windowSeconds} />
@@ -709,7 +719,7 @@ function renderPlayerTimelineTrack(
                     </div>
                     {/* Keep icon inside the track so the sidebar does not gain horizontal scroll */}
                     <div
-                        className={`pointer-events-none absolute top-[36%] right-1 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border border-dark-600 bg-surface-light text-[10px] text-gray-100 shadow-sm ${iconOpacityClass}`}
+                        className={`pointer-events-none absolute top-[36%] right-1 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border bg-surface-light text-[10px] text-gray-100 shadow-sm ${iconBorderClass} ${iconOpacityClass}`}
                         title={displayAbility.name}
                     >
                         <AbilityIconInBox html={displayAbility.image} className="h-5 w-5" />
@@ -735,6 +745,7 @@ function renderPlayerUnitTimelineUnified(
     toggleRowContractOrExpand: (() => void) | null,
     hover: TimelinePanelHover,
     setHover: (next: TimelinePanelHover) => void,
+    playaheadAbilityId: string | null = null,
 ): React.ReactNode {
     const now = engine.gameTime;
     const rowKey = `player:${playerId}:${unit.id}`;
@@ -825,6 +836,7 @@ function renderPlayerUnitTimelineUnified(
                   previewLevel,
                   hover,
                   setHover,
+                  playaheadAbilityId,
               )
             : (
                   <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
@@ -952,6 +964,7 @@ function renderPlayerRow(
     layout: BattleTimelineLayout,
     hover: TimelinePanelHover,
     setHover: (next: TimelinePanelHover) => void,
+    playaheadAbilityId: string | null = null,
 ): React.ReactNode {
     const now = engine.gameTime;
     const unit = engine.units.find((u) => u.ownerId === playerId && u.isAlive());
@@ -1068,6 +1081,7 @@ function renderPlayerRow(
                   previewLevel,
                   hover,
                   setHover,
+                  playaheadAbilityId,
               )
             : (
                   <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
@@ -1129,6 +1143,7 @@ function BattleTimelineBody({
     playerTileOrderContext = null,
     showWebRtcConnectionStatus = false,
     layout = 'strip',
+    playaheadAbilityId = null,
 }: BattleTimelineProps) {
     const orderContext = useMemo(
         () => resolveTimelineOrderContext(engine, playerTileOrderContext),
@@ -1208,6 +1223,7 @@ function BattleTimelineBody({
                     'strip',
                     panelHover,
                     setPanelHover,
+                    playaheadAbilityId,
                 ),
             )}
         </>
@@ -1295,6 +1311,7 @@ function BattleTimelineBody({
                                                     rowToggle,
                                                     panelHover,
                                                     setPanelHover,
+                                                    playaheadAbilityId,
                                                 );
                                             })}
                                         </div>

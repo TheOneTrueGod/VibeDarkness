@@ -23,6 +23,7 @@ import {
     BATTLE_BOTTOM_ROW_PADDING_Y_PX,
     TURN_INDICATOR_GAP_Y_PX,
 } from './battleBottomBarLayout';
+import { abilityHandCardFlags, type ItsHandPreviewPhase } from './abilityHandCardFlags';
 
 const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
 
@@ -85,6 +86,15 @@ interface RowSlotAbilitiesProps {
     onHoverAbility?: (ability: AbilityStatic | null) => void;
     /** The turn indicator plaque (and ITS playahead controls); pinned to the top of this slot. */
     turnIndicator?: React.ReactNode;
+    /**
+     * Local ITS preview phase. `playing` greens the cast's card; `paused` / `done` (a pause plane)
+     * return that card to ordinary chrome.
+     */
+    itsPreviewPhase?: ItsHandPreviewPhase;
+    /** Ability id of the local ITS cast while a preview run is active. */
+    itsAbilityId?: string | null;
+    /** Preview is frozen on a parallel-order pause while the poll still says `playing`. */
+    itsAtParallelPause?: boolean;
 }
 
 export default function RowSlotAbilities({
@@ -103,6 +113,9 @@ export default function RowSlotAbilities({
     onSetAbilityMode,
     onHoverAbility,
     turnIndicator,
+    itsPreviewPhase = 'inactive',
+    itsAbilityId = null,
+    itsAtParallelPause = false,
 }: RowSlotAbilitiesProps) {
     // Busy / free pets for `requireFree` cards (the engine is passed as `gameState`).
     const priorityEngine = asCastPriorityEngine(gameState);
@@ -381,10 +394,18 @@ export default function RowSlotAbilities({
         const isHovered = hoveredCardId === card.abilityId;
         const activeAbilityIds = playerUnit.activeAbilities.map((a) => a.abilityId);
         const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
-        const isSelected =
-            selectedCardIndex === index
-            || (specialActionAbilityId != null && card.abilityId === specialActionAbilityId);
-        const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
+        const { isSelected, isActive } = abilityHandCardFlags({
+            handIndex: index,
+            selectedCardIndex,
+            specialActionAbilityId,
+            cardAbilityId: card.abilityId,
+            slotAbilityId: card.slotAbilityId,
+            activeHandIndex,
+            isMyTurn,
+            itsPreviewPhase,
+            itsAbilityId,
+            atParallelPause: itsAtParallelPause,
+        });
         // Mode config lives on the slot's own ability (it stays put while the shown ability swaps).
         const abilityModes = card.slotAbility.abilityModes;
         const currentAbilityMode = card.slotMode;
@@ -443,6 +464,7 @@ export default function RowSlotAbilities({
 
     return (
         <div
+            data-className="RowSlotAbilities"
             className="flex h-full min-w-0 flex-col"
             style={{
                 paddingTop: BATTLE_BOTTOM_ROW_PADDING_Y_PX,

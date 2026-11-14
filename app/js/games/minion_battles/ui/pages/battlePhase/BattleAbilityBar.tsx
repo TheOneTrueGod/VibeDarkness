@@ -153,6 +153,9 @@ export function useBattleAbilityBarSlots({
                 }}
                 onHoverAbility={setHoveredAbility}
                 turnIndicator={renderTurnIndicator?.(sideControls)}
+                itsPreviewPhase={interactiveTargetingState}
+                itsAbilityId={its?.isActive ? (its.abilityId ?? null) : null}
+                itsAtParallelPause={engine.waitingForOrders != null}
             />
         ),
         bottomRightCorner: (

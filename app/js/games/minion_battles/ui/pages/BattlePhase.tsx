@@ -602,6 +602,11 @@ export default function BattlePhase({
                                   : null
                         }
                         previewOrderUnitId={itsActive && itsUnitId ? itsUnitId : (activeLocalWaiter?.unitId ?? null)}
+                        playaheadAbilityId={
+                            interactiveTargetingState === 'playing' && engine.waitingForOrders == null
+                                ? itsAbilityId
+                                : null
+                        }
                         ghostPlans={renderGhostPlans}
                         playerTileOrderContext={playerTileOrderContext}
                         showWebRtcConnectionStatus={showWebRtcConnectionStatus}
