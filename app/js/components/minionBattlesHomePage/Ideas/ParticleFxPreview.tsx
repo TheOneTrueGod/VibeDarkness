@@ -560,7 +560,8 @@ export function FxScene({
     );
 }
 
-function FxStyleSheet() {
+/** The particle and art keyframes; render once on any page that shows `FxScene` or `FxArtTile`. */
+export function FxStyleSheet() {
     return <style>{FX_CSS}</style>;
 }
 
@@ -752,7 +753,7 @@ export function FxStudio({ title, options, children }: { title: string; options?
     const subject = toSubject(options?.subject);
     const studio = useContext(FxStudioContext);
     const palettes = studio?.palettes.length ? studio.palettes : [{ ...FALLBACK, name: 'Default' }];
-    const selectedName = studio?.selected ?? palettes[0].name;
+    const selectedName = studio?.selected ?? options?.palette ?? palettes[0].name;
     const base = palettes.find((p) => p.name === selectedName) ?? palettes[0];
     const [custom, setCustom] = useState<{ from: string; primary: string; secondary: string } | null>(null);
     const [background, setBackground] = useState<FxBackground>('dark');
@@ -813,6 +814,7 @@ export function FxStudio({ title, options, children }: { title: string; options?
                     ))}
                 </div>
             )}
+            {styles.length > 0 && (
             <div className="overflow-x-auto">
                 <table className="border-separate border-spacing-2">
                     <thead>
@@ -842,6 +844,7 @@ export function FxStudio({ title, options, children }: { title: string; options?
                     </tbody>
                 </table>
             </div>
+            )}
         </div>
     );
 }

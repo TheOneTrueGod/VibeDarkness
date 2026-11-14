@@ -7,6 +7,7 @@ import { STORYBOOK_ENTRIES } from './storybookEntries';
 import { defaultStorybookValues, type StorybookControlValues } from './storybookTypes';
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../../../../games/minion_battles/resources/resourceDisplayDefs';
 import { RESEARCH_TREES } from '../../../../researchTrees/list';
+import { GARDEN_HEART_PALETTES, GARDEN_HEART_STYLES } from '../fxArt/gardenHeartArt';
 
 function renderEntry(id: string, overrides: StorybookControlValues = {}): string {
     const entry = STORYBOOK_ENTRIES.find((e) => e.id === id)!;
@@ -53,5 +54,20 @@ describe('storybook entries', () => {
         expect(one).toContain('#3b5bdb');
         expect(one).toContain('Unpurchased');
         expect(one).not.toContain('#9ca3af'); // Weapons primary: filtered out
+    });
+
+    it('Garden Heart shows every palette and Heart style, with exactly one of each selected', () => {
+        expect(GARDEN_HEART_PALETTES.filter((p) => p.chosen)).toHaveLength(1);
+        expect(GARDEN_HEART_STYLES.filter((s) => s.chosen)).toHaveLength(1);
+
+        const all = renderEntry('garden-heart');
+        for (const p of GARDEN_HEART_PALETTES) expect(all).toContain(p.name.replace("'", '&#x27;'));
+        for (const s of GARDEN_HEART_STYLES) expect(all).toContain(s.name);
+        expect(all.match(/data-chosen="true"/g)).toHaveLength(1);
+        expect(all).not.toContain('Unknown art');
+
+        const chosen = renderEntry('garden-heart', { chosenOnly: true });
+        expect(chosen).toContain('Nightbloom');
+        expect(chosen).not.toContain("Queen&#x27;s Garden");
     });
 });

@@ -52,12 +52,14 @@ export type PlanPaletteVariant = 'armory' | 'fx';
  * tree instead of the defaults:
  * - `styles: frost, droplets`: which particle styles the studio shows (default: all).
  * - `subject: mage`: what stands in the "Off a unit" scenes (default: the spirit dog).
+ * - `palette: Nightbloom`: the palette the studio starts on (default: the plan's first palette).
  * - `art: water-bar, water-core, fx:frost:unit`: art pieces (`fxArt/`) shown on the card, or as a row above
  *   the studio grid. `fx:<style>:<context>` is a plain particle scene.
  */
 export interface PlanFxOptions {
     styles?: string[];
     subject?: string;
+    palette?: string;
     art?: string[];
 }
 
@@ -82,7 +84,7 @@ const PALETTE_RE = /^>\s?\[!(FX_)?PALETTE\]\s*(.*)$/i;
 const FX_STUDIO_RE = /^>\s?\[!FX_STUDIO\]\s*(.*)$/i;
 const PALETTE_COLOR_RE = /^(primary|secondary):\s*(#[0-9a-fA-F]{6})\s*(.*)$/i;
 const QUOTE_RE = /^>\s?(.*)$/;
-const FX_OPTION_RE = /^(styles|subject|art):\s*(.+)$/i;
+const FX_OPTION_RE = /^(styles|subject|palette|art):\s*(.+)$/i;
 const DONE_RE = /^\[x\]\s+(.*)$/i;
 /** A heading ending in `{section}` is listed under its plan in the Plans sidebar (see {@link planSections}). */
 const SECTION_RE = /^(.*?)\s*\{section\}$/;
@@ -99,7 +101,7 @@ function takeFxOptions(lines: string[]): { fx?: PlanFxOptions; body: string[] } 
             continue;
         }
         const key = option[1].toLowerCase() as keyof PlanFxOptions;
-        if (key === 'subject') fx.subject = option[2].trim();
+        if (key === 'subject' || key === 'palette') fx[key] = option[2].trim();
         else fx[key] = option[2].split(',').map((v) => v.trim()).filter((v) => v !== '');
     }
     return Object.keys(fx).length > 0 ? { fx, body } : { body };

@@ -11,6 +11,6 @@ The Storybook view of the Ideas tab (`/campaign/ideas/storybook/:entryId`): a we
 | `StorybookControlPanel.tsx` | The bottom control panel. |
 | `storybookEntries.test.tsx` | Renders every entry with its default controls. |
 
-Current entries: **Resources** (cost badges and in-game bars at several fills) and **Research Cards** (tree colours, Upgrades nameplates, node cards).
+Current entries: **Resources** (cost badges and in-game bars at several fills), **Research Cards** (tree colours, Upgrades nameplates, node cards) and **Garden Heart** (every look option from the garden boss artbook, with the selected palette and Heart style marked; the option lists live in `fxArt/gardenHeartArt.tsx`, so a plan can keep only the chosen option).
 
 Good next entries: ability cards (`AbilitySlot` / hand cards, modes, costs), research-tree effects (`ResearchAbilityPreview`, node states), tooltips, and any new reusable component. Add a file under `entries/` and list it in `storybookEntries.ts`.

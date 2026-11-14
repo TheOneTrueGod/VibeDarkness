@@ -99,6 +99,8 @@ describe('fx studio blocks', () => {
             blocks: [{ type: 'paragraph', text: 'Pick one.' }],
             fx: { styles: ['frost', 'droplets'], subject: 'mage', art: ['water-bar', 'fx:frost:unit'] },
         });
+        const [garden] = parsePlanMarkdown('> [!FX_STUDIO] Garden\n> styles: none\n> palette: Nightbloom\n> art: gh-opening');
+        expect(garden).toMatchObject({ fx: { styles: ['none'], palette: 'Nightbloom', art: ['gh-opening'] } });
     });
 
     it('reads option lines on [!FX_PALETTE] cards but not on armory cards', () => {
