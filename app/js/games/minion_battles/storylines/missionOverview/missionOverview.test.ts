@@ -119,12 +119,14 @@ describe('collectMissionOverlayShapes', () => {
 describe('groupMissionsByChapter', () => {
     const missions = Object.values(MISSION_MAP).filter((m) => !m.skipBattle);
     const groups = groupMissionsByChapter(missions, STORYLINES);
-    const groupOf = (id: string) => groups.find((g) => g.missions.some((m) => m.missionId === id))?.key;
+    const entries = groups.flatMap((g) => g.entries);
+    const groupOf = (id: string) => groups.find((g) => g.entries.some((e) => e.mission.missionId === id))?.key;
+    const categoryOf = (id: string) => entries.find((e) => e.mission.missionId === id)?.category;
 
     it('lists every mission once, in chapter order with admin-only chapters after player chapters', () => {
-        expect(groups.flatMap((g) => g.missions).length).toBe(missions.length);
+        expect(entries.length).toBe(missions.length);
         expect(groups[0].key).toBe('world_of_darkness/wod_ch1');
-        expect(groups[0].missions[0].missionId).toBe('dark_awakening');
+        expect(groups[0].entries[0].mission.missionId).toBe('dark_awakening');
         const keys = groups.map((g) => g.key);
         expect(keys.indexOf('world_of_darkness/wod_ch3')).toBeLessThan(keys.indexOf('world_of_darkness/wod_ch0'));
         expect(groups.find((g) => g.key === 'world_of_darkness/wod_ch0')?.adminOnly).toBe(true);
@@ -136,5 +138,13 @@ describe('groupMissionsByChapter', () => {
         expect(groupOf('swarm_pressure')).toBe('bunker_at_the_end/bunker_ch1');
         const last = groups[groups.length - 1];
         if (last.key === NO_CHAPTER_GROUP_KEY) expect(last.label).toBe('Not in a chapter');
+    });
+
+    it('tags boss fights and side quests', () => {
+        expect(categoryOf('monster')).toBe('boss');
+        expect(categoryOf('the_kings_court')).toBe('boss');
+        expect(categoryOf('training_grounds')).toBe('sideQuest'); // isSideMission
+        expect(categoryOf('quest_push_north')).toBe('sideQuest'); // from a side-quest bank
+        expect(categoryOf('dark_awakening')).toBe('main');
     });
 });

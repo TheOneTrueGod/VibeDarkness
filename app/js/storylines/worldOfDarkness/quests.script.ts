@@ -196,7 +196,7 @@ export const questScripts = {
                 {
                     type: 'dialogue',
                     speakerId: '1',
-                    text: 'You return to the cave to find every crystal dark, pulsing with corruption. The howling is close behind you.',
+                    text: 'You return to the cave to find every crystal dark, pulsing with corruption.',
                     portraitSide: 'left',
                     backgroundImage: STORY_BACKGROUNDS.campfire,
                 },
