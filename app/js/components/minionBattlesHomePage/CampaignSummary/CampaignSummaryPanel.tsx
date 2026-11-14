@@ -329,6 +329,7 @@ export default function CampaignSummaryPanel({ campaign, lobbyClient, onSelectMi
                     vbH: layout.viewBox.vbH + FACEPILE_HEADROOM,
                 }}
                 mapDividers={layout.mapDividers}
+                background={layout.background}
                 missions={layout.missions}
                 questBanksOnMap={layout.questBanksOnMap}
                 posMap={layout.posMap}

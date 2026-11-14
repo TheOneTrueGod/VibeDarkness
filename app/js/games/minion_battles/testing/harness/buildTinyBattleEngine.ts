@@ -1,4 +1,4 @@
-﻿import { TerrainType } from '../../terrain/TerrainType';
+﻿import { TerrainType, type TerrainAccessId } from '../../terrain/TerrainType';
 import { TerrainGrid } from '../../terrain/TerrainGrid';
 import { TerrainManager } from '../../terrain/TerrainManager';
 import { GameEngine } from '../../game/GameEngine';
@@ -113,6 +113,8 @@ export function spawnTinyPlayerUnit(
          * runtime, in the same order as `BaseMissionDef` (modifiers, init, modifier runtime, rocks/stick).
          */
         applyResearchAbilityModifiers?: boolean;
+        /** Gated terrain the unit may mutate or draw on (e.g. `['brick']`); see `Unit.terrainAccess`. */
+        terrainAccess?: readonly TerrainAccessId[];
     },
 ): Unit {
     const eventBus = engine.eventBus;
@@ -160,6 +162,7 @@ export function spawnTinyPlayerUnit(
     }
     applyChargedRocksEquipmentToAbilityRuntime(unit);
     applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
+    for (const id of params.terrainAccess ?? []) unit.grantTerrainAccess(id);
     engine.addUnit(unit, 'initialGameSpawn');
     return unit;
 }
@@ -172,6 +175,8 @@ export interface PlacePlayerAndDummyOpts {
     abilities: string[];
     dummyId?: string;
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
+    /** Gated terrain the player may mutate or draw on (e.g. `['brick']`). */
+    terrainAccess?: readonly TerrainAccessId[];
 }
 
 /** Add player at `playerWorld` and a target dummy at `dummyWorld`. */
@@ -182,6 +187,7 @@ export function placePlayerAndDummy(engine: GameEngine, opts: PlacePlayerAndDumm
         y: opts.playerWorld.y,
         abilities: opts.abilities,
         playerResearchTreesByPlayer: opts.playerResearchTreesByPlayer,
+        terrainAccess: opts.terrainAccess,
     });
 
     const dummy = createTargetDummyAtWorld(engine, opts.dummyWorld.x, opts.dummyWorld.y, {
@@ -200,6 +206,8 @@ export interface PlacePlayerFromLoadoutOpts {
     /** STORED research (before the active-research filter), as saved on the character. */
     researchTrees?: Record<string, string[]>;
     researchNodeLevels?: Record<string, Record<string, number>>;
+    /** Gated terrain the player may mutate or draw on (e.g. `['brick']`). */
+    terrainAccess?: readonly TerrainAccessId[];
 }
 
 /**
@@ -235,6 +243,7 @@ export function placePlayerFromLoadout(
         playerResearchTreesByPlayer: activeByPlayer,
         playerResearchNodeLevelsByPlayer: activeLevelsByPlayer,
         applyResearchAbilityModifiers: true,
+        terrainAccess: opts.terrainAccess,
     });
     // Item passives (e.g. Charged Rocks' Light Charge), as BaseMissionDef copies them onto the unit.
     player.roundStartRecoveryCharges = collectRoundStartRecoveryCharges(loadout.battleEquipmentIds);

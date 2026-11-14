@@ -1,7 +1,7 @@
 /**
  * 58_48 West Wall Walk (Well) - part of the castle around the 61_49 gate (see castle/index.ts for the plan).
  *
- * West wall walk with a well room.
+ * West wall walk with a well room. No door into the training ring.
  * No light spots unless listed in the POIs: the castle is meant to be dark.
  * Generated with terrain/mapTools-style painting on one castle-wide canvas, so seams always line up.
  */
@@ -10,6 +10,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
@@ -22,28 +23,28 @@ export const SEGMENT_58_48_WEST_WALL_WALK_WELL: CastleSegment = {
     gridRow: 48,
     description: 'A stretch of the wall walk around a well. A water source inside the walls was essential to surviving a long siege.',
     terrain: [
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, R, R, D, D, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, D, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, D, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, R, G, G, G, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, R, G, G, G, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, D, R, D, W, W, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, D, D, D, W, W, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, D, R, D, W, W, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, D, R, D, D, D, D],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, R, D, D, D, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, R, D, D, G, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, G, D, D, D, G, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, D, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, D, R, R, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, R, R, D, D, R, R, R, R, R],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, B, B, D, D, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, D, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, D, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, G, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, G, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, G, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, G, B, G, G, G, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, G, B, G, G, G, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, D, B, D, W, W, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, D, D, D, W, W, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, D, B, D, W, W, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, D, B, D, D, D, B],
+        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, B, D, D, D, B],
+        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, R, R, R, G, D, D, G, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, R, R, R, R, G, D, G, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, R, R, R, G, D, D, G, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, R, R, G, D, D, D, G, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, R, R, R, D, D, D, G, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, D, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, D, D, D, D, B, B, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, B, B, D, D, B, B, B, B, B],
     ],
     pointsOfInterest: [
         // On the wall walk.

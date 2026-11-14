@@ -1,8 +1,8 @@
 /**
  * 60_43 North Stair Tower - part of the castle around the 61_49 gate (see castle/index.ts for the plan).
  *
- * Stair landing inside the north wall where the royal guard hall reaches the wall walk; a stair
- * core blocks the middle.
+ * Stair landing inside the north wall; a stair core blocks the middle. Its old stair down to the
+ * royal chambers is walled up (they are reached only from the west wall walk).
  * No light spots unless listed in the POIs: the castle is meant to be dark.
  * Generated with terrain/mapTools-style painting on one castle-wide canvas, so seams always line up.
  */
@@ -11,6 +11,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
@@ -33,18 +34,18 @@ export const SEGMENT_60_43_NORTH_STAIR_TOWER: CastleSegment = {
         [SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, G, R, R, R, R, R, R, R],
-        [R, G, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, G, G, R],
-        [R, D, D, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, G, R],
-        [R, D, D, D, R, D, R, R, D, D, D, D, G, G, G, G, G, G, G, G, G, R],
-        [D, D, D, D, G, G, R, R, D, D, D, D, G, G, G, G, G, G, G, G, G, R],
-        [D, D, D, G, G, G, R, R, G, D, D, D, G, G, G, G, G, G, G, G, G, R],
-        [R, D, G, G, G, G, R, R, G, D, D, D, G, G, G, G, R, G, G, G, G, R],
-        [R, G, G, G, G, G, G, G, G, D, D, D, G, G, G, G, G, G, G, G, G, R],
-        [R, G, G, G, G, G, G, G, G, D, D, D, D, G, G, G, G, G, G, G, G, R],
-        [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
+        [B, B, B, B, R, R, R, R, R, R, B, B, B, B, B, B, B, B, B, B, B, B],
+        [B, B, B, B, R, R, R, R, R, R, B, B, B, B, B, B, B, B, B, B, B, B],
+        [B, B, B, B, R, R, R, R, R, R, B, B, B, B, G, B, B, B, B, B, B, B],
+        [B, G, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, G, G, B],
+        [B, D, D, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, G, B],
+        [B, D, D, D, B, D, B, B, D, D, D, D, G, G, G, G, G, G, G, G, G, B],
+        [D, D, D, D, G, G, B, B, D, D, D, D, G, G, G, G, G, G, G, G, G, B],
+        [D, D, D, G, G, G, B, B, G, D, D, D, G, G, G, G, G, G, G, G, G, B],
+        [B, D, G, G, G, G, B, B, G, D, D, D, G, G, G, G, B, G, G, G, G, B],
+        [B, G, G, G, G, G, G, G, G, D, D, D, G, G, G, G, G, G, G, G, G, B],
+        [B, G, G, G, G, G, G, G, G, D, D, D, D, G, G, G, G, G, G, G, G, B],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B],
     ],
     pointsOfInterest: [
         // Stair landing.

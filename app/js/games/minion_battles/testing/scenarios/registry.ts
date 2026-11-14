@@ -170,6 +170,7 @@ import { rapidThrowComboScenario } from './abilities/rapidThrowComboScenario';
 import { CAST_ENDED_EARLY_SCENARIOS } from './general/castEndedEarly';
 import { TIME_DILATION_SCENARIOS } from './general/timeDilation';
 import { HUNGER_SCENARIOS } from './general/hunger';
+import { BRICK_TERRAIN_SCENARIOS } from './general/brickTerrain';
 
 export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathStraightMoveScenario,
@@ -324,6 +325,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     ...CAST_ENDED_EARLY_SCENARIOS,
     ...TIME_DILATION_SCENARIOS,
     ...HUNGER_SCENARIOS,
+    ...BRICK_TERRAIN_SCENARIOS,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -387,6 +389,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'cast-ended-early', section: 'Cast Ended Early' },
     { slug: 'time-dilation', section: 'Time Dilation' },
     { slug: 'hunger', section: 'Hunger' },
+    { slug: 'terrain', section: 'Terrain' },
 ];
 
 export interface GeneralTestSidebarGroup {

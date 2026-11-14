@@ -27,7 +27,7 @@ import {
     tryApplyAimedKnockbackByTier,
     type KnockbackDirectionStrategy,
 } from '../../crowdControl/knockbackKeywords';
-import { TERRAIN_PROPERTIES, TerrainType } from '../../terrain/TerrainType';
+import { baseTerrainOf, terrainListIncludes, TERRAIN_PROPERTIES, TerrainType } from '../../terrain/TerrainType';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { ProjectileModifierId } from './ProjectileTravelModifiers';
 import { isTraversableByModifiers, shouldCountTraversalDistance } from './ProjectileTravelModifiers';
@@ -563,7 +563,8 @@ export class Projectile extends GameObject {
                 this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, stop.x, stop.y, terrainManager);
                 this.clearTerrainAlongPath(prevX, prevY, engine);
                 const wall = this.stoppedAtTerrain;
-                if (this.rockHitsToBreak !== undefined && wall?.terrainType === TerrainType.Rock) {
+                // Rock variants (Brick) count; damageRockByHits refuses gated rock the source may not affect.
+                if (this.rockHitsToBreak !== undefined && wall && baseTerrainOf(wall.terrainType) === TerrainType.Rock) {
                     terrainManager.damageRockByHits(wall.col, wall.row, this.rockHitsToBreak, this.sourceUnitId);
                 }
                 this.triggerExpireEffect(engine);
@@ -662,6 +663,8 @@ export class Projectile extends GameObject {
 
         const steps = Math.max(1, Math.ceil(totalDistance));
         const stopsAtWalls = this.modifiers.includes('stopsAtWalls');
+        // Stonephase passes gated rock (Brick) only when the shooter holds its access.
+        const access = terrainManager.getUnitTerrainAccess(this.sourceUnitId);
         let prevSampleX = fromX;
         let prevSampleY = fromY;
         for (let i = 1; i <= steps; i++) {
@@ -671,8 +674,8 @@ export class Projectile extends GameObject {
             const terrainType = terrainManager.getProjectileTerrainAt(sampleX, sampleY);
             const obstructs =
                 (stopsAtWalls && TERRAIN_PROPERTIES[terrainType].blocksProjectiles) ||
-                this.collidesWithTerrain.includes(terrainType);
-            if (obstructs && !isTraversableByModifiers(terrainType, this.modifiers)) {
+                terrainListIncludes(this.collidesWithTerrain, terrainType);
+            if (obstructs && !isTraversableByModifiers(terrainType, this.modifiers, access)) {
                 const cell = terrainManager.grid.worldToGrid(sampleX, sampleY);
                 this.stoppedAtTerrain = { col: cell.col, row: cell.row, terrainType };
                 return { x: prevSampleX, y: prevSampleY };

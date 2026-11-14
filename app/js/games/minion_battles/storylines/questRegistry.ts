@@ -8,6 +8,8 @@ import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plain
 import { INVESTIGATE_THE_WILDLIFE } from './WorldOfDarkness/quests/investigate_the_wildlife';
 import { SOUTH_GATE_SWARM_QUEST } from './WorldOfDarkness/quests/south_gate_swarm';
 import { CRYSTAL_CORRUPTION_QUEST } from './WorldOfDarkness/quests/crystal_corruption';
+import { RAID_THE_LARDER } from './WorldOfDarkness/quests/raid_the_larder';
+import { FORAGE_THE_GARDEN } from './WorldOfDarkness/quests/forage_the_garden';
 
 export const QUEST_MAP: Record<string, QuestDef> = {
     /** Plumbing / fixed-slot fixture; also a dedicated chapter 2 map node. */
@@ -16,6 +18,9 @@ export const QUEST_MAP: Record<string, QuestDef> = {
     [INVESTIGATE_THE_WILDLIFE.id]: INVESTIGATE_THE_WILDLIFE,
     [SOUTH_GATE_SWARM_QUEST.id]: SOUTH_GATE_SWARM_QUEST,
     [CRYSTAL_CORRUPTION_QUEST.id]: CRYSTAL_CORRUPTION_QUEST,
+    /** Chapter 3 castle scavenging quests (dedicated map nodes). */
+    [RAID_THE_LARDER.id]: RAID_THE_LARDER,
+    [FORAGE_THE_GARDEN.id]: FORAGE_THE_GARDEN,
 };
 
 export function getQuestDef(questDefId: string): QuestDef | undefined {

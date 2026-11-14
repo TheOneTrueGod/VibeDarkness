@@ -6,7 +6,7 @@
  * not here. The rock pick and direction pick hitboxes live here too.
  */
 
-import { TERRAIN_PROPERTIES, TerrainType } from '../../../terrain/TerrainType';
+import { baseTerrainOf, TERRAIN_PROPERTIES, TerrainType } from '../../../terrain/TerrainType';
 import type { TerrainManager } from '../../../terrain/TerrainManager';
 import { worldToTile, type TileCoord } from '../../../abilities/tileAreaHelpers';
 import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
@@ -46,9 +46,9 @@ export function resolveSlideDirection(
     return { tile, dirCol: tile.col - c.col, dirRow: tile.row - c.row };
 }
 
-/** The rock may spawn on `tile` iff it is in bounds, not rock and otherwise walkable. */
+/** The rock may spawn on `tile` iff it is in bounds, not rock (or a Rock variant) and otherwise walkable. */
 export function isSlideSpawnTile(tm: TerrainManager, tile: TileCoord): boolean {
     if (!tm.isInBounds(tile.col, tile.row)) return false;
     const type = tm.getEffectiveTerrainType(tile.col, tile.row);
-    return type !== TerrainType.Rock && TERRAIN_PROPERTIES[type].passable;
+    return baseTerrainOf(type) !== TerrainType.Rock && TERRAIN_PROPERTIES[type].passable;
 }

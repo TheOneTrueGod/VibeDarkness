@@ -141,6 +141,7 @@ Use the deterministic tools in `app/js/games/minion_battles/terrain/mapTools/` (
 | `ascii.ts` | `terrainFromAscii` (sketch → terrain), `terrainToAscii` (print, with marks), `terrainToTsRows` (segment-file rows). |
 | `layerEffects.ts` | Turn any cell list into a ground / air layer effect for a mission to add. |
 | `findPath.ts` | Full cell route between two points. |
+| `segmentBlock.ts` | Multi-segment work: `stitchSegmentBlock` joins segments by grid address into one canvas, `sliceSegmentBlock` cuts it back into per-address grids, `segmentBlockCell` maps a segment-local cell onto the canvas. Paint across seams on the canvas, then slice, so neighbouring edges always match. |
 | `edgeOpenings.ts`, `seamCheck.ts`, `chokepoints.ts`, `lightCoverage.ts` | Verification checks; see below. |
 
 Each tool also exposes its raw cell list (e.g. `roadCells`), so tools can be combined. Paint order matters: later tools overwrite earlier ones. A good loop is: approved ASCII sketch → `terrainFromAscii` → refine with tools → `terrainToTsRows` into the segment file.

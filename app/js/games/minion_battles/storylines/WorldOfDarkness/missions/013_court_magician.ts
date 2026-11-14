@@ -7,11 +7,16 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
-import { ObjectiveType } from '../../objectiveTypes';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import { DarknessLevel } from '../../../game/darknessLevels';
 import type { BattleObjectiveDef, EnemySpawnDef, LevelEvent, PlayerSpawnPoint } from '../../types';
-import { COURT_CRYSTAL_START_COUNT, ENEMY_COURT_CRYSTAL, ENEMY_COURT_MAGICIAN } from '../../../constants/enemyConstants';
+import { ENEMY_COURT_MAGICIAN } from '../../../constants/enemyConstants';
+import { PARTY_BLOCK_OFFSETS } from '../../missionSpawnHelpers';
+import {
+    COURT_CRYSTAL_COUNT,
+    COURT_CRYSTAL_START_RADIUS_TILES,
+    courtMagicianBossSetup,
+} from './castle/castleBosses';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
@@ -42,42 +47,21 @@ function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(COLS, ROWS, CELL_SIZE, stitched, _);
 }
 
-function gridToWorld(col: number, row: number): { x: number; y: number } {
-    return { x: col * CELL_SIZE + CELL_SIZE / 2, y: row * CELL_SIZE + CELL_SIZE / 2 };
-}
-
-/** Crystals the magician starts with; he conjures up to five more as he loses health (Conjure Crystal, 1407). */
-export const COURT_CRYSTAL_COUNT = COURT_CRYSTAL_START_COUNT;
-/** Radius (tiles) of the starting crystal ring around the centre. */
-export const COURT_CRYSTAL_START_RADIUS_TILES = 4;
-
-/** Starting crystal tiles: an even ring around the centre (opposite sides for two). */
-export const COURT_CRYSTAL_START_TILES: readonly { col: number; row: number }[] = Array.from(
-    { length: COURT_CRYSTAL_COUNT },
-    (_, i) => {
-        // Turned 30° so no point lands on the arena's interior rocks.
-        const a = ((i + 0.5) / COURT_CRYSTAL_COUNT) * Math.PI * 2;
-        return {
-            col: BOSS_ARENA_CENTER.col + Math.round(Math.cos(a) * COURT_CRYSTAL_START_RADIUS_TILES),
-            row: BOSS_ARENA_CENTER.row + Math.round(Math.sin(a) * COURT_CRYSTAL_START_RADIUS_TILES),
-        };
-    },
+/** The magician, his crystal ring and the defeat objective, centred on the arena (shared with the castle). */
+const BOSS = courtMagicianBossSetup(
+    BOSS_ARENA_CENTER,
+    chapter0Scripts.court_magician.objectives.defeat_court_magician,
 );
 
+export { COURT_CRYSTAL_COUNT, COURT_CRYSTAL_START_RADIUS_TILES };
+
+/** Starting crystal tiles: an even ring around the centre (opposite sides for two). */
+export const COURT_CRYSTAL_START_TILES: readonly { col: number; row: number }[] = BOSS.crystalTiles;
+
 /** Party arrives on the west road, as in the Displacer fight (a 4x2 block, nearest first). */
-export const COURT_MAGICIAN_PLAYER_SPAWN_POINTS: readonly { col: number; row: number }[] = [
-    [0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [-1, 1], [2, 0], [2, 1],
-].map(([dc, dr]) => ({ col: ARENA_OUTSIDE_ROAD.col + 2 + dc!, row: ARENA_OUTSIDE_ROAD.row + 2 + dr! }));
-
-const MAGICIAN: EnemySpawnDef = {
-    ...ENEMY_COURT_MAGICIAN,
-    position: gridToWorld(BOSS_ARENA_CENTER.col, BOSS_ARENA_CENTER.row),
-};
-
-const CRYSTALS: EnemySpawnDef[] = COURT_CRYSTAL_START_TILES.map((t) => ({
-    ...ENEMY_COURT_CRYSTAL,
-    position: gridToWorld(t.col, t.row),
-}));
+export const COURT_MAGICIAN_PLAYER_SPAWN_POINTS: readonly { col: number; row: number }[] = PARTY_BLOCK_OFFSETS.map(
+    ([dc, dr]) => ({ col: ARENA_OUTSIDE_ROAD.col + 2 + dc, row: ARENA_OUTSIDE_ROAD.row + 2 + dr }),
+);
 
 const LEVEL_EVENTS: LevelEvent[] = [
     {
@@ -88,14 +72,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
     },
 ];
 
-const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
-    {
-        id: 'defeat_court_magician',
-        objectiveType: ObjectiveType.KillTarget,
-        label: chapter0Scripts.court_magician.objectives.defeat_court_magician,
-        toComplete: { type: 'unitDead', unitCharacterId: ENEMY_COURT_MAGICIAN.characterId },
-    },
-];
+const BATTLE_OBJECTIVES: BattleObjectiveDef[] = BOSS.objectives;
 
 export class CourtMagicianMission extends BaseMissionDef {
     segmentIds = [BOSS_ARENA_SEGMENT_ID];
@@ -109,7 +86,7 @@ export class CourtMagicianMission extends BaseMissionDef {
     description = chapter0Scripts.court_magician.description;
     worldWidth = COLS * CELL_SIZE;
     worldHeight = ROWS * CELL_SIZE;
-    enemies: EnemySpawnDef[] = [MAGICIAN, ...CRYSTALS];
+    enemies: EnemySpawnDef[] = BOSS.enemies;
     levelEvents: LevelEvent[] = LEVEL_EVENTS;
     battleObjectives = BATTLE_OBJECTIVES;
     createTerrain = createTerrain;

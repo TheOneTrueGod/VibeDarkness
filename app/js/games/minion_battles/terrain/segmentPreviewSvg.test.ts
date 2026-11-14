@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
-import { generateSegmentPreviewSvg, summarizeSegmentTerrain } from './segmentPreviewSvg';
+import { generateSegmentPreviewSvg, SEGMENT_PREVIEW_PRIORITY, summarizeSegmentTerrain } from './segmentPreviewSvg';
 
 function segmentOf(terrain: TerrainType[][]) {
     return { terrain, width: terrain[0].length, height: terrain.length };
@@ -30,6 +30,16 @@ describe('summarizeSegmentTerrain', () => {
         expect(pick([TerrainType.Grass, TerrainType.ThickGrass])).toBe(TerrainType.ThickGrass);
     });
 
+    it('ranks Brick with Rock: over gravel and grass, under water and paths', () => {
+        expect(SEGMENT_PREVIEW_PRIORITY[TerrainType.Brick]).toBe(SEGMENT_PREVIEW_PRIORITY[TerrainType.Rock]);
+        const pick = (types: TerrainType[]) =>
+            summarizeSegmentTerrain(segmentOf([types]), 1)[0][0];
+        expect(pick([TerrainType.Grass, TerrainType.Brick])).toBe(TerrainType.Brick);
+        expect(pick([TerrainType.Gravel, TerrainType.Brick])).toBe(TerrainType.Brick);
+        expect(pick([TerrainType.Brick, TerrainType.Water])).toBe(TerrainType.Water);
+        expect(pick([TerrainType.Brick, TerrainType.Dirt])).toBe(TerrainType.Dirt);
+    });
+
     it('upscales a segment smaller than the preview', () => {
         const pixels = summarizeSegmentTerrain(segmentOf(filled(22, TerrainType.Rock)), 24);
         expect(pixels).toHaveLength(24);
@@ -52,5 +62,15 @@ describe('generateSegmentPreviewSvg', () => {
         const svg = generateSegmentPreviewSvg(segmentOf(terrain));
         expect(svg).toContain(`<rect x="0" y="5" width="24" height="1" fill="${TERRAIN_PROPERTIES[TerrainType.Water].color}"/>`);
         expect(svg.match(/<rect/g)).toHaveLength(2);
+    });
+
+    it('draws Brick in its own colour, distinct from Rock', () => {
+        const terrain = filled(24, TerrainType.Grass);
+        terrain[3] = Array<TerrainType>(24).fill(TerrainType.Brick);
+        terrain[4] = Array<TerrainType>(24).fill(TerrainType.Rock);
+        const svg = generateSegmentPreviewSvg(segmentOf(terrain));
+        expect(TERRAIN_PROPERTIES[TerrainType.Brick].color).not.toBe(TERRAIN_PROPERTIES[TerrainType.Rock].color);
+        expect(svg).toContain(`<rect x="0" y="3" width="24" height="1" fill="${TERRAIN_PROPERTIES[TerrainType.Brick].color}"/>`);
+        expect(svg).toContain(`<rect x="0" y="4" width="24" height="1" fill="${TERRAIN_PROPERTIES[TerrainType.Rock].color}"/>`);
     });
 });

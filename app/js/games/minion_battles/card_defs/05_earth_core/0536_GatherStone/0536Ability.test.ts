@@ -83,6 +83,8 @@ function makeEngine(opts: {
             isInBounds: (col: number, row: number) => col >= 0 && row >= 0 && col < width && row < height,
             isIntactRockAt: (col: number, row: number) =>
                 col >= 0 && row >= 0 && col < width && row < height && types.get(`${col},${row}`) === TerrainType.Rock,
+            canSourceAffectRockAt: (col: number, row: number) =>
+                col >= 0 && row >= 0 && col < width && row < height && types.get(`${col},${row}`) === TerrainType.Rock,
             damageRock,
             getRockHealth: (col: number, row: number) => health.get(`${col},${row}`) ?? STONE_HEALTH,
             getRockMaxHealth: () => STONE_HEALTH,

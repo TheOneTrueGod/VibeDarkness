@@ -152,6 +152,8 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         buffs: unit.buffs.map((b) => b.toJSON()),
         // Instance sense grants (research, abilities). Omitted when empty so old checkpoints stay unchanged.
         ...(unit.senseGrants.length > 0 ? { senseGrants: unit.senseGrants.map((g) => ({ ...g })) } : {}),
+        // Gated-terrain access (Brick). Omitted when empty so old checkpoints stay unchanged.
+        ...(unit.terrainAccess.size > 0 ? { terrainAccess: [...unit.terrainAccess].sort() } : {}),
         // Local clock (see game/time/AGENTS.md). Omitted until the engine starts it, and timeDebt when 0.
         ...(unit.localClockActive ? { localTime: unit.localTime } : {}),
         ...(unit.timeDebt !== 0 ? { timeDebt: unit.timeDebt } : {}),

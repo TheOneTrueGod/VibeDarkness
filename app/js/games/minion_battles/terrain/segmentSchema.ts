@@ -8,6 +8,7 @@ export const AUTHORED_TERRAIN_TYPES: readonly number[] = [
     TerrainType.Grass,
     TerrainType.ThickGrass,
     TerrainType.Rock,
+    TerrainType.Brick,
     TerrainType.Gravel,
     TerrainType.ShallowWater,
     TerrainType.Water,

@@ -81,13 +81,13 @@ export function strikeTerrainDetailed(
         };
     }
 
-    // Pre-check intact rock: damageRock returns null unless a crack tier changes or the rock is
-    // destroyed, so its return value cannot say whether a tile was struck. isIntactRockAt is false
-    // out of bounds, so edge-of-map voids never count.
+    // Pre-check intact rock the caster may affect: damageRock returns null unless a crack tier changes
+    // or the rock is destroyed, so its return value cannot say whether a tile was struck. The check is
+    // false out of bounds (edge-of-map voids never count) and on gated variants (Brick) without access.
     const struck: TileCoord[] = [];
     let rockDamaged = 0;
     for (const tile of tiles) {
-        if (!tm.isIntactRockAt(tile.col, tile.row)) continue;
+        if (!tm.canSourceAffectRockAt(tile.col, tile.row, caster.id)) continue;
         const before = tm.getRockHealth(tile.col, tile.row);
         const maxHealth = tm.getRockMaxHealth(tile.col, tile.row);
         tm.damageRock(tile.col, tile.row, effect.amount, caster.id);

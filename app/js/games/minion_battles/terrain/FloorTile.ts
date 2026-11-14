@@ -5,7 +5,7 @@
  * destructibility (`destructible`). Destroyed rock becomes Rubble (passable).
  */
 
-import { TerrainType } from './TerrainType';
+import { baseTerrainOf, canUnitAffectTerrain, TerrainType, type TerrainAccessId } from './TerrainType';
 import {
     DEFAULT_ROCK_DESTRUCTIBLE_KIND,
     EARTH_CORE_STONE_HEALTH,
@@ -68,14 +68,24 @@ export function getEffectiveTerrain(floor: FloorTile | null | undefined, bedrock
     return floor?.terrainType ?? bedrock;
 }
 
-/** True when rock is intact (impassable stone for gameplay). */
+/**
+ * True when rock is intact (impassable stone for gameplay). Rock variants (Brick) count: this asks
+ * what the terrain is, not whether anyone may change it (see `canUnitAffectTerrain`).
+ */
 export function isIntactRock(effective: TerrainType, destructible?: DestructibleState): boolean {
-    return effective === TerrainType.Rock && (!destructible || destructible.health > 0);
+    return baseTerrainOf(effective) === TerrainType.Rock && (!destructible || destructible.health > 0);
 }
 
-/** Earth Core alias — "on stone" checks (excludes Rubble and destroyed rock). */
-export function isOnStone(effective: TerrainType, destructible?: DestructibleState): boolean {
-    return isIntactRock(effective, destructible);
+/**
+ * Earth Core "on stone" check: intact rock the actor may draw on. Excludes Rubble, destroyed rock,
+ * and gated variants (Brick) unless `access` holds their gate. No access passes only plain Rock.
+ */
+export function isOnStone(
+    effective: TerrainType,
+    destructible?: DestructibleState,
+    access?: ReadonlySet<TerrainAccessId> | null,
+): boolean {
+    return isIntactRock(effective, destructible) && canUnitAffectTerrain(effective, access);
 }
 
 /** No crack overlay — intact rock at full health or destroyed (rubble is separate). */
@@ -104,10 +114,10 @@ export function defaultRockDestructible(maxHealth: number = EARTH_CORE_STONE_HEA
     };
 }
 
-/** Copy bedrock into a new floor tile; attach rock destructible when bedrock is Rock. */
+/** Copy bedrock into a new floor tile; attach rock destructible when bedrock is Rock (or a Rock variant). */
 export function floorTileFromBedrock(bedrock: TerrainType, maxHealth: number = EARTH_CORE_STONE_HEALTH): FloorTile {
     const tile: FloorTile = { terrainType: bedrock };
-    if (bedrock === TerrainType.Rock) {
+    if (baseTerrainOf(bedrock) === TerrainType.Rock) {
         tile.destructible = defaultRockDestructible(maxHealth);
     }
     return tile;

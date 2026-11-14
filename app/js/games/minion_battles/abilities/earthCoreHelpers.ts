@@ -1,6 +1,6 @@
 import { EARTH_CORE_SHARED_DIAMETER } from '../card_defs/05_earth_core/earthCoreConstants';
 import { getEffectiveTerrain, isOnStone as isOnStoneTile, type DestructibleState, type FloorTile } from '../terrain/FloorTile';
-import { TerrainType } from '../terrain/TerrainType';
+import type { TerrainAccessId, TerrainType } from '../terrain/TerrainType';
 
 /**
  * Shared radius derived from Earth Core's gameplay diameter (in tile units).
@@ -10,11 +10,15 @@ export function getEarthCoreSharedRadiusTiles(): number {
 }
 
 /**
- * True when effective terrain counts as "on stone" for Earth Core (intact rock).
- * Rubble and destroyed rock are excluded.
+ * True when effective terrain counts as "on stone" for Earth Core (intact rock the actor may draw on).
+ * Rubble and destroyed rock are excluded; gated variants (Brick) count only with `access`.
  */
-export function isOnStone(effectiveTerrainType: TerrainType, destructible?: DestructibleState): boolean {
-    return isOnStoneTile(effectiveTerrainType, destructible);
+export function isOnStone(
+    effectiveTerrainType: TerrainType,
+    destructible?: DestructibleState,
+    access?: ReadonlySet<TerrainAccessId> | null,
+): boolean {
+    return isOnStoneTile(effectiveTerrainType, destructible, access);
 }
 
 /**
@@ -74,15 +78,16 @@ export interface StoneQueryTerrain {
 /**
  * True when a unit stands on intact stone (its tile's effective terrain, floor layer included, is
  * intact rock). The shared "on stone" check for Earth Core damage riders (Earthern Punch, Anchored
- * Tremor). Rubble and destroyed rock do not count; no terrain manager means no stone.
+ * Tremor). Rubble and destroyed rock do not count; no terrain manager means no stone. Gated variants
+ * (Brick) count only when the unit's `terrainAccess` holds their gate.
  */
 export function isUnitOnStone(
     terrain: StoneQueryTerrain | null | undefined,
-    unit: { x: number; y: number },
+    unit: { x: number; y: number; terrainAccess?: ReadonlySet<TerrainAccessId> },
 ): boolean {
     if (!terrain) return false;
     const cell = terrain.grid.worldToGrid(unit.x, unit.y);
     const floor = terrain.getFloorTile(cell.col, cell.row);
     const effective = getEffectiveTerrain(floor, terrain.grid.get(cell.col, cell.row));
-    return isOnStone(effective, floor?.destructible);
+    return isOnStone(effective, floor?.destructible, unit.terrainAccess);
 }

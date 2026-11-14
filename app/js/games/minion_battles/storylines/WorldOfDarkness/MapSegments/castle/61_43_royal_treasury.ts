@@ -11,9 +11,9 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
-const R = TerrainType.Rock;
 const SW = TerrainType.ShallowWater;
 const W = TerrainType.Water;
 
@@ -33,18 +33,18 @@ export const SEGMENT_61_43_ROYAL_TREASURY: CastleSegment = {
         [SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, G, G, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, G, G, G, G, G, G, G, G, G, G, G, G, R, R, R, R, R],
-        [R, R, R, R, R, G, G, G, G, G, G, G, G, G, G, G, G, R, R, R, R, R],
-        [R, R, R, R, R, G, G, R, D, D, D, D, D, G, R, G, G, R, R, R, R, R],
-        [R, R, R, R, R, G, G, G, D, D, D, D, D, G, G, G, G, R, R, R, R, R],
-        [R, R, R, R, R, G, G, G, D, D, D, D, D, G, G, G, G, R, R, R, R, R],
-        [R, R, R, R, R, G, G, G, D, D, D, D, D, G, G, G, G, R, R, R, R, R],
-        [R, R, R, R, R, G, G, G, D, D, D, D, D, G, G, G, G, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, D, R, R, R, R, R, R, R, R, R, R, R],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B],
+        [B, B, B, B, B, B, B, B, B, B, G, G, B, B, B, B, B, B, B, B, B, B],
+        [B, B, B, B, B, G, G, G, G, G, G, G, G, G, G, G, G, B, B, B, B, B],
+        [B, B, B, B, B, G, G, G, G, G, G, G, G, G, G, G, G, B, B, B, B, B],
+        [B, B, B, B, B, G, G, B, D, D, D, D, D, G, B, G, G, B, B, B, B, B],
+        [B, B, B, B, B, G, G, G, D, D, D, D, D, G, G, G, G, B, B, B, B, B],
+        [B, B, B, B, B, G, G, G, D, D, D, D, D, G, G, G, G, B, B, B, B, B],
+        [B, B, B, B, B, G, G, G, D, D, D, D, D, G, G, G, G, B, B, B, B, B],
+        [B, B, B, B, B, G, G, G, D, D, D, D, D, G, G, G, G, B, B, B, B, B],
+        [B, B, B, B, B, B, B, B, B, B, D, B, B, B, B, B, B, B, B, B, B, B],
     ],
     pointsOfInterest: [
         // Back of the vault.

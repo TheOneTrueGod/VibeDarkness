@@ -10,8 +10,14 @@
 
 import type { MissionScript, StoryChoiceCopy } from '../missionScript';
 import { STORY_BACKGROUNDS } from '../../games/minion_battles/assets/story';
-import type { PostMissionStoryDef } from '../../games/minion_battles/storylines/storyTypes';
+import type { DialoguePhrase, PostMissionStoryDef } from '../../games/minion_battles/storylines/storyTypes';
 import {
+    CASTLE_ICE_HOUSE_EAT_HUNGER_RECOVERY,
+    CASTLE_ICE_HOUSE_HUNGER_RECOVERY,
+    CASTLE_ICE_HOUSE_PACK_VIGOR,
+    CASTLE_STOREROOMS_EAT_HUNGER_RECOVERY,
+    CASTLE_STOREROOMS_HUNGER_RECOVERY,
+    CASTLE_STOREROOMS_SALVAGE_METAL,
     FOUND_BERRIES_EAT_HUNGER_RECOVERY,
     FOUND_BERRIES_KEEP_VIGOR,
     REQUIRES_EARTH_CORE_LABEL,
@@ -47,6 +53,17 @@ export const SWARMLING_NEST_NAME = 'Swarmling Nest';
 export const SWARMLING_NEST_OBJECTIVE_LABEL = 'Destroy the nest';
 export const QUEST_PUSH_NORTH_NAME = 'Push North';
 export const QUEST_PUSH_NORTH_OBJECTIVE_LABEL = 'Reach the northern path';
+export const CASTLE_STOREROOMS_CHOICE_ID = 'castle_storerooms_choice';
+export const CASTLE_STOREROOMS_OPTION_EAT = 'eat_salt_meat';
+export const CASTLE_STOREROOMS_OPTION_SALVAGE = 'salvage_stores';
+export const CASTLE_ICE_HOUSE_CHOICE_ID = 'castle_ice_house_choice';
+export const CASTLE_ICE_HOUSE_OPTION_EAT = 'eat_cold_stores';
+export const CASTLE_ICE_HOUSE_OPTION_PACK = 'pack_cold_stores';
+
+/** One narrator line by the campfire (quest-mission story beats). */
+function narratorLine(text: string): DialoguePhrase {
+    return { type: 'dialogue', speakerId: '1', text, portraitSide: 'left', backgroundImage: STORY_BACKGROUNDS.campfire };
+}
 
 /** In-battle lines as each corrupted crystal recovers, in round order. */
 export const QUEST_CRYSTAL_RECOVERY_LINES = [
@@ -289,6 +306,105 @@ export const questScripts = {
                     choiceId: SURFACE_METAL_CHOICE_ID,
                     backgroundImage: STORY_BACKGROUNDS.surfaceMetalDeposit,
                     options: [],
+                },
+            ],
+        },
+    },
+    // TODO(story): placeholder copy for the chapter 3 scavenging quests (Raid the Larder, Forage the Garden).
+    quest_castle_guardhouse: {
+        name: 'The West Guardhouse',
+        description: 'Cross the sparring pit and fight through the guardhouse beside the gate.',
+        objectives: {
+            reach_exit: 'Reach the storeroom door',
+        },
+        preMissionStory: {
+            phrases: [narratorLine('The castle had to feed its guards somehow. Past the sparring pit, the west guardhouse leads to the stores.')],
+        },
+    },
+    quest_castle_storerooms: {
+        name: 'The Storerooms',
+        description: 'Search the storerooms inside the south wall for anything still worth eating.',
+        objectives: {
+            search_west: 'Search the west storeroom',
+            search_middle: 'Search the salt meat store',
+        },
+        preMissionStory: {
+            phrases: [narratorLine('Crates line the storerooms, most of them smashed open. Something has been eating here.')],
+        },
+        postMissionStory: {
+            phrases: [
+                narratorLine('Under the broken crates you find a cask of salt meat, still sealed, and a rack of old tools.'),
+                { type: 'recover_hunger_auto', amount: CASTLE_STOREROOMS_HUNGER_RECOVERY },
+                {
+                    type: 'choice',
+                    choiceId: CASTLE_STOREROOMS_CHOICE_ID,
+                    backgroundImage: STORY_BACKGROUNDS.campfire,
+                    options: [
+                        {
+                            id: CASTLE_STOREROOMS_OPTION_EAT,
+                            label: 'Eat the Salt Meat',
+                            loreTitle: 'Eat the Salt Meat',
+                            loreDescription: 'Salty, but filling.',
+                            action: { type: 'recover_hunger', amount: CASTLE_STOREROOMS_EAT_HUNGER_RECOVERY },
+                        },
+                        {
+                            id: CASTLE_STOREROOMS_OPTION_SALVAGE,
+                            label: 'Strip the Stores',
+                            loreTitle: 'Strip the Stores',
+                            loreDescription: 'Hinges, nails and hoops. Metal is metal.',
+                            action: { type: 'grant_resources', metal: CASTLE_STOREROOMS_SALVAGE_METAL },
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    quest_castle_herb_beds: {
+        name: 'The Herb Beds',
+        description: 'Forage the overgrown herb beds and the orchard on the way to the ice house.',
+        objectives: {
+            search_herb_beds: 'Forage the north herb beds',
+            search_fruit_trees: 'Gather fruit in the orchard',
+            reach_exit: 'Reach the ice house door',
+        },
+        preMissionStory: {
+            phrases: [narratorLine('The garden has run wild, but wild things still grow. Somewhere past the orchard is the ice house.')],
+        },
+    },
+    quest_castle_ice_house: {
+        name: 'The Ice House',
+        description: 'Find what the castle kept cold in the ice house.',
+        objectives: {
+            search_west: 'Search the west cold store',
+            search_east: 'Search the east cold store',
+        },
+        preMissionStory: {
+            phrases: [narratorLine('The ice house is cold even now. The blocks have kept something down here.')],
+        },
+        postMissionStory: {
+            phrases: [
+                narratorLine('Packed in straw behind the ice are jars of preserved fruit and smoked fish. Enough for everyone.'),
+                { type: 'recover_hunger_auto', amount: CASTLE_ICE_HOUSE_HUNGER_RECOVERY },
+                {
+                    type: 'choice',
+                    choiceId: CASTLE_ICE_HOUSE_CHOICE_ID,
+                    backgroundImage: STORY_BACKGROUNDS.campfire,
+                    options: [
+                        {
+                            id: CASTLE_ICE_HOUSE_OPTION_EAT,
+                            label: 'Eat Your Fill',
+                            loreTitle: 'Eat Your Fill',
+                            loreDescription: 'It will not keep forever.',
+                            action: { type: 'recover_hunger', amount: CASTLE_ICE_HOUSE_EAT_HUNGER_RECOVERY },
+                        },
+                        {
+                            id: CASTLE_ICE_HOUSE_OPTION_PACK,
+                            label: 'Pack the Stores',
+                            loreTitle: 'Pack the Stores',
+                            loreDescription: 'Carry it back for the days ahead.',
+                            action: { type: 'grant_resources', vigor: CASTLE_ICE_HOUSE_PACK_VIGOR },
+                        },
+                    ],
                 },
             ],
         },

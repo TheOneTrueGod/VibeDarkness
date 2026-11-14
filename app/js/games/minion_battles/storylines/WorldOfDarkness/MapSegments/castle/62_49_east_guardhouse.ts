@@ -10,6 +10,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
@@ -22,18 +23,18 @@ export const SEGMENT_62_49_EAST_GUARDHOUSE: CastleSegment = {
     gridRow: 49,
     description: 'Guard post beside the main gate. Sentries kept watch from here, checked everyone entering, and stored the arms used to defend the gate.',
     terrain: [
-        [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
-        [R, G, G, G, G, G, G, R, G, D, D, D, D, G, G, G, G, G, G, G, G, R],
-        [R, G, R, R, R, G, G, R, G, G, D, D, D, G, G, G, G, G, G, G, G, R],
-        [R, G, G, G, G, G, G, R, G, G, D, D, D, G, G, G, G, G, G, G, D, R],
-        [R, G, G, G, G, G, G, R, G, G, D, D, D, R, R, R, G, G, G, D, D, D],
-        [R, G, G, G, G, G, G, R, G, G, D, D, D, R, R, R, D, D, D, D, D, D],
-        [R, G, G, G, G, G, G, G, G, G, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, G, G, G, G, G, G, G, G, G, D, D, D, D, D, D, D, D, D, D, D, R],
-        [R, G, G, G, G, G, G, R, G, G, G, G, G, G, G, G, G, G, G, G, G, R],
-        [R, R, R, R, R, G, R, R, R, R, R, R, R, R, R, R, G, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+        [B, B, B, B, B, B, B, B, B, B, D, D, B, B, B, B, B, B, B, B, B, B],
+        [B, G, G, G, G, G, G, B, G, D, D, D, D, G, G, G, G, G, G, G, G, B],
+        [B, G, B, B, B, G, G, B, G, G, D, D, D, G, G, G, G, G, G, G, G, B],
+        [B, G, G, G, G, G, G, B, G, G, D, D, D, G, G, G, G, G, G, G, D, B],
+        [B, G, G, G, G, G, G, B, G, G, D, D, D, B, B, B, G, G, G, D, D, D],
+        [B, G, G, G, G, G, G, B, G, G, D, D, D, B, B, B, D, D, D, D, D, D],
+        [B, G, G, G, G, G, G, G, G, G, D, D, D, D, D, D, D, D, D, D, D, B],
+        [B, G, G, G, G, G, G, G, G, G, D, D, D, D, D, D, D, D, D, D, D, B],
+        [B, G, G, G, G, G, G, B, G, G, G, G, G, G, G, G, G, G, G, G, G, B],
+        [B, B, R, R, R, G, R, R, B, B, B, B, B, B, B, B, G, B, B, B, B, B],
+        [B, B, R, R, R, R, R, R, B, B, B, B, B, B, B, B, B, B, B, B, B, B],
+        [B, B, R, R, R, R, R, R, B, B, B, B, B, B, B, B, B, B, B, B, B, B],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
         [SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW],

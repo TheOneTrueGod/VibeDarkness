@@ -38,6 +38,26 @@ Ground/air overlays: `game/GameRenderer/renderers/TerrainEffectRenderer.ts` and 
 
 **Draining water:** `TerrainManager.drainWater(col, row, fraction, sourceUnitId?)` is the counterpart of `damageRock`. A water tile's remaining water is a lazily created floor `destructible` of kind `WATER_DESTRUCTIBLE_KIND` (health `WATER_TILE_HEALTH` = 1; `fraction` is health removed). At 0 the tile drops one level through `lowerWaterLevel` (deep -> water -> shallow -> **dirt**: a drained puddle, unlike `raiseGround`'s gravel) and its water resets; at most one level per call. A level drop bumps `navEpoch` (pathfinding, terrain repaint) and emits `terrain_water_drained` (`TerrainWaterDrainedTransition`; AI path interrupts listen to it like `terrain_stone_damaged`). Partial drains return the transition but emit nothing. Stone on a part-drained tile rewrites the floor, so the new level starts full.
 
+## Terrain variants
+
+A variant is its own `TerrainType` (append only, never renumber: checkpoints store the numbers) that behaves as a base type. Two optional `TerrainProperties` fields drive it:
+
+- `variantOf` - the base type (Brick -> Rock). Copy the base's gameplay properties; only name, colour and the gate differ.
+- `access` - a `TerrainAccessId` a unit needs to **mutate or draw on** the tile. Omit for no gate.
+
+Two helpers in `TerrainType.ts` answer the two questions. Never compare to `TerrainType.Rock` directly in gameplay code.
+
+| Question | Helper | Used by |
+|---|---|---|
+| What is this terrain? | `baseTerrainOf(type)`, `terrainListIncludes(list, type)` | `isIntactRock`, `floorTileFromBedrock`, collision lists (`collidesWithTerrain: [Rock]` stops at Brick), `blockedOn` (`ROCK_AND_WATER_TERRAIN`), `rockHitsToBreak`, Rock Slide spawn tiles, preview priority, rock render paths |
+| May this actor change or use it? | `canUnitAffectTerrain(type, access)`, `terrainListIncludesForActor(list, type, access)`, `TerrainManager.canSourceAffectRockAt / canSourceAffectTerrainAt` | `damageRock*`, `destroyRock`, `consumeRockInRadius`, `createOrMarkRock`, `isOnStone` / `isUnitOnStone` / tremorsense stone count, `TerrainStrike`, Rock Slide picks, stonephase `canTraverse`, `IntervalEmitter.terrainCondition` (Digging Claws debris) |
+
+**The unit gate.** `Unit.terrainAccess: Set<TerrainAccessId>` is instance state (research grants it before battle; not on the def), serialized when non-empty, with `grantTerrainAccess` / `hasTerrainAccess`. `TerrainManager` looks units up through `setTerrainAccessResolver`, which the `GameEngine.terrainManager` setter wires (`unitId -> unit.terrainAccess`). Mutation APIs take a `sourceUnitId`; on gated terrain a source without access, an unknown source, or **no source** is refused (null, no change). Collision, blocking, vision, light and pathing ignore the gate. Without access Brick is indestructible rock; with access it is exactly Rock (same health, crack tiers, breaks into Gravel), and it keeps `terrainType: Brick` until it breaks. Test harness: `spawnTinyPlayerUnit` / `placePlayerAndDummy` / `placePlayerFromLoadout` take `terrainAccess: ['brick']`.
+
+**Rendering.** A hard-edge variant gets its own `LAYER_ORDER` entry (Brick straight after Rock) and joins its base through `hardEdgeFamily` so shared edges draw no seam. `hardEdgePattern` (Brick: `'running-bond'`) adds a surface overlay in `HardEdgeLayerRenderer`, clipped to the chamfered core; pattern constants sit at the top of that file. Crack overlays come from `floorTileVisualFor` (`game/GameRenderer/floorTileVisualDefs.ts`), which matches `baseTerrainOf(type) === Rock` and keys the cache per type. Tooling: `AUTHORED_TERRAIN_TYPES`, `TerrainTypePicker`, `TERRAIN_COLORS`, `SEGMENT_PREVIEW_PRIORITY` (same as the base) and ascii (`'B'` / `B`).
+
+**Future variants fit without new checks.** Flowers: `variantOf: Grass`, no `access`; abilities that care read `type === Flowers`. River: `variantOf: ShallowWater` plus a future push property. Neither is built yet.
+
 ## Thorns (def-driven)
 
 Thorn-style ground hazards (`bramble_slow`, `dark_thorn`) share one rule set: `TerrainEffectDef.thorns` in `game/terrainEffects/terrainEffectDefs.ts` (`hurts` creature filter, `enterDamage`, `landDamage`, `uses`). `game/terrainEffects/thorns.ts` (`triggerThorns`) applies it from `tileTransitions.ts` `onEnter` / `onLand`; there is no standing DoT. Both are `blockedOn: ROCK_AND_WATER_TERRAIN`: `TerrainLayerManager.add` skips rock/water cells (via the effective-terrain resolver `TerrainManager.setTerrainLayers` wires), and `TerrainManager.writeFloorTile` (every floor write) wipes them when a cell becomes rock or water. To add a variant: add a def entry with `thorns`, add a visual entry in `game/GameRenderer/terrainEffectDefs.ts`, and never rename existing effect-type strings (checkpoints store them).

@@ -16,3 +16,4 @@ export * from './edgeOpenings';
 export * from './seamCheck';
 export * from './chokepoints';
 export * from './lightCoverage';
+export * from './segmentBlock';

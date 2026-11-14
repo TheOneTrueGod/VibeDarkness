@@ -86,6 +86,9 @@ import {
     COURTYARD_NORTHEAST,
     COURTYARD_SOUTHWEST,
     COURTYARD_SOUTHEAST,
+    COURTYARD_WEST_DOOR,
+    COURTYARD_EAST_DOOR,
+    COURTYARD_ENTRY_SOUTH,
     CASTLE_COURTYARD_NETWORK,
 } from './MapSegments/61_48_castle_courtyard';
 import {
@@ -339,6 +342,9 @@ export function registerWorldOfDarknessSegments(): void {
         { id: 'courtyard_northeast', label: 'Courtyard Northeast', col: COURTYARD_NORTHEAST.col, row: COURTYARD_NORTHEAST.row, type: 'enemySpawn' },
         { id: 'courtyard_southwest', label: 'Courtyard Southwest', col: COURTYARD_SOUTHWEST.col, row: COURTYARD_SOUTHWEST.row, type: 'enemySpawn' },
         { id: 'courtyard_southeast', label: 'Courtyard Southeast', col: COURTYARD_SOUTHEAST.col, row: COURTYARD_SOUTHEAST.row, type: 'enemySpawn' },
+        { id: '61_48_west_door',     label: 'West Door',           col: COURTYARD_WEST_DOOR.col,     row: COURTYARD_WEST_DOOR.row,     type: 'generic' },
+        { id: '61_48_east_door',     label: 'East Door',           col: COURTYARD_EAST_DOOR.col,     row: COURTYARD_EAST_DOOR.row,     type: 'generic' },
+        { id: '61_48_entry_south',   label: 'Entry: South',        col: COURTYARD_ENTRY_SOUTH.col,   row: COURTYARD_ENTRY_SOUTH.row,   type: 'generic', tags: ['entry'] },
     ];
     registerSegment({
         ...tsTerrainToSegmentData(

@@ -1,8 +1,8 @@
 /**
  * 62_43 Observatory - part of the castle around the 61_49 gate (see castle/index.ts for the plan).
  *
- * Round observatory room inside the north wall with the telescope mount in the middle; joins the
- * north wall walk to the garden.
+ * Round observatory room inside the north wall with the telescope mount in the middle, on the
+ * north wall walk.
  * No light spots unless listed in the POIs: the castle is meant to be dark.
  * Generated with terrain/mapTools-style painting on one castle-wide canvas, so seams always line up.
  */
@@ -11,6 +11,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
@@ -33,18 +34,18 @@ export const SEGMENT_62_43_OBSERVATORY: CastleSegment = {
         [SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, G, G, G, G, G, G, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, G, G, G, G, G, G, G, G, G, G, R, R, R, R, R, R],
-        [R, R, R, R, R, G, G, G, G, G, G, G, G, G, G, G, G, R, R, R, R, R],
-        [R, G, G, G, G, G, G, G, G, G, R, R, G, G, G, D, D, D, D, D, D, D],
-        [R, G, G, G, G, G, G, G, G, G, R, R, G, G, D, D, D, D, D, D, D, D],
-        [R, R, R, R, R, G, G, G, G, D, D, D, D, D, D, D, D, R, R, R, R, R],
-        [R, R, R, R, R, R, G, G, G, D, D, D, D, D, D, D, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, G, D, D, D, D, D, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, R, R, R, R, R, R, B, B, B],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, R, R, R, R, R, R, B, B, B],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, R, R, R, R, R, R, B, B, B],
+        [B, B, B, B, B, B, B, B, G, G, G, G, G, G, B, B, B, B, B, B, B, B],
+        [B, B, B, B, B, B, G, G, G, G, G, G, G, G, G, G, B, B, B, B, B, B],
+        [B, B, B, B, B, G, G, G, G, G, G, G, G, G, G, G, G, B, B, B, B, B],
+        [B, G, G, G, G, G, G, G, G, G, B, B, G, G, G, D, D, D, D, D, D, D],
+        [B, G, G, G, G, G, G, G, G, G, B, B, G, G, D, D, D, D, D, D, D, D],
+        [B, B, B, B, B, G, G, G, G, D, D, D, D, D, D, D, D, B, B, B, B, B],
+        [B, B, B, B, B, B, G, G, G, D, D, D, D, D, D, D, B, B, B, B, B, B],
+        [B, B, B, B, B, B, B, B, G, D, D, D, D, D, B, B, B, B, B, B, B, B],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B],
     ],
     pointsOfInterest: [
         // North of the telescope mount.

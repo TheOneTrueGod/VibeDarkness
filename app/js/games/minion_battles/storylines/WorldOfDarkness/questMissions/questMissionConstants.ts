@@ -61,6 +61,27 @@ export const SWARMLING_SOURCE_COMPLETION_ATTUNEMENT = 15;
 export const SWARMLING_SOURCE_COMPLETION_METAL = 15;
 export const SWARMLING_SOURCE_COMPLETION_VIGOR = 5;
 
+/** Tag for chapter 3 castle quests (kept off the plains Surface Quests pickers). */
+export const LOCATION_CASTLE_TAG = 'location:castle';
+
+/** Raid the Larder — Hunger every player recovers after the storerooms. */
+export const CASTLE_STOREROOMS_HUNGER_RECOVERY = 10;
+/** Raid the Larder — "Eat the salt meat" recovers this much more Hunger (chooser). */
+export const CASTLE_STOREROOMS_EAT_HUNGER_RECOVERY = 10;
+/** Raid the Larder — "Strip the stores for metal" Campaign Reward (chooser). */
+export const CASTLE_STOREROOMS_SALVAGE_METAL = 3;
+/** Raid the Larder quest completion Campaign Rewards. */
+export const RAID_THE_LARDER_COMPLETION_METAL = 3;
+
+/** Forage the Garden — Hunger every player recovers after the ice house. */
+export const CASTLE_ICE_HOUSE_HUNGER_RECOVERY = 10;
+/** Forage the Garden — "Eat the cold stores" recovers this much more Hunger (chooser). */
+export const CASTLE_ICE_HOUSE_EAT_HUNGER_RECOVERY = 10;
+/** Forage the Garden — "Pack the cold stores" Campaign Reward (chooser). */
+export const CASTLE_ICE_HOUSE_PACK_VIGOR = 2;
+/** Forage the Garden quest completion Campaign Rewards. */
+export const FORAGE_THE_GARDEN_COMPLETION_VIGOR = 3;
+
 /** Location card ids for quest rewards. */
 export const FOUND_BERRIES_LOCATION_CARD_ID = 1;
 export const SURFACE_METAL_DEPOSIT_LOCATION_CARD_ID = 2;

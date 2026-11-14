@@ -3,7 +3,7 @@
  *
  * South half: grass approach with the road (cols 10-11) arriving from 61_50, then a 3-row moat
  * (Water rows 12-13, Shallow Water row 14 on the outer bank) crossed by a 2-wide dirt bridge; anything knocked off the bridge drowns.
- * Rows 9-11: 3-thick Rock curtain wall with a 2-wide gate (cols 10-11) — the medium chokepoint. Gate towers (rows 6-8) extend the gate passage on the inside. North half: Dirt gate
+ * Rows 9-11: 3-thick Brick curtain wall with a 2-wide gate (cols 10-11) — the medium chokepoint. Gate towers (rows 6-8) extend the gate passage on the inside. North half: Dirt gate
  * yard with two buildings against the side walls; side walls (cols 0-1 / 20-21) continue into
  * 61_48. No light spots: the castle is meant to be dark.
  * Painted with terrain/mapTools (fillRect, paintRoad) plus a mirror helper.
@@ -14,29 +14,29 @@ import type { MapSegmentNetwork } from '../../../terrain/networkSchema';
 import type { MapSegmentZone } from '../../../terrain/segmentSchema';
 
 const _ = TerrainType.Grass;
-const R = TerrainType.Rock;
-const T = TerrainType.ThickGrass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
-const W = TerrainType.Water;
 const SW = TerrainType.ShallowWater;
+const T = TerrainType.ThickGrass;
+const W = TerrainType.Water;
 
 export const CASTLE_GATE_SEGMENT_ID = '61_49_castle_gate';
 export const CASTLE_GATE_GRID_COL = 61;
 export const CASTLE_GATE_GRID_ROW = 49;
 
 export const MAP_SEGMENT_61_49_CASTLE_GATE: TerrainType[][] = [
-    [R, R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R, R],
-    [R, R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R, R],
-    [R, R, R, R, R, R, D, D, D, D, D, D, D, D, D, D, R, R, R, R, R, R],
-    [R, R, R, R, R, R, D, D, D, D, D, D, D, D, D, D, R, R, R, R, R, R],
-    [R, R, R, R, R, R, D, D, D, D, D, D, D, D, D, D, R, R, R, R, R, R],
-    [R, R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R, R],
-    [R, R, D, D, D, D, D, R, R, R, D, D, R, R, R, D, D, D, D, D, R, R],
-    [R, R, D, D, D, D, D, R, R, R, D, D, R, R, R, D, D, D, D, D, R, R],
-    [R, R, D, D, D, D, D, R, R, R, D, D, R, R, R, D, D, D, D, D, R, R],
-    [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
-    [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
-    [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
+    [B, B, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, B],
+    [B, B, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, B],
+    [B, B, B, B, B, B, D, D, D, D, D, D, D, D, D, D, B, B, B, B, B, B],
+    [B, B, B, B, B, B, D, D, D, D, D, D, D, D, D, D, B, B, B, B, B, B],
+    [B, B, B, B, B, B, D, D, D, D, D, D, D, D, D, D, B, B, B, B, B, B],
+    [B, B, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, B],
+    [B, B, D, D, D, D, D, B, B, B, D, D, B, B, B, D, D, D, D, D, B, B],
+    [B, B, D, D, D, D, D, B, B, B, D, D, B, B, B, D, D, D, D, D, B, B],
+    [B, B, D, D, D, D, D, B, B, B, D, D, B, B, B, D, D, D, D, D, B, B],
+    [B, B, B, B, B, B, B, B, B, B, D, D, B, B, B, B, B, B, B, B, B, B],
+    [B, B, B, B, B, B, B, B, B, B, D, D, B, B, B, B, B, B, B, B, B, B],
+    [B, B, B, B, B, B, B, B, B, B, D, D, B, B, B, B, B, B, B, B, B, B],
     [W, W, W, W, W, W, W, W, W, W, D, D, W, W, W, W, W, W, W, W, W, W],
     [W, W, W, W, W, W, W, W, W, W, D, D, W, W, W, W, W, W, W, W, W, W],
     [SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, D, D, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW],

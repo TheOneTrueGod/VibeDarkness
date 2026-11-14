@@ -720,7 +720,31 @@ export interface CampaignChapterDef {
     adminOnly?: boolean;
     /** Horizontal section dividers drawn across this chapter's Mission Map (e.g. above side quests). */
     mapDividers?: CampaignMapDividerDef[];
+    /** Picture drawn under this chapter's Mission Map dividers, edges and nodes. */
+    mapBackground?: CampaignMapBackgroundDef;
 }
+
+/**
+ * Mission Map background drawn from registered map segments: the block of world-grid addresses
+ * `col0..col0+cols-1` x `row0..row0+rows-1`, one `tilePx` square per segment, with the top-left of
+ * `(col0, row0)` at map-space `(originX, originY)`. Addresses with no registered segment draw nothing.
+ * Built by `ui/components/CharacterEditor/MissionMap/segmentGridBackground.ts`.
+ */
+export interface SegmentGridMapBackgroundDef {
+    kind: 'segmentGrid';
+    col0: number;
+    row0: number;
+    cols: number;
+    rows: number;
+    tilePx: number;
+    originX: number;
+    originY: number;
+    /** Group opacity of the whole background (default `SEGMENT_GRID_BACKGROUND_DEFAULT_OPACITY`). */
+    opacity?: number;
+}
+
+/** Every Mission Map background kind (only segment grids so far). */
+export type CampaignMapBackgroundDef = SegmentGridMapBackgroundDef;
 
 /** A full-width purple rule on the Mission Map, with an optional small subheader beneath it. */
 export interface CampaignMapDividerDef {

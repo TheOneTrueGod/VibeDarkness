@@ -7,7 +7,7 @@ Storyline content for campaign id `world_of_darkness`: main-path missions, map s
 | Path | Owns |
 |------|------|
 | `WorldOfDarkness.ts` | `StorylineDef` (edges, start mission, `questSlotBanks`). |
-| `missions/` | Main campaign (and side-mission) battle/story defs. |
+| `missions/` | Main campaign (and side-mission) battle/story defs. Chapter 3 castle missions are built with `missions/castle/` (see its `AGENTS.md`). |
 | `quests/` | QuestDefs for this campaign. See `quests/AGENTS.md`. |
 | `questMissions/` | Missions authored for quest runs / random-story bags. |
 | `MapSegments/` | Terrain segments stitched into missions. |

@@ -23,9 +23,9 @@ import { HardEdgeLayerRenderer } from './HardEdgeLayerRenderer';
 /**
  * Render order: layers are drawn bottom to top so higher-priority
  * terrain types paint over lower ones.
- * Rock last so grass/thick grass edges do not paint over stone.
+ * Rock and its variants last so grass/thick grass edges do not paint over stone.
  */
-const LAYER_ORDER: TerrainType[] = [
+export const LAYER_ORDER: readonly TerrainType[] = [
     TerrainType.Grass,
     TerrainType.ThickGrass,
     TerrainType.Dirt,
@@ -34,6 +34,7 @@ const LAYER_ORDER: TerrainType[] = [
     TerrainType.DeepWater,
     TerrainType.Gravel,
     TerrainType.Rock,
+    TerrainType.Brick,
 ];
 
 function cellKey(col: number, row: number): string {

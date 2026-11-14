@@ -20,6 +20,17 @@ import type { HeldConjuredWeaponState } from '../conjuredWeapons/registry';
 import { readActorAnimation } from '../animation/actorAnimation';
 import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
 import { parseSenseGrantsFromJSON } from '../visibility/senses';
+import { TERRAIN_PROPERTIES, type TerrainAccessId } from '../../terrain/TerrainType';
+
+/** Every `TerrainProperties.access` gate, so unknown ids in a checkpoint are dropped. */
+const KNOWN_TERRAIN_ACCESS_IDS: ReadonlySet<string> = new Set(
+    Object.values(TERRAIN_PROPERTIES).flatMap((p) => (p.access ? [p.access] : [])),
+);
+
+function parseTerrainAccessFromJSON(raw: unknown): Set<TerrainAccessId> {
+    if (!Array.isArray(raw)) return new Set();
+    return new Set(raw.filter((id): id is TerrainAccessId => typeof id === 'string' && KNOWN_TERRAIN_ACCESS_IDS.has(id)));
+}
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -184,6 +195,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     const buffsData = (data.buffs as BuffSerialized[] | undefined) ?? [];
     unit.buffs = buffsData.map((b) => buffFromJSON(b));
     unit.senseGrants = parseSenseGrantsFromJSON(data.senseGrants);
+    unit.terrainAccess = parseTerrainAccessFromJSON(data.terrainAccess);
     if (typeof data.localTime === 'number') {
         unit.localTime = data.localTime;
         unit.localClockActive = true;

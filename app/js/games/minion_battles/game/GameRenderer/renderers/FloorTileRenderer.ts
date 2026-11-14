@@ -1,19 +1,12 @@
 import { Assets, Container, Sprite, Texture } from 'pixi.js';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { TerrainType } from '../../../terrain/TerrainType';
-import { DAMAGE_TIER_NONE, getDamageTier } from '../../../terrain/FloorTile';
-import { DEFAULT_ROCK_DESTRUCTIBLE_KIND } from '../../../card_defs/05_earth_core/earthCoreConstants';
 import type { GameEngine } from '../../GameEngine';
-import { ROCK_FLOOR_VISUAL_TIERS, RUBBLE_FLOOR_VISUAL } from '../floorTileVisualDefs';
+import { floorTileVisualFor } from '../floorTileVisualDefs';
 
 const Z_FLOOR_TILES = 5;
 
 function cellKey(col: number, row: number): string {
     return `${col},${row}`;
-}
-
-function visualCacheKey(col: number, row: number, terrainType: TerrainType, tier: number): string {
-    return `${col},${row}:${terrainType}:${tier}`;
 }
 
 export class FloorTileRenderer {
@@ -36,25 +29,11 @@ export class FloorTileRenderer {
         const activeKeys = new Set<string>();
 
         for (const { col, row, tile } of entries) {
-            if (tile.terrainType === TerrainType.Gravel) {
-                const key = cellKey(col, row);
-                activeKeys.add(key);
-                const cacheKey = visualCacheKey(col, row, TerrainType.Gravel, 0);
-                this.ensureCellVisual(key, col, row, cacheKey, RUBBLE_FLOOR_VISUAL.svgString);
-                continue;
-            }
-
-            if (tile.terrainType !== TerrainType.Rock) continue;
-            if (tile.destructible?.kind !== DEFAULT_ROCK_DESTRUCTIBLE_KIND) continue;
-
-            const tier = getDamageTier(tile.destructible);
+            const visual = floorTileVisualFor(col, row, tile);
+            if (!visual) continue;
             const key = cellKey(col, row);
-            if (tier === DAMAGE_TIER_NONE) continue;
             activeKeys.add(key);
-            const tierDef = ROCK_FLOOR_VISUAL_TIERS[tier - 1];
-            if (!tierDef) continue;
-            const cacheKey = visualCacheKey(col, row, TerrainType.Rock, tier);
-            this.ensureCellVisual(key, col, row, cacheKey, tierDef.svgString);
+            this.ensureCellVisual(key, col, row, visual.cacheKey, visual.def.svgString);
         }
 
         for (const [key, visual] of this.cellVisuals) {

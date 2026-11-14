@@ -2,8 +2,8 @@
  * 61_44 Throne Room - part of the castle around the 61_49 gate (see castle/index.ts for the plan).
  *
  * Boss arena. Two colonnades of 2x2 pillars, a grass carpet up to a raised dais and the throne.
- * 1-wide side doors to the royal guard hall and the garden; a secret 1-wide door behind the throne
- * leads to the royal treasury.
+ * No side doors: the chasm bridge (61_45) is the only way in. A secret 1-wide door behind the
+ * throne leads to the royal treasury.
  * No light spots unless listed in the POIs: the castle is meant to be dark.
  * Generated with terrain/mapTools-style painting on one castle-wide canvas, so seams always line up.
  */
@@ -12,9 +12,9 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
-const R = TerrainType.Rock;
 
 export const SEGMENT_61_44_THRONE_ROOM: CastleSegment = {
     id: '61_44_throne_room',
@@ -22,32 +22,32 @@ export const SEGMENT_61_44_THRONE_ROOM: CastleSegment = {
     gridRow: 44,
     description: 'The formal hall where the ruler sat in state to receive envoys, hear petitions and pass judgement. The throne stands on a raised platform at the far end.',
     terrain: [
-        [R, R, R, R, R, R, R, R, R, R, D, R, R, R, R, R, R, R, R, R, R, R],
-        [R, G, G, G, G, G, _, _, _, _, _, _, _, _, _, _, G, G, G, G, G, R],
-        [R, G, G, G, G, G, _, _, _, _, _, _, _, _, _, _, G, G, G, G, G, R],
-        [R, G, G, G, G, G, _, _, _, _, R, R, _, _, _, _, G, G, G, G, G, R],
-        [R, G, G, G, G, G, _, _, _, _, _, _, _, _, _, _, G, G, G, G, G, R],
-        [R, G, G, R, R, G, _, _, _, _, _, _, _, _, _, _, G, R, R, G, G, R],
-        [R, G, G, R, R, G, G, D, D, D, _, _, D, G, G, G, G, R, R, G, G, R],
-        [R, G, G, G, G, G, G, G, D, D, _, _, D, G, G, G, G, G, G, G, G, R],
-        [R, G, G, G, G, G, G, G, D, D, _, _, D, G, G, G, G, G, G, G, G, R],
-        [R, G, G, G, G, G, G, G, D, D, _, _, D, G, G, G, G, G, G, G, G, R],
-        [R, G, D, R, R, D, D, D, D, D, _, _, D, D, D, D, D, R, R, D, G, R],
-        [R, D, D, R, R, D, D, D, D, D, _, _, D, D, D, D, D, R, R, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, _, _, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, _, _, D, D, D, D, D, D, D, D, D, R],
-        [R, D, D, D, D, D, D, D, D, D, _, _, D, D, D, D, D, D, D, D, D, R],
-        [D, D, D, R, R, D, G, G, D, D, _, _, D, G, G, G, D, R, R, D, D, D],
-        [R, D, D, R, R, G, G, G, D, D, _, _, D, G, G, G, G, R, R, D, D, R],
-        [R, D, D, D, G, G, G, G, D, D, _, _, D, G, G, G, G, G, D, D, D, R],
-        [R, G, G, G, G, G, G, G, D, D, _, _, D, G, G, G, G, G, G, G, G, R],
-        [R, G, G, G, G, G, G, G, D, D, _, _, D, D, G, G, G, G, G, G, G, R],
-        [R, G, G, G, G, G, G, G, D, D, _, _, D, D, G, G, G, G, G, G, G, R],
-        [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
+        [B, B, B, B, B, B, B, B, B, B, D, B, B, B, B, B, B, B, B, B, B, B],
+        [B, G, G, G, G, G, _, _, _, _, _, _, _, _, _, _, G, G, G, G, G, B],
+        [B, G, G, G, G, G, _, _, _, _, _, _, _, _, _, _, G, G, G, G, G, B],
+        [B, G, G, G, G, G, _, _, _, _, B, B, _, _, _, _, G, G, G, G, G, B],
+        [B, G, G, G, G, G, _, _, _, _, _, _, _, _, _, _, G, G, G, G, G, B],
+        [B, G, G, B, B, G, _, _, _, _, _, _, _, _, _, _, G, B, B, G, G, B],
+        [B, G, G, B, B, G, G, D, D, D, _, _, D, G, G, G, G, B, B, G, G, B],
+        [B, G, G, G, G, G, G, G, D, D, _, _, D, G, G, G, G, G, G, G, G, B],
+        [B, G, G, G, G, G, G, G, D, D, _, _, D, G, G, G, G, G, G, G, G, B],
+        [B, G, G, G, G, G, G, G, D, D, _, _, D, G, G, G, G, G, G, G, G, B],
+        [B, G, D, B, B, D, D, D, D, D, _, _, D, D, D, D, D, B, B, D, G, B],
+        [B, D, D, B, B, D, D, D, D, D, _, _, D, D, D, D, D, B, B, D, D, B],
+        [B, D, D, D, D, D, D, D, D, D, _, _, D, D, D, D, D, D, D, D, D, B],
+        [B, D, D, D, D, D, D, D, D, D, _, _, D, D, D, D, D, D, D, D, D, B],
+        [B, D, D, D, D, D, D, D, D, D, _, _, D, D, D, D, D, D, D, D, D, B],
+        [B, D, D, B, B, D, G, G, D, D, _, _, D, G, G, G, D, B, B, D, D, B],
+        [B, D, D, B, B, G, G, G, D, D, _, _, D, G, G, G, G, B, B, D, D, B],
+        [B, D, D, D, G, G, G, G, D, D, _, _, D, G, G, G, G, G, D, D, D, B],
+        [B, G, G, G, G, G, G, G, D, D, _, _, D, G, G, G, G, G, G, G, G, B],
+        [B, G, G, G, G, G, G, G, D, D, _, _, D, D, G, G, G, G, G, G, G, B],
+        [B, G, G, G, G, G, G, G, D, D, _, _, D, D, G, G, G, G, G, G, G, B],
+        [B, B, B, B, B, B, B, B, B, B, D, D, B, B, B, B, B, B, B, B, B, B],
     ],
     pointsOfInterest: [
         // In front of the throne.
-        { id: '61_44_throne', label: 'Throne', col: 10, row: 4, type: 'generic' },
+        { id: '61_44_throne', label: 'Throne', col: 10, row: 4, type: 'generic', tags: ['boss'] },
         // On the carpet, mid-hall.
         { id: '61_44_throne_hall', label: 'Throne Hall', col: 10, row: 14, type: 'patrol_point' },
         // Dark-crystal light spot, west of the dais.
@@ -58,6 +58,8 @@ export const SEGMENT_61_44_THRONE_ROOM: CastleSegment = {
         { id: '61_44_throne_colonnade_west', label: 'West Colonnade', col: 1, row: 8, type: 'enemySpawn' },
         // Behind the east colonnade.
         { id: '61_44_throne_colonnade_east', label: 'East Colonnade', col: 20, row: 8, type: 'enemySpawn' },
+        // On the carpet just inside the bridge door: where the king's-court mission starts.
+        { id: '61_44_entry_south', label: 'Entry: South', col: 10, row: 20, type: 'generic', tags: ['entry'] },
     ],
     network: {
         nodes: [{ id: '61_44_center', position: { kind: 'gridPoint', col: 10, row: 12 }, tags: ['castle'] }],

@@ -31,4 +31,11 @@ describe('ascii', () => {
     it('writes segment-file rows', () => {
         expect(terrainToTsRows(terrainFromAscii('#.,"'))).toBe('    [R, D, _, T],');
     });
+
+    it('prints, parses and writes Brick as B', () => {
+        const terrain = terrainFromAscii('B#B%');
+        expect(terrain[0]).toEqual([TerrainType.Brick, TerrainType.Rock, TerrainType.Brick, TerrainType.Gravel]);
+        expect(terrainToAscii(terrain)).toBe('B#B%');
+        expect(terrainToTsRows(terrain)).toBe('    [B, R, B, G],');
+    });
 });

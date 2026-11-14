@@ -334,6 +334,8 @@ export class GameEngine implements EngineContext {
         this.state.terrainManager = v;
         if (v) {
             v.setCrystalProtectionProvider(() => this.state.specialTileManager.getCrystalProtectionMap());
+            // Gated terrain (Brick) asks the source unit for access; see `Unit.terrainAccess`.
+            v.setTerrainAccessResolver((unitId) => this.getUnit(unitId)?.terrainAccess ?? null);
         }
     }
 
