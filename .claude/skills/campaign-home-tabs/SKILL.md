@@ -53,6 +53,7 @@ The local debugging accounts (Lomith and LomithTwo, see **playwright-e2e** "Loca
 |-----|-----|------------|
 | Ideas → Storybook | `/campaign/ideas/storybook/:entryId` | Eyeballing real UI components with live controls (resource cost badges and bars, research cards and tree colours). Good for checking a visual change without starting a battle. Extend it with new entries, e.g. ability cards or research-tree effects; see `minionBattlesHomePage/Ideas/storybook/AGENTS.md`. |
 | Bestiary | `/campaign/bestiary` | Viewing every enemy and its abilities. |
+| Mission Overview | `/campaign/mission-overview/:missionId` | A mission's real map at tick 0: drag to pan, scroll to zoom, a light-layer toggle to see what the players can see lit, overlay toggles (trigger zones, objective areas, enemy spawn areas, other triggered effects), and a **Spawns & triggers** popover with starting enemies, spawns per round, continuous and triggered spawns, +HP and +damage per round, and a player-count selector. Use it to judge mission layouts, spawns and boss encounters without playing. Data: `storylines/missionOverview/AGENTS.md`. |
 | Ability Test | `/campaign/ability-test` | Running ability scenarios live (see **ability-tests**). |
 | Lobby Archive | `/campaign/lobby-archive` | Read-only past lobbies: game state, lobby log, user states, performance. |
 | Ideas → Plans / Ideas | `/campaign/ideas/plans`, `/campaign/ideas/ideas` | Browser plans and the ideas backlog. |

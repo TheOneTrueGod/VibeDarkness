@@ -154,6 +154,11 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			});
 	}
 
+	/** Base damage per hit (before modifiers); read by damage-per-round estimates. */
+	getDamage(): number {
+		return this.config.damage;
+	}
+
 	getTooltipText(gameState?: unknown): string[] {
 		const base = this.config.damage;
 		const template = this.config.tooltipText.includes('{{DAMAGE}}')

@@ -194,6 +194,11 @@ export const GaolersHookAbility_1201: AbilityStatic = defineAbility({
 
     renderActivePreview: renderHookTelegraph,
 
+    /** Base damage per hit (before modifiers); read by damage-per-round estimates. */
+    getDamage(): number {
+        return GAOLERS_HOOK_DAMAGE;
+    },
+
     getTooltipText(): string[] {
         return [
             `Winds up, then hurls a hooked chain up to {${GAOLERS_HOOK_RANGE_PX}} px. The first enemy hit takes {${GAOLERS_HOOK_DAMAGE}} damage and is dragged to the Warden's feet.`,

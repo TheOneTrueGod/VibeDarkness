@@ -260,6 +260,11 @@ const _base: AbilityStatic = defineAbility({
             getBoundUnits(ctx.getUnits(), caster, COURT_CRYSTAL_ID).length >= 2,
     },
     getRange: () => ({ minRange: 0, maxRange: CRYSTAL_LASER_AI_RANGE }),
+    /** Base damage per hit (before modifiers); read by damage-per-round estimates. */
+    getDamage(): number {
+        return CRYSTAL_LASER_PULSE_DAMAGE;
+    },
+
     getTooltipText(): string[] {
         return [
             'Enraged only. Stop time and draw every crystal into a wall, then fire one great laser for half a round',

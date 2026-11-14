@@ -221,6 +221,11 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 			.withClearNoteOnEnd(isLast);
 	}
 
+	/** Base damage per hit (before modifiers); read by damage-per-round estimates. */
+	getDamage(): number {
+		return this.config.damage;
+	}
+
 	getTooltipText(): string[] {
 		return [this.config.tooltipText];
 	}

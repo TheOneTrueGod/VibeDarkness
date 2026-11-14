@@ -1,6 +1,6 @@
 # Storylines — Agent Notes
 
-Campaign content lives under per-storyline folders (e.g. `WorldOfDarkness/` — see its `AGENTS.md`). QuestDefs for WoD are in `WorldOfDarkness/quests/` (`quests/AGENTS.md`); shared quest runtime is the `quest*.ts` modules in this folder.
+Campaign content lives under per-storyline folders (e.g. `WorldOfDarkness/` — see its `AGENTS.md`). QuestDefs for WoD are in `WorldOfDarkness/quests/` (`quests/AGENTS.md`); shared quest runtime is the `quest*.ts` modules in this folder. Read-only mission planning data (spawn summary, overlay shapes, preview engine) is in `missionOverview/` (see its `AGENTS.md`).
 
 ## Mission definition pattern
 

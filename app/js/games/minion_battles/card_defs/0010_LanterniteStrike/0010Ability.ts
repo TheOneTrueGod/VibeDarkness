@@ -78,6 +78,11 @@ export const LanterniteStrikeAbility: AbilityStatic = defineAbility({
     aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: MAX_DISTANCE }),
 
+    /** Base damage per hit (before modifiers); read by damage-per-round estimates. */
+    getDamage(): number {
+        return DAMAGE;
+    },
+
     getTooltipText(gameState?: unknown): string[] {
         return formatTooltipLegacyLines(
             TOOLTIP_LINES,

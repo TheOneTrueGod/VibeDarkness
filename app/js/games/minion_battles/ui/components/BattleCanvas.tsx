@@ -25,6 +25,11 @@ interface BattleCanvasProps {
     onCanvasRightClick?: (screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean) => void;
     /** Called when the mouse moves on the canvas (screen-space coords). */
     onCanvasMouseMove?: (screenX: number, screenY: number) => void;
+    /**
+     * Default true: the camera follows the local player's unit and zoom pivots on it. False for free-look
+     * views (Mission Overview): drag / keys pan freely and zoom pivots on the cursor or viewport centre.
+     */
+    followLocalPlayer?: boolean;
 }
 
 export default function BattleCanvas({
@@ -35,6 +40,7 @@ export default function BattleCanvas({
     onCanvasClick,
     onCanvasRightClick,
     onCanvasMouseMove,
+    followLocalPlayer = true,
 }: BattleCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -111,7 +117,7 @@ export default function BattleCanvas({
                 }
 
                 // Follow local player's unit
-                const playerUnit = engine.getLocalPlayerUnit();
+                const playerUnit = followLocalPlayer ? engine.getLocalPlayerUnit() : null;
                 if (playerUnit) {
                     camera.setFocusTarget(playerUnit.x, playerUnit.y, playerUnit.radius);
                     const debugPauseUntil = (window as unknown as { __minionBattlesDebugAutoFollowPausedUntil?: number })
@@ -159,7 +165,7 @@ export default function BattleCanvas({
             }
             clearResumeAutoFollowTimer();
         };
-    }, [engine, camera, renderer, targetingStateRef, clearResumeAutoFollowTimer]);
+    }, [engine, camera, renderer, targetingStateRef, clearResumeAutoFollowTimer, followLocalPlayer]);
 
     // Handle resize — only when size crosses a threshold to avoid flicker from small layout changes
     const lastBucketRef = useRef({ wBucket: -1, hBucket: -1 });
@@ -210,21 +216,21 @@ export default function BattleCanvas({
             }
             if (e.code === 'KeyT') {
                 e.preventDefault();
-                const pu = engine.getLocalPlayerUnit();
+                const pu = followLocalPlayer ? engine.getLocalPlayerUnit() : null;
                 const piv = pu ? camera.worldToScreen(pu.x, pu.y) : { x: camera.viewportWidth / 2, y: camera.viewportHeight / 2 };
                 camera.zoomIn(piv.x, piv.y);
                 autoFollowPausedUntilRef.current = Date.now() + 5000;
             }
             if (e.code === 'KeyG') {
                 e.preventDefault();
-                const pu = engine.getLocalPlayerUnit();
+                const pu = followLocalPlayer ? engine.getLocalPlayerUnit() : null;
                 const piv = pu ? camera.worldToScreen(pu.x, pu.y) : { x: camera.viewportWidth / 2, y: camera.viewportHeight / 2 };
                 camera.zoomOut(piv.x, piv.y);
                 autoFollowPausedUntilRef.current = Date.now() + 5000;
             }
             if (e.code === 'Home' || e.code === 'KeyH') {
                 e.preventDefault();
-                const pu = engine.getLocalPlayerUnit();
+                const pu = followLocalPlayer ? engine.getLocalPlayerUnit() : null;
                 if (pu) camera.snapTo(pu.x, pu.y);
                 camera.setZoomLevel(1.0);
                 autoFollowPausedUntilRef.current = 0;
@@ -242,7 +248,7 @@ export default function BattleCanvas({
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, [camera, engine]);
+    }, [camera, engine, followLocalPlayer]);
 
     // Scroll-wheel zoom — must be a native listener with passive:false to call preventDefault
     useEffect(() => {
@@ -250,7 +256,7 @@ export default function BattleCanvas({
         if (!canvas) return;
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
-            const pu = engine.getLocalPlayerUnit();
+            const pu = followLocalPlayer ? engine.getLocalPlayerUnit() : null;
             const piv = pu ? camera.worldToScreen(pu.x, pu.y) : { x: camera.viewportWidth / 2, y: camera.viewportHeight / 2 };
             if (e.deltaY < 0) camera.zoomIn(piv.x, piv.y);
             else camera.zoomOut(piv.x, piv.y);
@@ -258,7 +264,7 @@ export default function BattleCanvas({
         };
         canvas.addEventListener('wheel', handleWheel, { passive: false });
         return () => canvas.removeEventListener('wheel', handleWheel);
-    }, [camera, engine]);
+    }, [camera, engine, followLocalPlayer]);
 
     const handleContextMenu = useCallback(
         (e: React.MouseEvent<HTMLCanvasElement>) => {

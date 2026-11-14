@@ -52,6 +52,9 @@ import {
 } from '../performance/tickPerformanceTracker';
 import { presentPixiApplicationWithTiming } from './pixiPresentWithTiming';
 
+/** Above every renderer layer (the highest, map-network debug, is 200). */
+const Z_WORLD_OVERLAY = 1000;
+
 const NO_RAISED_UNITS: ReadonlySet<string> = new Set();
 
 export class GameRenderer {
@@ -80,6 +83,8 @@ export class GameRenderer {
 
 	/** Optional debug: draw a yellow outline around this unit. */
 	private debugUnitOutlineId: string | null = null;
+	/** Caller-owned world-space layer above everything else (planning / debug views). */
+	private worldOverlay: Container | null = null;
 
 	/** The team ID used to determine friend/foe glow colors. */
 	localTeamId: TeamId = 'player';
@@ -104,6 +109,15 @@ export class GameRenderer {
 	constructor() {
 		this.app = new Application();
 		this.gameContainer = new Container();
+	}
+
+	/**
+	 * Attach a caller-owned world-space layer drawn above every game layer, darkness included (e.g. the
+	 * Mission Overview's zone outlines). Pass null to detach. The caller draws into it and destroys it.
+	 */
+	setWorldOverlay(layer: Container | null): void {
+		if (this.worldOverlay && this.worldOverlay !== layer) this.worldOverlay.parent?.removeChild(this.worldOverlay);
+		this.worldOverlay = layer;
 	}
 
 	/** Set the debug unit outline target (or null to clear). */
@@ -268,6 +282,10 @@ export class GameRenderer {
 		realDt?: number,
 	): void {
 		if (!this.initialized) return;
+		if (this.worldOverlay && this.worldOverlay.parent !== this.gameContainer) {
+			this.worldOverlay.zIndex = Z_WORLD_OVERLAY;
+			this.gameContainer.addChild(this.worldOverlay);
+		}
 
 		tickPerformanceTracker.measure([PERF_UI, PERF_UI_CANVAS], () => {
 			if (engine !== this.eventBusSource) {

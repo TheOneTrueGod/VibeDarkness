@@ -72,6 +72,8 @@ this.gameContainer.y = -camera.y * camera.zoom + camera.viewportHeight / 2;
 
 **WASD/arrow keys:** use world-space speed directly; no zoom division needed.
 
+**Free look:** `BattleCanvas` `followLocalPlayer={false}` turns off auto-follow and pivots zoom on the viewport centre instead of the player (Mission Overview uses it).
+
 ## Input Wiring (BattleCanvas)
 
 | Input | Action |

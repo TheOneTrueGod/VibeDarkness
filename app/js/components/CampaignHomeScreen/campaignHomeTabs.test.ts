@@ -20,14 +20,14 @@ describe('campaignHomeTabs', () => {
         }
     });
 
-    it('shows Ability Test, Ideas, Bestiary and Lobby Archive to managers, and other staff tabs to admins only', () => {
+    it('shows Ability Test, Ideas, Bestiary, Lobby Archive and Mission Overview to managers, and other staff tabs to admins only', () => {
         const visibleTo = (viewer: CampaignHomeTabViewer) =>
             CAMPAIGN_HOME_TABS.filter((tab) => canViewCampaignHomeTab(tab.access, viewer)).map((tab) => tab.id);
         const user = visibleTo({ isAdmin: false, canViewManagerScreens: false });
         const manager = visibleTo({ isAdmin: false, canViewManagerScreens: true });
         const admin = visibleTo({ isAdmin: true, canViewManagerScreens: true });
 
-        expect(manager.filter((id) => !user.includes(id)).sort()).toEqual(['ability_test', 'bestiary', 'ideas', 'lobby_archive']);
+        expect(manager.filter((id) => !user.includes(id)).sort()).toEqual(['ability_test', 'bestiary', 'ideas', 'lobby_archive', 'mission_overview']);
         expect(admin).toEqual([...CAMPAIGN_TAB_IDS]);
     });
 });

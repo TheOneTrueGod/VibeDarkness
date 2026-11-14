@@ -157,6 +157,11 @@ const _base: AbilityStatic = defineAbility({
         canUse: (caster, ctx) => getBoundUnits(ctx.getUnits(), caster, COURT_CRYSTAL_ID).length > 0,
     },
     getRange: () => ({ minRange: 0, maxRange: SHARD_NOVA_AI_RANGE }),
+    /** Base damage per hit (before modifiers); read by damage-per-round estimates. */
+    getDamage(): number {
+        return SHARD_NOVA_DAMAGE;
+    },
+
     getTooltipText(): string[] {
         return [
             `Every crystal bursts into a ring of ${SHARD_NOVA_RING_COUNT} slow dark shards (${SHARD_NOVA_ENRAGED_RING_COUNT} when enraged), {${SHARD_NOVA_DAMAGE}} damage each`,

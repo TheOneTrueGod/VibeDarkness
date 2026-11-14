@@ -10,6 +10,7 @@ import { terrainEditorTab } from './CampaignHomeTerrainEditorTab';
 import { lobbyArchiveTab } from './CampaignHomeLobbyArchiveTab';
 import { ideasTab } from './CampaignHomeIdeasTab';
 import { bestiaryTab } from './CampaignHomeBestiaryTab';
+import { missionOverviewTab } from './CampaignHomeMissionOverviewTab';
 
 const TAB_DEFS: Record<TabId, CampaignHomeTabDef> = {
     welcome: welcomeTab,
@@ -22,6 +23,7 @@ const TAB_DEFS: Record<TabId, CampaignHomeTabDef> = {
     lobby_archive: lobbyArchiveTab,
     ideas: ideasTab,
     bestiary: bestiaryTab,
+    mission_overview: missionOverviewTab,
 };
 
 /** Tab bar order follows `CAMPAIGN_TAB_IDS`. */

@@ -1,6 +1,6 @@
-export type TabId = 'welcome' | 'campaign_summary' | 'join_mission' | 'players' | 'characters' | 'ability_test' | 'terrain_editor' | 'lobby_archive' | 'ideas' | 'bestiary';
+export type TabId = 'welcome' | 'campaign_summary' | 'join_mission' | 'players' | 'characters' | 'ability_test' | 'terrain_editor' | 'lobby_archive' | 'ideas' | 'bestiary' | 'mission_overview';
 
-export const CAMPAIGN_TAB_IDS: TabId[] = ['welcome', 'join_mission', 'characters', 'players', 'campaign_summary', 'terrain_editor', 'lobby_archive', 'ideas', 'bestiary', 'ability_test'];
+export const CAMPAIGN_TAB_IDS: TabId[] = ['welcome', 'join_mission', 'characters', 'players', 'campaign_summary', 'terrain_editor', 'mission_overview', 'lobby_archive', 'ideas', 'bestiary', 'ability_test'];
 
 /** URL path segment under `/campaign/:tabSlug`. 'players' and 'characters' use /players/* routes instead. */
 export const CAMPAIGN_TAB_SLUG: Record<TabId, string> = {
@@ -14,6 +14,7 @@ export const CAMPAIGN_TAB_SLUG: Record<TabId, string> = {
     lobby_archive: 'lobby-archive',
     ideas: 'ideas',
     bestiary: 'bestiary',
+    mission_overview: 'mission-overview',
 };
 
 const SLUG_TO_TAB = Object.fromEntries(
@@ -121,4 +122,10 @@ export function parseIdeasSubpath(subpath: string | undefined): { view: IdeasVie
     const [viewSlug, itemId] = (subpath ?? '').split('/').filter(Boolean);
     const view = (IDEAS_VIEW_IDS as readonly string[]).includes(viewSlug) ? (viewSlug as IdeasViewId) : null;
     return { view, itemId: itemId ?? null };
+}
+
+/** `/campaign/mission-overview/:missionId` — the read-only Mission Overview for one mission. */
+export function missionOverviewPath(missionId?: string | null): string {
+    const base = campaignPathForTab('mission_overview');
+    return missionId ? `${base}/${encodeURIComponent(missionId)}` : base;
 }

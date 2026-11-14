@@ -5,6 +5,7 @@ import {
     campaignHomePath,
     campaignPathForTab,
     ideasPath,
+    missionOverviewPath,
     parseIdeasSubpath,
     playerCharacterPath,
     playerCharactersPath,
@@ -62,6 +63,8 @@ describe('ideas tab paths', () => {
         expect(ideasPath('plans', '0001')).toBe('/campaign/ideas/plans/0001');
         expect(ideasPath('plans')).toBe('/campaign/ideas/plans');
         expect(ideasPath('storybook', 'resources')).toBe('/campaign/ideas/storybook/resources');
+        expect(missionOverviewPath('wod_001')).toBe('/campaign/mission-overview/wod_001');
+        expect(missionOverviewPath()).toBe('/campaign/mission-overview');
     });
 
     it('parses the view and item id after /campaign/ideas/', () => {

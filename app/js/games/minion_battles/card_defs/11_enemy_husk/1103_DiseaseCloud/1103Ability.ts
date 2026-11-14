@@ -175,6 +175,11 @@ export const DiseaseCloudAbility: AbilityStatic = defineAbility({
     },
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: DISEASE_CLOUD_TARGETING_RANGE }),
 
+    /** Base damage per hit (before modifiers); read by damage-per-round estimates. */
+    getDamage(): number {
+        return DISEASE_CLOUD_DAMAGE;
+    },
+
     getTooltipText(): string[] {
         return [
             `Lob {${DISEASE_CLOUD_PROJECTILE_COUNT}} globs in a line beside the target, each leaving a 3x3 cloud of miasma for {${DISEASE_CLOUD_DURATION_SEC}s} and dealing {${DISEASE_CLOUD_DAMAGE}} damage to enemies it lands on`,

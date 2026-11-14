@@ -4,10 +4,10 @@ import {
     getBestiaryFaction,
     getBestiaryUnitIds,
     getUnitDefEntry,
-    getUnitSpriteUrl,
 } from '../../games/minion_battles/game/units/unit_defs/unitDef';
 import { getAbility } from '../../games/minion_battles/abilities/AbilityRegistry';
 import PanelLayout from './PanelLayout';
+import UnitSpriteIcon from '../UnitSpriteIcon';
 
 type Faction = BestiaryFaction;
 
@@ -38,15 +38,7 @@ const FACTION_SECTIONS: { faction: Faction; label: string }[] = [
 const ICON_SIZE = 58;
 
 function UnitIcon({ id, size }: { id: EnemyUnitId; size: number }) {
-    const url = getUnitSpriteUrl(id);
-    if (!url) return <div style={{ width: size, height: size }} className="rounded bg-surface-light flex-shrink-0" />;
-    return (
-        <img
-            src={url}
-            alt=""
-            style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
-        />
-    );
+    return <UnitSpriteIcon characterId={id} size={size} />;
 }
 
 function BestiaryList({

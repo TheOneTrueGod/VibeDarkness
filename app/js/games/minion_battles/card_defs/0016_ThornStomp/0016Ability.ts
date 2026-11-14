@@ -176,6 +176,11 @@ export const ThornStompAbility: AbilityStatic = {
         ninjutsu: { ignore: true },
     },
 
+    /** Base damage per hit (before modifiers); read by damage-per-round estimates. */
+    getDamage(): number {
+        return BASE_DAMAGE;
+    },
+
     getTooltipText(): string[] {
         return [
             `Slam the ground beneath itself, dealing damage, {Knockback ${KNOCKBACK_TIER}}, and leaving bramble that slows movement`,

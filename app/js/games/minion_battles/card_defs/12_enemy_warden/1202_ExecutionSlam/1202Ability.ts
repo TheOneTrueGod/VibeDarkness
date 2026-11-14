@@ -182,6 +182,11 @@ export const ExecutionSlamAbility_1202: AbilityStatic = defineAbility({
 
     renderActivePreview: renderSlamTelegraph,
 
+    /** Base damage per hit (before modifiers); read by damage-per-round estimates. */
+    getDamage(): number {
+        return EXECUTION_SLAM_DAMAGE;
+    },
+
     getTooltipText(): string[] {
         return [
             `Heaves its shield overhead, then slams it down in front of itself: {${EXECUTION_SLAM_DAMAGE}} damage to each enemy in the blast.`,

@@ -153,6 +153,11 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         enforceRangeWhenUntargeted: true,
     },
 
+    /** Base damage per hit (before modifiers); read by damage-per-round estimates. */
+    getDamage(): number {
+        return BASE_DAMAGE;
+    },
+
     getTooltipText(): string[] {
         return [
             `Slam the ground, dealing damage, {Knockback ${KNOCKBACK_TIER}}, and leaving bramble that slows movement`,
