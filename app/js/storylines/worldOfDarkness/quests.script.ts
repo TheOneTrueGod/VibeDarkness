@@ -150,8 +150,7 @@ export const questScripts = {
         name: 'Thorn March',
         description: 'March through the thornwood and dismantle the nest at its heart before the swarm spreads.',
         objectives: {
-            establish_all_nests: 'Protect the plant-creatures as they build their network',
-            hold_the_line: 'Hold all three nests for 2 more rounds',
+            eliminate_all: 'Destroy all enemies',
         },
         preMissionStory: {
             phrases: [
@@ -179,15 +178,15 @@ export const questScripts = {
     // Quest copies. Dialogue stays on the parent mission; only the card title and blurb change.
     quest_ember_threshold: {
         name: 'Quest: Ember at the Threshold',
-        description: 'Quest variant of the threshold — follow the glowing scouts while the run is locked.',
+        description: 'Follow the glowing scouts.',
     },
     quest_thorn_march: {
         name: 'Quest: Thorn March',
-        description: 'Quest variant of the thornwood march — hold the glowing nests as a step in a locked run.',
+        description: 'Help the glowing nests expand their domain.',
     },
     quest_find_some_food: {
         name: 'Quest: Find some food',
-        description: 'Quest variant of the plains hunt — forage and fight for food while the run is locked.',
+        description: 'Forage and fight for food.',
     },
     quest_crystal_corruption: {
         name: 'Quest: Crystal Corruption',

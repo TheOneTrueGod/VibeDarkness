@@ -17,7 +17,8 @@
  * Lanternite build path:
  *   Pre-spawned nest in 49_51 (invulnerable) → scouts build nest in 49_52 → scouts build nest in 48_52.
  *
- * Victory: all three lanternite nests remain alive through round 8.
+ * Victory: eliminate all enemies. Destroying the swarm nest stops reinforcements, which lets the
+ * lanternites claim the third nest site.
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
@@ -210,24 +211,10 @@ export class ThornMarchMission extends BaseMissionDef {
 
     battleObjectives: BattleObjectiveDef[] = [
         {
-            id: 'establish_all_nests',
-            objectiveType: ObjectiveType.Protect,
-            label: questScripts.thorn_march.objectives.establish_all_nests,
-            toComplete: { type: 'aliveUnitCount', characterId: LANTERNITE_NEST_CHARACTER_ID, minCount: 3 },
-            onComplete: [{ type: 'revealObjective', id: 'hold_the_line' }],
-            showObjectiveMarker: {
-                enable: true,
-                target: { type: 'position', x: NEST_49_52_WORLD.x, y: NEST_49_52_WORLD.y },
-                showOffscreen: true,
-            },
-        },
-        {
-            id: 'hold_the_line',
-            objectiveType: ObjectiveType.Protect,
-            label: questScripts.thorn_march.objectives.hold_the_line,
-            revealedInitially: false,
-            requiresCompletedId: 'establish_all_nests',
-            toComplete: { type: 'atLeastRound', round: 8 },
+            id: 'eliminate_all',
+            objectiveType: ObjectiveType.EliminateAll,
+            label: questScripts.thorn_march.objectives.eliminate_all,
+            toComplete: { type: 'eliminateAllEnemies' },
         },
     ];
 
@@ -397,11 +384,12 @@ export class ThornMarchMission extends BaseMissionDef {
                 },
             ],
         },
-        // Victory: all three nests alive, checked every tick from round 8 onward (not one-shot).
+        // Victory: every enemy is dead. Reinforcements only spawn from swarm-owned nodes, so
+        // once the swarm nest is destroyed and the stragglers are cleared, nothing replaces them.
         {
             type: 'victoryCheck',
-            trigger: { afterRound: 8 },
-            conditions: [{ type: 'aliveUnitCount', characterId: LANTERNITE_NEST_CHARACTER_ID, minCount: 3 }],
+            trigger: { afterRound: 1 },
+            conditions: [{ type: 'eliminateAllEnemies' }],
         },
     ];
 

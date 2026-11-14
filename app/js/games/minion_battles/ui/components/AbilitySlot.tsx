@@ -325,7 +325,6 @@ export default function AbilitySlot({
                                 key={cost.resourceId}
                                 resourceId={cost.resourceId}
                                 amount={cost.amount}
-                                alwaysCompact={cost.resourceId === 'hp'}
                             />
                         ))}
                     </div>

@@ -1,15 +1,15 @@
 /**
  * ResourceCostIcon — shows the cost of an ability in resource tokens.
  *
- * Renders up to {@link RESOURCE_COST_STACKED_ICON_MAX} overlapping ResourceIcon discs
- * (right-to-left stacking). Higher costs use a compact pill: `10x <icon>`.
+ * Every resource (HP included) follows one rule: up to {@link RESOURCE_COST_STACKED_ICON_MAX}
+ * overlapping ResourceIcon discs (right-to-left stacking); higher costs use a compact pill: `3x <icon>`.
  */
 
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../../../resources/resourceDisplayDefs';
 import { ResourceIcon } from './ResourceIcon';
 
 /** Costs above this use the compact pill instead of repeated stacked icons. */
-export const RESOURCE_COST_STACKED_ICON_MAX = 4;
+export const RESOURCE_COST_STACKED_ICON_MAX = 2;
 /** Horizontal overlap between stacked resource / recovery charge icons (px). */
 export const STACKED_ICON_OVERLAP_PX = 8;
 
@@ -25,18 +25,12 @@ const RESOURCE_DEF_BY_ID = Object.fromEntries(
 interface ResourceCostIconProps {
     resourceId: string;
     amount: number;
-    /**
-     * Force the compact `Nx <icon>` pill even when `amount` is small enough for stacked
-     * icons. Use for costs that are rarely low (e.g. HP costs) so the card stays legible
-     * at a glance instead of switching layouts depending on the number.
-     */
-    alwaysCompact?: boolean;
 }
 
-export function ResourceCostIcon({ resourceId, amount, alwaysCompact = false }: ResourceCostIconProps) {
+export function ResourceCostIcon({ resourceId, amount }: ResourceCostIconProps) {
     if (amount <= 0) return null;
 
-    if (alwaysCompact || amount > RESOURCE_COST_STACKED_ICON_MAX) {
+    if (amount > RESOURCE_COST_STACKED_ICON_MAX) {
         const def = RESOURCE_DEF_BY_ID[resourceId];
         const color = def?.color ?? '#e5e7eb';
         return (

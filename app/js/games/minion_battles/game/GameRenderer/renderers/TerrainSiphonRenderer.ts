@@ -20,6 +20,8 @@ const Z_TERRAIN_SIPHON = 7;
 const RING_RADIUS = CELL_SIZE * 0.26;
 const RING_WIDTH = 3;
 const DROPLET_SIZE = 2.2;
+/** Opacity of the whole siphon layer; it is a background cue, so the ground shows through it. */
+const SIPHON_LAYER_ALPHA = 0.45;
 
 /**
  * Shows a unit drawing a resource out of the ground (`terrainSiphon`). Each tile it is drawing on gets a
@@ -37,6 +39,7 @@ export class TerrainSiphonRenderer {
         this.graphics.zIndex = Z_TERRAIN_SIPHON;
         this.graphics.label = 'terrainSiphon';
         this.graphics.eventMode = 'none';
+        this.graphics.alpha = SIPHON_LAYER_ALPHA;
         this.gameContainer.addChild(this.graphics);
     }
 
