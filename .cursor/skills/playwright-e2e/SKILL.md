@@ -28,6 +28,14 @@ Requires Chromium once: `npx playwright install chromium`. Stack: `npm run php` 
 
 The debugging account is `.env.playwright.local` (`PLAYWRIGHT_USERNAME` / `PLAYWRIGHT_PASSWORD`). Use it to log in while debugging the local app, in the browser or in Playwright. For multi-session browser testing, use the **session-testing** accounts (`testuser_a` / `testuser_b`). Use no other account. Leave the password in that file. Root `AGENTS.md` ("Live app debugging") points here.
 
+**Manager tabs.** The debugging account (Lomith) and the second jp-playtest player (LomithTwo) have the **Manager** role, so once logged in you can open these Campaign Home tabs and use them for testing (details: **campaign-home-tabs**, "Testing with the staff tabs"):
+- **Ideas → Storybook** (`/campaign/ideas/storybook`): real UI components side by side with live controls. Use it to eyeball visual changes.
+- **Bestiary** (`/campaign/bestiary`): every enemy and its abilities.
+- **Ability Test** (`/campaign/ability-test`): runs ability scenarios live with terrain previews.
+- **Lobby Archive** (`/campaign/lobby-archive`): read-only past lobbies, logs, user states and performance (clearing a log stays admin-only).
+
+The other staff tabs (Campaign Summary, Players, Terrain Editor) stay admin-only.
+
 ## Sandbox
 
 Chromium OS sandbox on; artifacts under `tmp/playwright/`; only localhost Vite/PHP origins; `file://` blocked. Specs must `import { test, expect } from './fixtures/sandboxed'`.

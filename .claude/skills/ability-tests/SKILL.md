@@ -10,7 +10,7 @@ description: >-
 
 ## What this system is
 
-Deterministic **scenario** objects build a small `GameEngine`, apply one batch of orders, then advance fixed ticks until pass, idle, terminal, or timeout. The **admin Ability Test** page runs several scenarios in parallel with mini terrain previews. **Vitest** can run the same scenarios headlessly via `runScenarioHeadless`.
+Deterministic **scenario** objects build a small `GameEngine`, apply one batch of orders, then advance fixed ticks until pass, idle, terminal, or timeout. The **Ability Test** page (`/campaign/ability-test`; admins and Managers, so the local debugging accounts can open it) runs several scenarios in parallel with mini terrain previews. **Vitest** can run the same scenarios headlessly via `runScenarioHeadless`.
 
 ## Where to look (source of truth)
 

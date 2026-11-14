@@ -24,6 +24,8 @@ Read **`.cursor/skills/playwright-e2e/SKILL.md`** when checking the running app 
 
 Log in with the helper account in `.env.playwright.local` only (`PLAYWRIGHT_USERNAME` / `PLAYWRIGHT_PASSWORD`). Those credentials are for local debugging, including browser login. Use no other account. Do not commit that file or copy the password into notes, chat, or source.
 
+That account is a **Manager**, so it can open the Ability Test, Ideas (including the Storybook), Bestiary and Lobby Archive tabs. Use them for testing: the Storybook for visual components, the Bestiary for enemies and their abilities. See **campaign-home-tabs** ("Testing with the staff tabs").
+
 ## Order-submission architecture
 
 In the **live game**, player orders flow through:

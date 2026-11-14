@@ -45,6 +45,18 @@ Tab ids, labels, and visibility live on each `CampaignHome*Tab.tsx` export (regi
 
 `AccountState.role` is `user` | `dm` | `manager` | `admin` (PHP `PlayerAccount::KNOWN_ROLES`). **Manager** sees the `'manager'` tabs read-only: `Permissions.VIEW_MANAGER_SCREENS` in `app/js/user/permissions.ts`, mirrored by `PlayerAccount::canViewManagerScreens()`, which also gates the read-only Lobby Archive endpoints (list, log, user-state index). Deletes stay admin-only. Grant a role by editing `role` in `storage/accounts/<id>.json` (ids in `accounts_index.json`).
 
+## Testing with the staff tabs
+
+The local debugging accounts (Lomith and LomithTwo, see **playwright-e2e** "Local login") are Managers. Log in through the browser pane and use these tabs while testing:
+
+| Tab | URL | Use it for |
+|-----|-----|------------|
+| Ideas → Storybook | `/campaign/ideas/storybook/:entryId` | Eyeballing real UI components with live controls (resource cost badges and bars, research cards and tree colours). Good for checking a visual change without starting a battle. Extend it with new entries, e.g. ability cards or research-tree effects; see `minionBattlesHomePage/Ideas/storybook/AGENTS.md`. |
+| Bestiary | `/campaign/bestiary` | Viewing every enemy and its abilities. |
+| Ability Test | `/campaign/ability-test` | Running ability scenarios live (see **ability-tests**). |
+| Lobby Archive | `/campaign/lobby-archive` | Read-only past lobbies: game state, lobby log, user states, performance. |
+| Ideas → Plans / Ideas | `/campaign/ideas/plans`, `/campaign/ideas/ideas` | Browser plans and the ideas backlog. |
+
 ## Terrain Editor tab
 
 The terrain-editor tab wraps `minionBattlesHomePage/TerrainEditor/TerrainEditorTab`. It depends on TypeScript-registered map segments at render time. Segments are registered synchronously at module load via `registerWorldOfDarknessSegments()` in `app/js/main.tsx` before `ReactDOM.createRoot(...)`.
