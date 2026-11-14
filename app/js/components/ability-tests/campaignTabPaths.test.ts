@@ -61,11 +61,13 @@ describe('ideas tab paths', () => {
         expect(ideasPath('ideas', '0003')).toBe('/campaign/ideas/ideas/0003');
         expect(ideasPath('plans', '0001')).toBe('/campaign/ideas/plans/0001');
         expect(ideasPath('plans')).toBe('/campaign/ideas/plans');
+        expect(ideasPath('storybook', 'resources')).toBe('/campaign/ideas/storybook/resources');
     });
 
     it('parses the view and item id after /campaign/ideas/', () => {
         expect(parseIdeasSubpath('plans/0001')).toEqual({ view: 'plans', itemId: '0001' });
         expect(parseIdeasSubpath('ideas')).toEqual({ view: 'ideas', itemId: null });
+        expect(parseIdeasSubpath('storybook/resources')).toEqual({ view: 'storybook', itemId: 'resources' });
         expect(parseIdeasSubpath('bogus/0001')).toEqual({ view: null, itemId: '0001' });
         expect(parseIdeasSubpath(undefined)).toEqual({ view: null, itemId: null });
     });

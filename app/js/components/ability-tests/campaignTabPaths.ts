@@ -104,12 +104,13 @@ export function isPlayerCampaignDataPath(pathname: string): boolean {
     return /^\/players\/[^/]+\/campaign-data\/?$/.test(pathname);
 }
 
-/** Sub-tabs of the admin Ideas tab. */
-export type IdeasViewId = 'ideas' | 'plans';
+/** Sub-tabs of the admin Ideas tab, in tab-bar order. */
+export const IDEAS_VIEW_IDS = ['plans', 'ideas', 'storybook'] as const;
+export type IdeasViewId = (typeof IDEAS_VIEW_IDS)[number];
 
-export const DEFAULT_IDEAS_VIEW: IdeasViewId = 'ideas';
+export const DEFAULT_IDEAS_VIEW: IdeasViewId = 'plans';
 
-/** `/campaign/ideas/:view/:itemId` — `itemId` is an idea category or plan id (e.g. `0001`). */
+/** `/campaign/ideas/:view/:itemId` — `itemId` is an idea category, plan id (e.g. `0001`) or storybook entry id. */
 export function ideasPath(view: IdeasViewId, itemId?: string | null): string {
     const base = `${campaignPathForTab('ideas')}/${view}`;
     return itemId ? `${base}/${itemId}` : base;
@@ -118,6 +119,6 @@ export function ideasPath(view: IdeasViewId, itemId?: string | null): string {
 /** Parses the part of the URL after `/campaign/ideas/` (e.g. `plans/0001`). Unknown views give `view: null`. */
 export function parseIdeasSubpath(subpath: string | undefined): { view: IdeasViewId | null; itemId: string | null } {
     const [viewSlug, itemId] = (subpath ?? '').split('/').filter(Boolean);
-    const view = viewSlug === 'ideas' || viewSlug === 'plans' ? viewSlug : null;
+    const view = (IDEAS_VIEW_IDS as readonly string[]).includes(viewSlug) ? (viewSlug as IdeasViewId) : null;
     return { view, itemId: itemId ?? null };
 }
