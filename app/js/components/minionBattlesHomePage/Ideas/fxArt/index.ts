@@ -3,11 +3,12 @@
  * their own file and spread them in here; ids are global, so prefix them with the tree.
  */
 import type { FxArtPiece } from './types';
+import { COURT_MAGICIAN_ART } from './courtMagicianArt';
 import { WATER_ART, WATER_ART_CSS } from './waterArt';
 
 export type { FxArtPiece, FxArtProps } from './types';
 
-const ALL_ART: FxArtPiece[] = [...WATER_ART];
+const ALL_ART: FxArtPiece[] = [...WATER_ART, ...COURT_MAGICIAN_ART];
 
 const BY_ID: ReadonlyMap<string, FxArtPiece> = new Map(ALL_ART.map((piece) => [piece.id, piece]));
 

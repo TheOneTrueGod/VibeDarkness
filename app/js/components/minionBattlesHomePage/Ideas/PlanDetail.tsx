@@ -10,6 +10,7 @@ import {
     type PlanListItem,
     type PlanSection,
     planItems,
+    planSectionAnchor,
 } from './plansData';
 import PalettePreview from './PalettePreview';
 import { FxPaletteCard, FxStudio, FxStudioProvider, type FxPalette } from './ParticleFxPreview';
@@ -218,7 +219,13 @@ function Section({
         case 'group':
             return (
                 <>
-                    <Block block={{ type: 'heading', level: 2, text: section.title }} />
+                    {section.section ? (
+                        <div id={planSectionAnchor(planId, section.title)} className="scroll-mt-28">
+                            <Block block={{ type: 'heading', level: 2, text: section.title }} />
+                        </div>
+                    ) : (
+                        <Block block={{ type: 'heading', level: 2, text: section.title }} />
+                    )}
                     {section.children.map((child, i) => {
                         const key = sectionKey(planId, child, i);
                         return <Section key={key} section={child} planId={planId} sectionId={key} openState={openState} />;

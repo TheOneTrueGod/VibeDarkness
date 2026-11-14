@@ -7,6 +7,7 @@ import {
     parsePlanDoc,
     parsePlanMarkdown,
     planItems,
+    planSections,
     PLANS,
 } from './plansData';
 
@@ -145,6 +146,28 @@ describe('plan items', () => {
             { kind: 'block', block: { type: 'rule' } },
             { kind: 'block', block: { type: 'paragraph', text: 'Outro' } },
         ]);
+    });
+});
+
+describe('sections', () => {
+    it('lists only the ## headings marked {section}, without the marker', () => {
+        const markdown = [
+            '# T',
+            '## Summary {section}',
+            'Text',
+            '## P0: Must do',
+            '### Item',
+            '## The Garden: boss {section}',
+        ].join('\n\n');
+        const doc = parsePlanDoc('0009', 'x', '2026-01-02', markdown);
+        expect(planSections(doc)).toEqual([
+            { title: 'Summary', anchor: 'plan-0009-section-summary' },
+            { title: 'The Garden: boss', anchor: 'plan-0009-section-the-garden-boss' },
+        ]);
+    });
+
+    it('leaves plans without markers with no sections', () => {
+        expect(planSections(parsePlanDoc('0001', 'x', '2026-01-02', '# T\n\n## P0\n\n### Item'))).toEqual([]);
     });
 });
 

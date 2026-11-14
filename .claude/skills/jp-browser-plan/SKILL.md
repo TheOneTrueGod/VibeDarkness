@@ -43,6 +43,7 @@ The parser is deliberately small. Stick to:
 - `#` title (once), `##` priority sections, `###` items. Deeper headings render but are rarely needed.
 - **Collapsible items:** each `###` heading and everything under it (up to the next `#`/`##`/`###` heading or `---`) renders as a collapsible item. Click the header to expand or collapse it.
 - **T-shirt size:** each item's `**Complexity:**` line sets the size badge at the right of its header, which stays visible while the item is collapsed: Low → **Sm** (green), Medium → **Md** (amber), Large → **Lg** (red). Only the first word after `**Complexity:**` counts. An item without the line gets no badge, and size filters never hide it.
+- **Sidebar sections:** end a `##` heading with `{section}` (as in `## The garden boss {section}`) to list it under its plan in the Plans sidebar once that plan is selected. Clicking the entry scrolls to the heading. The marker is optional, and a plan without it shows no sections. Use it for long plans whose `##` groups are topics (one per boss, say) rather than priorities.
 - **Completed items:** prefix the item title with `[x] `, as in `### [x] P0.2 Remove …`. The item then shows a green check to the left of its name and starts collapsed. Open items have no prefix and start expanded.
 - Paragraphs: consecutive lines join into one paragraph, and a blank line ends it.
 - `-` bullets. Indent by two spaces to nest. An indented non-bullet line continues the bullet above it.

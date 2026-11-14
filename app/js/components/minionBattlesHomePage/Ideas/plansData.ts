@@ -15,7 +15,7 @@ export interface PlanPaletteColor {
 /** A block-level element of a plan body. Inline `**bold**` / `` `code` `` stays in `text`. */
 export type PlanBlock =
     /** `done` is set when the heading starts with `[x]` (the marker is stripped from `text`). */
-    | { type: 'heading'; level: number; text: string; done?: true }
+    | { type: 'heading'; level: number; text: string; done?: true; section?: true }
     | { type: 'paragraph'; text: string }
     | { type: 'list'; items: PlanListItem[] }
     | { type: 'rule' }
@@ -84,6 +84,8 @@ const PALETTE_COLOR_RE = /^(primary|secondary):\s*(#[0-9a-fA-F]{6})\s*(.*)$/i;
 const QUOTE_RE = /^>\s?(.*)$/;
 const FX_OPTION_RE = /^(styles|subject|art):\s*(.+)$/i;
 const DONE_RE = /^\[x\]\s+(.*)$/i;
+/** A heading ending in `{section}` is listed under its plan in the Plans sidebar (see {@link planSections}). */
+const SECTION_RE = /^(.*?)\s*\{section\}$/;
 const FILE_RE = /(?:^|\/)(\d+)_(\d{4}-\d{2}-\d{2})_([^/]+)\.md$/;
 
 /** Splits `styles:` / `subject:` / `art:` lines out of an fx block body; the rest is the note. */
@@ -222,13 +224,17 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
         if (heading) {
             flushParagraph();
             flushList();
-            const text = heading[2].trim();
+            const marked = SECTION_RE.exec(heading[2].trim());
+            const text = marked ? marked[1] : heading[2].trim();
             const done = DONE_RE.exec(text);
-            blocks.push(
-                done
-                    ? { type: 'heading', level: heading[1].length, text: done[1], done: true }
-                    : { type: 'heading', level: heading[1].length, text },
-            );
+            const level = heading[1].length;
+            blocks.push({
+                type: 'heading',
+                level,
+                text: done ? done[1] : text,
+                ...(done ? { done: true as const } : {}),
+                ...(marked ? { section: true as const } : {}),
+            });
             continue;
         }
         const bullet = BULLET_RE.exec(line);
@@ -282,6 +288,8 @@ export interface PlanItem {
 export interface PlanGroup {
     kind: 'group';
     title: string;
+    /** Set when the heading ends in `{section}`: the group is listed under its plan in the sidebar. */
+    section?: true;
     children: (PlanItem | PlanLooseBlock)[];
 }
 
@@ -320,7 +328,7 @@ export function groupPlanSections(blocks: PlanBlock[]): PlanSection[] {
         if (isRule || (level != null && level <= 2)) group = null;
 
         if (block.type === 'heading' && block.level === 2) {
-            group = { kind: 'group', title: block.text, children: [] };
+            group = { kind: 'group', title: block.text, children: [], ...(block.section ? { section: true as const } : {}) };
             sections.push(group);
         } else if (block.type === 'heading' && block.level === 3) {
             item = { kind: 'item', title: block.text, done: block.done === true, size: null, blocks: [] };
@@ -377,6 +385,17 @@ export function filterPlanSections(
         out.push({ ...section, children });
     }
     return { sections: out, hiddenCount };
+}
+
+/** The groups a plan marks as sections (`## Title {section}`), in order, for the sidebar's jump list. */
+export function planSections(plan: Pick<PlanDoc, 'id' | 'sections'>): { title: string; anchor: string }[] {
+    return plan.sections.flatMap((s) => (s.kind === 'group' && s.section ? [{ title: s.title, anchor: planSectionAnchor(plan.id, s.title) }] : []));
+}
+
+/** DOM id of a section's heading, so the sidebar can scroll to it. */
+export function planSectionAnchor(planId: string, title: string): string {
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return `plan-${planId}-section-${slug}`;
 }
 
 /** Every item in the plan, in order. */
