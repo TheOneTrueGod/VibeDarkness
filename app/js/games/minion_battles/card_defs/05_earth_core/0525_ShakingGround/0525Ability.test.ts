@@ -32,6 +32,7 @@ function makeEngine(units: Unit[], intactRock: boolean) {
         terrainManager: {
             grid: { worldToGrid: () => ({ col: 2, row: 2 }) },
             isIntactRockAt: () => intactRock,
+            canSourceAffectRockAt: () => intactRock,
             damageRock,
             getRockHealth: () => 100,
             getRockMaxHealth: () => 100,

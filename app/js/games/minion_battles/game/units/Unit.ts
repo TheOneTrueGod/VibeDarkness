@@ -28,6 +28,7 @@ import {
 } from '../../abilities/abilityUses';
 import type { ResolvedTarget } from '../types';
 import type { Buff } from '../../buffs/Buff';
+import type { TerrainAccessId } from '../../terrain/TerrainType';
 import { LIFTED_BUFF_TYPE } from '../../buffs/liftedBuffType';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import {
@@ -308,6 +309,13 @@ export class Unit extends GameObject {
      * Serialized when non-empty. Add with {@link addSenseGrant}.
      */
     senseGrants: SenseGrant[] = [];
+
+    /**
+     * Gated terrain this unit may mutate or draw on (`TerrainProperties.access`, e.g. `'brick'`).
+     * Instance state (research grants it before battle), not def. Serialized when non-empty. Default
+     * empty. Add with {@link grantTerrainAccess}; read by `TerrainManager` through the engine's resolver.
+     */
+    terrainAccess: Set<TerrainAccessId> = new Set();
 
     ccArmour: UnitCcArmourState = createCcArmourState();
 
@@ -660,6 +668,16 @@ export class Unit extends GameObject {
         buff.appliedAtRound = roundNumber;
         this.buffs.push(buff);
         evaluateSwapTriggers(this, { type: 'buffApplied', buffType: buff._type }, eventBus);
+    }
+
+    /** Let this unit mutate and draw on terrain gated by `id` (see `TerrainProperties.access`). */
+    grantTerrainAccess(id: TerrainAccessId): void {
+        this.terrainAccess.add(id);
+    }
+
+    /** True when this unit holds terrain access `id`. */
+    hasTerrainAccess(id: TerrainAccessId): boolean {
+        return this.terrainAccess.has(id);
     }
 
     /** Add an instance sense grant (a copy is stored, so frozen presets can be passed directly). */

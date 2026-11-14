@@ -1,8 +1,11 @@
 /**
  * 64_46 East Breach - part of the castle around the 61_49 gate (see castle/index.ts for the plan).
  *
- * The east curtain wall has collapsed: a rubble-strewn breach and a shallow ford across the moat,
- * overgrown outside. Second way into the castle.
+ * The east curtain wall has collapsed: a rubble-strewn breach (natural Rock and Gravel) and a
+ * shallow ford across the moat, overgrown outside. Second way into the castle. The breach passage
+ * runs west through a 2-wide door into the chapel yard (63_46). North of the passage the winding
+ * east wall walk starts up a 2-wide stair on the inner side, beside a guard room; south, the wall
+ * walk runs on to 64_47.
  * No light spots unless listed in the POIs: the castle is meant to be dark.
  * Generated with terrain/mapTools-style painting on one castle-wide canvas, so seams always line up.
  */
@@ -11,6 +14,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
@@ -24,28 +28,28 @@ export const SEGMENT_64_46_EAST_BREACH: CastleSegment = {
     gridRow: 46,
     description: 'A breach is a gap broken in a wall by siege engines or neglect. Here the curtain wall has collapsed, and the rubble lets attackers wade across the moat.',
     terrain: [
-        [R, R, R, R, R, D, D, R, R, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, T, T, T, T, _, _, _],
-        [R, R, R, R, R, D, D, D, G, G, G, G, W, W, SW, T, T, T, T, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, G, G, SW, SW, SW, T, T, T, T, _, _, _],
-        [R, D, D, D, D, D, D, D, G, G, G, G, SW, SW, SW, T, T, T, T, _, _, _],
+        [B, D, D, B, B, B, B, B, B, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, D, D, B, G, G, G, G, G, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, D, D, B, G, G, G, G, G, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, D, D, B, G, G, G, G, G, G, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, D, D, B, G, G, G, G, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, D, D, B, G, G, G, G, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, D, D, B, G, G, G, G, G, R, R, R, W, W, SW, T, T, T, T, _, _, _],
+        [B, D, D, B, G, G, G, G, G, G, G, G, W, W, SW, T, T, T, T, _, _, _],
+        [B, D, D, B, B, B, D, D, G, R, G, G, SW, SW, SW, T, T, T, T, _, _, _],
+        [B, D, D, D, D, D, D, D, G, G, G, G, SW, SW, SW, T, T, T, T, _, _, _],
         [D, D, D, D, D, D, D, D, G, G, R, G, SW, SW, SW, T, T, T, T, _, _, _],
         [D, D, D, D, D, D, D, D, G, G, G, G, SW, SW, SW, T, T, T, T, _, _, _],
-        [R, D, G, G, G, D, D, D, G, G, G, R, SW, SW, SW, T, T, T, T, _, _, _],
-        [R, R, R, R, R, D, D, D, G, G, G, G, W, W, SW, T, T, T, T, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, T, T, T, T, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, R, R, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, D, G, G, G, D, D, D, G, G, G, R, SW, SW, SW, T, T, T, T, _, _, _],
+        [B, B, B, B, B, D, D, D, G, G, G, G, W, W, SW, T, T, T, T, _, _, _],
+        [B, B, B, B, B, D, D, D, G, R, R, R, W, W, SW, T, T, T, T, _, _, _],
+        [B, B, B, B, B, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, D, G, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, D, G, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, D, G, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, D, G, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, B, B, B, B, B, W, W, SW, _, _, _, _, _, _, _],
     ],
     pointsOfInterest: [
         // In the breach.
@@ -54,12 +58,16 @@ export const SEGMENT_64_46_EAST_BREACH: CastleSegment = {
         { id: '64_46_east_breach_ford', label: 'Ford', col: 12, row: 10, type: 'generic' },
         // In the overgrowth outside the breach.
         { id: '64_46_east_breach_outside', label: 'Overgrowth', col: 17, row: 10, type: 'enemySpawn' },
+        // Guard room beside the stair.
+        { id: '64_46_guardroom', label: 'Breach Guard Room', col: 6, row: 4, type: 'enemySpawn' },
+        // Just inside the door from the chapel yard: where the east-wall-walk mission starts.
+        { id: '64_46_entry_west', label: 'Entry: West', col: 1, row: 10, type: 'generic', tags: ['entry'] },
     ],
     network: {
         nodes: [{ id: '64_46_center', position: { kind: 'gridPoint', col: 6, row: 10 }, tags: ['castle'] }],
         edges: [
             ['63_46_center', '64_46_center'],
-            ['64_45_center', '64_46_center'],
+            ['64_45_turn_north', '64_46_center'],
         ],
     },
 };

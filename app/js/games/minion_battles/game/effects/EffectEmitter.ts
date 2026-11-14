@@ -16,7 +16,7 @@ import type { EngineContext } from '../EngineContext';
 import { generateGameObjectId } from '../GameObject';
 import type { EffectTimeDomain } from './timeDomain';
 import type { PauseBehaviour } from './pauseBehaviour';
-import { type TerrainType } from '../../terrain/TerrainType';
+import { terrainListIncludesForActor, type TerrainType } from '../../terrain/TerrainType';
 
 export interface Vec2 { x: number; y: number; }
 
@@ -141,7 +141,9 @@ export class IntervalEmitter extends EffectEmitter {
     /**
      * When set, emission is gated to tiles whose terrain type is in this list.
      * Position is synced from the attached unit (via attachedToUnitId) each game tick before the check.
-     * If terrainManager is absent, no effects are emitted.
+     * If terrainManager is absent, no effects are emitted. A listed base type also matches its variants
+     * when the attached unit may affect them (`terrainListIncludesForActor`): `[Rock]` matches Brick
+     * only for a unit with `'brick'` access.
      */
     terrainCondition?: TerrainType[];
     private accumulator = 0;
@@ -170,6 +172,16 @@ export class IntervalEmitter extends EffectEmitter {
         }
     }
 
+    /** True when there is no `terrainCondition`, or the emitter's tile matches it for the attached unit. */
+    private passesTerrainCondition(engine: EngineContext): boolean {
+        const condition = this.terrainCondition;
+        if (!condition || condition.length === 0) return true;
+        const tm = engine.terrainManager;
+        if (tm === null) return false;
+        const access = this.attachedToUnitId ? engine.getUnit(this.attachedToUnitId)?.terrainAccess ?? null : null;
+        return terrainListIncludesForActor(condition, tm.getTerrainAt(this.x, this.y), access);
+    }
+
     update(dt: number, engine: EngineContext): Effect[] {
         // Sync position from attached unit before terrain check.
         if (this.attachedToUnitId) {
@@ -182,9 +194,7 @@ export class IntervalEmitter extends EffectEmitter {
         const results: Effect[] = [];
 
         // Gate emission to specific terrain types when terrainCondition is specified.
-        const passesTerrainCondition = !this.terrainCondition || this.terrainCondition.length === 0 ||
-            (engine.terrainManager !== null &&
-             this.terrainCondition.includes(engine.terrainManager.getTerrainAt(this.x, this.y)));
+        const passesTerrainCondition = this.passesTerrainCondition(engine);
 
         while (this.accumulator >= this.intervalSeconds) {
             this.accumulator -= this.intervalSeconds;
@@ -205,10 +215,7 @@ export class IntervalEmitter extends EffectEmitter {
             const pos = posSnapshot.get(this.attachedToUnitId);
             if (pos) { this.x = pos.x; this.y = pos.y; }
         }
-        if (this.terrainCondition && this.terrainCondition.length > 0
-            && (engine.terrainManager === null || !this.terrainCondition.includes(engine.terrainManager.getTerrainAt(this.x, this.y)))) {
-            return [];
-        }
+        if (!this.passesTerrainCondition(engine)) return [];
         this.haltedAccumulator += realDt;
         const results: Effect[] = [];
         // Cap per frame so a long frame (tab refocus) does not dump a burst.

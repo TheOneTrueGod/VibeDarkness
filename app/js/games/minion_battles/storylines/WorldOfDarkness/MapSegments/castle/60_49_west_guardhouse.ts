@@ -11,6 +11,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
@@ -24,18 +25,18 @@ export const SEGMENT_60_49_WEST_GUARDHOUSE: CastleSegment = {
     gridRow: 49,
     description: 'Guard post beside the main gate. Sentries kept watch from here, checked everyone entering, and stored the arms used to defend the gate.',
     terrain: [
-        [R, R, R, R, R, R, R, R, R, R, D, D, R, R, R, R, R, R, R, R, R, R],
-        [R, G, G, G, G, G, G, G, G, D, D, D, D, G, R, G, G, G, G, G, G, R],
-        [R, G, G, G, G, G, G, G, G, D, D, D, G, G, R, G, G, R, R, R, G, R],
-        [R, D, G, G, G, G, G, G, G, D, D, D, G, G, R, G, G, G, G, G, G, R],
-        [D, D, D, G, G, G, R, R, R, D, D, D, G, G, R, G, G, G, G, G, G, R],
-        [D, D, D, D, D, D, R, R, R, D, D, D, G, G, R, G, G, G, G, G, G, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, R],
-        [R, G, G, G, G, G, G, G, G, G, G, G, G, G, R, G, G, G, G, G, G, R],
-        [R, R, R, R, R, G, R, R, R, R, R, R, R, R, R, R, G, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+        [B, B, B, B, B, B, B, B, B, B, D, D, B, B, B, B, B, B, B, B, B, B],
+        [B, G, G, G, G, G, G, G, G, D, D, D, D, G, B, G, G, G, G, G, G, B],
+        [B, G, G, G, G, G, G, G, G, D, D, D, G, G, B, G, G, B, B, B, G, B],
+        [B, D, G, G, G, G, G, G, G, D, D, D, G, G, B, G, G, G, G, G, G, B],
+        [D, D, D, G, G, G, B, B, B, D, D, D, G, G, B, G, G, G, G, G, G, B],
+        [D, D, D, D, D, D, B, B, B, D, D, D, G, G, B, G, G, G, G, G, G, B],
+        [B, D, D, D, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, B],
+        [B, D, D, D, D, D, D, D, D, D, D, D, G, G, G, G, G, G, G, G, G, B],
+        [B, G, G, G, G, G, G, G, G, G, G, G, G, G, B, G, G, G, G, G, G, B],
+        [B, B, B, B, B, G, B, B, B, B, B, B, B, B, R, R, G, R, R, R, B, B],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, B, R, R, R, R, R, R, B, B],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, B, R, R, R, R, R, R, B, B],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
         [SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW],
@@ -52,6 +53,8 @@ export const SEGMENT_60_49_WEST_GUARDHOUSE: CastleSegment = {
         { id: '60_49_west_guardhouse', label: 'West Guardhouse', col: 10, row: 6, type: 'patrol_point' },
         // Back room.
         { id: '60_49_west_guardhouse_back', label: 'Guardhouse Back Room', col: 17, row: 4, type: 'enemySpawn' },
+        // Beside the west door to the storerooms: where the Raid the Larder guardhouse mission ends.
+        { id: '60_49_exit_west', label: 'Exit: West', col: 1, row: 5, type: 'generic', tags: ['exit'] },
     ],
     network: {
         nodes: [{ id: '60_49_center', position: { kind: 'gridPoint', col: 10, row: 6 }, tags: ['castle'] }],

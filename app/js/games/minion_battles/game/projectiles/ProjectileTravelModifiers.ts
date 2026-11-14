@@ -1,7 +1,8 @@
-import { TerrainType } from '../../terrain/TerrainType';
+import { baseTerrainOf, canUnitAffectTerrain, TerrainType, type TerrainAccessId } from '../../terrain/TerrainType';
 
 /**
- * - `stonephase`: flies through rock (no distance counted inside it).
+ * - `stonephase`: flies through rock (no distance counted inside it). Gated Rock variants (Brick) are
+ *   traversed only when the shooter holds their access.
  * - `stopsAtWalls`: the projectile stops at the first terrain that blocks projectiles
  *   (`TerrainProperties.blocksProjectiles`) unless one of the other modifiers traverses it.
  */
@@ -15,14 +16,15 @@ export interface ProjectileTraversalSegment {
 export interface ProjectileTravelModifier {
     id: ProjectileModifierId;
     shouldCountDistance?(segment: ProjectileTraversalSegment): boolean;
-    /** True if this modifier lets the projectile pass over obstructing terrain of this type. */
-    canTraverse?(terrainType: TerrainType): boolean;
+    /** True if this modifier lets the projectile pass over obstructing terrain of this type (`access`: the shooter's). */
+    canTraverse?(terrainType: TerrainType, access: ReadonlySet<TerrainAccessId> | null): boolean;
 }
 
 const STONEPHASE_MODIFIER: ProjectileTravelModifier = {
     id: 'stonephase',
-    shouldCountDistance: (segment) => segment.terrainType !== TerrainType.Rock,
-    canTraverse: (terrainType) => terrainType === TerrainType.Rock,
+    shouldCountDistance: (segment) => baseTerrainOf(segment.terrainType) !== TerrainType.Rock,
+    canTraverse: (terrainType, access) =>
+        baseTerrainOf(terrainType) === TerrainType.Rock && canUnitAffectTerrain(terrainType, access),
 };
 
 const STOPS_AT_WALLS_MODIFIER: ProjectileTravelModifier = {
@@ -48,14 +50,18 @@ export function shouldCountTraversalDistance(
     return true;
 }
 
-/** True if any active modifier lets a projectile pass over obstructing terrain of this type. */
+/**
+ * True if any active modifier lets a projectile pass over obstructing terrain of this type. `access`
+ * is the shooter's terrain access (`TerrainManager.getUnitTerrainAccess`); omit for none.
+ */
 export function isTraversableByModifiers(
     terrainType: TerrainType,
     modifierIds: readonly ProjectileModifierId[],
+    access: ReadonlySet<TerrainAccessId> | null = null,
 ): boolean {
     for (const modifierId of modifierIds) {
         const modifier = PROJECTILE_TRAVEL_MODIFIER_MAP[modifierId];
-        if (modifier?.canTraverse?.(terrainType)) return true;
+        if (modifier?.canTraverse?.(terrainType, access)) return true;
     }
     return false;
 }

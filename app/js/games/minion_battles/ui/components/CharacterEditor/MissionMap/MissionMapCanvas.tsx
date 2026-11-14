@@ -6,6 +6,8 @@ import type { QuestResult, QuestSlotBank } from '../../../../storylines/questTyp
 import { countQuestBankClears } from '../../../../storylines/unlock';
 import { missionMapEdgeStroke, questBankMapNodeKey } from '../questBankUi';
 import { MissionNode, QuestBankNode } from './MissionMapNodes';
+import MissionMapBackground from './MissionMapBackground';
+import type { BuiltMapBackground } from './segmentGridBackground';
 import { BOSS_GRADIENT_ID, MAP_DIVIDER_INSET, type QuestBankTooltipData, type TooltipData } from './missionMapHelpers';
 
 interface Props {
@@ -14,6 +16,8 @@ interface Props {
     isAdmin: boolean;
     viewBox: { vbX: number; vbY: number; vbW: number; vbH: number };
     mapDividers: NonNullable<CampaignChapterDef['mapDividers']>;
+    /** Chapter background drawn under everything else (from `buildMissionMapLayout`). */
+    background?: BuiltMapBackground | null;
     missions: { id: string; def: IBaseMissionDef | undefined; pos: { x: number; y: number }; isSide: boolean }[];
     questBanksOnMap: QuestSlotBank[];
     posMap: Map<string, { x: number; y: number }>;
@@ -37,13 +41,14 @@ interface Props {
     overlay?: React.ReactNode;
 }
 
-/** The SVG map: chapter dividers, connection lines, mission nodes and quest-bank nodes. */
+/** The SVG map: chapter background, dividers, connection lines, mission nodes and quest-bank nodes. */
 export default function MissionMapCanvas({
     svgRef,
     storyline,
     isAdmin,
     viewBox,
     mapDividers,
+    background = null,
     missions,
     questBanksOnMap,
     posMap,
@@ -83,6 +88,9 @@ export default function MissionMapCanvas({
                         <stop offset="100%" stopColor="#7f1d1d" />
                     </radialGradient>
                 </defs>
+
+                {/* Chapter background (e.g. the castle terrain), under everything else */}
+                {background && <MissionMapBackground background={background} />}
 
                 {/* Chapter section dividers (e.g. "Side Quests") */}
                 {mapDividers.map((divider) => (

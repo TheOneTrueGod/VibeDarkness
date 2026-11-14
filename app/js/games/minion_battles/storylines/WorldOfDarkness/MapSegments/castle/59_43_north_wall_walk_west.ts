@@ -10,6 +10,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
@@ -32,18 +33,18 @@ export const SEGMENT_59_43_NORTH_WALL_WALK_WEST: CastleSegment = {
         [SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW, SW],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, G, R, R, R, R, G, R, R, R, R, G, R, R, R, R, R, R],
-        [R, R, R, R, R, G, R, R, R, R, G, R, R, R, R, G, R, R, R, R, R, R],
-        [R, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, R, G, G, G, G, R],
-        [R, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R],
+        [B, B, B, B, B, B, B, R, R, R, R, R, R, R, B, B, B, B, B, B, B, B],
+        [B, B, B, B, B, B, B, R, R, R, R, R, R, R, B, B, B, B, B, B, B, B],
+        [B, B, B, B, B, G, B, R, R, R, G, R, R, R, B, G, B, B, B, B, B, B],
+        [B, B, B, B, B, G, B, B, B, B, G, B, B, B, B, G, B, B, B, B, B, B],
+        [B, G, G, G, G, G, G, G, G, R, G, G, G, G, G, G, B, G, G, G, G, B],
+        [B, D, D, D, D, D, D, D, D, G, D, D, D, D, D, D, D, D, D, D, D, B],
         [D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D],
         [D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D],
-        [R, D, G, G, R, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, D, R],
-        [R, R, R, R, R, R, R, R, R, G, G, G, G, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, G, G, G, G, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+        [B, D, G, G, B, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, D, B],
+        [B, B, B, B, B, B, B, B, B, G, G, G, G, B, B, B, B, B, B, B, B, B],
+        [B, B, B, B, B, B, B, B, B, G, G, G, G, B, B, B, B, B, B, B, B, B],
+        [B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B],
     ],
     pointsOfInterest: [
         // On the wall walk.

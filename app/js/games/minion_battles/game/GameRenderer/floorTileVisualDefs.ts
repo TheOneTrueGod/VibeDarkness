@@ -1,3 +1,7 @@
+import { baseTerrainOf, TerrainType } from '../../terrain/TerrainType';
+import { DAMAGE_TIER_NONE, getDamageTier, type FloorTile } from '../../terrain/FloorTile';
+import { DEFAULT_ROCK_DESTRUCTIBLE_KIND } from '../../card_defs/05_earth_core/earthCoreConstants';
+
 export interface FloorTileVisualDef {
     svgString: string;
 }
@@ -71,3 +75,27 @@ export const RUBBLE_FLOOR_VISUAL: FloorTileVisualDef = {
   <polygon points="25,31 29,30 30,35 26,36" fill="#7a6a5a" opacity="0.6"/>
 </svg>`,
 };
+
+/** The overlay a floor tile shows, keyed so a changed type or tier swaps the sprite. */
+export interface FloorTileVisual {
+    /** Cache/label key per cell, terrain type and tier. */
+    cacheKey: string;
+    def: FloorTileVisualDef;
+}
+
+/**
+ * Overlay for a floor tile, or null when it shows none: rubble on Gravel, and crack tiers on
+ * damaged rock and its variants (Brick cracks the same as Rock; the key keeps each type apart).
+ */
+export function floorTileVisualFor(col: number, row: number, tile: FloorTile): FloorTileVisual | null {
+    if (tile.terrainType === TerrainType.Gravel) {
+        return { cacheKey: `${col},${row}:${TerrainType.Gravel}:0`, def: RUBBLE_FLOOR_VISUAL };
+    }
+    if (baseTerrainOf(tile.terrainType) !== TerrainType.Rock) return null;
+    if (tile.destructible?.kind !== DEFAULT_ROCK_DESTRUCTIBLE_KIND) return null;
+    const tier = getDamageTier(tile.destructible);
+    if (tier === DAMAGE_TIER_NONE) return null;
+    const def = ROCK_FLOOR_VISUAL_TIERS[tier - 1];
+    if (!def) return null;
+    return { cacheKey: `${col},${row}:${tile.terrainType}:${tier}`, def };
+}

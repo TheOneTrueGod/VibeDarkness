@@ -29,8 +29,17 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { DarknessLevel } from '../../../game/darknessLevels';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
 import { SLIME } from '../../../game/units/dark_animals/slime';
+import {
+    cellCentre,
+    darknessSpawn,
+    onMission,
+    roadDarknessWave,
+    SEGMENT_SIZE,
+    SWARMLING_STACK_SIZE,
+    WOLF_STACK_SIZE,
+} from './castle/castleSpawnPresets';
 import { scatterPositionsInCircle } from '../../missionSpawnHelpers';
-import { WOD_CH3_MAP_X_COL1, WOD_CH3_MAP_Y_ROW0 } from '../chapter3Map';
+import { castleMapPosition } from '../chapter3Map';
 import { CRYSTAL_TILE_DEFAULTS } from '../MapSegments/50_50_crystal_cave';
 import { EAST_CAVE_SEGMENT_ID } from '../MapSegments/59_50_east_cave';
 import {
@@ -43,7 +52,18 @@ import { CASTLE_GATE_SEGMENT_ID, MOAT_BRIDGE } from '../MapSegments/61_49_castle
 
 export const THE_LONELY_CASTLE_MISSION_ID = 'the_lonely_castle';
 
-export const SEGMENT_SIZE = 22;
+// The shared castle spawn helpers started here; re-exported so existing imports keep working.
+export {
+    cellCentre,
+    darknessSpawn,
+    onMission,
+    ROAD_WAVE_SLIMES,
+    ROAD_WAVE_SWARMLINGS,
+    ROAD_WAVE_WOLVES,
+    SEGMENT_SIZE,
+    SWARMLING_STACK_SIZE,
+    WOLF_STACK_SIZE,
+} from './castle/castleSpawnPresets';
 
 /** [tileRow][tileCol]: the castle gate top right, the cave road along the bottom. */
 export const THE_LONELY_CASTLE_LAYOUT: MissionMapLayout = [
@@ -54,15 +74,6 @@ export const THE_LONELY_CASTLE_LAYOUT: MissionMapLayout = [
 const COLS = SEGMENT_SIZE * 3;
 const ROWS = SEGMENT_SIZE * 2;
 
-/** Segment-local cell → mission grid cell, for a segment at layout slot (tileCol, tileRow). */
-export function onMission(tileCol: number, tileRow: number, cell: { col: number; row: number }): { col: number; row: number } {
-    return { col: tileCol * SEGMENT_SIZE + cell.col, row: tileRow * SEGMENT_SIZE + cell.row };
-}
-
-export function cellCentre(cell: { col: number; row: number }): { x: number; y: number } {
-    return { x: cell.col * CELL_SIZE + CELL_SIZE / 2, y: cell.row * CELL_SIZE + CELL_SIZE / 2 };
-}
-
 const OUTCROP = cellCentre(onMission(1, 1, NORTH_OUTCROP));
 const THICKET = cellCentre(onMission(1, 1, SOUTH_THICKET));
 /** The moat bridge POI and the tile east of it: the threshold the party has to reach. */
@@ -70,19 +81,12 @@ export const BRIDGE_THRESHOLD = onMission(2, 0, MOAT_BRIDGE);
 
 // --- Tuning --------------------------------------------------------------
 // Wolves and swarmlings come in unit stacks (this is where the player first meets stacks). Counts below
-// are tokens; a stack token holds `*_STACK_SIZE` creatures.
-/** Creatures per wolf token. */
-export const WOLF_STACK_SIZE = 2;
-/** Creatures per stacked swarmling token. */
-export const SWARMLING_STACK_SIZE = 2;
+// are tokens; a stack token holds `*_STACK_SIZE` creatures (see `castle/castleSpawnPresets.ts`).
 /** The ambush that rises out of the darkness around the first unit to leave the cave. */
 export const CAVE_EXIT_AMBUSH_WOLVES = 1;
 export const CAVE_EXIT_AMBUSH_SWARMLINGS = 1;
 export const CAVE_EXIT_AMBUSH_SLIMES = 1;
-/** The per-round darkness wave on the road. Its one swarmling is a lone unit, not a stack. */
-export const ROAD_WAVE_WOLVES = 1;
-export const ROAD_WAVE_SWARMLINGS = 1;
-export const ROAD_WAVE_SLIMES = 1;
+// The per-round road wave (`roadDarknessWave`, `ROAD_WAVE_*`) lives in `castle/castleSpawnPresets.ts`.
 export const OPENING_THICKET_WOLVES = 1;
 /** Tiles around the thicket POI that the opening wolves scatter across (kept off rock and water). */
 const THICKET_SCATTER_RADIUS = 1.2;
@@ -105,27 +109,6 @@ export const TRIGGER_LEFT_CAVE = 'left_cave';
 
 export const OBJECTIVE_REACH_BRIDGE = 'reach_bridge';
 
-/**
- * A darkness-risen enemy entry: `count` tokens, optionally confined to a segment zone, each a unit stack of
- * `stackSize` creatures when given.
- */
-export function darknessSpawn(
-    template: EnemySpawnDef,
-    count: number,
-    opts: { spawnZoneId?: string; stackSize?: number } = {},
-): SpawnWaveEntry {
-    return {
-        characterId: template.characterId,
-        name: template.name,
-        spawnBehaviour: 'anywhere',
-        inDarkness: true,
-        ...(opts.spawnZoneId != null ? { spawnZoneId: opts.spawnZoneId } : {}),
-        ...(opts.stackSize != null && opts.stackSize > 1 ? { stackSize: opts.stackSize } : {}),
-        spawnCount: count,
-        unitAITreeId: template.unitAITreeId,
-    };
-}
-
 function thicketWolf(): SpawnWaveEntry {
     return {
         characterId: ENEMY_DARK_WOLF.characterId,
@@ -145,15 +128,6 @@ function caveExitAmbush(): SpawnWaveEntry[] {
         darknessSpawn(ENEMY_DARK_WOLF, CAVE_EXIT_AMBUSH_WOLVES, { stackSize: WOLF_STACK_SIZE }),
         darknessSpawn(ENEMY_SWARMLING, CAVE_EXIT_AMBUSH_SWARMLINGS, { stackSize: SWARMLING_STACK_SIZE }),
         darknessSpawn(SLIME, CAVE_EXIT_AMBUSH_SLIMES),
-    ];
-}
-
-/** The per-round darkness wave while the party is on the road. */
-function roadDarknessWave(): SpawnWaveEntry[] {
-    return [
-        darknessSpawn(ENEMY_DARK_WOLF, ROAD_WAVE_WOLVES, { stackSize: WOLF_STACK_SIZE }),
-        darknessSpawn(ENEMY_SWARMLING, ROAD_WAVE_SWARMLINGS),
-        darknessSpawn(SLIME, ROAD_WAVE_SLIMES),
     ];
 }
 
@@ -257,7 +231,7 @@ export class TheLonelyCastleMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     missionId = TheLonelyCastleMission.missionId;
     name = TheLonelyCastleMission.nameStr;
-    mapPosition = { x: WOD_CH3_MAP_X_COL1, y: WOD_CH3_MAP_Y_ROW0 };
+    mapPosition = castleMapPosition(60.5, 50); // the 60_50 / 61_50 cave road
     missionType = 'battle' as const;
     description = chapter3Scripts.the_lonely_castle.description;
 

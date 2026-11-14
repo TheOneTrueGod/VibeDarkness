@@ -7,7 +7,7 @@
  */
 
 import type { CreatureType } from '../units/unit_defs/unitDef';
-import { TerrainType } from '../../terrain/TerrainType';
+import { terrainListIncludes, TerrainType } from '../../terrain/TerrainType';
 
 // Kept dependency-free at runtime on purpose (type-only imports above, plus the import-free
 // `TerrainType` enum): `terrain/TerrainManager.ts`
@@ -124,7 +124,7 @@ export const FROZEN_FIELD_INTERVAL_SEC = 0.5;
 /** Stun each Frozen Field pulse applies; longer than the interval, so a unit held on the ice stays stunned. */
 export const FROZEN_FIELD_STUN_SEC = 0.6;
 
-/** Terrain a ground growth (thorns, brambles) cannot take root on: rock and every depth of water. */
+/** Terrain a ground growth (thorns, brambles) cannot take root on: rock (and its variants) and every depth of water. */
 export const ROCK_AND_WATER_TERRAIN: readonly TerrainType[] = [
     TerrainType.Rock,
     TerrainType.Impassable,
@@ -202,7 +202,11 @@ export function getTerrainEffectDef(effectType: string): TerrainEffectDef | unde
         : undefined;
 }
 
-/** True when `effectType`'s def forbids it on `terrainType` (see `TerrainEffectDef.blockedOn`). */
+/**
+ * True when `effectType`'s def forbids it on `terrainType` (see `TerrainEffectDef.blockedOn`).
+ * Variants match their base type (`terrainListIncludes`), so Brick blocks wherever Rock does.
+ */
 export function isEffectBlockedOn(effectType: string, terrainType: TerrainType): boolean {
-    return getTerrainEffectDef(effectType)?.blockedOn?.includes(terrainType) ?? false;
+    const blockedOn = getTerrainEffectDef(effectType)?.blockedOn;
+    return blockedOn ? terrainListIncludes(blockedOn, terrainType) : false;
 }

@@ -31,12 +31,31 @@ export enum TerrainType {
     ShallowWater = 7,
     /** Water level 3. Like Water, but drowning in it hurts twice as much. */
     DeepWater = 8,
+    /**
+     * Laid stone (castle walls): a variant of Rock (`variantOf`). Blocks exactly like Rock, but only
+     * units with `'brick'` terrain access may damage it, shape it or use it as stone. See
+     * "Terrain variants" in `terrain/AGENTS.md`.
+     */
+    Brick = 9,
+    // Append new types only; checkpoints store these numbers, so never renumber.
 }
+
+/**
+ * Capability a unit needs to mutate or draw on gated terrain (`TerrainProperties.access`). Granted
+ * per unit through `Unit.terrainAccess`; checked with `canUnitAffectTerrain`.
+ */
+export type TerrainAccessId = 'brick';
 
 /** Terrain hazard a unit suffers when forced onto a tile it cannot walk on. Rules: `game/terrainHazards/`. */
 export type TerrainHazardId = 'drown' | 'drown_deep';
 
 export type TerrainRenderStrategy = 'marching-squares' | 'hard-edge';
+
+/**
+ * Surface pattern a `hard-edge` layer draws over its fill, inside the cell core (drawn by
+ * `HardEdgeLayerRenderer`). `running-bond`: brick courses with joints offset half a brick.
+ */
+export type HardEdgePatternId = 'running-bond';
 
 export interface TerrainProperties {
     /** Display name. */
@@ -88,6 +107,19 @@ export interface TerrainProperties {
     blocksBleed: boolean;
     /** Other hard-edge terrain types treated as same material (no bleed/chamfer/border at shared edges). */
     hardEdgeFamily: TerrainType[];
+    /** Optional pattern a `hard-edge` layer draws over its fill (Brick's mortar). Omit for a plain fill. */
+    hardEdgePattern?: HardEdgePatternId;
+    /**
+     * Base type this terrain is a variant of (Brick -> Rock). Gameplay "what is it" checks read
+     * `baseTerrainOf`, so a variant matches every list, rule and render path of its base. Omitted on
+     * base types.
+     */
+    variantOf?: TerrainType;
+    /**
+     * Capability a unit needs to mutate (damage, shape) or draw on (count as stone) this terrain.
+     * Omitted when there is no gate. Checked with `canUnitAffectTerrain`.
+     */
+    access?: TerrainAccessId;
 }
 
 export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
@@ -149,7 +181,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         blocksLight: true,
         renderStrategy: 'hard-edge',
         blocksBleed: true,
-        hardEdgeFamily: [],
+        hardEdgeFamily: [TerrainType.Brick],
     },
     [TerrainType.Gravel]: {
         name: 'Gravel',
@@ -164,7 +196,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         blocksLight: false,
         renderStrategy: 'hard-edge',
         blocksBleed: true,
-        hardEdgeFamily: [TerrainType.Rock],
+        hardEdgeFamily: [TerrainType.Rock, TerrainType.Brick],
     },
     [TerrainType.Impassable]: {
         name: 'Impassable',
@@ -235,7 +267,68 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         blocksBleed: false,
         hardEdgeFamily: [],
     },
+    [TerrainType.Brick]: {
+        // Rock copy (see `variantOf`); only the name, colour, mortar pattern and access gate differ.
+        name: 'Brick',
+        // Brick-red grey: reads as stone next to Rock (#757575) but warmer.
+        color: '#86675e',
+        passable: false,
+        forcedMovementPassable: false,
+        speedMultiplier: 0,
+        pathfindingWeight: Infinity,
+        projectilePassable: true,
+        blocksProjectiles: true,
+        blocksVision: true,
+        blocksLight: true,
+        renderStrategy: 'hard-edge',
+        blocksBleed: true,
+        // Mirrors Rock's relations: joins Rock both ways, and Gravel lists Brick as it lists Rock.
+        hardEdgeFamily: [TerrainType.Rock],
+        hardEdgePattern: 'running-bond',
+        variantOf: TerrainType.Rock,
+        access: 'brick',
+    },
 };
+
+/**
+ * The base type a terrain behaves as: `variantOf`, or the type itself for base types. Use for
+ * "what is this terrain" questions (collision lists, blocking lists, rock-like render paths).
+ */
+export function baseTerrainOf(type: TerrainType): TerrainType {
+    return TERRAIN_PROPERTIES[type]?.variantOf ?? type;
+}
+
+/** True when `list` names `type` itself or its base type (`baseTerrainOf`). */
+export function terrainListIncludes(list: readonly TerrainType[], type: TerrainType): boolean {
+    return list.includes(type) || list.includes(baseTerrainOf(type));
+}
+
+/**
+ * True when an actor holding `access` may mutate or draw on `type`: the type has no `access` gate,
+ * or the set holds it. Null (no actor, or an unresolved one) only passes ungated terrain. Use for
+ * "may this actor change it" questions (damage, shaping, counting as stone, stonephase).
+ */
+export function canUnitAffectTerrain(
+    type: TerrainType,
+    access: ReadonlySet<TerrainAccessId> | null | undefined,
+): boolean {
+    const gate = TERRAIN_PROPERTIES[type]?.access;
+    if (gate === undefined) return true;
+    return access?.has(gate) ?? false;
+}
+
+/**
+ * Actor-aware list match: `type` is named directly, or its base type is named and the actor may
+ * affect it (`canUnitAffectTerrain`). E.g. a `[Rock]` condition matches Brick only with access.
+ */
+export function terrainListIncludesForActor(
+    list: readonly TerrainType[],
+    type: TerrainType,
+    access: ReadonlySet<TerrainAccessId> | null | undefined,
+): boolean {
+    if (list.includes(type)) return true;
+    return list.includes(baseTerrainOf(type)) && canUnitAffectTerrain(type, access);
+}
 
 /** How much each kind of placed stone raises the ground on water (lowers its water level). */
 export const GROUND_RAISE = {

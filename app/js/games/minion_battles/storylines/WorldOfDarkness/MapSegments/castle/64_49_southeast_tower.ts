@@ -10,6 +10,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
@@ -22,21 +23,21 @@ export const SEGMENT_64_49_SOUTHEAST_TOWER: CastleSegment = {
     gridRow: 49,
     description: 'A corner tower of the curtain wall. Towers stood out from the wall so archers inside could shoot along the wall face at anyone trying to climb or undermine it.',
     terrain: [
-        [R, R, R, R, R, D, D, R, R, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, G, D, D, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, G, G, D, D, D, G, R, R, R, W, W, SW, SW, _, _, _, _, _, _],
-        [R, D, D, D, D, D, D, D, G, R, R, R, W, W, W, SW, SW, _, _, _, _, _],
-        [D, D, D, D, D, D, D, D, G, R, R, R, R, W, W, W, W, SW, _, _, _, _],
-        [D, D, D, D, D, D, D, D, G, R, R, R, R, R, R, W, W, SW, SW, _, _, _],
-        [R, D, G, G, G, G, G, G, G, R, R, R, R, R, R, R, W, W, SW, _, _, _],
-        [R, G, G, G, G, G, G, G, G, G, G, G, R, R, R, R, W, W, W, SW, _, _],
-        [R, G, G, G, G, G, G, G, G, G, G, G, G, R, R, R, R, W, W, SW, _, _],
-        [R, R, R, R, R, R, R, G, G, G, G, G, G, G, R, R, R, W, W, SW, _, _],
-        [R, R, R, R, R, R, R, G, G, G, G, G, G, G, R, R, R, W, W, SW, _, _],
-        [R, R, R, R, R, R, R, G, G, G, G, G, G, G, R, R, R, W, W, SW, _, _],
-        [W, W, W, W, R, R, R, R, G, G, G, G, G, R, R, R, R, W, W, SW, _, _],
-        [W, W, W, W, W, R, R, R, R, G, G, G, R, R, R, R, W, W, W, SW, _, _],
-        [SW, SW, SW, W, W, R, R, R, R, R, R, R, R, R, R, R, W, W, SW, _, _, _],
+        [B, B, B, B, B, D, D, B, B, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, G, D, D, D, D, G, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, G, G, D, D, D, G, B, B, B, W, W, SW, SW, _, _, _, _, _, _],
+        [B, D, D, D, D, D, D, D, G, B, B, B, W, W, W, SW, SW, _, _, _, _, _],
+        [B, D, D, D, D, D, D, D, G, B, B, B, B, W, W, W, W, SW, _, _, _, _],
+        [B, D, D, D, D, D, D, D, G, B, B, B, B, B, B, W, W, SW, SW, _, _, _],
+        [B, D, G, G, G, G, G, G, G, B, B, B, B, B, B, B, W, W, SW, _, _, _],
+        [B, G, G, G, G, G, G, G, G, G, G, G, R, R, R, R, W, W, W, SW, _, _],
+        [B, G, G, G, G, G, G, G, G, G, G, G, G, R, R, R, R, W, W, SW, _, _],
+        [B, B, B, B, B, B, B, G, G, G, G, G, G, G, R, R, R, W, W, SW, _, _],
+        [B, B, B, B, B, B, B, G, G, G, G, G, G, G, R, R, R, W, W, SW, _, _],
+        [B, B, B, B, B, B, B, G, G, G, G, G, G, G, R, R, R, W, W, SW, _, _],
+        [W, W, W, W, B, B, B, B, G, G, G, G, G, R, R, R, R, W, W, SW, _, _],
+        [W, W, W, W, W, B, B, B, B, G, G, G, R, R, R, R, W, W, W, SW, _, _],
+        [SW, SW, SW, W, W, B, B, B, B, B, B, B, R, R, R, R, W, W, SW, _, _, _],
         [_, _, SW, SW, W, W, R, R, R, R, R, R, R, R, R, W, W, SW, SW, _, _, _],
         [_, _, _, SW, W, W, W, W, R, R, R, R, R, W, W, W, W, SW, _, _, _, _],
         [_, _, _, _, SW, SW, W, W, W, W, W, W, W, W, W, SW, SW, _, _, _, _, _],

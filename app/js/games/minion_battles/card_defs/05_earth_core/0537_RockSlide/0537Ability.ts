@@ -210,7 +210,8 @@ const TIMINGS: AbilityTimingInterval[] = [
             validatePick({ caster, engine, pick }) {
                 const tm = terrainOf(engine);
                 const tile = pick.type === 'pixel' && pick.position ? resolveRockTile(caster, pick.position) : null;
-                return tm !== null && tile !== null && tm.isIntactRockAt(tile.col, tile.row);
+                // Gated rock (Brick) is pickable only by a caster with access.
+                return tm !== null && tile !== null && tm.canSourceAffectRockAt(tile.col, tile.row, caster.id);
             },
         },
     },

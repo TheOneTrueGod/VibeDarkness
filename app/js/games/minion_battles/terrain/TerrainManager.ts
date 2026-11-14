@@ -6,7 +6,16 @@
  */
 
 import type { TerrainGrid } from './TerrainGrid';
-import { GROUND_RAISE, lowerWaterLevel, raiseGround, TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
+import {
+    baseTerrainOf,
+    canUnitAffectTerrain,
+    GROUND_RAISE,
+    lowerWaterLevel,
+    raiseGround,
+    TerrainType,
+    TERRAIN_PROPERTIES,
+    type TerrainAccessId,
+} from './TerrainType';
 import {
     EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
     EARTH_CORE_STONE_HEALTH,
@@ -31,6 +40,9 @@ export type { TerrainStoneDamagedTransition as TerrainStoneDamagedEvent } from '
 /** Water left at or below this counts as drained (absorbs float error from many per-tick fractions). */
 const WATER_DRAINED_EPSILON = 1e-9;
 
+/** Looks up a unit's terrain access grants (`Unit.terrainAccess`) by id; null when the unit is unknown. */
+export type TerrainAccessResolver = (unitId: string) => ReadonlySet<TerrainAccessId> | null;
+
 export class TerrainManager {
     readonly grid: TerrainGrid;
     readonly pathQuery: PathQuery;
@@ -39,6 +51,8 @@ export class TerrainManager {
     private onWaterDrained?: (event: TerrainWaterDrainedTransition) => void;
     private onTerrainEffectsCleared?: (cleared: ClearedTerrainEffect[]) => void;
     private lastRockDamageSourceUnitId: string | null = null;
+    /** Unit id -> terrain access, wired by the engine (see `setTerrainAccessResolver`). */
+    private terrainAccessResolver: TerrainAccessResolver = () => null;
     /** Mission-global segment placement rects, for debug/tooling lookups. See `getSegmentIdAt`. */
     segmentPlacements: ResolvedSegmentPlacement[] = [];
 
@@ -107,6 +121,39 @@ export class TerrainManager {
         if (this._nav) {
             this._nav.markAllDirty();
         }
+    }
+
+    /**
+     * Wire the unit-id -> terrain-access lookup used by the gated mutation APIs (`damageRock`,
+     * `destroyRock`, `consumeRockInRadius`, `createOrMarkRock`). The engine wires it whenever its
+     * terrain manager is set; without it, every source counts as having no access.
+     */
+    setTerrainAccessResolver(resolver: TerrainAccessResolver): void {
+        this.terrainAccessResolver = resolver;
+    }
+
+    /** Terrain access of a unit (empty or unknown units resolve to null / an empty set). */
+    getUnitTerrainAccess(unitId: string | null | undefined): ReadonlySet<TerrainAccessId> | null {
+        return unitId ? this.terrainAccessResolver(unitId) : null;
+    }
+
+    /**
+     * True when `sourceUnitId` may mutate or draw on the terrain at (col, row) (`canUnitAffectTerrain`).
+     * Ungated terrain always passes; gated terrain (Brick) needs a source unit holding the access, so a
+     * mutation with no source is refused there.
+     */
+    canSourceAffectTerrainAt(col: number, row: number, sourceUnitId: string | null | undefined): boolean {
+        return this.canSourceAffectType(this.getEffectiveTerrainType(col, row), sourceUnitId);
+    }
+
+    /** True when (col, row) is intact rock (variants included) that `sourceUnitId` may damage or use. */
+    canSourceAffectRockAt(col: number, row: number, sourceUnitId: string | null | undefined): boolean {
+        return this.isIntactRockAt(col, row) && this.canSourceAffectTerrainAt(col, row, sourceUnitId);
+    }
+
+    private canSourceAffectType(type: TerrainType, sourceUnitId: string | null | undefined): boolean {
+        if (TERRAIN_PROPERTIES[type].access === undefined) return true;
+        return canUnitAffectTerrain(type, this.getUnitTerrainAccess(sourceUnitId));
     }
 
     // -------------------------------------------------------------------------
@@ -217,7 +264,10 @@ export class TerrainManager {
     private implicitRockHealth(col: number, row: number): number {
         const floor = this.getFloorTile(col, row);
         if (floor?.destructible) return floor.destructible.health;
-        if (this.grid.get(col, row) === TerrainType.Rock && this.getEffectiveTerrainType(col, row) === TerrainType.Rock) {
+        if (
+            baseTerrainOf(this.grid.get(col, row)) === TerrainType.Rock
+            && baseTerrainOf(this.getEffectiveTerrainType(col, row)) === TerrainType.Rock
+        ) {
             return EARTH_CORE_STONE_HEALTH;
         }
         return 0;
@@ -226,8 +276,15 @@ export class TerrainManager {
     /**
      * Raise rock on a tile (the single entry for rock-creating abilities). On water the rock raises
      * the ground by `GROUND_RAISE.rock` water levels instead (`raiseGround`) and null is returned.
+     * On intact rock it re-marks the tile at full `maxHealth`, keeping a variant's type (Brick stays
+     * Brick); gated variants are left alone (null) unless `sourceUnitId` holds their access.
      */
-    createOrMarkRock(col: number, row: number, maxHealth: number = EARTH_CORE_STONE_HEALTH): FloorTile | null {
+    createOrMarkRock(
+        col: number,
+        row: number,
+        maxHealth: number = EARTH_CORE_STONE_HEALTH,
+        sourceUnitId?: string | null,
+    ): FloorTile | null {
         if (!this.terrainLayers) return null;
         if (col < 0 || col >= this.grid.width || row < 0 || row >= this.grid.height) return null;
 
@@ -241,10 +298,11 @@ export class TerrainManager {
             this.notifyNavChanged(col, row);
             return null;
         }
-        if (previousEffective === TerrainType.Rock) {
-            // Already a rock, no change in passability.
+        if (baseTerrainOf(previousEffective) === TerrainType.Rock) {
+            // Already a rock (or a Rock variant), no change in passability.
+            if (!this.canSourceAffectType(previousEffective, sourceUnitId)) return null;
             const tile: FloorTile = {
-                terrainType: TerrainType.Rock,
+                terrainType: previousEffective,
                 destructible: { health: maxHealth, maxHealth, kind: 'rock' },
             };
             this.writeFloorTile(col, row, tile);
@@ -288,6 +346,11 @@ export class TerrainManager {
         this.onTerrainEffectsCleared = emitter;
     }
 
+    /**
+     * Chip `damage` durability off the intact rock at (col, row); at 0 it breaks into Gravel. Returns
+     * the transition when the crack tier changes or the rock breaks, else null. Gated variants (Brick)
+     * take no damage (null) unless `sourceUnitId` holds their access; no source is refused there.
+     */
     damageRock(
         col: number,
         row: number,
@@ -300,6 +363,8 @@ export class TerrainManager {
         const previousFloor = this.getFloorTile(col, row);
         const previousEffective = getEffectiveTerrain(previousFloor, bedrock);
         if (!isIntactRock(previousEffective, previousFloor?.destructible)) return null;
+        // Gated variants (Brick) are indestructible to sources without access, and to no source at all.
+        if (!this.canSourceAffectType(previousEffective, sourceUnitId)) return null;
 
         const previousHealth = this.implicitRockHealth(col, row);
         const maxHealth = previousFloor?.destructible?.maxHealth ?? EARTH_CORE_STONE_HEALTH;
@@ -316,7 +381,8 @@ export class TerrainManager {
         const nextHealth = Math.max(0, floor.destructible.health - Math.max(0, damage));
         floor.destructible.health = nextHealth;
 
-        let nextTerrainType = TerrainType.Rock;
+        // Damaged rock keeps its type (Brick stays Brick) until it breaks into Gravel.
+        let nextTerrainType = previousEffective;
         if (nextHealth <= 0) {
             nextTerrainType = TerrainType.Gravel;
             floor.terrainType = TerrainType.Gravel;
@@ -362,7 +428,8 @@ export class TerrainManager {
 
     /**
      * Chip an intact rock so it breaks after `hitsToBreak` such hits from full durability, whatever its max
-     * health (damage per hit = ceil(maxHealth / hitsToBreak)). No-op off-grid or on anything but intact rock.
+     * health (damage per hit = ceil(maxHealth / hitsToBreak)). No-op off-grid, on anything but intact rock,
+     * and on gated variants the source may not affect (see `damageRock`).
      */
     damageRockByHits(
         col: number,
@@ -396,6 +463,7 @@ export class TerrainManager {
                 const effective = this.getEffectiveTerrainType(col, row);
                 const floor = this.getFloorTile(col, row);
                 if (!isIntactRock(effective, floor?.destructible)) continue;
+                if (!this.canSourceAffectType(effective, sourceUnitId)) continue;
                 const dx = col - centerCol;
                 const dy = row - centerRow;
                 if (dx * dx + dy * dy > radiusSq) continue;
@@ -431,13 +499,14 @@ export class TerrainManager {
     }
 
     /**
-     * Destroy one intact rock tile (bedrock or player-made) and leave Rubble behind. Emits the same
+     * Destroy one intact rock tile (bedrock or player-made) and leave Rubble behind. Gated variants
+     * (Brick) are refused (null) unless `sourceUnitId` holds their access. Emits the same
      * stone-damaged transition a destroying `damageRock` emits (health 0, tier DAMAGE_TIER_NONE).
      * Returns null when the tile is not intact rock, so callers can treat it as a no-op.
      */
     destroyRock(col: number, row: number, sourceUnitId?: string | null): TerrainStoneDamagedTransition | null {
         if (!this.terrainLayers) return null;
-        if (!this.isIntactRockAt(col, row)) return null;
+        if (!this.canSourceAffectRockAt(col, row, sourceUnitId)) return null;
 
         const previousFloor = this.getFloorTile(col, row);
         const previousHealth = this.implicitRockHealth(col, row);

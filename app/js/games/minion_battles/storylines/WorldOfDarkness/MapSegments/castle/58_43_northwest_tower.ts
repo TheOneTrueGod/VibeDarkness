@@ -10,6 +10,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
@@ -27,23 +28,23 @@ export const SEGMENT_58_43_NORTHWEST_TOWER: CastleSegment = {
         [_, _, _, _, _, _, _, _, SW, SW, SW, SW, SW, SW, SW, _, _, _, _, _, _, _],
         [_, _, _, _, _, _, SW, SW, W, W, W, W, W, W, W, SW, SW, _, _, _, _, _],
         [_, _, _, _, _, SW, SW, W, W, W, W, W, W, W, W, W, SW, SW, _, _, _, _],
-        [_, _, _, _, SW, W, W, W, W, R, R, R, R, R, W, W, W, W, SW, _, _, _],
-        [_, _, _, SW, SW, W, W, R, R, R, R, R, R, R, R, R, W, W, SW, SW, _, _],
-        [_, _, _, SW, W, W, R, R, R, R, R, R, R, R, R, R, R, W, W, SW, SW, SW],
-        [_, _, SW, W, W, W, R, R, R, R, G, G, G, R, R, R, R, W, W, W, W, W],
-        [_, _, SW, W, W, R, R, R, R, G, G, G, G, G, R, R, R, R, W, W, W, W],
-        [_, _, SW, W, W, R, R, R, G, G, G, G, G, G, G, R, R, R, R, R, R, R],
-        [_, _, SW, W, W, R, R, R, G, G, G, G, G, G, G, R, R, R, R, R, R, R],
-        [_, _, SW, W, W, R, R, R, G, G, G, G, G, G, G, R, R, R, R, R, R, R],
-        [_, _, SW, W, W, R, R, R, R, G, G, G, G, G, G, G, G, G, G, G, G, R],
-        [_, _, SW, W, W, W, R, R, R, R, G, G, G, G, G, G, G, G, G, G, G, R],
-        [_, _, _, SW, W, W, R, R, R, R, R, R, R, G, G, G, G, G, G, G, D, R],
-        [_, _, _, SW, SW, W, W, R, R, R, R, R, R, G, D, D, D, D, D, D, D, D],
-        [_, _, _, _, SW, W, W, W, W, R, R, R, R, G, D, D, D, D, D, D, D, D],
-        [_, _, _, _, _, SW, SW, W, W, W, R, R, R, G, D, D, D, D, D, D, D, R],
-        [_, _, _, _, _, _, SW, SW, W, W, R, R, R, G, D, D, D, G, G, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, G, D, D, D, D, G, R, R, R],
-        [_, _, _, _, _, _, _, SW, W, W, R, R, R, R, R, D, D, R, R, R, R, R],
+        [_, _, _, _, SW, W, W, W, W, R, B, B, B, B, W, W, W, W, SW, _, _, _],
+        [_, _, _, SW, SW, W, W, R, R, R, B, B, B, B, B, B, W, W, SW, SW, _, _],
+        [_, _, _, SW, W, W, R, R, R, R, B, B, B, B, B, B, B, W, W, SW, SW, SW],
+        [_, _, SW, W, W, W, R, R, R, R, G, G, G, B, B, B, B, W, W, W, W, W],
+        [_, _, SW, W, W, R, R, R, R, G, G, G, G, G, B, B, B, B, W, W, W, W],
+        [_, _, SW, W, W, R, R, R, G, G, G, R, R, G, G, B, B, B, B, B, B, B],
+        [_, _, SW, W, W, R, R, R, G, G, G, G, G, G, G, B, B, B, B, B, B, B],
+        [_, _, SW, W, W, R, R, R, G, G, G, G, G, G, G, B, B, B, B, B, B, B],
+        [_, _, SW, W, W, R, R, R, R, G, G, G, G, G, G, G, G, G, G, G, G, B],
+        [_, _, SW, W, W, W, R, R, R, R, G, G, G, G, G, G, G, G, G, G, G, B],
+        [_, _, _, SW, W, W, B, B, B, B, B, B, B, G, G, G, G, G, G, G, D, B],
+        [_, _, _, SW, SW, W, W, B, B, B, B, B, B, G, D, D, D, D, D, D, D, D],
+        [_, _, _, _, SW, W, W, W, W, B, B, B, B, G, D, D, D, D, D, D, D, D],
+        [_, _, _, _, _, SW, SW, W, W, W, B, B, B, G, D, D, D, D, D, D, D, B],
+        [_, _, _, _, _, _, SW, SW, W, W, B, B, B, G, D, D, D, G, G, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, G, D, D, D, D, G, B, B, B],
+        [_, _, _, _, _, _, _, SW, W, W, B, B, B, B, B, D, D, B, B, B, B, B],
     ],
     pointsOfInterest: [
         // Centre of the tower room.

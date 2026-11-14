@@ -10,6 +10,7 @@ import { TerrainType } from '../../../../terrain/TerrainType';
 import type { CastleSegment } from './castleSegment';
 
 const _ = TerrainType.Grass;
+const B = TerrainType.Brick;
 const D = TerrainType.Dirt;
 const G = TerrainType.Gravel;
 const R = TerrainType.Rock;
@@ -22,28 +23,28 @@ export const SEGMENT_64_48_EAST_WALL_WALK_WELL: CastleSegment = {
     gridRow: 48,
     description: 'A stretch of the wall walk around a well. A water source inside the walls was essential to surviving a long siege.',
     terrain: [
-        [R, R, R, R, R, D, D, R, R, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, G, G, G, R, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, G, G, G, R, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, W, W, D, R, D, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, W, W, D, D, D, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, W, W, D, R, D, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [D, D, D, D, R, D, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, D, D, D, R, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, G, D, D, R, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, G, D, D, D, G, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
-        [R, R, R, R, R, D, D, R, R, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, B, B, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, G, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, G, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, G, G, G, B, G, D, G, R, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, G, G, G, B, G, D, D, G, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, W, W, D, B, D, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, W, W, D, D, D, D, D, D, R, R, R, W, W, SW, _, _, _, _, _, _, _],
+        [B, W, W, D, B, D, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, D, D, D, B, D, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, D, D, D, B, G, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, G, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, G, D, D, B, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, G, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, G, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, G, D, D, D, G, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, G, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, D, D, B, B, B, W, W, SW, _, _, _, _, _, _, _],
+        [B, B, B, B, B, D, D, B, B, B, B, B, W, W, SW, _, _, _, _, _, _, _],
     ],
     pointsOfInterest: [
         // On the wall walk.

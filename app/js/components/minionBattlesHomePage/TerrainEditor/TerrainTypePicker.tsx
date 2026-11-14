@@ -12,6 +12,7 @@ const TERRAIN_TYPES: TerrainType[] = [
     TerrainType.Grass,
     TerrainType.ThickGrass,
     TerrainType.Rock,
+    TerrainType.Brick,
     TerrainType.Gravel,
     TerrainType.ShallowWater,
     TerrainType.Water,

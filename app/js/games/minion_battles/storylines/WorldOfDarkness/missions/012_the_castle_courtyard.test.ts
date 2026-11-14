@@ -57,7 +57,8 @@ const cellOf = (u: { x: number; y: number }) => ({ col: Math.floor(u.x / CELL_SI
 describe('The Castle Courtyard (012)', () => {
     it('follows The Lonely Castle in Chapter 3', () => {
         const ch3 = WorldOfDarknessStoryline.chapters?.find((c) => c.id === 'wod_ch3');
-        expect(ch3?.missionIds).toEqual([CAMPSITE_3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID]);
+        // The chapter opens with these three; the castle missions follow (see castlePath.test.ts).
+        expect(ch3?.missionIds.slice(0, 3)).toEqual([CAMPSITE_3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID]);
         expect(WorldOfDarknessStoryline.edges).toContainEqual(
             expect.objectContaining({ fromMissionId: THE_LONELY_CASTLE_MISSION_ID, toMissionId: THE_CASTLE_COURTYARD_MISSION_ID }),
         );

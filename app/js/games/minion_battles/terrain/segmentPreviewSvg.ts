@@ -15,6 +15,8 @@ export const SEGMENT_PREVIEW_PRIORITY: Record<TerrainType, number> = {
     [TerrainType.Water]: 6,
     [TerrainType.ShallowWater]: 5,
     [TerrainType.Rock]: 4,
+    // Same as Rock: Brick is a Rock variant (castle walls).
+    [TerrainType.Brick]: 4,
     [TerrainType.Gravel]: 3,
     [TerrainType.Impassable]: 2,
     [TerrainType.ThickGrass]: 1,

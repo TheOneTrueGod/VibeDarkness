@@ -1,15 +1,17 @@
 /**
  * Pure layout for a mission map chapter: node positions (with a fallback snake grid),
- * quest banks on the map, dividers, and the SVG viewBox. Shared by the character
- * Mission Map and the admin Campaign Summary.
+ * quest banks on the map, dividers, the chapter background, and the SVG viewBox. Shared by the
+ * character Mission Map and the admin Campaign Summary.
  */
 import type { CampaignChapterDef, StorylineDef } from '../../../../storylines/types';
 import type { IBaseMissionDef } from '../../../../storylines/BaseMissionDef';
 import type { QuestSlotBank } from '../../../../storylines/questTypes';
 import { STORYLINES, MISSION_MAP } from '../../../../storylines/index';
 import { getAllMissionIdsInOrder, isSideMissionId } from '../../../../storylines/unlock';
+import { listSegments } from '../../../../terrain/segmentRegistry';
 import { questBankMapNodeKey } from '../questBankUi';
 import { PADDING } from './missionMapHelpers';
+import { buildSegmentGridBackground, type BuiltMapBackground, type MapBackgroundBounds } from './segmentGridBackground';
 
 export interface MissionMapNodeLayout {
     id: string;
@@ -24,6 +26,8 @@ export interface MissionMapLayout {
     mapDividers: NonNullable<CampaignChapterDef['mapDividers']>;
     /** Mission ids and `questBank:<id>` keys → SVG position. */
     posMap: Map<string, { x: number; y: number }>;
+    /** Chapter `mapBackground`, built from the registered segments (null when the chapter has none). */
+    background: BuiltMapBackground | null;
     viewBox: { vbX: number; vbY: number; vbW: number; vbH: number };
 }
 
@@ -72,13 +76,24 @@ export function buildMissionMapLayout(
         if (bank.mapPosition) posMap.set(questBankMapNodeKey(bank.id), bank.mapPosition);
     }
 
-    return { missions, questBanksOnMap, mapDividers, posMap, viewBox: computeViewBox(missions, questBanksOnMap, mapDividers) };
+    const backgroundDef = activeChapter?.mapBackground;
+    const background = backgroundDef ? buildSegmentGridBackground(backgroundDef, listSegments()) : null;
+
+    return {
+        missions,
+        questBanksOnMap,
+        mapDividers,
+        posMap,
+        background,
+        viewBox: computeViewBox(missions, questBanksOnMap, mapDividers, background?.bounds ?? null),
+    };
 }
 
 function computeViewBox(
     missions: MissionMapNodeLayout[],
     questBanksOnMap: QuestSlotBank[],
     mapDividers: NonNullable<CampaignChapterDef['mapDividers']>,
+    backgroundBounds: MapBackgroundBounds | null,
 ): MissionMapLayout['viewBox'] {
     const points = [
         ...missions.map((m) => m.pos),
@@ -98,10 +113,16 @@ function computeViewBox(
             if (y > maxY) maxY = y;
         }
     }
-    return {
-        vbX: minX - PADDING,
-        vbY: minY - PADDING,
-        vbW: maxX - minX + PADDING * 2,
-        vbH: maxY - minY + PADDING * 2,
-    };
+    let vbX = minX - PADDING;
+    let vbY = minY - PADDING;
+    let vbRight = maxX + PADDING;
+    let vbBottom = maxY + PADDING;
+    // Grow (never shrink) to fit the whole background block.
+    if (backgroundBounds) {
+        vbX = Math.min(vbX, backgroundBounds.x);
+        vbY = Math.min(vbY, backgroundBounds.y);
+        vbRight = Math.max(vbRight, backgroundBounds.x + backgroundBounds.width);
+        vbBottom = Math.max(vbBottom, backgroundBounds.y + backgroundBounds.height);
+    }
+    return { vbX, vbY, vbW: vbRight - vbX, vbH: vbBottom - vbY };
 }

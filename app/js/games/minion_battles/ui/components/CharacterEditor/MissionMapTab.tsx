@@ -134,6 +134,7 @@ export default function MissionMapTab({
     const missions = useMemo(() => layout?.missions ?? [], [layout]);
     const questBanksOnMap = useMemo(() => layout?.questBanksOnMap ?? [], [layout]);
     const mapDividers = layout?.mapDividers ?? [];
+    const background = layout?.background ?? null;
     const posMap = layout?.posMap ?? new Map<string, { x: number; y: number }>();
 
     const unlockedQuestBankIds = useMemo(() => {
@@ -282,6 +283,7 @@ export default function MissionMapTab({
                 isAdmin={isAdmin}
                 viewBox={{ vbX, vbY, vbW, vbH }}
                 mapDividers={mapDividers}
+                background={background}
                 missions={missions}
                 questBanksOnMap={questBanksOnMap}
                 posMap={posMap}

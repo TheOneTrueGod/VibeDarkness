@@ -20,9 +20,29 @@ import {
     CAMPSITE_MISSION_ID,
     CAMPSITE_2_MISSION_ID,
     CAMPSITE_3_MISSION_ID,
+    CAMPSITE_CH3_CROSSROADS_MISSION_ID,
+    CAMPSITE_CH3_TRAINING_A_MISSION_ID,
+    CAMPSITE_CH3_TRAINING_B_MISSION_ID,
+    CAMPSITE_CH3_WALLS_MISSION_ID,
 } from './questMissions/campsite';
+import { castleMapPosition, WOD_CH3_MAP_BACKGROUND } from './chapter3Map';
 import { THE_LONELY_CASTLE_MISSION_ID } from './missions/011_the_lonely_castle';
 import { THE_CASTLE_COURTYARD_MISSION_ID } from './missions/012_the_castle_courtyard';
+import { CASTLE_CROSSROADS_MISSION_ID } from './missions/014_castle_crossroads';
+import { GREAT_HALL_MISSION_ID } from './missions/015_great_hall';
+import { THE_KINGS_COURT_MISSION_ID } from './missions/016_the_kings_court';
+import { TRAINING_GROUNDS_MISSION_ID } from './missions/017_training_grounds';
+import { KENNELS_AND_RANGE_MISSION_ID } from './missions/018_kennels_and_range';
+import { OVERGROWN_GARDEN_MISSION_ID } from './missions/019_overgrown_garden';
+import { GARDEN_HEART_MISSION_ID } from './missions/020_garden_heart';
+import { CHAPEL_WING_MISSION_ID } from './missions/021_chapel_wing';
+import { EAST_WALL_WALK_MISSION_ID } from './missions/022_east_wall_walk';
+import { WIZARDS_TOWER_MISSION_ID } from './missions/023_wizards_tower';
+import { COURT_MAGICIAN_TOWER_MISSION_ID } from './missions/024_court_magician_tower';
+import { BARRACKS_WING_MISSION_ID } from './missions/025_barracks_wing';
+import { WEST_WALL_WALK_MISSION_ID } from './missions/026_west_wall_walk';
+import { ROYAL_CHAMBERS_MISSION_ID } from './missions/027_royal_chambers';
+import { ROYAL_BEDCHAMBER_MISSION_ID } from './missions/028_royal_bedchamber';
 import {
     SWARMLING_SOURCE,
     SWARMLING_SOURCE_QUEST_ID,
@@ -43,6 +63,8 @@ import {
     CRYSTAL_CORRUPTION_QUEST,
     CRYSTAL_CORRUPTION_QUEST_ID,
 } from './quests/crystal_corruption';
+import { RAID_THE_LARDER, RAID_THE_LARDER_QUEST_ID } from './quests/raid_the_larder';
+import { FORAGE_THE_GARDEN, FORAGE_THE_GARDEN_QUEST_ID } from './quests/forage_the_garden';
 
 /** Quest slot bank after Core Awakening (side-quest picker on the Mission Map). */
 export const WOD_POST_CORE_QUEST_BANK_ID = 'wod_post_core_awakening_quests';
@@ -67,6 +89,12 @@ export const WOD_SOUTH_GATE_SWARM_BANK_ID = 'wod_south_gate_swarm';
 
 /** Dedicated map node for Crystal Corruption. */
 export const WOD_CRYSTAL_CORRUPTION_BANK_ID = 'wod_crystal_corruption';
+
+/** Dedicated chapter 3 castle node for Raid the Larder. */
+export const WOD_RAID_THE_LARDER_BANK_ID = 'wod_raid_the_larder';
+
+/** Dedicated chapter 3 castle node for Forage the Garden. */
+export const WOD_FORAGE_THE_GARDEN_BANK_ID = 'wod_forage_the_garden';
 
 /** Required clears before this bank is "done" (content can raise later). */
 export const WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS = 1;
@@ -204,6 +232,35 @@ export const WOD_CRYSTAL_CORRUPTION_BANK: QuestSlotBank = {
     questDefId: CRYSTAL_CORRUPTION_QUEST_ID,
 };
 
+/**
+ * Map node that starts Raid the Larder: between the west guardhouse and the storerooms (59.5_49),
+ * after The Castle Courtyard (both rooms open only onto the training ring, west of the courtyard).
+ */
+export const WOD_RAID_THE_LARDER_BANK: QuestSlotBank = {
+    id: WOD_RAID_THE_LARDER_BANK_ID,
+    title: RAID_THE_LARDER.title,
+    unlockAfterMissionId: THE_CASTLE_COURTYARD_MISSION_ID,
+    requiredClears: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
+    filters: {},
+    displaySlotCount: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
+    mapPosition: castleMapPosition(59.5, 49),
+    isSideQuest: true,
+    questDefId: RAID_THE_LARDER_QUEST_ID,
+};
+
+/** Map node that starts Forage the Garden: on the ice house (63_49), after The Overgrown Garden. */
+export const WOD_FORAGE_THE_GARDEN_BANK: QuestSlotBank = {
+    id: WOD_FORAGE_THE_GARDEN_BANK_ID,
+    title: FORAGE_THE_GARDEN.title,
+    unlockAfterMissionId: OVERGROWN_GARDEN_MISSION_ID,
+    requiredClears: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
+    filters: {},
+    displaySlotCount: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
+    mapPosition: castleMapPosition(63, 49),
+    isSideQuest: true,
+    questDefId: FORAGE_THE_GARDEN_QUEST_ID,
+};
+
 /** Alias for tests that still import the old example bank names. */
 export const WOD_EXAMPLE_QUEST_BANK_ID = WOD_POST_CORE_QUEST_BANK_ID;
 export const WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS = WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS;
@@ -242,6 +299,42 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'displacer', result: 'victory', toMissionId: CAMPSITE_3_MISSION_ID },
         { fromMissionId: CAMPSITE_3_MISSION_ID, result: 'victory', toMissionId: THE_LONELY_CASTLE_MISSION_ID },
         { fromMissionId: THE_LONELY_CASTLE_MISSION_ID, result: 'victory', toMissionId: THE_CASTLE_COURTYARD_MISSION_ID },
+        // Castle main path: crossroads -> great hall -> the king (no gate on it yet).
+        { fromMissionId: THE_CASTLE_COURTYARD_MISSION_ID, result: 'victory', toMissionId: CASTLE_CROSSROADS_MISSION_ID },
+        { fromMissionId: CASTLE_CROSSROADS_MISSION_ID, result: 'victory', toMissionId: GREAT_HALL_MISSION_ID },
+        { fromMissionId: GREAT_HALL_MISSION_ID, result: 'victory', toMissionId: THE_KINGS_COURT_MISSION_ID },
+        // Listed after the great hall edge, so Continue after the crossroads goes on to the great hall.
+        { fromMissionId: CASTLE_CROSSROADS_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_CROSSROADS_MISSION_ID },
+        // Optional training branch through the courtyard's west door. A side edge, listed after the
+        // crossroads edge, so Continue after the courtyard still goes to the crossroads.
+        { fromMissionId: THE_CASTLE_COURTYARD_MISSION_ID, result: 'victory', toMissionId: TRAINING_GROUNDS_MISSION_ID, isSideMission: true },
+        { fromMissionId: TRAINING_GROUNDS_MISSION_ID, result: 'victory', toMissionId: KENNELS_AND_RANGE_MISSION_ID },
+        // Two campsites side by side on the archery green's campfires.
+        { fromMissionId: KENNELS_AND_RANGE_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_TRAINING_A_MISSION_ID },
+        { fromMissionId: KENNELS_AND_RANGE_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_TRAINING_B_MISSION_ID },
+        // Garden branch through the courtyard's east door, to a placeholder boss. Listed after the
+        // crossroads edge, so Continue after the courtyard still goes to the crossroads.
+        { fromMissionId: THE_CASTLE_COURTYARD_MISSION_ID, result: 'victory', toMissionId: OVERGROWN_GARDEN_MISSION_ID },
+        { fromMissionId: OVERGROWN_GARDEN_MISSION_ID, result: 'victory', toMissionId: GARDEN_HEART_MISSION_ID },
+        // Wizard tower branch east from the crossroads: chapel -> east wall walk -> tower -> magician.
+        // Listed after the great hall edge, so Continue after the crossroads goes to the great hall.
+        { fromMissionId: CASTLE_CROSSROADS_MISSION_ID, result: 'victory', toMissionId: CHAPEL_WING_MISSION_ID },
+        { fromMissionId: CHAPEL_WING_MISSION_ID, result: 'victory', toMissionId: EAST_WALL_WALK_MISSION_ID },
+        { fromMissionId: EAST_WALL_WALK_MISSION_ID, result: 'victory', toMissionId: WIZARDS_TOWER_MISSION_ID },
+        { fromMissionId: WIZARDS_TOWER_MISSION_ID, result: 'victory', toMissionId: COURT_MAGICIAN_TOWER_MISSION_ID },
+        // Walls campsite: either wall walk unlocks it (any one incoming victory is enough). Listed
+        // after the tower edge, so Continue after the wall walk goes into the tower.
+        { fromMissionId: EAST_WALL_WALK_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_WALLS_MISSION_ID },
+        // Royal chambers branch west from the crossroads: barracks -> west wall walk -> royal chambers
+        // -> placeholder boss in the bedchamber. Listed after the great hall edge, so Continue after
+        // the crossroads goes to the great hall.
+        { fromMissionId: CASTLE_CROSSROADS_MISSION_ID, result: 'victory', toMissionId: BARRACKS_WING_MISSION_ID },
+        { fromMissionId: BARRACKS_WING_MISSION_ID, result: 'victory', toMissionId: WEST_WALL_WALK_MISSION_ID },
+        { fromMissionId: WEST_WALL_WALK_MISSION_ID, result: 'victory', toMissionId: ROYAL_CHAMBERS_MISSION_ID },
+        { fromMissionId: ROYAL_CHAMBERS_MISSION_ID, result: 'victory', toMissionId: ROYAL_BEDCHAMBER_MISSION_ID },
+        // The west wall walk also unlocks the walls campsite. Listed after the royal chambers edge,
+        // so Continue after the wall walk goes into the royal chambers.
+        { fromMissionId: WEST_WALL_WALK_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_WALLS_MISSION_ID },
     ],
     questSlotBanks: [
         WOD_SWARMLING_SOURCE_BANK,
@@ -252,6 +345,8 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         WOD_POST_CORE_QUEST_BANK,
         WOD_POST_CORE_QUEST_BANK_2,
         WOD_POST_CORE_QUEST_BANK_3,
+        WOD_RAID_THE_LARDER_BANK,
+        WOD_FORAGE_THE_GARDEN_BANK,
     ],
     chapters: [
         {
@@ -285,14 +380,26 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             mapDividers: [{ y: WOD_CH2_MAP_Y_SIDE_QUEST_DIVIDER, label: 'Side Quests' }],
         },
         {
-            // Positions: see chapter3Map.ts.
+            // Positions and background: see chapter3Map.ts (`castleMapPosition(col, row)`).
             id: 'wod_ch3',
             numeral: 'III',
             title: 'The Lonely Castle',
             description:
                 'Campsite missions in this chapter should generally grant tier 11 or 12 research (new first abilities, or upgrades to the ones chosen in chapter 2).',
             unlockAfterMissionId: 'displacer',
-            missionIds: [CAMPSITE_3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID],
+            questBankIds: [WOD_RAID_THE_LARDER_BANK_ID, WOD_FORAGE_THE_GARDEN_BANK_ID],
+            missionIds: [
+                CAMPSITE_3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID,
+                CASTLE_CROSSROADS_MISSION_ID, CAMPSITE_CH3_CROSSROADS_MISSION_ID,
+                GREAT_HALL_MISSION_ID, THE_KINGS_COURT_MISSION_ID,
+                TRAINING_GROUNDS_MISSION_ID, KENNELS_AND_RANGE_MISSION_ID,
+                CAMPSITE_CH3_TRAINING_A_MISSION_ID, CAMPSITE_CH3_TRAINING_B_MISSION_ID,
+                OVERGROWN_GARDEN_MISSION_ID, GARDEN_HEART_MISSION_ID,
+                CHAPEL_WING_MISSION_ID, EAST_WALL_WALK_MISSION_ID, CAMPSITE_CH3_WALLS_MISSION_ID,
+                WIZARDS_TOWER_MISSION_ID, COURT_MAGICIAN_TOWER_MISSION_ID,
+                BARRACKS_WING_MISSION_ID, WEST_WALL_WALK_MISSION_ID, ROYAL_CHAMBERS_MISSION_ID, ROYAL_BEDCHAMBER_MISSION_ID,
+            ],
+            mapBackground: WOD_CH3_MAP_BACKGROUND,
         },
         {
             // Admin-only holding ground for missions not yet placed in a player chapter.

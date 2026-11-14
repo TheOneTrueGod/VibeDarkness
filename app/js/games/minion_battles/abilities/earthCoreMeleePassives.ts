@@ -39,7 +39,7 @@ export function countStoneTilesInTremorsense(unit: Unit, terrainManager: Terrain
             if ((dx * dx) + (dy * dy) > radiusSq) continue;
             const floor = terrainManager.getFloorTile(col, row);
             const effective = getEffectiveTerrain(floor, terrainManager.grid.get(col, row));
-            if (!isOnStone(effective, floor?.destructible)) continue;
+            if (!isOnStone(effective, floor?.destructible, unit.terrainAccess)) continue;
             count += 1;
         }
     }

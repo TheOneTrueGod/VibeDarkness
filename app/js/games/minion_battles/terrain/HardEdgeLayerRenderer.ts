@@ -1,13 +1,21 @@
 import { TerrainLayerRenderer } from './TerrainLayerRenderer';
-import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
+import { TerrainType, TERRAIN_PROPERTIES, type HardEdgePatternId } from './TerrainType';
 
 /** Neighbour terrain visible at rock edges (pixels). */
 const ROCK_BLEED_PX = 2;
 /** Corner chamfer size — diagonal cut simulates a rounded rock face. */
 const ROCK_CHAMFER_PX = 4;
 /** Dark outline on the inset rock core. */
-const ROCK_BORDER_COLOR = '#4a4a4a';
+export const ROCK_BORDER_COLOR = '#4a4a4a';
 const ROCK_BORDER_WIDTH = 1;
+
+/** Running-bond mortar (`hardEdgePattern: 'running-bond'`, Brick): lines slightly darker than the fill. */
+export const BRICK_MORTAR_COLOR = 'rgba(38, 26, 22, 0.35)';
+const BRICK_MORTAR_WIDTH = 1;
+/** Brick courses per cell (horizontal mortar line every 1/3 of a cell). */
+const BRICK_COURSES_PER_CELL = 3;
+/** Bricks per course per cell; alternate courses shift their joints by half a brick. */
+const BRICKS_PER_COURSE = 2;
 
 export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
     override readonly blocksBleed = true;
@@ -165,6 +173,11 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
 
         this.fillWrapCorners(ctx, x, y, size, rockColor, north, south, west, east, northWest, northEast, southWest, southEast);
 
+        const pattern = TERRAIN_PROPERTIES[rock].hardEdgePattern;
+        if (pattern) {
+            this.drawSurfacePattern(ctx, pattern, x, y, size, row, chamferX, chamferY, chamferW, chamferH, chamfer);
+        }
+
         this.strokeBorders(ctx, x, y, size, chamferX, chamferY, chamferW, chamferH, chamfer, north, south, west, east, northWest, northEast, southWest, southEast);
     }
 
@@ -201,6 +214,75 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         h: number,
         ch: { nw: number; ne: number; se: number; sw: number },
     ): void {
+        this.traceChamferedRect(ctx, x, y, w, h, ch);
+        ctx.fill();
+    }
+
+    /**
+     * Overlay a `hardEdgePattern` on the cell, clipped to the chamfered core so it never paints the
+     * bleed strips or chamfer cut-outs. Courses use world rows, so the pattern tiles across cells.
+     */
+    private drawSurfacePattern(
+        ctx: CanvasRenderingContext2D,
+        pattern: HardEdgePatternId,
+        tileX: number,
+        tileY: number,
+        size: number,
+        row: number,
+        coreX: number,
+        coreY: number,
+        coreW: number,
+        coreH: number,
+        ch: { nw: number; ne: number; se: number; sw: number },
+    ): void {
+        switch (pattern) {
+            case 'running-bond':
+                ctx.save();
+                this.traceChamferedRect(ctx, coreX, coreY, coreW, coreH, ch);
+                ctx.clip();
+                this.strokeRunningBond(ctx, tileX, tileY, size, row);
+                ctx.restore();
+                break;
+        }
+    }
+
+    /** Running-bond mortar: a course line every 1/3 cell, joints offset half a brick on alternate courses. */
+    private strokeRunningBond(
+        ctx: CanvasRenderingContext2D,
+        tileX: number,
+        tileY: number,
+        size: number,
+        row: number,
+    ): void {
+        const courseH = size / BRICK_COURSES_PER_CELL;
+        const brickW = size / BRICKS_PER_COURSE;
+        ctx.strokeStyle = BRICK_MORTAR_COLOR;
+        ctx.lineWidth = BRICK_MORTAR_WIDTH;
+        ctx.beginPath();
+        for (let k = 0; k < BRICK_COURSES_PER_CELL; k++) {
+            const top = Math.round(tileY + k * courseH);
+            const bottom = Math.round(tileY + (k + 1) * courseH);
+            ctx.moveTo(tileX, top + 0.5);
+            ctx.lineTo(tileX + size, top + 0.5);
+            // World course index keeps the half-brick offset alternating across cell boundaries.
+            const offset = ((row * BRICK_COURSES_PER_CELL + k) % 2) * (brickW / 2);
+            for (let jx = tileX + offset; jx < tileX + size; jx += brickW) {
+                const px = Math.round(jx) + 0.5;
+                ctx.moveTo(px, top);
+                ctx.lineTo(px, bottom);
+            }
+        }
+        ctx.stroke();
+    }
+
+    private traceChamferedRect(
+        ctx: CanvasRenderingContext2D,
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        ch: { nw: number; ne: number; se: number; sw: number },
+    ): void {
         const { nw, ne, se, sw } = ch;
         ctx.beginPath();
         ctx.moveTo(x + nw, y);
@@ -229,7 +311,6 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
             ctx.lineTo(x, y);
         }
         ctx.closePath();
-        ctx.fill();
     }
 
     /**
