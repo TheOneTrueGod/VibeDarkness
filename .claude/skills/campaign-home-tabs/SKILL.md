@@ -29,17 +29,21 @@ Tab ids, labels, and visibility live on each `CampaignHome*Tab.tsx` export (regi
 - `tabFromCampaignSlug(slug)` maps a URL slug to a `TabId` (returns `null` for unknown slugs).
 - `campaignPathForTab(tab)` returns the canonical path. Players and Characters override via `getPath` on their tab def (`/players` and `/players/:id/characters`).
 - On mount, `CampaignHomeScreen` redirects if the URL tab is missing or not visible. Default tab is `characters`.
-- **Ideas tab** sub-paths: `/campaign/ideas/ideas/:categoryId` and `/campaign/ideas/plans/:planId` (4-digit ids from the `docs/ideas` filenames). Helpers `ideasPath` / `parseIdeasSubpath` are in `campaignTabPaths.ts`, and `Ideas/useIdeasRoute.ts` redirects a missing or unknown view or id to the first item.
+- **Ideas tab** sub-tabs are Plans | Ideas | Storybook (`IDEAS_VIEW_IDS`; default Plans). Sub-paths: `/campaign/ideas/plans/:planId`, `/campaign/ideas/ideas/:categoryId` (4-digit ids from the `docs/ideas` filenames) and `/campaign/ideas/storybook/:entryId` (ids from `Ideas/storybook/storybookEntries.ts`). Helpers `ideasPath` / `parseIdeasSubpath` are in `campaignTabPaths.ts`, and `Ideas/useIdeasRoute.ts` redirects a missing or unknown view or id to the first item.
 - Character inner tabs live under `/players/:playerId/characters/:characterId/:characterTab`. Helpers and slugs are in `campaignTabPaths.ts`; chrome is `CampaignHomeScreen/CharactersTab/`. Visiting a character without a tab segment defaults to map.
 
 ## How to add a new tab
 
 1. Add the `TabId` and URL slug to `campaignTabPaths.ts` (`TabId`, `CAMPAIGN_TAB_SLUG`, `CAMPAIGN_TAB_IDS` — last controls bar order).
-2. Create `app/js/components/CampaignHomeScreen/CampaignHome<Name>Tab.tsx` exporting a `CampaignHomeTabDef` (`id`, `label`, `isVisible`, optional `adminTab` / `getPath` / `narrowContent`, and `render`).
+2. Create `app/js/components/CampaignHomeScreen/CampaignHome<Name>Tab.tsx` exporting a `CampaignHomeTabDef` (`id`, `label`, `access`, optional `getPath` / `narrowContent`, and `render`).
 3. Register that def in `campaignHomeTabs.ts` (`TAB_DEFS` must cover every `TabId`).
 4. Put panel UI in `minionBattlesHomePage/` (or inline if it is a small placeholder). Wrap the card in `CampaignHomeTabFrame` so max-width and centering live on that parent, not on `CardWithTitle`. The tab file should stay a thin wrapper.
-5. For admin-only tabs set `adminTab: true` (red-tinted tab bar) and `isVisible: (isAdmin) => isAdmin`.
-6. Inside the panel, call `useCurrentUser()` for `isAdmin` — do **not** accept `isAdmin` as a prop.
+5. Set `access` (`campaignHomeTabDef.ts`): `'everyone'`; `'manager'` for managers and admins (light-red tab: Ability Test, Ideas, Bestiary, Lobby Archive); `'admin'` for admins only (dark-red tab).
+6. Inside the panel, call `useCurrentUser()` for `isAdmin` / `canViewManagerScreens` — do **not** accept them as props.
+
+## Roles
+
+`AccountState.role` is `user` | `dm` | `manager` | `admin` (PHP `PlayerAccount::KNOWN_ROLES`). **Manager** sees the `'manager'` tabs read-only: `Permissions.VIEW_MANAGER_SCREENS` in `app/js/user/permissions.ts`, mirrored by `PlayerAccount::canViewManagerScreens()`, which also gates the read-only Lobby Archive endpoints (list, log, user-state index). Deletes stay admin-only. Grant a role by editing `role` in `storage/accounts/<id>.json` (ids in `accounts_index.json`).
 
 ## Terrain Editor tab
 

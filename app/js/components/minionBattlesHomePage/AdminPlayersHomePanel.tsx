@@ -53,7 +53,7 @@ function AccountCard({
                         <span className="truncate">{account.name}</span>
                     </p>
                     <p className="text-xs text-muted">
-                        {account.role === 'admin' ? 'Admin' : account.role === 'dm' ? 'DM' : 'Player'}
+                        {account.role === 'admin' ? 'Admin' : account.role === 'manager' ? 'Manager' : account.role === 'dm' ? 'DM' : 'Player'}
                     </p>
                     {favoriteCharacter && (
                         <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-300" title="Tracked character">

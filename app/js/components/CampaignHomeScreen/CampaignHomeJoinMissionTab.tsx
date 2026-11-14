@@ -16,6 +16,6 @@ export function CampaignHomeJoinMissionTab({
 export const joinMissionTab: CampaignHomeTabDef = {
     id: 'join_mission',
     label: 'Join Mission',
-    isVisible: () => true,
+    access: 'everyone',
     render: (props) => <CampaignHomeJoinMissionTab {...props} />,
 };

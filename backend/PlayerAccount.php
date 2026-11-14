@@ -13,11 +13,14 @@ class PlayerAccount
     public const ROLE_USER = 'user';
     public const ROLE_DM = 'dm';
     public const ROLE_ADMIN = 'admin';
+    /** Sees some admin screens (Ability Test, Ideas, Bestiary, Lobby Archive). Granted by editing the account JSON. */
+    public const ROLE_MANAGER = 'manager';
 
     /** @var list<string> */
     private const KNOWN_ROLES = [
         self::ROLE_USER,
         self::ROLE_DM,
+        self::ROLE_MANAGER,
         self::ROLE_ADMIN,
     ];
 
@@ -247,6 +250,12 @@ class PlayerAccount
     public function getRole(): string
     {
         return $this->role;
+    }
+
+    /** Managers and admins: may view the manager screens (Ability Test, Ideas, Bestiary, Lobby Archive). Mirrors `VIEW_MANAGER_SCREENS` in `app/js/user/permissions.ts`. */
+    public function canViewManagerScreens(): bool
+    {
+        return $this->role === self::ROLE_MANAGER || $this->role === self::ROLE_ADMIN;
     }
 
     public function verifyPassword(string $password): bool

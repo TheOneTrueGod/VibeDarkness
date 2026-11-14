@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { LobbyClient } from '../../../LobbyClient';
+import { useCurrentUser } from '../../../user/useCurrentUser';
 import ArchiveGameStateTab from './tabs/ArchiveGameStateTab';
 import ArchiveLobbyLogTab from './tabs/ArchiveLobbyLogTab';
 import ArchiveUserStatesTab from './tabs/ArchiveUserStatesTab';
@@ -28,6 +29,8 @@ export default function LobbyDetail({ lobbyId, lobbyClient, onJoinLobby }: Lobby
     const [clearingLog, setClearingLog] = useState(false);
     const [logCleared, setLogCleared] = useState(false);
     const [joining, setJoining] = useState(false);
+    // Managers see the archive read-only; clearing a log stays admin-only (server checks too).
+    const { isAdmin } = useCurrentUser();
 
     const tabParam = searchParams.get('tab');
     const activeTab: DetailTab = VALID_TABS.includes(tabParam as DetailTab) ? (tabParam as DetailTab) : 'game_state';
@@ -72,14 +75,16 @@ export default function LobbyDetail({ lobbyId, lobbyClient, onJoinLobby }: Lobby
             <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-border-custom">
                 <span className="text-sm font-mono font-semibold text-white">{lobbyId}</span>
                 <div className="flex gap-2 ml-auto">
-                    <button
-                        type="button"
-                        className="px-3 py-1.5 text-xs rounded border border-red-700 bg-red-900/40 text-red-300 hover:bg-red-900/60 disabled:opacity-50 transition-colors"
-                        disabled={clearingLog}
-                        onClick={() => void handleClearLog()}
-                    >
-                        {logCleared ? 'Log Cleared' : clearingLog ? 'Clearing…' : 'Clear Lobby Log'}
-                    </button>
+                    {isAdmin && (
+                        <button
+                            type="button"
+                            className="px-3 py-1.5 text-xs rounded border border-red-700 bg-red-900/40 text-red-300 hover:bg-red-900/60 disabled:opacity-50 transition-colors"
+                            disabled={clearingLog}
+                            onClick={() => void handleClearLog()}
+                        >
+                            {logCleared ? 'Log Cleared' : clearingLog ? 'Clearing…' : 'Clear Lobby Log'}
+                        </button>
+                    )}
                     <button
                         type="button"
                         className="px-3 py-1.5 text-xs rounded border border-green-700 bg-green-900/40 text-green-300 hover:bg-green-900/60 disabled:opacity-50 transition-colors"

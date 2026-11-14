@@ -30,12 +30,40 @@ export interface CampaignHomeTabRenderProps {
     ) => void;
 }
 
-/** Per-tab chrome + routing. Visibility and label live with the tab file, not the screen. */
+/**
+ * Who sees a tab. `everyone`; `manager` = managers and admins (light-red tab); `admin` = admins only (dark-red tab).
+ */
+export type CampaignHomeTabAccess = 'everyone' | 'manager' | 'admin';
+
+/** The viewer flags tab access reads (from `useCurrentUser()`). */
+export interface CampaignHomeTabViewer {
+    isAdmin: boolean;
+    canViewManagerScreens: boolean;
+}
+
+export function canViewCampaignHomeTab(access: CampaignHomeTabAccess, viewer: CampaignHomeTabViewer): boolean {
+    switch (access) {
+        case 'everyone':
+            return true;
+        case 'manager':
+            return viewer.canViewManagerScreens;
+        case 'admin':
+            return viewer.isAdmin;
+    }
+}
+
+/** Tab-bar tint per access level; `manager` is a lighter red than `admin`. */
+export const CAMPAIGN_HOME_TAB_ACCESS_CLASS: Record<CampaignHomeTabAccess, string> = {
+    everyone: '',
+    manager: 'bg-red-800/40 hover:bg-red-800/60',
+    admin: 'bg-red-950/50 hover:bg-red-950/70',
+};
+
+/** Per-tab chrome + routing. Access and label live with the tab file, not the screen. */
 export interface CampaignHomeTabDef {
     id: TabId;
     label: string;
-    isVisible: (isAdmin: boolean) => boolean;
-    adminTab?: boolean;
+    access: CampaignHomeTabAccess;
     /** Override `/campaign/:slug` (players + characters use `/players/*`). */
     getPath?: (userId: number | string) => string;
     render: (props: CampaignHomeTabRenderProps) => ReactNode;

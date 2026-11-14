@@ -21,7 +21,6 @@ export function CampaignHomeCampaignSummaryTab({
 export const campaignSummaryTab: CampaignHomeTabDef = {
     id: 'campaign_summary',
     label: 'Campaign Summary',
-    isVisible: (isAdmin) => isAdmin,
-    adminTab: true,
+    access: 'admin',
     render: (props) => <CampaignHomeCampaignSummaryTab {...props} />,
 };

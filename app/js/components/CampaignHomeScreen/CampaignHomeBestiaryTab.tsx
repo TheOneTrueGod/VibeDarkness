@@ -4,8 +4,8 @@ import type { CampaignHomeTabDef } from './campaignHomeTabDef';
 import { CampaignHomeTabFrame } from './CampaignHomeTabFrame';
 
 export function CampaignHomeBestiaryTab() {
-    const { isAdmin } = useCurrentUser();
-    if (!isAdmin) return null;
+    const { canViewManagerScreens } = useCurrentUser();
+    if (!canViewManagerScreens) return null;
     return (
         <CampaignHomeTabFrame>
             <BestiaryPanel />
@@ -16,7 +16,6 @@ export function CampaignHomeBestiaryTab() {
 export const bestiaryTab: CampaignHomeTabDef = {
     id: 'bestiary',
     label: 'Bestiary',
-    isVisible: (isAdmin) => isAdmin,
-    adminTab: true,
+    access: 'manager',
     render: () => <CampaignHomeBestiaryTab />,
 };

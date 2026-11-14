@@ -4,8 +4,8 @@ import type { CampaignHomeTabDef } from './campaignHomeTabDef';
 import { CampaignHomeTabFrame } from './CampaignHomeTabFrame';
 
 export function CampaignHomeIdeasTab() {
-    const { isAdmin } = useCurrentUser();
-    if (!isAdmin) return null;
+    const { canViewManagerScreens } = useCurrentUser();
+    if (!canViewManagerScreens) return null;
     return (
         <CampaignHomeTabFrame>
             <IdeasPanel />
@@ -16,7 +16,6 @@ export function CampaignHomeIdeasTab() {
 export const ideasTab: CampaignHomeTabDef = {
     id: 'ideas',
     label: 'Ideas',
-    isVisible: (isAdmin) => isAdmin,
-    adminTab: true,
+    access: 'manager',
     render: () => <CampaignHomeIdeasTab />,
 };

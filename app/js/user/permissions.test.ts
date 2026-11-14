@@ -21,4 +21,11 @@ describe('hasRolePermission', () => {
     it('denies CONTROL_NPCS for unknown role', () => {
         expect(hasRolePermission(Permissions.CONTROL_NPCS, 'moderator')).toBe(false);
     });
+
+    it('grants VIEW_MANAGER_SCREENS to manager and admin only', () => {
+        expect(hasRolePermission(Permissions.VIEW_MANAGER_SCREENS, 'manager')).toBe(true);
+        expect(hasRolePermission(Permissions.VIEW_MANAGER_SCREENS, 'admin')).toBe(true);
+        expect(hasRolePermission(Permissions.VIEW_MANAGER_SCREENS, 'dm')).toBe(false);
+        expect(hasRolePermission(Permissions.VIEW_MANAGER_SCREENS, 'user')).toBe(false);
+    });
 });

@@ -16,7 +16,6 @@ export function CampaignHomeTerrainEditorTab() {
 export const terrainEditorTab: CampaignHomeTabDef = {
     id: 'terrain_editor',
     label: 'Terrain Editor',
-    isVisible: (isAdmin) => isAdmin,
-    adminTab: true,
+    access: 'admin',
     render: () => <CampaignHomeTerrainEditorTab />,
 };

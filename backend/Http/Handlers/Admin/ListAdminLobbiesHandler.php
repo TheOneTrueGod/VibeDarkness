@@ -22,9 +22,9 @@ class ListAdminLobbiesHandler
             http_response_code(404);
             return ['success' => false, 'error' => 'Account not found'];
         }
-        if ($adminAccount->getRole() !== PlayerAccount::ROLE_ADMIN) {
+        if (!$adminAccount->canViewManagerScreens()) {
             http_response_code(403);
-            return ['success' => false, 'error' => 'Admins only'];
+            return ['success' => false, 'error' => 'Managers only'];
         }
 
         $storageRoot = dirname(__DIR__, 4) . '/storage/lobbies';

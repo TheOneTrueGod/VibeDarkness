@@ -48,6 +48,6 @@ export function CampaignHomeWelcomeTab() {
 export const welcomeTab: CampaignHomeTabDef = {
 	id: 'welcome',
 	label: 'Welcome',
-	isVisible: () => true,
+	access: 'everyone',
 	render: () => <CampaignHomeWelcomeTab />,
 };

@@ -1,10 +1,14 @@
+import type { AccountRole } from '../types';
+import { hasRolePermission, Permissions } from './permissions';
 import { useUserData } from './UserDataProvider';
 
 export interface CurrentUser {
     id: number;
     name: string;
-    role: 'user' | 'dm' | 'admin';
+    role: AccountRole;
     isAdmin: boolean;
+    /** Manager or admin: may open the manager screens (`Permissions.VIEW_MANAGER_SCREENS`). */
+    canViewManagerScreens: boolean;
     resources: { fire: number; water: number; earth: number; air: number };
     campaignIds: string[];
     inventoryItemIds: string[];
@@ -20,6 +24,7 @@ export function useCurrentUser(): CurrentUser {
         name: user?.name ?? '',
         role: user?.role ?? 'user',
         isAdmin: user?.role === 'admin',
+        canViewManagerScreens: hasRolePermission(Permissions.VIEW_MANAGER_SCREENS, user?.role),
         resources: {
             fire: user?.fire ?? 0,
             water: user?.water ?? 0,

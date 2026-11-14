@@ -23,10 +23,13 @@ export interface PlayerState {
     isConnected?: boolean;
 }
 
+/** Account roles; mirrors `PlayerAccount::KNOWN_ROLES`. `manager` sees some admin screens (see `permissions.ts`). */
+export type AccountRole = 'user' | 'dm' | 'manager' | 'admin';
+
 export interface AccountState {
     id: number;
     name: string;
-    role: 'user' | 'dm' | 'admin';
+    role: AccountRole;
     fire: number;
     water: number;
     earth: number;

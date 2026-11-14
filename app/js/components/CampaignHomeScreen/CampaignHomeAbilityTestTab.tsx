@@ -4,8 +4,8 @@ import type { CampaignHomeTabDef } from './campaignHomeTabDef';
 import { CampaignHomeTabFrame } from './CampaignHomeTabFrame';
 
 export function CampaignHomeAbilityTestTab() {
-    const { isAdmin } = useCurrentUser();
-    if (!isAdmin) return null;
+    const { canViewManagerScreens } = useCurrentUser();
+    if (!canViewManagerScreens) return null;
     return (
         <CampaignHomeTabFrame>
             <AbilityTestPanel />
@@ -16,7 +16,6 @@ export function CampaignHomeAbilityTestTab() {
 export const abilityTestTab: CampaignHomeTabDef = {
     id: 'ability_test',
     label: 'Ability Test',
-    isVisible: (isAdmin) => isAdmin,
-    adminTab: true,
+    access: 'manager',
     render: () => <CampaignHomeAbilityTestTab />,
 };

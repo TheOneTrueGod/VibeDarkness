@@ -17,8 +17,7 @@ export function CampaignHomePlayersTab({ lobbyClient }: CampaignHomeTabRenderPro
 export const playersTab: CampaignHomeTabDef = {
     id: 'players',
     label: 'Players',
-    isVisible: (isAdmin) => isAdmin,
-    adminTab: true,
+    access: 'admin',
     getPath: () => playersListPath(),
     render: (props) => <CampaignHomePlayersTab {...props} />,
 };

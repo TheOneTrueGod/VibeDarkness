@@ -17,6 +17,7 @@ import {
 } from '../ability-tests/campaignTabPaths';
 import { TestIds, campaignTabTestId } from '../../testing/testIds';
 import { CAMPAIGN_HOME_TABS, getCampaignHomeTab } from './campaignHomeTabs';
+import { CAMPAIGN_HOME_TAB_ACCESS_CLASS, canViewCampaignHomeTab } from './campaignHomeTabDef';
 import { CAMPAIGN_HOME_CARD_MAX_WIDTH_CLASS } from './CampaignHomeTabFrame';
 import CampaignHomeHeader from './CampaignHomeHeader';
 
@@ -65,11 +66,11 @@ export default function CampaignHomeScreen({
     const location = useLocation();
     const { tabSlug } = useParams<{ tabSlug: string }>();
     const { user } = useUserData();
-    const { isAdmin } = useCurrentUser();
+    const { isAdmin, canViewManagerScreens } = useCurrentUser();
     const defaultTab = getDefaultTab(isAdmin);
     const visibleTabs = useMemo(
-        () => CAMPAIGN_HOME_TABS.filter((tab) => tab.isVisible(isAdmin)),
-        [isAdmin]
+        () => CAMPAIGN_HOME_TABS.filter((tab) => canViewCampaignHomeTab(tab.access, { isAdmin, canViewManagerScreens })),
+        [isAdmin, canViewManagerScreens]
     );
     const onPlayersListRoute = location.pathname === '/players';
     const onCharactersRoute = location.pathname.startsWith('/players/');
@@ -197,7 +198,7 @@ export default function CampaignHomeScreen({
             {hasCampaign && campaign && (
                 <nav className="flex border-t border-border-custom bg-surface" aria-label="Tabs" data-testid={TestIds.campaignTabs}>
                     {visibleTabs.map((tab) => {
-                        const { id, label, adminTab } = tab;
+                        const { id, label, access } = tab;
                         const isActive = activeTab === id;
                         return (
                             <button
@@ -208,7 +209,7 @@ export default function CampaignHomeScreen({
                                     isActive
                                         ? 'text-primary border-b-2 border-primary'
                                         : 'text-muted hover:text-white border-b-2 border-transparent'
-                                } ${adminTab ? 'bg-red-950/50 hover:bg-red-950/70' : ''}`}
+                                } ${CAMPAIGN_HOME_TAB_ACCESS_CLASS[access]}`}
                                 onClick={() => navigate(pathForTab(id, user?.id ?? ''))}
                             >
                                 {label}

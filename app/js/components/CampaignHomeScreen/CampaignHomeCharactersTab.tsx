@@ -24,7 +24,7 @@ export function CampaignHomeCharactersTab({
 export const charactersTab: CampaignHomeTabDef = {
     id: 'characters',
     label: 'Characters',
-    isVisible: () => true,
+    access: 'everyone',
     getPath: (userId) => playerCharactersPath(userId),
     render: (props) => <CampaignHomeCharactersTab {...props} />,
 };
