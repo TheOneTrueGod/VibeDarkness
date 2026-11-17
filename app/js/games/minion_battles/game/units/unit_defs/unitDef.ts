@@ -62,6 +62,7 @@ import {
 } from '../../../constants/enemyConstants';
 import { NODE_TREE_COMPONENT } from '../components/nodeTree';
 import { SPAWNER_COMPONENT } from '../components/spawnerComponent';
+import { BURROW_HOP_COMPONENT } from '../components/burrowHop';
 import type { FlatDamageReduction } from '../flatDamageReduction';
 import type { UnitRenderOptions } from '../unitRenderOptions';
 import {
@@ -70,6 +71,7 @@ import {
     HIVE_GOURD_MAX_CHILDREN,
     HIVE_GOURD_SPAWNER_ID,
     SHELL_OPEN_CALLBACK_ID,
+    GARDEN_NODE_HOP,
     SHELL_REDUCTION,
     GARDEN_NODE_RENDER_OPTIONS,
     NIGHTBLOOM_PRIMARY,
@@ -789,7 +791,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         baseSpawn: ENEMY_THORNSPITTER,
         characterSpriteKey: 'curling_vines',
         hp: 40,
-        speed: 40,
+        // Rooted: nodes never walk (`burrowHop` moves the casters).
+        speed: 0,
         size: 'Medium',
         stamina: 1,
         perceptionRange: 520,
@@ -798,6 +801,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+            componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
         ],
         uiDescription:
             'A garden node that spits two quick fans of slow thorns. Walk between them.',
@@ -810,7 +814,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         baseSpawn: ENEMY_POD_MORTAR,
         characterSpriteKey: 'curling_vines',
         hp: 40,
-        speed: 30,
+        // Rooted: nodes never walk (`burrowHop` moves the casters).
+        speed: 0,
         size: 'Medium',
         stamina: 1,
         perceptionRange: 520,
@@ -819,6 +824,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+            componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
         ],
         uiDescription:
             'A garden node that lobs a seed. It bursts after five seconds unless it is destroyed first.',
@@ -853,7 +859,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         baseSpawn: ENEMY_HIVE_GOURD,
         characterSpriteKey: 'curling_vines',
         hp: 70,
-        speed: 30,
+        // Rooted: nodes never walk (`burrowHop` moves the casters).
+        speed: 0,
         size: 'Large',
         stamina: 1,
         perceptionRange: 520,
@@ -880,7 +887,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         baseSpawn: ENEMY_CREEPER,
         characterSpriteKey: 'curling_vines',
         hp: 45,
-        speed: 45,
+        // Rooted: nodes never walk (`burrowHop` moves the casters).
+        speed: 0,
         size: 'Medium',
         stamina: 1,
         perceptionRange: 520,
@@ -889,6 +897,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+            componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
         ],
         uiDescription:
             'A garden node that sends a runner vine across the ground, laying dark thorns that stay behind.',

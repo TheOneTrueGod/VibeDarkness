@@ -141,13 +141,35 @@ function runCallback(def: BurrowTransitionDef, stage: BurrowStage, unit: Unit, e
     cb?.(unit, engine, stage);
 }
 
-/** Begin a burrow: interrupt the unit, pick the sprout point, enter the `close` stage. */
+/**
+ * Whatever holds a burrow in progress: the `phase` component (a burrow transition) or the `burrowHop` component
+ * (a node hopping a short way). The stage machine below works on any holder.
+ */
+export interface BurrowHolder {
+    burrow: ActiveBurrow | null;
+}
+
+/** Begin a phase's burrow: pick the sprout point, then `beginBurrow`. */
 export function startBurrow(unit: Unit, state: UnitPhaseState, phaseId: string, def: BurrowTransitionDef, engine: EngineContext): void {
+    beginBurrow(unit, state, phaseId, def, chooseSproutPoint(unit, def, engine), engine);
+}
+
+/**
+ * Begin a burrow to a chosen point: interrupt the unit and enter the `close` stage. `sourceId` names what started it
+ * (the phase id, or the hop component's id). Drive it with `advanceBurrow` once per tick.
+ */
+export function beginBurrow(
+    unit: Unit,
+    state: BurrowHolder,
+    sourceId: string,
+    def: BurrowTransitionDef,
+    to: { x: number; y: number },
+    engine: EngineContext,
+): void {
     interruptUnitAbilities(unit, engine);
     unit.clearMovement();
-    const to = chooseSproutPoint(unit, def, engine);
     state.burrow = {
-        phaseId,
+        phaseId: sourceId,
         stage: 'close',
         stageStartsAtTickTime: engine.tickTime,
         stageEndsAtTickTime: engine.tickTime + stageSeconds(def, 'close'),
@@ -157,19 +179,19 @@ export function startBurrow(unit: Unit, state: UnitPhaseState, phaseId: string, 
         toY: to.y,
         ...(def.eruption ? { eruptionRadiusPx: def.eruption.radiusPx } : {}),
     };
-    claimUnit(unit, state.burrow, engine);
+    claimUnit(unit, state.burrow, def, engine);
     runCallback(def, 'close', unit, engine);
     advanceStages(unit, state, def, engine); // zero-length stages
 }
 
 /** Drop a burrow in progress (a later phase's transition supersedes it). The unit stays where it is. */
-export function cancelBurrow(unit: Unit, state: UnitPhaseState): void {
+export function cancelBurrow(unit: Unit, state: BurrowHolder): void {
     if (!state.burrow) return;
     state.burrow = null;
     releaseUnit(unit);
 }
 
-/** Once per tick: advance stages, move the unit along the trail, keep it from acting. */
+/** Once per tick: advance a phase's burrow (its def is looked up from the phase id). */
 export function tickBurrow(unit: Unit, state: UnitPhaseState, engine: EngineContext): void {
     const b = state.burrow;
     if (!b) return;
@@ -178,11 +200,17 @@ export function tickBurrow(unit: Unit, state: UnitPhaseState, engine: EngineCont
         cancelBurrow(unit, state);
         return;
     }
-    advanceStages(unit, state, def, engine);
-    if (state.burrow) claimUnit(unit, state.burrow, engine);
+    advanceBurrow(unit, state, def, engine);
 }
 
-function advanceStages(unit: Unit, state: UnitPhaseState, def: BurrowTransitionDef, engine: EngineContext): void {
+/** Once per tick: advance stages, move the unit along the trail, keep it from acting. Clears `holder.burrow` on landing. */
+export function advanceBurrow(unit: Unit, holder: BurrowHolder, def: BurrowTransitionDef, engine: EngineContext): void {
+    if (!holder.burrow) return;
+    advanceStages(unit, holder, def, engine);
+    if (holder.burrow) claimUnit(unit, holder.burrow, def, engine);
+}
+
+function advanceStages(unit: Unit, state: BurrowHolder, def: BurrowTransitionDef, engine: EngineContext): void {
     for (;;) {
         const b = state.burrow;
         if (!b) return;
@@ -251,15 +279,13 @@ function applyTravelPosition(unit: Unit, b: ActiveBurrow, tickTime: number): voi
 }
 
 /** `Unit.controlled` is not serialized, so it is re-asserted every tick while the (serialized) burrow lasts. */
-function claimUnit(unit: Unit, b: ActiveBurrow, engine: EngineContext): void {
+function claimUnit(unit: Unit, b: ActiveBurrow, def: BurrowTransitionDef, engine: EngineContext): void {
     unit.controlled = true;
-    unit.controlledUntilTime = engine.gameTime + Math.max(0, remainingSeconds(unit, b, engine));
+    unit.controlledUntilTime = engine.gameTime + Math.max(0, remainingSeconds(b, def, engine));
     unit.clearMovement();
 }
 
-function remainingSeconds(unit: Unit, b: ActiveBurrow, engine: EngineContext): number {
-    const def = findBurrowDef(unit, b.phaseId);
-    if (!def) return 0;
+function remainingSeconds(b: ActiveBurrow, def: BurrowTransitionDef, engine: EngineContext): number {
     let rest = b.stageEndsAtTickTime - engine.tickTime;
     for (const s of BURROW_STAGES.slice(BURROW_STAGES.indexOf(b.stage) + 1)) rest += stageSeconds(def, s);
     return rest;
@@ -285,7 +311,7 @@ export interface BurrowVisual {
 }
 
 /** What the renderer needs to draw a burrowing unit, or null when it is not burrowing. */
-export function getBurrowVisual(state: UnitPhaseState | undefined, tickTime: number): BurrowVisual | null {
+export function getBurrowVisual(state: BurrowHolder | undefined, tickTime: number): BurrowVisual | null {
     const b = state?.burrow;
     if (!b) return null;
     const p = stageProgress(b, tickTime);

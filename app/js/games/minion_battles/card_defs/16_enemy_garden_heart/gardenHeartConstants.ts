@@ -8,6 +8,7 @@
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import type { UnitRenderOptions } from '../../game/units/unitRenderOptions';
+import type { BurrowHopOptions } from '../../game/units/components/burrowHop';
 
 const GROUP = formatGroupId(AbilityGroupId.EnemyGardenHeart);
 
@@ -45,6 +46,18 @@ export const GARDEN_GROW_TREE_CALLBACK_ID = 'gardenGrowTree';
 
 /** How far a Bud may wander from its parent (about 6 tiles), the leash on its Stem. */
 export const STEM_LEASH_PX = 6 * CELL_SIZE;
+
+/**
+ * Nodes never walk. Every 2-3 casts, once they have held still for 3 s after the last one, they burrow and come up
+ * within 5 tiles (keeping their Stems within the leash). Stage lengths are placeholder tuning, shorter than the Heart's.
+ */
+export const GARDEN_NODE_HOP: BurrowHopOptions = {
+    usesPerHop: { min: 2, max: 3 },
+    restSeconds: 3,
+    maxDistancePx: 5 * CELL_SIZE,
+    minDistancePx: 2 * CELL_SIZE,
+    burrow: { closeSeconds: 0.3, sinkSeconds: 0.6, travelSeconds: 1, riseSeconds: 0.6 },
+};
 
 // ---- Thornspitter ----
 export const THORN_FAN_COUNT = 2;

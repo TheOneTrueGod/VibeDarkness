@@ -18,6 +18,7 @@ export interface ActivePhaseTransition {
 
 /** A burrow transition in progress (tick-time deadlines; see `BurrowTransitionDef`). The stage list lives in the def. */
 export interface ActiveBurrow {
+    /** What started it: the phase id, or the `burrowHop` component id for a hop. */
     phaseId: string;
     stage: BurrowStage;
     /** `engine.tickTime` the current stage began / ends. */
@@ -89,9 +90,13 @@ function applyPhaseStateFromJSON(state: UnitPhaseState, data: Record<string, unk
                   banner: typeof t.banner === 'string' ? t.banner : null,
               }
             : null;
-    const b = data.phaseBurrow as Partial<ActiveBurrow> | undefined;
-    state.burrow =
-        b &&
+    state.burrow = parseActiveBurrow(data.phaseBurrow);
+}
+
+/** An `ActiveBurrow` read back from JSON, or null when the data is missing or malformed. */
+export function parseActiveBurrow(raw: unknown): ActiveBurrow | null {
+    const b = raw as Partial<ActiveBurrow> | undefined;
+    return b &&
         typeof b === 'object' &&
         typeof b.phaseId === 'string' &&
         (BURROW_STAGES as readonly unknown[]).includes(b.stage) &&

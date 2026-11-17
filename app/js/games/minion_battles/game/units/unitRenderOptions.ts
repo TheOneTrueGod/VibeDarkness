@@ -17,7 +17,8 @@ import type { Unit } from './Unit';
 import { isFlatReductionActive } from './flatDamageReduction';
 import { getUnitDefEntry } from './unit_defs/unitDef';
 import { peekPhaseState } from './components/phaseComponent';
-import { getBurrowVisual, type BurrowVisual } from './components/phaseBurrow';
+import { getBurrowVisual, type BurrowHolder, type BurrowVisual } from './components/phaseBurrow';
+import { peekBurrowHopState } from './components/burrowHop';
 import { fusedBodyOptionsOf, getFusedBodyStatus } from './components/fusedBodyComponent';
 
 export interface PlatedLookDef {
@@ -88,10 +89,19 @@ export interface BurrowRender {
     eruption: FusedBodyTelegraph | null;
 }
 
+/** The burrow this unit is in, from a phase transition or a hop (`burrowHop`); undefined when neither. */
+function burrowHolderOf(unit: Unit): BurrowHolder | undefined {
+    const phase = peekPhaseState(unit);
+    if (phase?.burrow) return phase;
+    const hop = peekBurrowHopState(unit);
+    return hop?.burrow ? hop : undefined;
+}
+
 export function resolveBurrowRender(unit: Unit, tickTime: number): BurrowRender | null {
-    const visual = getBurrowVisual(peekPhaseState(unit), tickTime);
+    const holder = burrowHolderOf(unit);
+    const visual = getBurrowVisual(holder, tickTime);
     if (!visual) return null;
-    const burrow = peekPhaseState(unit)?.burrow;
+    const burrow = holder?.burrow;
     const eruption: FusedBodyTelegraph | null =
         burrow && burrow.stage === 'rise' && burrow.eruptionRadiusPx !== undefined
             ? { x: burrow.toX, y: burrow.toY, radiusPx: burrow.eruptionRadiusPx, fill: visual.stageProgress, color: DEFAULT_TELEGRAPH_COLOR }
