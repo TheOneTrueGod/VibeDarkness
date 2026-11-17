@@ -17,7 +17,7 @@ import { WATER_TERRAIN_TYPES } from '../terrain/TerrainType';
 import { tickTerrainSiphon, terrainSiphonGainPerSec, type TerrainSiphonConfig } from './terrainSiphon';
 
 /** Most Water the unit can hold. */
-export const WATER_MAX = 16;
+export const WATER_MAX = 8;
 
 /** Water a unit starts a battle with when it is attached because an ability costs it. */
 export const WATER_STARTING_AMOUNT = 5;

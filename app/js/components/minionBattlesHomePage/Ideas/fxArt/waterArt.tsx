@@ -125,7 +125,7 @@ function Flake({ x, y, r, stroke, width = 1 }: { x: number; y: number; r: number
 // Water resource bar
 // ---------------------------------------------------------------------------
 
-export const WATER_MAX = 16;
+export const WATER_MAX = 8;
 const BAR_W = 160;
 const BAR_H = 16;
 
@@ -210,7 +210,7 @@ function WaterIcon({ x, y, value, colors }: { x: number; y: number; value: numbe
 
 function WaterBarArt({ colors }: FxArtProps) {
     const uid = uidOf(useId());
-    const rows = [3, 10.5, 16];
+    const rows = [1.5, 5.5, 8];
     return (
         <g fontFamily={FONT}>
             <rect width={240} height={142} fill="#14171f" />
@@ -220,7 +220,7 @@ function WaterBarArt({ colors }: FxArtProps) {
             <text x={13} y={27} fontSize={7.5} fill="#e5e7eb">
                 +<tspan fill={colors.secondary}>0.5</tspan>/s in or beside water
             </text>
-            <text x={13} y={38} fontSize={7.5} fill="#9ca3af">Drains up to 4 nearby tiles · max 16</text>
+            <text x={13} y={38} fontSize={7.5} fill="#9ca3af">Drains up to 4 nearby tiles · max 8</text>
             {rows.map((v, i) => {
                 const y = 56 + i * 28;
                 return (
@@ -722,7 +722,7 @@ function FrozenFieldFx({ colors, background }: FxArtProps) {
 }
 
 export const WATER_ART: FxArtPiece[] = [
-    { id: 'water-bar', label: 'Water bar', caption: '3, 10.5 and 16 of 16, with its tooltip', size: [240, 142], displayWidth: 240, Render: WaterBarArt },
+    { id: 'water-bar', label: 'Water bar', caption: '3, 5.5 and 8 of 8, with its tooltip', size: [240, 142], displayWidth: 240, Render: WaterBarArt },
     { id: 'water-core', label: 'Core icon', caption: 'at 64, 24 and 16 px', size: [150, 80], displayWidth: 150, Render: WaterCoreArt },
     { id: 'water-drain', label: 'Drawing water', caption: 'up to 4 tiles in the 3x3, 1/8 per second (2x speed)', size: [200, 142], displayWidth: 200, Render: WaterDrainArt },
     { id: 'ice-claws-icon', label: 'Ice Claws', caption: 'card icon', size: [64, 64], displayWidth: 96, Render: iconArt(IceClawsIcon) },

@@ -260,12 +260,12 @@ describe('Blood Mage tree: Water overlap nodes', () => {
             });
         }
 
-        it('a unit whose mode ability costs Water gets Water at 5/16', () => {
+        it('a unit whose mode ability costs Water gets Water at 5/8', () => {
             const u = unitWith([WATER_MODE_SLOT]);
             attachResourcesForAbilityCosts(u, new EventBus());
             const water = u.getResource(ResourceId.Water);
             expect(water?.current).toBe(5);
-            expect(water?.max).toBe(16);
+            expect(water?.max).toBe(8);
         });
 
         it('Water is never attached twice', () => {
@@ -283,13 +283,13 @@ describe('Blood Mage tree: Water overlap nodes', () => {
         });
     });
 
-    it.each(ICE_NODES)('a mission player with $nodeId starts with $cardId and Water at 5/16', ({ nodeId, prereq, cardId }) => {
+    it.each(ICE_NODES)('a mission player with $nodeId starts with $cardId and Water at 5/8', ({ nodeId, prereq, cardId }) => {
         const { engine, player } = spawnMissionPlayer(researchWith(nodeId, prereq));
         expect(player.abilities).toContain(cardId);
         const water = player.getResource(ResourceId.Water);
         expect(water).toBeDefined();
         expect(water!.current).toBe(5);
-        expect(water!.max).toBe(16);
+        expect(water!.max).toBe(8);
         expect(player.resources.filter((r) => r.id === ResourceId.Water)).toHaveLength(1);
         engine.destroy();
     });

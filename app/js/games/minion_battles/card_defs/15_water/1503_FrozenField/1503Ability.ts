@@ -35,6 +35,7 @@ import {
     STANDING_DAMAGE_PARAM,
 } from '../../../game/terrainEffects/terrainEffectDefs';
 import { ResourceId } from '../../../resources/resourceIds';
+import { WATER_MAX } from '../../../resources/Water';
 import { getThemeById } from '../../../themes/abilityTheme';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
@@ -43,8 +44,8 @@ import frozenFieldSvg from './frozenField.svg?raw';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Water)}03`;
 
-/** All of a full Water bar (max 16). */
-export const FROZEN_FIELD_WATER_COST = 16;
+/** All of a full Water bar. */
+export const FROZEN_FIELD_WATER_COST = WATER_MAX;
 /** Same uses (and round refill) as Blood Burst; the Frozen mode also needs a use left. */
 export const FROZEN_FIELD_MAX_USES = BURST_MAX_USES;
 /** Extent along caster -> target (px). */

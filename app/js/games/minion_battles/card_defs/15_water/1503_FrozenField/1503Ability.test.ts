@@ -68,7 +68,7 @@ function stepTicks(engine: GameEngine, ticks: number): void {
 }
 
 /** Player at (100, 200) with Blood Burst + Frozen Field and `water`; dummies in and out of the field. */
-function buildFieldEngine(water = 16) {
+function buildFieldEngine(water = FROZEN_FIELD_WATER_COST) {
     const engine = buildTinyBattleEngine({ gridW: 10, gridH: 10, localPlayerId: P, grass: true });
     const player = spawnTinyPlayerUnit(engine, { playerId: P, x: 100, y: 200, abilities: [BURST_ID, FIELD_ID] });
     // The spawn path (BaseMissionDef) attaches Water from the ability costs and locks unowned modes.
@@ -125,7 +125,7 @@ describe('FrozenFieldAbility_1503 in a battle', () => {
         const hp0 = inside.hp;
         const castAt = engine.gameTime;
         executeUnitAbility(player, FrozenFieldAbility_1503, [px(200, 200)], engine as unknown as EngineContext);
-        expect(water.current).toBe(16 - FROZEN_FIELD_WATER_COST);
+        expect(water.current).toBe(FROZEN_FIELD_WATER_COST - FROZEN_FIELD_WATER_COST);
 
         const at = (s: number) => stepTicks(engine, Math.max(0, Math.round((castAt + s - engine.gameTime) / FIXED_DT)));
         at(T.impactAt - 0.05);
@@ -192,7 +192,7 @@ describe('FrozenFieldAbility_1503 in a battle', () => {
         expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([BURST_ID]);
         stepTicks(engine, Math.round(1 / FIXED_DT));
         expect(player.hp).toBe(player.maxHp - BURST_HP_COST);
-        expect(water.current).toBe(16);
+        expect(water.current).toBe(FROZEN_FIELD_WATER_COST);
     });
 });
 
@@ -214,7 +214,7 @@ describe('Frozen Field modes and card', () => {
         expect(modes.ownedCardModes).toEqual([FROZEN_FIELD_BLOOD_MODE]);
         expect(FrozenFieldAbility_1503.maxUses).toBe(2);
         expect(FROZEN_FIELD_MAX_USES).toBe(BurstAbility_0302.maxUses);
-        expect(FrozenFieldAbility_1503.resourceCost).toEqual({ resourceId: 'water', amount: 16 });
+        expect(FrozenFieldAbility_1503.resourceCost).toEqual({ resourceId: 'water', amount: FROZEN_FIELD_WATER_COST });
         expect(FrozenFieldAbility_1503.getTooltipText(undefined).length).toBe(3);
     });
 

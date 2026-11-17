@@ -223,7 +223,7 @@ describe('Water resource display', () => {
         expect(water!.barStyle).toBe('liquid');
         expect(water!.tooltipLines).toEqual([
             '+0.5/s in or beside water',
-            'Drains up to 4 nearby tiles · max 16',
+            'Drains up to 4 nearby tiles · max 8',
         ]);
     });
 

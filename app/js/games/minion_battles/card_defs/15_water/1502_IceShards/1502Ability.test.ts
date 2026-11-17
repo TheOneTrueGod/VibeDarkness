@@ -66,7 +66,7 @@ function setup(enemies: Unit[], opts: { water?: number; splinters?: boolean } = 
     const projectiles: Projectile[] = [];
     const eventBus = new EventBus();
     const water = new Water();
-    water.current = opts.water ?? 16;
+    water.current = opts.water ?? 8;
     caster.attachResource(water, eventBus);
     const engine = {
         gameTime: 0,
@@ -293,7 +293,7 @@ describe('Ice Shards Ice / Blood modes', () => {
     });
 
     it("spends each mode's own uses", () => {
-        const { engine, player } = buildModeEngine(16);
+        const { engine, player } = buildModeEngine(8);
         castSlot(player, engine, 'ice');
         stepTicks(engine, SHARD_CAST_TICKS);
         expect(player.abilityRuntime[ICE_ID]?.currentUses).toBe(ICE_SHARDS_MAX_USES - 1);

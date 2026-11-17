@@ -61,7 +61,7 @@ function makeUnit(id: string, x: number, y: number, team: 'player' | 'enemy', ab
     });
 }
 
-function setup(ability: AbilityStatic, enemies: Unit[], startWater = 16) {
+function setup(ability: AbilityStatic, enemies: Unit[], startWater = 8) {
     const caster = makeUnit('caster', 0, 0, 'player', [ability.id]);
     caster.abilityRuntime[ability.id] = {
         currentUses: BLOODY_CLAWS_MAX_USES,
