@@ -48,6 +48,7 @@ The parser is deliberately small. Stick to:
 - Paragraphs: consecutive lines join into one paragraph, and a blank line ends it.
 - `-` bullets. Indent by two spaces to nest. An indented non-bullet line continues the bullet above it.
 - Inline `**bold**` and `` `code` ``.
+- **Links to other plans:** `[text](plan:0007)` (the target's 4-digit id) renders as a link that opens that plan. Use it to tie a family of plans together. Only plan links are supported.
 - `---` horizontal rules between priority sections.
 - **Decision cards:** a line `> [!DECISION] <question>`, followed by `>` lines for the body (context, `-` options; use a bare `>` for a blank line). The body is parsed with the same rules. The card ends at the first line that doesn't start with `>`. It renders as a blue info card with a question-mark icon on the left and a "Decision needed" label.
 - **Palette cards:** a line `> [!PALETTE] <name>`, then `>` lines. `primary: #rrggbb Label` and `secondary: #rrggbb Label` set the two colours. Other `>` lines are the note, parsed like a decision body. The card renders a tree badge, a Charge resource, and a core icon in those colours. It ends at the first line that doesn't start with `>`.

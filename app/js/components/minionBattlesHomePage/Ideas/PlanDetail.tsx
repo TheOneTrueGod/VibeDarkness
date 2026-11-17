@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronRight, ChevronsDownUp, ChevronsUpDown, CircleCheck, CircleQuestionMark } from 'lucide-react';
 import {
     DEFAULT_PLAN_FILTERS,
@@ -16,16 +17,26 @@ import PalettePreview from './PalettePreview';
 import { FxPaletteCard, FxStudio, FxStudioProvider, type FxPalette } from './ParticleFxPreview';
 import PlanFilterBar from './PlanFilterBar';
 import PlanSizeChip from './PlanSizeChip';
+import { ideasPath } from '../../ability-tests/campaignTabPaths';
 
-const INLINE_RE = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+const INLINE_RE = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(plan:\d+\))/g;
+const PLAN_LINK_RE = /^\[([^\]]+)\]\(plan:(\d+)\)$/;
 
-/** Renders inline `**bold**` and `` `code` `` within a line of plan text. */
+/** Renders inline `**bold**`, `` `code` `` and `[text](plan:0007)` links to other plans within a line of plan text. */
 function InlineText({ text }: { text: string }) {
     return (
         <>
             {text.split(INLINE_RE).map((part, i) => {
                 if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
-                    return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+                    return <strong key={i} className="font-semibold text-white"><InlineText text={part.slice(2, -2)} /></strong>;
+                }
+                const link = PLAN_LINK_RE.exec(part);
+                if (link) {
+                    return (
+                        <Link key={i} to={ideasPath('plans', link[2])} className="text-primary underline underline-offset-2 hover:text-white">
+                            {link[1]}
+                        </Link>
+                    );
                 }
                 if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
                     return (

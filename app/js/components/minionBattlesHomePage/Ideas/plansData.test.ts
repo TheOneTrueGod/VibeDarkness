@@ -238,6 +238,15 @@ describe('buildPlans', () => {
         expect(PLANS.map((p) => p.title)).toContain('Chapter 3 Preparations');
     });
 
+    it('only links to plans that exist', () => {
+        const raws = import.meta.glob('/docs/ideas/plans/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+        const ids = new Set(PLANS.map((p) => p.id));
+        const missing = Object.values(raws).flatMap((text) =>
+            [...text.matchAll(/\]\(plan:(\d+)\)/g)].map((m) => m[1]).filter((id) => !ids.has(id)),
+        );
+        expect(missing).toEqual([]);
+    });
+
     it('loads the armory colour themes as five palette cards', () => {
         const plan = PLANS.find((p) => p.id === '0002');
         expect(plan?.title).toBe('Armory Core colour themes');

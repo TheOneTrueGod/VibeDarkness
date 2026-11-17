@@ -1,6 +1,6 @@
 /**
  * Concept art for the garden boss, the Garden Heart (plan `docs/ideas/plans/0006_2026-11-14_chapter-3-bosses.md`):
- * three ways to draw the Heart, the living Stem and its Bud, the Husk's damage cut, the Stem turning
+ * three ways to draw the Heart, the living Stem and its Bud, the Shell's damage cut, the Stem turning
  * into Briar and then Tangle, the retreat-and-resprout, the four phase shapes, and the five node kinds.
  * Everything is painted from the palette card so the studio can recolour it. These are Ideas-page
  * previews drawn from the design, not the in-game Pixi painters.
@@ -69,7 +69,7 @@ const anim = (name: string, dur: number, delay = 0, extra: CSSProperties = {}, t
 // Shared pieces
 // ---------------------------------------------------------------------------
 
-/** Bark for husks and dead wood: the primary pulled toward brown. */
+/** Bark for shells and dead wood: the primary pulled toward brown. */
 const barkOf = (c: FxColors) => mix(c.primary, '#4a3423', 0.55);
 /** A node's soft flesh, between mass and event. */
 const fleshOf = (c: FxColors) => mix(c.primary, c.secondary, 0.35);
@@ -211,7 +211,7 @@ function LiveStem({ pts, colors, amp = 4, dur = 4.5, tip }: { pts: Pt[]; colors:
     );
 }
 
-/** The glowing heart-core that shows when a husk opens. */
+/** The glowing heart-core that shows when a shell opens. */
 function Core({ r, colors }: { r: number; colors: FxColors }) {
     return (
         <g>
@@ -259,7 +259,7 @@ function RoseHeart({ R, colors, open }: { R: number; colors: FxColors; open: boo
     );
 }
 
-/** Seed pod: a plated husk with a faint seam; it splits in two around the core. */
+/** Seed pod: a plated shell with a faint seam; it splits in two around the core. */
 function PodHeart({ R, colors, open, uid }: { R: number; colors: FxColors; open: boolean; uid: string }) {
     const rx = R;
     const ry = R * 1.12;
@@ -342,12 +342,12 @@ function Heart({ x, y, R = 18, style, colors, open, uid }: { x: number; y: numbe
 // Knots (branch nodes) and Buds (tip nodes)
 // ---------------------------------------------------------------------------
 
-/** A Knot: a node with children. Husked, it wears a thick plated ring; bare, its core shows. */
-function Knot({ x, y, r = 10, colors, husked, kind }: { x: number; y: number; r?: number; colors: FxColors; husked: boolean; kind?: NodeKind }) {
+/** A Knot: a node with children. Shelled, it wears a thick plated ring; bare, its core shows. */
+function Knot({ x, y, r = 10, colors, shelled, kind }: { x: number; y: number; r?: number; colors: FxColors; shelled: boolean; kind?: NodeKind }) {
     return (
         <g transform={`translate(${x} ${y})`}>
             <circle r={r + 3} fill="#000000" opacity={0.3} cy={2} />
-            {husked ? (
+            {shelled ? (
                 <g>
                     <circle r={r} fill={fleshOf(colors)} />
                     {kind && <KindGlyph kind={kind} r={r * 0.7} colors={colors} />}
@@ -420,7 +420,7 @@ function KindGlyph({ kind, r, colors }: { kind: NodeKind; r: number; colors: FxC
     }
 }
 
-/** A Bud: a tip node, no husk, always open to damage. */
+/** A Bud: a tip node, no shell, always open to damage. */
 function Bud({ x = 0, y = 0, r = 8, colors, kind = 'shooter' }: { x?: number; y?: number; r?: number; colors: FxColors; kind?: NodeKind }) {
     return (
         <g transform={`translate(${x} ${y})`}>
@@ -465,7 +465,7 @@ export interface GardenHeartPaletteOption {
  */
 export const GARDEN_HEART_PALETTES: readonly GardenHeartPaletteOption[] = [
     { name: "Queen's Garden", primary: '#166534', primaryLabel: 'Hedge', secondary: '#f9a8d4', secondaryLabel: 'Rose', note: "A tended royal garden turned on the party. Risk: green sits near Command's pine and its Bramble Patch." },
-    { name: 'Blighted Garden', primary: '#3b1f4a', primaryLabel: 'Bruise', secondary: '#bef264', secondaryLabel: 'Sick lime', note: "The garden after the Darkness got into it. Risk: lime is close to Command's secondary; dark Husks vanish unlit." },
+    { name: 'Blighted Garden', primary: '#3b1f4a', primaryLabel: 'Bruise', secondary: '#bef264', secondaryLabel: 'Sick lime', note: "The garden after the Darkness got into it. Risk: lime is close to Command's secondary; dark Shells vanish unlit." },
     { name: 'Bramble Rose', primary: '#4c0519', primaryLabel: 'Old wine', secondary: '#fb7185', secondaryLabel: 'Rose red', note: "All thorns and blood-red roses. Risk: next to Blood Mage, and red is every telegraph's colour." },
     { name: 'Conservatory', primary: '#3f6212', primaryLabel: 'Olive', secondary: '#fde047', secondaryLabel: 'Pollen', note: 'A sunlit greenhouse. Risk: gold is near Light, and olive on grass is the weakest silhouette.' },
     { name: 'Nightbloom', primary: '#134e4a', primaryLabel: 'Deep teal', secondary: '#e9d5ff', secondaryLabel: 'Lilac', note: "Night flowers that glow in the dark garden. Risk: teal near Command's Aurora, lilac near the Court Magician's orchid.", chosen: true },
@@ -481,7 +481,7 @@ export interface GardenHeartStyleOption {
 /** The three ways the artbook drew the Heart. */
 export const GARDEN_HEART_STYLES: readonly GardenHeartStyleOption[] = [
     { id: 'rose', name: 'A · Rosebud', note: 'Petal plates close into a bud and splay open around the core.' },
-    { id: 'pod', name: 'B · Seed pod', note: 'A plated husk with a glowing seam that splits in two.', chosen: true },
+    { id: 'pod', name: 'B · Seed pod', note: 'A plated shell with a glowing seam that splits in two.', chosen: true },
     { id: 'wood', name: 'C · Heartwood', note: 'A gnarled burl with roots in the ground that cracks open.' },
 ];
 
@@ -490,7 +490,7 @@ export const CHOSEN_HEART_STYLE: HeartStyle = GARDEN_HEART_STYLES.find((s) => s.
 
 const HEART_STYLES = GARDEN_HEART_STYLES;
 
-/** One Heart style, husk closed and open. */
+/** One Heart style, shell closed and open. */
 function singleHeartArt(style: HeartStyle) {
     return function SingleHeartArt({ colors, background }: FxArtProps) {
         const uid = uidOf(useId());
@@ -499,7 +499,7 @@ function singleHeartArt(style: HeartStyle) {
                 <Ground w={140} h={96} background={background} />
                 <Heart x={38} y={46} style={style} colors={colors} open={false} uid={`${uid}c`} />
                 <Heart x={102} y={46} style={style} colors={colors} open uid={`${uid}o`} />
-                <Label x={38} y={88} fill={GRAY_TEXT}>husked</Label>
+                <Label x={38} y={88} fill={GRAY_TEXT}>shelled</Label>
                 <Label x={102} y={88} fill={GRAY_TEXT}>open</Label>
             </g>
         );
@@ -521,8 +521,8 @@ function HeartOptionsArt({ colors, background }: FxArtProps) {
                     </g>
                 );
             })}
-            <Label x={4} y={12} anchor="start" fill={GRAY_TEXT}>Husk closed (has children)</Label>
-            <Label x={4} y={90} anchor="start" fill={GRAY_TEXT}>Husk open (no children: vulnerable)</Label>
+            <Label x={4} y={12} anchor="start" fill={GRAY_TEXT}>Shell closed (has children)</Label>
+            <Label x={4} y={90} anchor="start" fill={GRAY_TEXT}>Shell open (no children: vulnerable)</Label>
         </g>
     );
 }
@@ -553,8 +553,8 @@ function OpeningArt({ colors, background }: FxArtProps) {
     );
 }
 
-/** The husk's damage cut: -10 per hit, shown in small grey text that drifts slowly. */
-function HuskDamageArt({ colors, background }: FxArtProps) {
+/** The shell's damage cut: -10 per hit, never below 10, shown in small grey text that drifts slowly. */
+function ShellDamageArt({ colors, background }: FxArtProps) {
     const dur = 2.6;
     const slash = (x: number, y: number) => (
         <path d={`M${x - 16} ${y + 12} L${x + 14} ${y - 14}`} pathLength={100} stroke="#e5e7eb" strokeWidth={2} strokeLinecap="round" strokeDasharray="100" style={{ ...anim('gfx-slash', dur, 0, {}, 'ease-out'), opacity: 0 }} />
@@ -562,17 +562,17 @@ function HuskDamageArt({ colors, background }: FxArtProps) {
     return (
         <g>
             <Ground w={260} h={130} background={background} />
-            <Knot x={70} y={78} r={13} colors={colors} husked />
+            <Knot x={70} y={78} r={13} colors={colors} shelled />
             {slash(70, 78)}
             <text x={86} y={64} fontSize={8} fontWeight={600} fill={GRAY_TEXT} fontFamily={FONT} stroke="#050508" strokeWidth={0.6} style={{ ...anim('gfx-dmg-dull', dur, 0.05, {}, 'ease-out'), opacity: 0 }}>
-                4
+                15
             </text>
-            <Knot x={190} y={78} r={13} colors={colors} husked={false} />
+            <Knot x={190} y={78} r={13} colors={colors} shelled={false} />
             {slash(190, 78)}
             <text x={206} y={64} fontSize={15} fontWeight={800} fill="#ffffff" fontFamily={FONT} stroke="#050508" strokeWidth={1} className={P} style={{ ...anim('gfx-dmg-big', dur, 0.05, {}, 'ease-out'), opacity: 0 }}>
-                14
+                25
             </text>
-            <Label x={70} y={20}>Husked: a 14-damage hit lands as 4</Label>
+            <Label x={70} y={20}>Shelled: a 25-damage hit lands as 15</Label>
             <Label x={70} y={120} fill={GRAY_TEXT}>small, grey, slow: "not working"</Label>
             <Label x={190} y={20}>Bare: full damage</Label>
             <Label x={190} y={120} fill={GRAY_TEXT}>the normal damage number</Label>
@@ -623,7 +623,7 @@ function SeverArt({ colors, background }: FxArtProps) {
             {stage === 2 && <Hero x={98} y={86} />}
             <Label x={75} y={14}>{['1 · Bud destroyed', '2 · Stem stills into Briar', '3 · Briar cut down: Tangle'][stage]}</Label>
             <Label x={75} y={128} fill={GRAY_TEXT}>
-                {['the Heart is still husked', 'Briar blocks movement; Heart opens', 'very slow ground, stops shots'][stage]}
+                {['the Heart is still shelled', 'Briar blocks movement; Heart opens', 'very slow ground, stops shots'][stage]}
             </Label>
         </g>
     );
@@ -683,7 +683,7 @@ function TangleArt({ colors, background }: FxArtProps) {
     );
 }
 
-/** The retreat: the husk closes, the Heart sinks into the ground, burrows, and comes up elsewhere. */
+/** The retreat: the shell closes, the Heart sinks into the ground, burrows, and comes up elsewhere. */
 function retreatArt(style: HeartStyle) {
     return function RetreatArt({ colors, background }: FxArtProps) {
         const uid = uidOf(useId());
@@ -760,7 +760,7 @@ function PhaseTree({ ox, title, sub, tree, colors, uid }: { ox: number; title: s
                 return <StemStrokes key={i} d={smooth([e.from, mid, e.to])} colors={colors} width={3} />;
             })}
             <Heart x={heart[0]} y={heart[1]} R={12} style={CHOSEN_HEART_STYLE} colors={colors} open={false} uid={uid} />
-            {flat.map((n, i) => (n.kind === 'knot' ? <Knot key={i} x={n.at[0]} y={n.at[1]} r={7} colors={colors} husked /> : <Bud key={i} x={n.at[0]} y={n.at[1]} r={5.5} colors={colors} kind="shooter" />))}
+            {flat.map((n, i) => (n.kind === 'knot' ? <Knot key={i} x={n.at[0]} y={n.at[1]} r={7} colors={colors} shelled /> : <Bud key={i} x={n.at[0]} y={n.at[1]} r={5.5} colors={colors} kind="shooter" />))}
             <Label x={60} y={14}>{title}</Label>
             <Label x={60} y={140} fill={GRAY_TEXT}>{sub}</Label>
         </g>
@@ -899,7 +899,7 @@ function BloomArt({ colors, background }: FxArtProps) {
         <g>
             <Ground w={230} h={130} background={background} />
             <line x1={bloom.x} y1={bloom.y} x2={knot.x} y2={knot.y} stroke={colors.secondary} strokeOpacity={0.4} strokeWidth={1} strokeDasharray="3 4" />
-            <Knot x={knot.x} y={knot.y} r={11} colors={colors} husked kind="shooter" />
+            <Knot x={knot.x} y={knot.y} r={11} colors={colors} shelled kind="shooter" />
             <Bud x={bloom.x} y={bloom.y} r={12} colors={colors} kind="bloom" />
             {[0, 1, 2, 3].map((k) => (
                 <circle key={k} cx={bloom.x} cy={bloom.y} r={2.2} fill={colors.light} style={{ ...anim('gfx-drift', dur, -k * (dur / 4), { ['--dx' as string]: `${knot.x - bloom.x}px`, ['--dy' as string]: `${knot.y - bloom.y}px` }, 'ease-in'), opacity: 0 }} />
@@ -994,12 +994,12 @@ function CreeperArt({ colors, background }: FxArtProps) {
 }
 
 export const GARDEN_HEART_ART: FxArtPiece[] = [
-    { id: 'gh-hearts', label: 'The Heart', caption: 'three looks, husk closed and open', size: [330, 176], displayWidth: 330, Render: HeartOptionsArt },
-    { id: 'gh-heart-rose', label: 'Rosebud', caption: 'husk closed and open', size: [140, 96], displayWidth: 168, Render: singleHeartArt('rose') },
-    { id: 'gh-heart-pod', label: 'Seed pod', caption: 'husk closed and open', size: [140, 96], displayWidth: 168, Render: singleHeartArt('pod') },
-    { id: 'gh-heart-wood', label: 'Heartwood', caption: 'husk closed and open', size: [140, 96], displayWidth: 168, Render: singleHeartArt('wood') },
+    { id: 'gh-hearts', label: 'The Heart', caption: 'three looks, shell closed and open', size: [330, 176], displayWidth: 330, Render: HeartOptionsArt },
+    { id: 'gh-heart-rose', label: 'Rosebud', caption: 'shell closed and open', size: [140, 96], displayWidth: 168, Render: singleHeartArt('rose') },
+    { id: 'gh-heart-pod', label: 'Seed pod', caption: 'shell closed and open', size: [140, 96], displayWidth: 168, Render: singleHeartArt('pod') },
+    { id: 'gh-heart-wood', label: 'Heartwood', caption: 'shell closed and open', size: [140, 96], displayWidth: 168, Render: singleHeartArt('wood') },
     { id: 'gh-opening', label: 'Phase 1', caption: 'one living Stem and its Bud', size: [300, 170], displayWidth: 300, Render: OpeningArt },
-    { id: 'gh-husk', label: 'The Husk', caption: '-10 per hit while a node has children', size: [260, 130], displayWidth: 260, Render: HuskDamageArt },
+    { id: 'gh-shell', label: 'The Shell', caption: '-10 per hit (never below 10) while a node has children', size: [260, 130], displayWidth: 260, Render: ShellDamageArt },
     { id: 'gh-sever', label: 'Severing a Bud', caption: 'Stem to Briar to Tangle', size: [462, 140], displayWidth: 462, Render: SeverArt },
     { id: 'gh-tangle', label: 'Tangle', caption: 'projectile hits wear it down to Grass', size: [384, 130], displayWidth: 384, Render: TangleArt },
     { id: 'gh-retreat-rose', label: 'Retreat (Rosebud)', caption: 'close, sink, resprout', size: [290, 150], displayWidth: 290, Render: retreatArt('rose') },
