@@ -36,6 +36,7 @@ import {
     getDefaultRadius,
     getUnitCombatCcDef,
     getUnitComponentSpecs,
+    getUnitFlatDamageReductions,
     getUnitTerrainCrushDamage,
     getUnitCrowdMassOverride,
     getUnitSensesDef,
@@ -83,6 +84,7 @@ import { applyKnockbackToUnit } from './unitKnockback';
 import { applyNudgeToUnit } from './unitNudge';
 import { getUnitEffectiveSpeed, unitHasIFrames, isUnitInJuggernautWindow, getUnitLungeDistance } from './unitAbilityQueries';
 import { updateUnit, tickUnitMovement, type UnitMovementTickOptions, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath, setUnitWalkGoal } from './unitMovementTick';
+import type { FlatDamageReduction } from './flatDamageReduction';
 import { applyDamageToUnit, applyDamageToUnitDetailed, tickUnitDarknessCorruption, type DamageBreakdown, type PendingFrozenHit } from './unitDamage';
 import type { FrozenHitPolicy } from '../time/timeConstants';
 import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
@@ -272,6 +274,12 @@ export class Unit extends GameObject {
      * Cleared when the lockout ends. Null when not waiting.
      */
     waitAbilityMode: string | null = null;
+    /**
+     * Set while this unit owes an answer to a reaction frame (see `game/reactions/reactionFrame.ts`): the
+     * Reactable attack it may answer. Cleared by the decision in `OrderManager` (`wait` is free; acting spends
+     * 1 Reflex). Serialized, so it is part of checkpoints.
+     */
+    reactionPending?: { abilityId: string; casterId: string };
     /** When true, the unit holds position but retains its queued movement path for the next order. */
     movementPaused: boolean = false;
 
@@ -379,6 +387,8 @@ export class Unit extends GameObject {
      * is above 0. Serialized when non-empty.
      */
     pendingFrozenHits: PendingFrozenHit[] = [];
+    /** Flat per-hit damage reductions (see `flatDamageReduction.ts`). Serialized when non-empty. */
+    flatDamageReductions: FlatDamageReduction[] = [];
     /** Per-unit combat tuning values (optional, serialized). */
     combatSettings: UnitCombatSettings | undefined;
     /** Aggregated passive research bonuses (computed at mission start). Serialized. */
@@ -432,6 +442,8 @@ export class Unit extends GameObject {
         this.ephemeralDespawnAtGameTime = config.ephemeralDespawnAtGameTime ?? null;
         this.stackSize = config.stackSize ?? 1;
         attachDefComponents(this, getUnitComponentSpecs(config.characterId));
+        const defReductions = getUnitFlatDamageReductions(config.characterId);
+        if (defReductions) this.flatDamageReductions = defReductions.map((r) => ({ ...r }));
     }
 
     /** Attach a resource and subscribe its event listeners. */

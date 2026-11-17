@@ -108,10 +108,14 @@ export function useBattleAbilityBarSlots({
         : () => sessionRef.current?.getInteractionManager()?.handleWait();
     const waitDisabledReason =
         isItsPreviewActive && !conditionalCancelContext && !atMissingPickDecision ? 'its_preview_active' : null;
+    // Reaction pause: the local unit has `reactionPending` (set by the engine at the reaction frame).
+    const isReactionPause = activeLocalWaiter != null && playerUnit?.reactionPending != null;
     const passAction: TurnIndicatorPassAction = {
         onPass: onWait,
         disabled: !passEnabled,
-        title: atEndedEarlyDone
+        title: isReactionPause
+            ? 'Pass: let it land (free) (Space)'
+            : atEndedEarlyDone
             ? 'Pass: commit this timeline (Space)'
             : atMissingPickDecision
             ? 'Pass: skip the pick (the ability fizzles)'
@@ -156,6 +160,7 @@ export function useBattleAbilityBarSlots({
                 itsPreviewPhase={interactiveTargetingState}
                 itsAbilityId={its?.isActive ? (its.abilityId ?? null) : null}
                 itsAtParallelPause={engine.waitingForOrders != null}
+                isReactionPause={isReactionPause}
             />
         ),
         bottomRightCorner: (

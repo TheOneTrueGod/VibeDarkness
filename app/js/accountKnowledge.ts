@@ -82,6 +82,25 @@ export const KNOWLEDGE_TUTORIAL_CC_RESISTANCE = 'TutorialCcResistance';
  */
 export const KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES = 'TutorialJuggernautFrames';
 
+/**
+ * Tutorial: Reactions. Carries the tutorial shown the first time a player who knows `Reactions` is paused
+ * at a reaction frame. Progress lives here; the `Reactions` systems key only gates it.
+ */
+export const KNOWLEDGE_TUTORIAL_REACTIONS = 'TutorialReactions';
+
+/**
+ * Systems: Reactions. A player who knows it gets Reflex and is paused at an enemy's reaction frame to
+ * answer a Reactable attack. Granted at the start of the Garden Heart fight (`startRewards`); the engine
+ * reads it per player (`playerKnowsReactions`).
+ */
+export const KNOWLEDGE_REACTIONS = 'Reactions';
+
+/**
+ * Knowledge keys the battle engine reads per player. Only these are copied into engine state
+ * (`playerKnowledgeKeysByPlayer`); the server keeps the same list in `backend/BattleKnowledge.php`.
+ */
+export const BATTLE_ENGINE_KNOWLEDGE_KEYS: readonly string[] = [KNOWLEDGE_REACTIONS];
+
 /** What a piece of knowledge is about; drives the pill icon and the admin grant filters. */
 export type AccountKnowledgeType = 'resource' | 'equipment' | 'systems' | 'progression' | 'tutorial' | 'other';
 
@@ -178,6 +197,13 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
             'Shows Vigor, Metal and Attunement: victory-screen Mission Rewards, mission and quest reward tooltips on the Mission Map (including side-quest picks) and story-choice reward pills.',
     },
     {
+        key: KNOWLEDGE_REACTIONS,
+        label: 'Reactions',
+        type: 'systems',
+        tier: 3,
+        description: 'Gives player units Reflex and pauses them at a Reactable enemy attack’s reaction frame.',
+    },
+    {
         key: KNOWLEDGE_COMPLETED_CHAPTER_1,
         label: 'Completed Chapter 1',
         type: 'progression',
@@ -232,6 +258,13 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
         type: 'tutorial',
         tier: 1,
         description: 'Recorded by the tutorial shown, with the game held, the first time an enemy shows its juggernaut border.',
+    },
+    {
+        key: KNOWLEDGE_TUTORIAL_REACTIONS,
+        label: 'Tutorial: Reactions',
+        type: 'tutorial',
+        tier: 3,
+        description: 'Recorded by the tutorial shown, with the game held, the first time a player gets a reaction pause.',
     },
 ];
 

@@ -206,3 +206,69 @@ export const ALLY_LANTERNITE_NEST: EnemySpawnDef = {
     aiSettings: { minRange: 0, maxRange: 0 },
     unitAITreeId: 'lanterniteNestIdle',
 };
+
+/**
+ * Garden Heart node spawn templates. Every kind can sit anywhere in a tree (the Heart's Knots and Buds); the tree
+ * layouts and growing live in `game/gardenHeart/`. Abilities and numbers in `card_defs/16_enemy_garden_heart/`.
+ * All use the `gardenNode` AI tree: Buds drift toward the party on their Stem's leash, Knots and the Heart hold still.
+ */
+export const ENEMY_GARDEN_HEART: EnemySpawnDef = {
+    characterId: 'garden_heart',
+    name: 'The Garden Heart',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: [],
+    aiSettings: { minRange: 0, maxRange: 0 },
+    unitTags: [UnitTag.Boss],
+    unitAITreeId: 'gardenNode',
+};
+
+export const ENEMY_THORNSPITTER: EnemySpawnDef = {
+    characterId: 'thornspitter',
+    name: 'Thornspitter',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['1601'],
+    aiSettings: { minRange: 120, maxRange: 380 },
+    unitAITreeId: 'gardenNode',
+};
+
+export const ENEMY_POD_MORTAR: EnemySpawnDef = {
+    characterId: 'pod_mortar',
+    name: 'Pod Mortar',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['1602'],
+    aiSettings: { minRange: 80, maxRange: 380 },
+    unitAITreeId: 'gardenNode',
+};
+
+export const ENEMY_MENDER_BLOOM: EnemySpawnDef = {
+    characterId: 'mender_bloom',
+    name: 'Mender Bloom',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['1603'],
+    aiSettings: { minRange: 0, maxRange: 0 },
+    unitAITreeId: 'gardenNode',
+};
+
+export const ENEMY_HIVE_GOURD: EnemySpawnDef = {
+    characterId: 'hive_gourd',
+    name: 'Hive Gourd',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: [],
+    aiSettings: { minRange: 0, maxRange: 0 },
+    unitAITreeId: 'gardenNode',
+};
+
+export const ENEMY_CREEPER: EnemySpawnDef = {
+    characterId: 'creeper',
+    name: 'Creeper',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['1604'],
+    aiSettings: { minRange: 0, maxRange: 360 },
+    unitAITreeId: 'gardenNode',
+};

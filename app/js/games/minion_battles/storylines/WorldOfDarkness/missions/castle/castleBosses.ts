@@ -5,12 +5,15 @@
  */
 
 import type { BattleObjectiveDef, EnemySpawnDef } from '../../../types';
+import type { GameEngine } from '../../../../game/GameEngine';
+import { growGardenTree, type GardenGrowContext } from '../../../../game/gardenHeart/growGardenTree';
 import { ObjectiveType } from '../../../objectiveTypes';
 import {
     COURT_CRYSTAL_START_COUNT,
     ENEMY_ALPHA_WOLF,
     ENEMY_COURT_CRYSTAL,
     ENEMY_COURT_MAGICIAN,
+    ENEMY_GARDEN_HEART,
 } from '../../../../constants/enemyConstants';
 import { cellCentre } from './castleSpawnPresets';
 
@@ -20,6 +23,8 @@ type GridCell = { col: number; row: number };
 export interface CastleBossSetup {
     enemies: EnemySpawnDef[];
     objectives: BattleObjectiveDef[];
+    /** Runs once after the mission's units are spawned (e.g. growing the Garden Heart's first tree). */
+    onMissionStart?: (engine: GameEngine) => void;
 }
 
 // --- Placeholder boss ------------------------------------------------------
@@ -82,5 +87,32 @@ export function courtMagicianBossSetup(centre: GridCell, objectiveLabel: string)
                 toComplete: { type: 'unitDead', unitCharacterId: ENEMY_COURT_MAGICIAN.characterId },
             },
         ],
+    };
+}
+
+// --- Garden Heart ----------------------------------------------------------
+
+export const GARDEN_HEART_OBJECTIVE_ID = PLACEHOLDER_BOSS_OBJECTIVE_ID;
+
+/**
+ * The Garden Heart fight around `centre`: the Heart on it (health scaled by player count when the mission spawns it,
+ * like every enemy), its phase-1 tree grown at mission start, and the defeat-the-Heart objective. Phases, retreat and
+ * sprout points live on the `garden_heart` def (`card_defs/16_enemy_garden_heart/gardenHeartPhases.ts`).
+ */
+export function gardenHeartBossSetup(centre: GridCell, objectiveLabel: string): CastleBossSetup {
+    return {
+        enemies: [{ ...ENEMY_GARDEN_HEART, position: cellCentre(centre) }],
+        objectives: [
+            {
+                id: GARDEN_HEART_OBJECTIVE_ID,
+                objectiveType: ObjectiveType.KillTarget,
+                label: objectiveLabel,
+                toComplete: { type: 'unitDead', unitCharacterId: ENEMY_GARDEN_HEART.characterId },
+            },
+        ],
+        onMissionStart(engine) {
+            const heart = engine.units.find((u) => u.characterId === ENEMY_GARDEN_HEART.characterId);
+            if (heart) growGardenTree(engine as unknown as GardenGrowContext, heart, 1);
+        },
     };
 }

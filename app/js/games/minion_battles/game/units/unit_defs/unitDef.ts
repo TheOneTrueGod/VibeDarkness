@@ -35,6 +35,7 @@ import { componentSpec, type UnitComponentSpec } from '../components/unitCompone
 import { LANTERNITE_COMPONENT } from '../components/lanterniteComponent';
 import { SWARM_COMPONENT } from '../components/swarmComponent';
 import { HP_STEP_COMPONENT } from '../components/hpStepComponent';
+import { FUSED_BODY_COMPONENT } from '../components/fusedBodyComponent';
 import { SLIME } from '../dark_animals/slime';
 import {
     ENEMY_DARK_WOLF,
@@ -52,7 +53,29 @@ import {
     COURT_CRYSTAL_CONJURE_STEPS,
     ENEMY_SWARMLING,
     ALLY_LANTERNITE,
+    ENEMY_GARDEN_HEART,
+    ENEMY_THORNSPITTER,
+    ENEMY_POD_MORTAR,
+    ENEMY_MENDER_BLOOM,
+    ENEMY_HIVE_GOURD,
+    ENEMY_CREEPER,
 } from '../../../constants/enemyConstants';
+import { NODE_TREE_COMPONENT } from '../components/nodeTree';
+import { SPAWNER_COMPONENT } from '../components/spawnerComponent';
+import type { FlatDamageReduction } from '../flatDamageReduction';
+import type { UnitRenderOptions } from '../unitRenderOptions';
+import {
+    HIVE_GOURD_INTERVAL_SEC,
+    HIVE_GOURD_BURST,
+    HIVE_GOURD_MAX_CHILDREN,
+    HIVE_GOURD_SPAWNER_ID,
+    SHELL_OPEN_CALLBACK_ID,
+    SHELL_REDUCTION,
+    GARDEN_NODE_RENDER_OPTIONS,
+    NIGHTBLOOM_PRIMARY,
+    NIGHTBLOOM_SECONDARY,
+} from '../../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
+import { GARDEN_HEART_PHASES } from '../../../card_defs/16_enemy_garden_heart/gardenHeartPhases';
 
 /**
  * Defines the spawn animation played when a unit of this type enters the field via darknessSpawn.
@@ -134,7 +157,14 @@ export type EnemyUnitId =
     | 'husk'
     | 'iron_warden'
     | 'court_magician'
-    | 'court_crystal';
+    | 'court_crystal'
+    | 'pod_seed'
+    | 'garden_heart'
+    | 'thornspitter'
+    | 'pod_mortar'
+    | 'mender_bloom'
+    | 'hive_gourd'
+    | 'creeper';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
 /**
@@ -231,6 +261,16 @@ export interface UnitDefEntry {
      * Death behaviour that is not a visual effect belongs in a component's `onDeath` hook.
      */
     components?: UnitComponentSpec<any, any>[];
+    /**
+     * Per-hit flat damage reductions every spawn of this character starts with (see `units/flatDamageReduction.ts`).
+     * Copied onto the unit at construction and serialized with it, so a restored unit keeps them.
+     */
+    flatDamageReductions?: readonly FlatDamageReduction[];
+    /**
+     * Def-level render options (plated shell look, burrow colours; see `units/unitRenderOptions.ts`). Pure data the
+     * renderer reads; the engine never does.
+     */
+    renderOptions?: UnitRenderOptions;
     /** Cinematic death (pause → animation → resume), e.g. bosses. Replaces onDeathVisualEffects. */
     deathSequence?: DeathSequenceDef;
     /** Darkness vs natural beast; drives expectations for death/damage presentation and copy. */
@@ -672,6 +712,187 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         onDeathVisualEffects: darkCreatureParticleBurstVFX(3),
         uiDescription: 'A shard of the Court Magician\'s focus. It cannot be harmed, and shatters when he falls.',
     },
+    pod_seed: {
+        bodyColor: 0x134e4a,
+        displayName: 'Pod Seed',
+        sprite: UNIT_SPRITE_URLS.curling_vines,
+        // Lobbed by the Garden Heart's Pod Mortar; no abilities of its own.
+        bestiary: { abilityIds: [], hidden: true },
+        characterSpriteKey: 'curling_vines',
+        // Base health; spawn scales it by player count (`scaledFusedBodyHp`).
+        hp: 20,
+        speed: 0,
+        size: 'Tiny',
+        stamina: 1,
+        perceptionRange: 0,
+        creatureType: 'nature',
+        tags: [UnitTag.Structure],
+        // 5 s fuse, last 1.5 s telegraphed. Killing it first cancels the burst. Numbers are placeholders for Step 7 to tune.
+        components: [
+            componentSpec(FUSED_BODY_COMPONENT, {
+                fuseSeconds: 5,
+                radiusPx: 96,
+                reactable: true,
+                onExpiry: {
+                    effectId: 'areaDamage',
+                    params: { damage: 12 },
+                    visuals: [{ type: 'particleRing', imageKey: 'darkBlob', count: 10 }],
+                },
+                onDeath: {
+                    // The fizzle: a short puff, no damage.
+                    effectId: 'none',
+                    visuals: [
+                        { type: 'particleRing', imageKey: 'darkBlob', count: 3 },
+                        // A small cool ring where the red blast circle was, so the early kill reads as a fizzle.
+                        {
+                            type: 'effect',
+                            effectType: 'Pulse',
+                            effectData: { colors: [NIGHTBLOOM_SECONDARY, NIGHTBLOOM_PRIMARY, NIGHTBLOOM_PRIMARY], maxRadius: 40 },
+                            duration: 0.45,
+                        },
+                    ],
+                },
+            }),
+        ],
+        uiDescription: 'A lobbed seed pod with a lit fuse. Shoot it before it bursts and the burst never comes.',
+    },
+    // ---- Garden Heart nodes (browser plan 0008). Placeholder sprite; every node kind carries the Shell. ----
+    garden_heart: {
+        bodyColor: 0x134e4a,
+        displayName: 'The Garden Heart',
+        sprite: UNIT_SPRITE_URLS.curling_vines,
+        bestiary: { abilityIds: [] },
+        baseSpawn: ENEMY_GARDEN_HEART,
+        characterSpriteKey: 'curling_vines',
+        hp: 300,
+        speed: 0,
+        size: 'Colossal',
+        stamina: 1,
+        perceptionRange: 700,
+        creatureType: 'nature',
+        tags: [UnitTag.Boss, UnitTag.Structure],
+        flatDamageReductions: [SHELL_REDUCTION],
+        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        components: [
+            componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+        ],
+        // Retreats at 75 / 50 / 25%: the old tree dies to Briar, the Heart resurfaces elsewhere with the next tree.
+        phases: GARDEN_HEART_PHASES,
+        uiDescription:
+            'A plated seed pod rooted in the garden. While anything grows from it, its Shell turns the worst of every hit. Cut down the tips and it opens. When it has lost enough, it sinks into the ground and comes up elsewhere with a bigger plant.',
+    },
+    thornspitter: {
+        bodyColor: 0x134e4a,
+        displayName: 'Thornspitter',
+        sprite: UNIT_SPRITE_URLS.curling_vines,
+        bestiary: { abilityIds: ['1601'] },
+        baseSpawn: ENEMY_THORNSPITTER,
+        characterSpriteKey: 'curling_vines',
+        hp: 40,
+        speed: 40,
+        size: 'Medium',
+        stamina: 1,
+        perceptionRange: 520,
+        creatureType: 'nature',
+        flatDamageReductions: [SHELL_REDUCTION],
+        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        components: [
+            componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+        ],
+        uiDescription:
+            'A garden node that spits two quick fans of slow thorns. Walk between them.',
+    },
+    pod_mortar: {
+        bodyColor: 0x134e4a,
+        displayName: 'Pod Mortar',
+        sprite: UNIT_SPRITE_URLS.curling_vines,
+        bestiary: { abilityIds: ['1602'] },
+        baseSpawn: ENEMY_POD_MORTAR,
+        characterSpriteKey: 'curling_vines',
+        hp: 40,
+        speed: 30,
+        size: 'Medium',
+        stamina: 1,
+        perceptionRange: 520,
+        creatureType: 'nature',
+        flatDamageReductions: [SHELL_REDUCTION],
+        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        components: [
+            componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+        ],
+        uiDescription:
+            'A garden node that lobs a seed. It bursts after five seconds unless it is destroyed first.',
+    },
+    mender_bloom: {
+        bodyColor: 0x134e4a,
+        displayName: 'Mender Bloom',
+        sprite: UNIT_SPRITE_URLS.curling_vines,
+        bestiary: { abilityIds: ['1603'] },
+        baseSpawn: ENEMY_MENDER_BLOOM,
+        characterSpriteKey: 'curling_vines',
+        hp: 50,
+        speed: 0,
+        size: 'Medium',
+        stamina: 1,
+        perceptionRange: 520,
+        creatureType: 'nature',
+        tags: [UnitTag.Structure],
+        flatDamageReductions: [SHELL_REDUCTION],
+        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        components: [
+            componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+        ],
+        uiDescription:
+            'A rooted flower that heals the garden nodes around it, the Heart included. It never moves.',
+    },
+    hive_gourd: {
+        bodyColor: 0x134e4a,
+        displayName: 'Hive Gourd',
+        sprite: UNIT_SPRITE_URLS.curling_vines,
+        bestiary: { abilityIds: [] },
+        baseSpawn: ENEMY_HIVE_GOURD,
+        characterSpriteKey: 'curling_vines',
+        hp: 70,
+        speed: 30,
+        size: 'Large',
+        stamina: 1,
+        perceptionRange: 520,
+        creatureType: 'nature',
+        flatDamageReductions: [SHELL_REDUCTION],
+        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        components: [
+            componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+            componentSpec(SPAWNER_COMPONENT, {
+                spawnerId: HIVE_GOURD_SPAWNER_ID,
+                maxChildren: HIVE_GOURD_MAX_CHILDREN,
+                intervalSec: HIVE_GOURD_INTERVAL_SEC,
+                burstCount: HIVE_GOURD_BURST,
+            }),
+        ],
+        uiDescription:
+            'A garden node that keeps a few swarmlings and slimes alive. Kill them and it grows more.',
+    },
+    creeper: {
+        bodyColor: 0x134e4a,
+        displayName: 'Creeper',
+        sprite: UNIT_SPRITE_URLS.curling_vines,
+        bestiary: { abilityIds: ['1604'] },
+        baseSpawn: ENEMY_CREEPER,
+        characterSpriteKey: 'curling_vines',
+        hp: 45,
+        speed: 45,
+        size: 'Medium',
+        stamina: 1,
+        perceptionRange: 520,
+        creatureType: 'nature',
+        flatDamageReductions: [SHELL_REDUCTION],
+        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        components: [
+            componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+        ],
+        uiDescription:
+            'A garden node that sends a runner vine across the ground, laying dark thorns that stay behind.',
+    },
 };
 
 /** Enemy def ids (every def except the player), in registry order. */
@@ -750,6 +971,11 @@ export function getUnitComponentSpecs(characterId: string): readonly UnitCompone
     const def = UNIT_DEFS[characterId as UnitDefId];
     if (!def?.phases?.length) return def?.components;
     return [...(def.components ?? []), componentSpec(PHASE_COMPONENT, { phases: def.phases })];
+}
+
+/** Flat damage reductions a character's def starts its units with (undefined when none). */
+export function getUnitFlatDamageReductions(characterId: string): readonly FlatDamageReduction[] | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.flatDamageReductions;
 }
 
 /** Phases a character's def declares (undefined when none). */

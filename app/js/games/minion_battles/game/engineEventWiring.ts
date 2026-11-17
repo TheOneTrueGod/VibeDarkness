@@ -17,6 +17,8 @@ import { areAllies, areEnemies } from './teams';
 import { registerDamageLinkListeners } from './units/unitDamageLinks';
 import { runUnitComponentDeath } from './units/components/unitComponentHooks';
 import { getBodyColorForUnit, getCharacterSpriteKey, getUnitDefEntry, type UnitDefId } from './units/unit_defs/unitDef';
+import { fusedBodyOptionsOf } from './units/components/fusedBodyComponent';
+import { requestReactionFrame } from './reactions/reactionFrame';
 import type { GameEngine } from './GameEngine';
 import { handlePetReactionsOnAttackHit } from './units/petReactions';
 import type { AbilityEngineContext } from '../abilities/AbilityEngineContext';
@@ -35,6 +37,17 @@ export function wireCoreEventListeners(engine: GameEngine): void {
     // Pets answering their owner's weapon hits (PetDefEntry.reactions).
     engine.eventBus.on('attack_hit', (event) => {
         handlePetReactionsOnAttackHit(engine as unknown as AbilityEngineContext, event);
+    });
+
+    // Reactable fused bodies (e.g. the Pod Mortar seed): the telegraph start is the reaction frame.
+    engine.eventBus.on('fused_body_telegraph_started', (event) => {
+        const seed = engine.getUnit(event.unitId);
+        if (!seed || !fusedBodyOptionsOf(seed)?.reactable) return;
+        requestReactionFrame(engine, {
+            sourceUnitId: seed.id,
+            area: { kind: 'circle', x: event.x, y: event.y, radius: event.radiusPx },
+            label: 'fused_body',
+        });
     });
 
     // unit_died: apply deathSequence (or onDeathVisualEffects) and onDeathBehaviors from the unit def directly.

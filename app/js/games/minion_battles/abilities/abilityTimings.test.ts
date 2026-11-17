@@ -5,6 +5,9 @@ import {
     buildPrimaryTimelineSegments,
     TIMELINE_CANCEL_MARK_LABEL,
     TIMELINE_CANCEL_SECTION_SECONDS,
+    TIMELINE_REACTION_MARK_LABEL,
+    TIMELINE_REACTION_SECTION_SECONDS,
+    visibleReactionMarks,
     visibleConditionalCancelMarks,
     computeTickElapsed,
     elapsedIsInCoopCooldown,
@@ -306,6 +309,37 @@ describe('visibleConditionalCancelMarks', () => {
     it('drops a cancel that has already passed or sits past the window', () => {
         expect(visibleConditionalCancelMarks(intervals, 1.5, 2)).toEqual([]);
         expect(visibleConditionalCancelMarks(intervals, 0, 1)).toEqual([]);
+    });
+});
+
+describe('visibleReactionMarks', () => {
+    const frame = (at: 'start' | 'end') => ({ at, area: () => null });
+    const intervals = [
+        { id: 'aim', start: 1, end: 2, abilityPhase: AbilityPhase.Windup, reactionFrame: frame('start') },
+        { id: 'blast', start: 2, end: 3, abilityPhase: AbilityPhase.Active, reactionFrame: frame('end') },
+        { id: 'plain', start: 3, end: 4, abilityPhase: AbilityPhase.Cooldown },
+    ];
+
+    it('ends a mark on each frame (start or end of its interval)', () => {
+        const marks = visibleReactionMarks(intervals, 0, 5);
+        expect(marks).toHaveLength(2);
+        expect(marks[0]?.start + marks[0]!.duration).toBeCloseTo(1);
+        expect(marks[1]?.start + marks[1]!.duration).toBeCloseTo(3);
+        expect(marks[0]?.duration).toBeCloseTo(TIMELINE_REACTION_SECTION_SECONDS);
+        expect(marks[0]?.label).toBe(TIMELINE_REACTION_MARK_LABEL);
+        expect(marks[0]?.description).toBe('Reactable: spend 1 Reflex to act here.');
+    });
+
+    it('drops frames already passed or past the window, and clips to the window', () => {
+        expect(visibleReactionMarks(intervals, 1, 5).map((m) => m.start + m.duration)).toEqual([2]);
+        expect(visibleReactionMarks(intervals, 0, 0.5)).toEqual([]);
+        const clipped = visibleReactionMarks(intervals, 0, 1.05);
+        expect(clipped).toHaveLength(1);
+        expect(clipped[0]!.start + clipped[0]!.duration).toBeCloseTo(1);
+    });
+
+    it('is empty when no interval has a reaction frame', () => {
+        expect(visibleReactionMarks([intervals[2]!], 0, 5)).toEqual([]);
     });
 });
 

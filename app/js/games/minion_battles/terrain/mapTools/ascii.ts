@@ -23,6 +23,8 @@ export const TERRAIN_ASCII: Record<TerrainType, string> = {
     [TerrainType.ShallowWater]: ':',
     [TerrainType.DeepWater]: '=',
     [TerrainType.Brick]: 'B',
+    [TerrainType.Briar]: '&',
+    [TerrainType.Tangle]: '*',
 };
 
 /** Segment-file shorthand consts (`const _ = TerrainType.Grass` etc.), as used across `MapSegments/`. */

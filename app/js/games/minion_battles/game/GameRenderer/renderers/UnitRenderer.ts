@@ -33,6 +33,8 @@ import {
 } from '../../units/unit_defs/unitDef';
 import { getSpawnRenderState } from '../../units/spawnVisuals';
 import { getDrowningRenderState, type DrowningRenderState } from '../../terrainHazards/drowning';
+import { resolveBurrowRender } from '../../units/unitRenderOptions';
+import { syncPlatedLook } from './unitRenderOptionsVisual';
 import { DisplayWiggle } from '../displayWiggle';
 import { shouldShowJuggernautRing, syncJuggernautRing } from './juggernautRing';
 import { syncCastStateRing } from './castStateRingVisual';
@@ -293,7 +295,7 @@ export class UnitRenderer {
             }
 
             const spawnState = getSpawnRenderState(unit);
-            const drowning = getDrowningRenderState(unit);
+            const drowning = getDrowningRenderState(unit) ?? this.getBurrowSinkState(unit, engine.tickTime);
             visual.x = unit.x + renderOffsetX + wiggleX;
             visual.y = unit.y + renderOffsetY + wiggleY + knockupYOffset + (spawnState?.yOffset ?? 0) + (drowning?.sinkY ?? 0);
             this.drawHoverFlightJuice(unit, visual.x, visual.y, wiggleDt);
@@ -375,6 +377,8 @@ export class UnitRenderer {
             if (showHpBar) updateUnitHpBar(visual, unit);
 
             syncDarknessNeedles(visual, unit);
+            // Plated shell look (`UnitDefEntry.renderOptions.plated`): closed while a flat reduction is active, open after.
+            syncPlatedLook(visual, unit, nowMs / 1000);
 
             // Crystal corruption bar
             let crystalCorruptBar = visual.children.find((c) => c.label === 'crystalCorruptBar') as Graphics | undefined;
@@ -709,6 +713,16 @@ export class UnitRenderer {
             juice.circle(Math.cos(angle) * orbit, Math.sin(angle) * orbit * 0.55, 2.2);
             juice.fill({ color: i % 2 === 0 ? GRAVITY_VIOLET : 0xe9d5ff, alpha: 0.85 });
         }
+    }
+
+    /**
+     * A unit sinking into the ground mid burrow transition reuses the drowning clip (the body slides below a fixed
+     * line); the hole and trail are drawn by `UnitGroundMarkRenderer`.
+     */
+    private getBurrowSinkState(unit: Unit, tickTime: number): DrowningRenderState | null {
+        const burrow = resolveBurrowRender(unit, tickTime);
+        if (!burrow) return null;
+        return { progress: burrow.visual.depth, sinkY: burrow.sinkY, waterLineY: burrow.groundLineY };
     }
 
     /**

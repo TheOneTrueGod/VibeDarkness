@@ -17,6 +17,7 @@ export class BattleEventBus {
         'host-catchup-wait': new Set(),
         'host-persist-backlog': new Set(),
         'waiting-for-host-poll-streak': new Set(),
+        'reaction-claims-changed': new Set(),
     };
 
     on<K extends keyof BattleNetEventMap>(event: K, cb: BattleNetListener<K>): BattleNetUnsub {

@@ -1,0 +1,442 @@
+/**
+ * Garden Heart nodes: the five node kinds (one behaviour each), the Shell on every node, the per-phase tree layouts
+ * and growing / dismissing a tree. No number-tuning assertions: each test checks that a behaviour happens, not how
+ * big its numbers are.
+ */
+import { afterEach, describe, expect, it } from 'vitest';
+import { GameEngine } from '../GameEngine';
+import { resetGameObjectIdCounter } from '../GameObject';
+import { TerrainGrid, CELL_SIZE } from '../../terrain/TerrainGrid';
+import { TerrainManager } from '../../terrain/TerrainManager';
+import { TerrainType } from '../../terrain/TerrainType';
+import { createUnitFromSpawnConfig } from '../units';
+import type { Unit } from '../units/Unit';
+import { executeUnitAbility } from '../units/unitAbilityLifecycle';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import { resolveParallelOrderPause } from '../../testing/runner/SimulationRunner';
+import { CARD_DEF_MAP } from '../../card_defs/index';
+import { getBestiaryUnitIds, getUnitDefEntry as getDefEntry, type UnitDefId } from '../units/unit_defs/unitDef';
+import type { ResolvedTarget } from '../types';
+import type { EnemySpawnDef } from '../../storylines/types';
+import {
+    ENEMY_CREEPER,
+    ENEMY_GARDEN_HEART,
+    ENEMY_HIVE_GOURD,
+    ENEMY_MENDER_BLOOM,
+    ENEMY_POD_MORTAR,
+    ENEMY_THORNSPITTER,
+} from '../../constants/enemyConstants';
+import {
+    CREEPER_ID,
+    HIVE_GOURD_ID,
+    HIVE_GOURD_INTERVAL_SEC,
+    HIVE_GOURD_MAX_CHILDREN,
+    LOB_SEED_ABILITY_ID,
+    MENDER_BLOOM_ID,
+    MEND_ABILITY_ID,
+    MEND_RADIUS_PX,
+    POD_MORTAR_ID,
+    POD_SEED_ID,
+    RUNNER_VINE_ABILITY_ID,
+    RUNNER_VINE_MAX_TILES,
+    RUNNER_VINE_MIN_TILES,
+    THORNSPITTER_ID,
+    THORN_FANS_ABILITY_ID,
+    THORN_FAN_COUNT,
+    THORN_FAN_SIZE,
+} from '../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
+import { thornFanOffsets } from '../../card_defs/16_enemy_garden_heart/1601_ThornFans/1601Ability';
+import { nodesInMendReach } from '../../card_defs/16_enemy_garden_heart/1603_Mend/1603Ability';
+import { trailTiles } from '../../abilities/CastBehaviours/GroundTrailBehaviour';
+import { DARK_THORN_EFFECT_TYPE } from '../terrainEffects/terrainEffectDefs';
+import {
+    getNodeChildIds,
+    getNodeParentId,
+    hasLivingChildren,
+    linkNodeChild,
+} from '../units/components/nodeTree';
+import { peekSpawnerState } from '../units/components/spawnerComponent';
+import { serializeUnit } from '../units/unitToJSON';
+import { applySerializedUnitState } from '../units/unitFromJSON';
+import { listLiveTethers, tetherCoveredTiles } from '../tethers/tether';
+import { applyUnitFlatReductions } from '../units/flatDamageReduction';
+import { canNodeMove } from '../units/unitAI/gardenNode';
+import { getUnitAITree } from '../units/unitAI';
+import {
+    GARDEN_PHASE_COUNT,
+    GARDEN_TREE_LAYOUTS,
+    gardenTreeLayout,
+    knotKeys,
+} from './gardenTreeLayouts';
+import {
+    dismissGardenTree,
+    growGardenTree,
+    nearestPassablePoint,
+    type GardenGrowContext,
+} from './growGardenTree';
+
+const GRID = 40;
+const TICKS_PER_SEC = 60;
+const centre = (cell: number): number => (cell + 0.5) * CELL_SIZE;
+
+let engine: GameEngine;
+
+afterEach(() => {
+    engine?.destroy();
+});
+
+function setupEngine(rockCells: Array<[number, number]> = []): GameEngine {
+    resetGameObjectIdCounter(1);
+    const grid = new TerrainGrid(GRID, GRID, CELL_SIZE, TerrainType.Grass);
+    for (const [col, row] of rockCells) grid.set(col, row, TerrainType.Rock);
+    engine = new GameEngine();
+    engine.prepareForNewGame({
+        localPlayerId: 'p1',
+        randomSeed: 1,
+        terrainManager: new TerrainManager(grid),
+        aiControllerId: null,
+    });
+    engine.setMissionLightConfig(false, 0);
+    engine.enemyScalingPlayerCount = 1;
+    return engine;
+}
+
+function addEnemy(def: EnemySpawnDef, x: number, y: number): Unit {
+    const u = createUnitFromSpawnConfig({ ...def, x, y, ownerId: 'ai', unitAITreeId: 'none' }, engine.eventBus, engine);
+    engine.addUnit(u, 'initialGameSpawn');
+    return u;
+}
+
+function addPlayer(x: number, y: number): Unit {
+    const p = createUnitFromSpawnConfig(
+        { characterId: 'player', name: 'P', x, y, teamId: 'player', ownerId: 'p1', abilities: ['0104'] },
+        engine.eventBus,
+        engine,
+    );
+    engine.addUnit(p, 'initialGameSpawn');
+    return p;
+}
+
+const at = (u: { x: number; y: number }): ResolvedTarget[] => [{ type: 'pixel', position: { x: u.x, y: u.y } }];
+
+function stepSeconds(seconds: number, each?: () => void): void {
+    for (let i = 0; i < Math.round(seconds * TICKS_PER_SEC); i++) {
+        resolveParallelOrderPause(engine);
+        engine.stepSimulationFixedTicks(1);
+        each?.();
+    }
+}
+
+function cast(unit: Unit, abilityId: string, targets: ResolvedTarget[]): void {
+    executeUnitAbility(unit, getAbility(abilityId)!, targets, engine);
+}
+
+const getUnitDefEntry = (id: string) => getDefEntry(id as UnitDefId);
+
+const growCtx = (): GardenGrowContext => engine as unknown as GardenGrowContext;
+
+describe('Garden Heart registration', () => {
+    it('registers every ability and card, every unit def, and lists the node kinds in the Bestiary', () => {
+        for (const id of [THORN_FANS_ABILITY_ID, LOB_SEED_ABILITY_ID, MEND_ABILITY_ID, RUNNER_VINE_ABILITY_ID]) {
+            expect(getAbility(id), id).toBeDefined();
+            expect(CARD_DEF_MAP.get(id), id).toBeDefined();
+        }
+        for (const id of [THORNSPITTER_ID, POD_MORTAR_ID, MENDER_BLOOM_ID, HIVE_GOURD_ID, CREEPER_ID, 'garden_heart']) {
+            expect(getUnitDefEntry(id), id).toBeDefined();
+            expect(getBestiaryUnitIds()).toContain(id);
+        }
+        expect(getUnitAITree('gardenNode')).not.toBeNull();
+    });
+
+    it('every node kind and the Heart carries the Shell (condition hasLivingChildren) and a node-tree component', () => {
+        for (const id of [THORNSPITTER_ID, POD_MORTAR_ID, MENDER_BLOOM_ID, HIVE_GOURD_ID, CREEPER_ID, 'garden_heart']) {
+            const def = getUnitDefEntry(id)!;
+            expect(def.flatDamageReductions?.[0]?.condition, id).toBe('hasLivingChildren');
+            expect(def.components?.some((c) => c.type.id === 'nodeTree'), id).toBe(true);
+        }
+    });
+
+    it('the Mender Bloom and the Heart never move; Buds have a speed', () => {
+        expect(getUnitDefEntry('mender_bloom')!.speed).toBe(0);
+        expect(getUnitDefEntry('garden_heart')!.speed).toBe(0);
+        for (const id of [THORNSPITTER_ID, POD_MORTAR_ID, HIVE_GOURD_ID, CREEPER_ID]) {
+            expect(getUnitDefEntry(id)!.speed, id).toBeGreaterThan(0);
+        }
+    });
+});
+
+describe('Shell on node units', () => {
+    it('a node with a living child takes reduced hits; once the child dies it takes full hits', () => {
+        setupEngine();
+        const knot = addEnemy(ENEMY_THORNSPITTER, centre(10), centre(10));
+        const bud = addEnemy(ENEMY_THORNSPITTER, centre(14), centre(10));
+        linkNodeChild(knot, bud);
+        expect(applyUnitFlatReductions(knot, 25).damage).toBeLessThan(25);
+        bud.takeDamage(bud.maxHp * 10, null, engine.eventBus);
+        expect(hasLivingChildren(knot)).toBe(false);
+        expect(applyUnitFlatReductions(knot, 25).damage).toBe(25);
+    });
+
+    it('a Bud (no children) is never shelled', () => {
+        setupEngine();
+        const bud = addEnemy(ENEMY_POD_MORTAR, centre(10), centre(10));
+        expect(applyUnitFlatReductions(bud, 25).damage).toBe(25);
+    });
+});
+
+describe('Thornspitter', () => {
+    it('spits two fans of three thorns at a player, each fan symmetric around the aim', () => {
+        setupEngine();
+        const spitter = addEnemy(ENEMY_THORNSPITTER, centre(5), centre(20));
+        const player = addPlayer(centre(20), centre(20));
+        cast(spitter, THORN_FANS_ABILITY_ID, at(player));
+        stepSeconds(1.9, () => {
+            player.hp = player.maxHp;
+        });
+        const thorns = engine.projectiles.filter((p) => p.sourceUnitId === spitter.id);
+        expect(thorns).toHaveLength(THORN_FAN_COUNT * THORN_FAN_SIZE);
+        // Aim is along +x, so the three headings of a fan are (-d, 0, +d).
+        const headings = thorns.map((p) => (Math.atan2(p.velocityY, p.velocityX) * 180) / Math.PI).sort((a, b) => a - b);
+        const expected = Array.from({ length: THORN_FAN_COUNT }, () => thornFanOffsets()).flat().sort((x, y) => x - y);
+        headings.forEach((h, i) => expect(h).toBeCloseTo(expected[i]!, 0));
+    });
+
+    it('fan offsets are evenly spaced around zero', () => {
+        const offsets = thornFanOffsets(3, 10);
+        expect(offsets).toEqual([-10, 0, 10]);
+    });
+});
+
+describe('Pod Mortar', () => {
+    it('lobs a destructible seed that lands at the target and belongs to the enemy team', () => {
+        setupEngine();
+        const mortar = addEnemy(ENEMY_POD_MORTAR, centre(5), centre(20));
+        const player = addPlayer(centre(12), centre(20));
+        expect(engine.units.some((u) => u.characterId === POD_SEED_ID)).toBe(false);
+        cast(mortar, LOB_SEED_ABILITY_ID, at(player));
+        stepSeconds(0.5);
+        expect(engine.units.some((u) => u.characterId === POD_SEED_ID)).toBe(false);
+        stepSeconds(0.6);
+        const seed = engine.units.find((u) => u.characterId === POD_SEED_ID);
+        expect(seed).toBeDefined();
+        expect(seed!.teamId).toBe(mortar.teamId);
+        expect(Math.hypot(seed!.x - player.x, seed!.y - player.y)).toBeLessThan(CELL_SIZE);
+        expect(seed!.isAlive()).toBe(true);
+    });
+});
+
+describe('Mender Bloom', () => {
+    it('heals the other nodes in reach (a shelled Heart included) and nothing else', () => {
+        setupEngine();
+        const bloom = addEnemy(ENEMY_MENDER_BLOOM, centre(20), centre(20));
+        const heart = addEnemy(ENEMY_GARDEN_HEART, centre(23), centre(20));
+        const budOfHeart = addEnemy(ENEMY_THORNSPITTER, centre(26), centre(20));
+        linkNodeChild(heart, budOfHeart);
+        const far = addEnemy(ENEMY_THORNSPITTER, centre(20) + MEND_RADIUS_PX * 3, centre(20));
+        const player = addPlayer(centre(18), centre(20));
+        for (const u of [heart, budOfHeart, far, bloom]) u.hp = Math.floor(u.maxHp / 2);
+        player.hp = Math.floor(player.maxHp / 2);
+        const before = new Map([heart, budOfHeart, far, bloom, player].map((u) => [u.id, u.hp]));
+
+        expect(hasLivingChildren(heart)).toBe(true);
+        expect(nodesInMendReach(bloom, engine.units).map((u) => u.id).sort()).toEqual([budOfHeart.id, heart.id].sort());
+
+        cast(bloom, MEND_ABILITY_ID, []);
+        stepSeconds(1.5);
+        expect(heart.hp).toBeGreaterThan(before.get(heart.id)!);
+        expect(budOfHeart.hp).toBeGreaterThan(before.get(budOfHeart.id)!);
+        expect(far.hp).toBe(before.get(far.id));
+        expect(bloom.hp).toBe(before.get(bloom.id));
+        expect(player.hp).toBe(before.get(player.id));
+    });
+});
+
+describe('Hive Gourd', () => {
+    it('keeps birthing swarmlings and slimes up to its cap, alternating the kinds', () => {
+        setupEngine();
+        const gourd = addEnemy(ENEMY_HIVE_GOURD, centre(20), centre(20));
+        const player = addPlayer(centre(2), centre(2));
+        const run = (seconds: number): void => stepSeconds(seconds, () => (player.hp = player.maxHp));
+        run(2);
+        expect(peekSpawnerState(gourd)!.spawnedIds).toHaveLength(0);
+        run(5);
+        const first = peekSpawnerState(gourd)!.spawnedIds;
+        expect(first).toHaveLength(1);
+        expect(engine.getUnit(first[0]!)!.characterId).toBe('swarmling');
+        run(60);
+        const ids = peekSpawnerState(gourd)!.spawnedIds;
+        expect(ids).toHaveLength(HIVE_GOURD_MAX_CHILDREN);
+        const kinds = ids.map((id) => engine.getUnit(id)!.characterId);
+        expect(new Set(kinds)).toEqual(new Set(['swarmling', 'slime']));
+        expect(ids.every((id) => engine.getUnit(id)!.teamId === gourd.teamId)).toBe(true);
+    });
+
+    it('replaces a child that dies, and keeps its spawner state through a save', () => {
+        setupEngine();
+        const gourd = addEnemy(ENEMY_HIVE_GOURD, centre(20), centre(20));
+        const player = addPlayer(centre(2), centre(2));
+        const run = (seconds: number): void => stepSeconds(seconds, () => (player.hp = player.maxHp));
+        run(60);
+        const state = peekSpawnerState(gourd)!;
+        const victim = engine.getUnit(state.spawnedIds[0]!)!;
+        victim.takeDamage(victim.maxHp * 10, null, engine.eventBus);
+        run(0.1);
+        expect(peekSpawnerState(gourd)!.spawnedIds).toHaveLength(HIVE_GOURD_MAX_CHILDREN - 1);
+        // A fresh interval has to pass before the replacement grows.
+        run(HIVE_GOURD_INTERVAL_SEC + 0.5);
+        expect(peekSpawnerState(gourd)!.spawnedIds).toHaveLength(HIVE_GOURD_MAX_CHILDREN);
+
+        const json = serializeUnit(gourd, engine.gameTick);
+        const copy = createUnitFromSpawnConfig(
+            { ...ENEMY_HIVE_GOURD, x: 0, y: 0, ownerId: 'ai', unitAITreeId: 'none' },
+            engine.eventBus,
+            engine,
+        );
+        applySerializedUnitState(copy, json, engine.eventBus, engine.gameTick);
+        expect(peekSpawnerState(copy)!.spawnedIds).toEqual(peekSpawnerState(gourd)!.spawnedIds);
+        expect(peekSpawnerState(copy)!.nextSpawnAtGameTime).toBe(peekSpawnerState(gourd)!.nextSpawnAtGameTime);
+        expect(copy.flatDamageReductions).toEqual(gourd.flatDamageReductions);
+    });
+});
+
+describe('Creeper', () => {
+    it('lays dark thorns along a straight line toward the target, a few tiles, and they stay after it pulls back', () => {
+        setupEngine();
+        const creeper = addEnemy(ENEMY_CREEPER, centre(5), centre(20));
+        const player = addPlayer(centre(25), centre(20));
+        cast(creeper, RUNNER_VINE_ABILITY_ID, at(player));
+        stepSeconds(3, () => {
+            player.hp = player.maxHp;
+        });
+        const thorns = [...engine.terrainLayers.allEffects.values()].filter((e) => e.effectType === DARK_THORN_EFFECT_TYPE);
+        expect(thorns.length).toBeGreaterThanOrEqual(RUNNER_VINE_MIN_TILES);
+        expect(thorns.length).toBeLessThanOrEqual(RUNNER_VINE_MAX_TILES);
+        const cells = thorns.map((t) => (t.area as { col: number; row: number }));
+        expect(new Set(cells.map((c) => c.row))).toEqual(new Set([20]));
+        // Starts next to the Creeper and runs outward: the columns are consecutive.
+        const cols = cells.map((c) => c.col).sort((a, b) => a - b);
+        expect(cols[0]).toBeGreaterThanOrEqual(5);
+        for (let i = 1; i < cols.length; i++) expect(cols[i]! - cols[i - 1]!).toBe(1);
+    });
+
+    it('trailTiles walks outward one tile at a time with no repeats, even on a diagonal', () => {
+        const tiles = trailTiles({ x: centre(3), y: centre(3) }, Math.SQRT1_2, Math.SQRT1_2, 5);
+        expect(tiles).toHaveLength(5);
+        expect(new Set(tiles.map((t) => `${t.col},${t.row}`)).size).toBe(5);
+    });
+});
+
+describe('node movement rule', () => {
+    it('a node moves only without living children and with a speed', () => {
+        setupEngine();
+        const knot = addEnemy(ENEMY_THORNSPITTER, centre(10), centre(10));
+        const bud = addEnemy(ENEMY_THORNSPITTER, centre(13), centre(10));
+        const bloom = addEnemy(ENEMY_MENDER_BLOOM, centre(16), centre(10));
+        expect(canNodeMove(knot)).toBe(true);
+        linkNodeChild(knot, bud);
+        expect(canNodeMove(knot)).toBe(false);
+        expect(canNodeMove(bud)).toBe(true);
+        expect(canNodeMove(bloom)).toBe(false);
+    });
+});
+
+describe('phase tree layouts', () => {
+    it('has four phases and every parent appears before its children with unique keys', () => {
+        expect(GARDEN_PHASE_COUNT).toBe(4);
+        for (const layout of GARDEN_TREE_LAYOUTS) {
+            const seen = new Set<string>();
+            for (const node of layout) {
+                expect(seen.has(node.key)).toBe(false);
+                if (node.parent !== null) expect(seen.has(node.parent)).toBe(true);
+                seen.add(node.key);
+            }
+        }
+    });
+
+    it('matches the design: P1 one Bud; P2 two Buds; P3 two Knots with a Bud each; P4 two Knots with two Buds and two Heart Pod Mortars', () => {
+        const [p1, p2, p3, p4] = GARDEN_TREE_LAYOUTS;
+        expect(p1).toHaveLength(1);
+        expect(p1![0]!.kind).toBe(THORNSPITTER_ID);
+        expect(p2!.map((n) => n.kind).sort()).toEqual([POD_MORTAR_ID, THORNSPITTER_ID].sort());
+        expect(p2!.every((n) => n.parent === null)).toBe(true);
+
+        expect(knotKeys(p3!).size).toBe(2);
+        const p3Knots = p3!.filter((n) => knotKeys(p3!).has(n.key)).map((n) => n.kind).sort();
+        expect(p3Knots).toEqual([CREEPER_ID, HIVE_GOURD_ID].sort());
+        const p3Buds = p3!.filter((n) => !knotKeys(p3!).has(n.key)).map((n) => n.kind).sort();
+        expect(p3Buds).toEqual([MENDER_BLOOM_ID, THORNSPITTER_ID].sort());
+        // The Mender Bloom is a Bud, never a parent.
+        for (const layout of GARDEN_TREE_LAYOUTS) {
+            const parents = knotKeys(layout);
+            expect(layout.filter((n) => n.kind === MENDER_BLOOM_ID).every((n) => !parents.has(n.key))).toBe(true);
+        }
+
+        const knots4 = knotKeys(p4!);
+        expect(knots4.size).toBe(2);
+        for (const k of knots4) expect(p4!.filter((n) => n.parent === k)).toHaveLength(2);
+        const heartBuds = p4!.filter((n) => n.parent === null && !knots4.has(n.key));
+        expect(heartBuds).toHaveLength(2);
+        expect(heartBuds.every((n) => n.kind === POD_MORTAR_ID)).toBe(true);
+        expect(new Set(p4!.map((n) => n.kind)).size).toBe(5);
+    });
+
+    it('returns undefined for a phase with no layout', () => {
+        expect(gardenTreeLayout(0)).toBeUndefined();
+        expect(gardenTreeLayout(5)).toBeUndefined();
+    });
+});
+
+describe('growing and dismissing a tree', () => {
+    it.each([1, 2, 3, 4])('phase %i grows exactly its layout, linked and tethered under the right parents', (phase) => {
+        setupEngine();
+        const heart = addEnemy(ENEMY_GARDEN_HEART, centre(20), centre(20));
+        const grown = growGardenTree(growCtx(), heart, phase);
+        const layout = gardenTreeLayout(phase)!;
+        expect(grown.size).toBe(layout.length);
+        for (const spec of layout) {
+            const unit = grown.get(spec.key)!;
+            expect(unit.characterId).toBe(spec.kind);
+            expect(getNodeParentId(unit)).toBe(spec.parent === null ? heart.id : grown.get(spec.parent)!.id);
+        }
+        expect(listLiveTethers(engine)).toHaveLength(layout.length);
+        expect(hasLivingChildren(heart)).toBe(true);
+        for (const key of knotKeys(layout)) expect(hasLivingChildren(grown.get(key)!)).toBe(true);
+    });
+
+    it('scales node health by player count like other enemies', () => {
+        setupEngine();
+        const heart = addEnemy(ENEMY_GARDEN_HEART, centre(20), centre(20));
+        const solo = [...growGardenTree(growCtx(), heart, 1).values()][0]!;
+        dismissGardenTree(engine, heart);
+        engine.enemyScalingPlayerCount = 3;
+        const trio = [...growGardenTree(growCtx(), heart, 1).values()][0]!;
+        expect(trio.maxHp).toBeGreaterThan(solo.maxHp);
+    });
+
+    it('dismissing the tree kills every node, leaves Briar where the Stems lay, and opens the Heart', () => {
+        setupEngine();
+        const heart = addEnemy(ENEMY_GARDEN_HEART, centre(20), centre(20));
+        const grown = growGardenTree(growCtx(), heart, 3);
+        const stems = [...grown.values()].map((u) => {
+            const parent = engine.getUnit(getNodeParentId(u)!)!;
+            return tetherCoveredTiles(parent.x, parent.y, u.x, u.y);
+        });
+        expect(dismissGardenTree(engine, heart)).toBe(grown.size);
+        for (const unit of grown.values()) expect(unit.isAlive()).toBe(false);
+        expect(getNodeChildIds(heart)).toEqual([]);
+        expect(applyUnitFlatReductions(heart, 25).damage).toBe(25);
+        const tm = engine.terrainManager!;
+        const someBriar = stems.flat().some(({ col, row }) => tm.getEffectiveTerrainType(col, row) === TerrainType.Briar);
+        expect(someBriar).toBe(true);
+    });
+
+    it('nudges a node off rock onto passable ground', () => {
+        setupEngine([[25, 20]]);
+        const tm = engine.terrainManager!;
+        const p = nearestPassablePoint(tm, centre(25), centre(20));
+        expect(tm.isPassable(p.x, p.y)).toBe(true);
+        expect(Math.hypot(p.x - centre(25), p.y - centre(20))).toBeLessThanOrEqual(CELL_SIZE * 1.5);
+        const clear = nearestPassablePoint(tm, centre(10), centre(10));
+        expect(clear).toEqual({ x: centre(10), y: centre(10) });
+    });
+});

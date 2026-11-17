@@ -30,7 +30,7 @@ function miniEffectDiameterPx(effect: Effect, cellPx: number, gridCellSize: numb
         const r = (effect.effectData as { radius?: number }).radius ?? 5;
         return Math.min(cellPx * 3, Math.max(base, Math.round(r * scale * 2)));
     }
-    if (effect.effectType === 'DamageNumber') return Math.max(6, Math.round(cellPx * 0.45));
+    if (effect.effectType === 'DamageNumber' || effect.effectType === 'ResistedDamageNumber') return Math.max(6, Math.round(cellPx * 0.45));
     return base;
 }
 

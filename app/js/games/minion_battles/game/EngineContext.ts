@@ -143,6 +143,15 @@ export interface EngineContext {
     requestMissingPickPause(unit: Unit): void;
 
     /**
+     * Reaction frame (see `game/reactions/reactionFrame.ts`): add `unit`, already marked `reactionPending`,
+     * to this tick's deferred pause so its owner can answer the Reactable attack.
+     */
+    requestReactionPause(unit: Unit): void;
+
+    /** Per-player battle knowledge keys (serialized); read through `game/reactions/playerKnowledge.ts`. */
+    readonly playerKnowledgeKeysByPlayer: Readonly<Record<string, readonly string[]>>;
+
+    /**
      * Called from unitAbilityTick when an interval with a SelectTargetDef is entered but no
      * target is yet resolved. Freezes gameTime until the target is provided via the UI.
      */

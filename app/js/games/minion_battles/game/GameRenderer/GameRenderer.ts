@@ -32,6 +32,8 @@ import { MapNetworkRenderer } from './renderers/MapNetworkRenderer';
 import { FieldObjectRenderer } from './renderers/FieldObjectRenderer';
 import { SenseIndicatorRenderer } from './renderers/SenseIndicatorRenderer';
 import { TerrainSiphonRenderer } from './renderers/TerrainSiphonRenderer';
+import { TetherRenderer } from './renderers/TetherRenderer';
+import { UnitGroundMarkRenderer } from './renderers/UnitGroundMarkRenderer';
 import { getUnitDetection, isDetectionVisible } from '../visibility/teamPerception';
 import { isRenderLayerVisible } from '../../../../debug/renderVisibilityStore';
 import {
@@ -80,6 +82,8 @@ export class GameRenderer {
 	private fieldObjectRenderer!: FieldObjectRenderer;
 	private senseIndicatorRenderer!: SenseIndicatorRenderer;
 	private terrainSiphonRenderer!: TerrainSiphonRenderer;
+	private tetherRenderer!: TetherRenderer;
+	private unitGroundMarkRenderer!: UnitGroundMarkRenderer;
 
 	/** Optional debug: draw a yellow outline around this unit. */
 	private debugUnitOutlineId: string | null = null;
@@ -203,6 +207,8 @@ export class GameRenderer {
 		this.fieldObjectRenderer = new FieldObjectRenderer(this.gameContainer);
 		this.senseIndicatorRenderer = new SenseIndicatorRenderer(this.gameContainer);
 		this.terrainSiphonRenderer = new TerrainSiphonRenderer(this.gameContainer);
+		this.tetherRenderer = new TetherRenderer(this.gameContainer);
+		this.unitGroundMarkRenderer = new UnitGroundMarkRenderer(this.gameContainer);
 
 		const afterLoad = (): void => {
 			const tex = this.assetRegistry.getEffectTexture('darkBlob');
@@ -349,12 +355,18 @@ export class GameRenderer {
 				this.unitRenderer.setLayerVisible(unitsVisible);
 				this.senseIndicatorRenderer.setLayerVisible(unitsVisible);
 				this.terrainSiphonRenderer.setLayerVisible(unitsVisible);
+				this.tetherRenderer.setLayerVisible(unitsVisible);
+				this.unitGroundMarkRenderer.setLayerVisible(unitsVisible);
 				if (unitsVisible) {
 					this.unitRenderer.render(engine, this.localTeamId, this.debugUnitOutlineId);
 					// Pulses for units the local team only hears or feels (their bodies are hidden above).
 					this.senseIndicatorRenderer.render(engine, this.localTeamId);
 					// Rings and droplets for units drawing a resource out of the ground (terrainSiphon).
 					this.terrainSiphonRenderer.render(engine, this.localTeamId);
+					// Stem tether vines (nodeTree children joined to their parent).
+					this.tetherRenderer.render(engine, this.localTeamId);
+					// Burrow hole / trail and fused-body blast circles (state-driven ground marks).
+					this.unitGroundMarkRenderer.render(engine, this.localTeamId);
 				}
 			});
 
@@ -454,6 +466,8 @@ export class GameRenderer {
 		this.previewRenderer.destroy();
 		this.senseIndicatorRenderer.destroy();
 		this.terrainSiphonRenderer.destroy();
+		this.tetherRenderer.destroy();
+		this.unitGroundMarkRenderer.destroy();
 		this.gameContainer.destroy();
 		this.initInFlight = null;
 		this.app.destroy();

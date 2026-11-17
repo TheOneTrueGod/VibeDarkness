@@ -43,7 +43,8 @@ export type GameEventType =
     | 'cast_ended_early'
     | 'time_stop_started'
     | 'time_stop_ended'
-    | 'world_pace_changed';
+    | 'world_pace_changed'
+    | 'fused_body_telegraph_started';
 
 /** Optional combat VFX hint — does not change damage rules. */
 export const DAMAGE_VISUAL_KIND_DAYLIGHT = 'daylight' as const;
@@ -99,6 +100,8 @@ export interface DamageTakenEvent {
     armourRemoved?: number;
     /** Shield-buff hp absorbed by this damage instance (consumed before armour). */
     shieldAbsorbed?: number;
+    /** Damage a flat per-hit reduction (`flatDamageReduction.ts`) took off this hit before shields/armour. Omitted when 0. */
+    resisted?: number;
     /** Renderer-only hint (e.g. DayLight gold numbers). */
     visualKind?: DamageVisualKind;
 }
@@ -347,6 +350,19 @@ export interface WorldPaceChangedEvent {
     gameTick: number;
 }
 
+/**
+ * A fused body's telegraph window (its last seconds) just opened. Fires once, on the tick the window starts: that
+ * tick is the reaction frame for a Reactable burst. See `units/components/fusedBodyComponent.ts`.
+ */
+export interface FusedBodyTelegraphStartedEvent {
+    unitId: string;
+    x: number;
+    y: number;
+    radiusPx: number;
+    /** World seconds until the burst. */
+    secondsLeft: number;
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
     unit_healed: UnitHealedEvent;
@@ -381,6 +397,7 @@ export type GameEventDataMap = {
     time_stop_started: TimeStopStartedEvent;
     time_stop_ended: TimeStopEndedEvent;
     world_pace_changed: WorldPaceChangedEvent;
+    fused_body_telegraph_started: FusedBodyTelegraphStartedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

@@ -14,8 +14,10 @@ import { ABILITY_TIMING_TAG_COLORS } from '../abilities/abilityTimings';
 import {
     TUTORIAL_CC_RESISTANCE,
     TUTORIAL_JUGGERNAUT_FRAMES,
+    TUTORIAL_REACTIONS,
     WORLD_OF_DARKNESS_TUTORIALS,
 } from '../storylines/WorldOfDarkness/tutorials';
+import { isLocalPlayerInReactionPause } from './reactionPauseQuery';
 import type { TutorialDef } from './tutorialTypes';
 
 const MOVE_THEN_PUNCH: TutorialDef = {
@@ -187,6 +189,45 @@ describe('juggernaut frames and pauseGame', () => {
         ]);
         expect(tutorialTextSegments('No terms {unknown} here')).toEqual([{ text: 'No terms {unknown} here' }]);
         expect(TUTORIAL_TEXT_TERM_COLORS.Juggernaut).toBe(ABILITY_TIMING_TAG_COLORS.juggernaut);
+    });
+});
+
+describe('reactions tutorial', () => {
+    const KNOWS = { Reactions: { acquiredAt: 1 } };
+    const paused = { missionId: 'any', gameTimeSeconds: 40, reactionPause: true };
+    const calm = { missionId: 'any', gameTimeSeconds: 40, reactionPause: false };
+    const tutorials = [TUTORIAL_REACTIONS];
+
+    it('is registered under its own tutorial key and gated on Reactions', () => {
+        expect(TUTORIAL_REACTIONS.knowledgeKey).toBe('TutorialReactions');
+        expect(TUTORIAL_REACTIONS.requiresKnowledge).toBe('Reactions');
+        expect(WORLD_OF_DARKNESS_TUTORIALS).toContain(TUTORIAL_REACTIONS);
+    });
+
+    it('triggers on the first reaction pause, in any mission', () => {
+        expect(findTriggeredTutorial(tutorials, KNOWS, paused)).toEqual({ def: TUTORIAL_REACTIONS, step: 0 });
+        expect(findTriggeredTutorial(tutorials, KNOWS, calm)).toBeNull();
+    });
+
+    it('is not shown to a player who does not know Reactions', () => {
+        expect(findTriggeredTutorial(tutorials, {}, paused)).toBeNull();
+    });
+
+    it('never triggers again once done', () => {
+        const done = { ...KNOWS, TutorialReactions: { tutorials: { reactions_intro: { step: 2, done: true } } } };
+        expect(findTriggeredTutorial(tutorials, done, paused)).toBeNull();
+    });
+
+    it('reads the pause from the waiting unit reactionPending', () => {
+        const engine = (reactionPending: unknown) => ({
+            waitingForOrders: { waiters: [{ unitId: 'u1', ownerId: 'p1' }, { unitId: 'u2', ownerId: 'p2' }] },
+            getUnit: (id: string) => (id === 'u1' ? { reactionPending } : {}),
+        });
+        expect(isLocalPlayerInReactionPause(engine({ abilityId: 'a', casterId: 'e' }), 'p1')).toBe(true);
+        expect(isLocalPlayerInReactionPause(engine({ abilityId: 'a', casterId: 'e' }), 'p2')).toBe(false);
+        expect(isLocalPlayerInReactionPause(engine(undefined), 'p1')).toBe(false);
+        expect(isLocalPlayerInReactionPause({ waitingForOrders: null, getUnit: () => undefined }, 'p1')).toBe(false);
+        expect(isLocalPlayerInReactionPause(null, 'p1')).toBe(false);
     });
 });
 

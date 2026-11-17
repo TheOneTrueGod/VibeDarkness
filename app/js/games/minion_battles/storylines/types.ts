@@ -636,6 +636,15 @@ export interface MissionBattleConfig {
     worldWidth: number;
     /** World height in pixels (e.g. terrain rows × cell size). */
     worldHeight: number;
+    /**
+     * Granted when the battle starts (not on victory). `knowledgeKeys` are added to every player's
+     * engine knowledge for this battle (so the mechanic works from the first tick) and each client
+     * records its own grant on its account (`POST /api/account/battle-start-knowledge`; the server only
+     * accepts keys in `BattleKnowledge::START_GRANTABLE_KEYS`). Idempotent.
+     */
+    startRewards?: {
+        knowledgeKeys?: string[];
+    };
     /** Rewards granted automatically on mission victory. */
     completionRewards?: {
         knowledgeKeys?: string[];

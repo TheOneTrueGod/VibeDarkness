@@ -22,7 +22,7 @@ import { getAbilityTooltipLines } from '../../../abilities/abilityTooltipLines';
 import { asCastPriorityEngine } from '../../../abilities/abilitySourceUnits';
 import { recoveryGlossaryEntries } from '../recoveryChargeDefinitions';
 import { getAbilityBarLayoutKey, splitAbilityRows } from '../../../abilities/abilityBarLayout';
-import { abilityCardHudAnchorId, registerHudAnchor, unregisterHudAnchor } from '../hudAnchors';
+import { abilityCardHudAnchorId, registerHudAnchor, unregisterHudAnchor, useHudAnchorRef } from '../hudAnchors';
 import {
     ABILITY_CARD_LIFT_PADDING_Y_PX,
     BATTLE_BOTTOM_ROW_PADDING_Y_PX,
@@ -31,6 +31,11 @@ import {
 import { abilityHandCardFlags, type ItsHandPreviewPhase } from './abilityHandCardFlags';
 
 const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
+
+/** Reflex cost badge on each card during a reaction pause. */
+const REACTION_CARD_COST_LABEL = '1 Reflex';
+/** Banner line during a reaction pause. */
+const REACTION_BANNER_TEXT = 'Spend 1 Reflex to act now, or pass for free.';
 
 /** Horizontal gutter to subtract from the measured width (matches the slot's own px-3 padding). */
 const ABILITY_ROW_GUTTER_X_PX = 24;
@@ -100,6 +105,11 @@ interface RowSlotAbilitiesProps {
     itsAbilityId?: string | null;
     /** Preview is frozen on a parallel-order pause while the poll still says `playing`. */
     itsAtParallelPause?: boolean;
+    /**
+     * True while the local unit is at a reaction pause (`reactionPending`): the bar shows a Reaction
+     * banner and the Reflex cost on each card. Pass is free (labelled by the turn indicator).
+     */
+    isReactionPause?: boolean;
 }
 
 export default function RowSlotAbilities({
@@ -121,7 +131,10 @@ export default function RowSlotAbilities({
     itsPreviewPhase = 'inactive',
     itsAbilityId = null,
     itsAtParallelPause = false,
+    isReactionPause = false,
 }: RowSlotAbilitiesProps) {
+    // The Reactions tutorial points at the whole ability bar.
+    const abilityBarAnchorRef = useHudAnchorRef('abilityBar');
     // Busy / free pets for `requireFree` cards (the engine is passed as `gameState`).
     const priorityEngine = asCastPriorityEngine(gameState);
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
@@ -431,6 +444,7 @@ export default function RowSlotAbilities({
         return (
             <div
                 key={card.abilityId}
+                className={isReactionPause ? 'relative' : undefined}
                 ref={(el) => {
                     cardRefs.current[card.abilityId] = el;
                     // DOM anchor for screen overlays that point at this card (tutorials).
@@ -478,6 +492,14 @@ export default function RowSlotAbilities({
                     }
                     modeStripInteractive={isMyTurn}
                 />
+                {isReactionPause && (
+                    <span
+                        data-testid="reaction-reflex-cost"
+                        className="pointer-events-none absolute -top-2 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-violet-200/70 bg-violet-950/90 px-1.5 text-[10px] font-semibold leading-4 text-violet-200"
+                    >
+                        {REACTION_CARD_COST_LABEL}
+                    </span>
+                )}
             </div>
         );
     };
@@ -493,8 +515,20 @@ export default function RowSlotAbilities({
             }}
         >
             {turnIndicator}
+            {isReactionPause && (
+                <div
+                    data-testid="reaction-banner"
+                    className="mx-3 rounded-md border border-red-400/60 bg-red-950/70 px-3 py-1 text-center text-xs text-red-100"
+                >
+                    <span className="font-semibold uppercase tracking-wide text-red-200">Reaction</span>
+                    <span className="ml-2">{REACTION_BANNER_TEXT}</span>
+                </div>
+            )}
             <div
-                ref={containerRef}
+                ref={(el) => {
+                    containerRef.current = el;
+                    abilityBarAnchorRef(el);
+                }}
                 className="relative grid min-h-0 flex-1 grid-rows-[auto_auto] content-start gap-y-2 overflow-y-hidden"
                 style={{
                     paddingTop: ABILITY_CARD_LIFT_PADDING_Y_PX,

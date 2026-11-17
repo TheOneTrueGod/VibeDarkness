@@ -1,6 +1,6 @@
 import type { Unit } from '../Unit';
 import { defineUnitComponent, findComponentState, getComponentOptions, getComponentState } from './unitComponent';
-import type { UnitPhaseDef } from './phaseDef';
+import { BURROW_STAGES, type BurrowStage, type UnitPhaseDef } from './phaseDef';
 
 /** A transition in progress (tick-time deadlines; see `PhaseTransitionDef`). */
 export interface ActivePhaseTransition {
@@ -16,6 +16,22 @@ export interface ActivePhaseTransition {
     banner: string | null;
 }
 
+/** A burrow transition in progress (tick-time deadlines; see `BurrowTransitionDef`). The stage list lives in the def. */
+export interface ActiveBurrow {
+    phaseId: string;
+    stage: BurrowStage;
+    /** `engine.tickTime` the current stage began / ends. */
+    stageStartsAtTickTime: number;
+    stageEndsAtTickTime: number;
+    fromX: number;
+    fromY: number;
+    /** The chosen sprout point (chosen once at the start). */
+    toX: number;
+    toY: number;
+    /** Radius of the rise eruption (from `BurrowEruptionDef`), when the def has one; the renderer draws its telegraph. */
+    eruptionRadiusPx?: number;
+}
+
 export interface UnitPhaseState {
     /** Number of phases entered so far (the next phase to check is `phases[index]`). One-way: never decreases. */
     index: number;
@@ -28,10 +44,12 @@ export interface UnitPhaseState {
      */
     hpFractionAtDamage: number;
     transition: ActivePhaseTransition | null;
+    /** Set while a `burrow` transition runs. */
+    burrow: ActiveBurrow | null;
 }
 
 export function createPhaseState(): UnitPhaseState {
-    return { index: 0, enteredAtGameTime: null, hpFractionAtDamage: 1, transition: null };
+    return { index: 0, enteredAtGameTime: null, hpFractionAtDamage: 1, transition: null, burrow: null };
 }
 
 /** Declared automatically for any def with `phases` (see `getUnitComponentSpecs`). Options carry the def's phase list. */
@@ -50,6 +68,7 @@ function phaseStateToJSON(state: UnitPhaseState): Record<string, unknown> {
         ...(state.enteredAtGameTime != null ? { phaseEnteredAtGameTime: state.enteredAtGameTime } : {}),
         ...(state.hpFractionAtDamage < 1 ? { phaseHpFractionAtDamage: state.hpFractionAtDamage } : {}),
         ...(state.transition != null ? { phaseTransition: { ...state.transition } } : {}),
+        ...(state.burrow != null ? { phaseBurrow: { ...state.burrow } } : {}),
     };
 }
 
@@ -68,6 +87,30 @@ function applyPhaseStateFromJSON(state: UnitPhaseState, data: Record<string, unk
                   addedInvincibleTag: t.addedInvincibleTag === true,
                   timeStopId: typeof t.timeStopId === 'string' ? t.timeStopId : null,
                   banner: typeof t.banner === 'string' ? t.banner : null,
+              }
+            : null;
+    const b = data.phaseBurrow as Partial<ActiveBurrow> | undefined;
+    state.burrow =
+        b &&
+        typeof b === 'object' &&
+        typeof b.phaseId === 'string' &&
+        (BURROW_STAGES as readonly unknown[]).includes(b.stage) &&
+        typeof b.stageStartsAtTickTime === 'number' &&
+        typeof b.stageEndsAtTickTime === 'number' &&
+        typeof b.fromX === 'number' &&
+        typeof b.fromY === 'number' &&
+        typeof b.toX === 'number' &&
+        typeof b.toY === 'number'
+            ? {
+                  phaseId: b.phaseId,
+                  stage: b.stage as BurrowStage,
+                  stageStartsAtTickTime: b.stageStartsAtTickTime,
+                  stageEndsAtTickTime: b.stageEndsAtTickTime,
+                  fromX: b.fromX,
+                  fromY: b.fromY,
+                  toX: b.toX,
+                  toY: b.toY,
+                  ...(typeof b.eruptionRadiusPx === 'number' ? { eruptionRadiusPx: b.eruptionRadiusPx } : {}),
               }
             : null;
 }

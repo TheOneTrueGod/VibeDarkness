@@ -46,6 +46,7 @@ import { applyFightStartHunger } from '../character_defs/hungerHealth';
 import { createPlayerUnit } from '../game/units/index';
 import { enemySpawnDefToSpawnDefinition } from '../game/units/spawning/adapters';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
+import { attachReflexIfKnown, playerKnowsReactions } from '../resources/Reflex';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
 import type { ItemRoundStartRecoveryCharge } from '../character_defs/items/types';
@@ -551,6 +552,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             attachAmmoIfNeeded(engine, unit);
             attachResourcesFromEquipment(equippedIds, unit, engine.eventBus);
             attachResourcesForAbilityCosts(unit, engine.eventBus);
+            attachReflexIfKnown(unit, engine.eventBus, playerKnowsReactions(engine, pu.playerId));
             applyMissionStartResourcesFromResearch(unit, researchByPlayer[pu.playerId]);
             applySenseGrantsFromResearch(unit, researchByPlayer[pu.playerId]);
             for (const resource of unit.resources) {

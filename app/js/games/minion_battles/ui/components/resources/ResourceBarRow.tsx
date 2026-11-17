@@ -7,6 +7,7 @@ import { LightBar } from './LightBar';
 import { GenericResourceBar } from './GenericResourceBar';
 import { PipResourceBar } from './PipResourceBar';
 import { LiquidResourceBar } from './LiquidResourceBar';
+import { useHudAnchorRef } from '../hudAnchors';
 
 interface ResourceBarRowProps {
     resource: ResourceDisplay;
@@ -54,8 +55,14 @@ function TooltipLine({ line, color, muted }: { line: string; color: string; mute
 }
 
 export function ResourceBarRow({ resource }: ResourceBarRowProps) {
+    // The Reactions tutorial points at the Reflex row.
+    const reflexAnchorRef = useHudAnchorRef('reflexDisplay');
     return (
-        <div className="group relative flex items-center gap-1.5">
+        <div
+            ref={resource.id === 'reflex' ? reflexAnchorRef : undefined}
+            data-testid={`resource-row-${resource.id}`}
+            className="group relative flex items-center gap-1.5"
+        >
             {/* Tooltip */}
             <div className="pointer-events-none absolute bottom-full mb-0.5 left-0 z-10 rounded border border-gray-200 bg-black px-1.5 py-0.5 text-[10px] text-gray-200 opacity-0 shadow transition-opacity duration-100 group-hover:opacity-100">
                 <div className="whitespace-nowrap">{resource.name}</div>

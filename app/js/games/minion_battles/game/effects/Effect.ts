@@ -131,7 +131,11 @@ export class Effect extends GameObject {
             data.vy = vy * factor;
         }
         // DamageNumber / FloatingText: parabolic path + ease-out (see damageNumberMotion)
-        if (this.effectType === 'DamageNumber' || this.effectType === 'FloatingText') {
+        if (
+            this.effectType === 'DamageNumber' ||
+            this.effectType === 'ResistedDamageNumber' ||
+            this.effectType === 'FloatingText'
+        ) {
             const pos = computeDamageNumberWorldPosition(this.effectData as Partial<DamageNumberMotionData>, this.progress);
             this.x = pos.x;
             this.y = pos.y;
@@ -188,7 +192,7 @@ export class Effect extends GameObject {
             this.y = mt * mt * data.startY + 2 * mt * t * data.controlY + t * t * data.endY;
         }
         // Traveling effect: interpolate position from start to end
-        if (this.startX !== undefined && this.startY !== undefined && this.effectType !== 'DamageNumber') {
+        if (this.startX !== undefined && this.startY !== undefined && this.effectType !== 'DamageNumber' && this.effectType !== 'ResistedDamageNumber') {
             const t = this.progress;
             this.x = this.startX + (this.endX - this.startX) * t;
             this.y = this.startY + (this.endY - this.startY) * t;

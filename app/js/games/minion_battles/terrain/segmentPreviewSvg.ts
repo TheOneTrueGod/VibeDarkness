@@ -18,6 +18,9 @@ export const SEGMENT_PREVIEW_PRIORITY: Record<TerrainType, number> = {
     // Same as Rock: Brick is a Rock variant (castle walls).
     [TerrainType.Brick]: 4,
     [TerrainType.Gravel]: 3,
+    // Runtime-only garden terrain; never authored into a segment.
+    [TerrainType.Briar]: 4,
+    [TerrainType.Tangle]: 1,
     [TerrainType.Impassable]: 2,
     [TerrainType.ThickGrass]: 1,
     [TerrainType.Grass]: 0,

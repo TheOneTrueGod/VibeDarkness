@@ -22,16 +22,37 @@ export class PeerLinkTracker {
             if (!wanted.has(id)) this.linkedSinceMs.delete(id);
         }
         const nowMs = this.now();
+        let changed = false;
         for (const id of wanted) {
             const isUp = connected[id] === true;
             const since = this.linkedSinceMs.get(id) ?? null;
             if (isUp && since == null) {
                 this.linkedSinceMs.set(id, nowMs);
+                changed = true;
             } else if (!isUp) {
+                if (since != null) changed = true;
                 this.linkedSinceMs.set(id, null);
             }
         }
+        if (changed) {
+            for (const listener of [...this.listeners]) listener();
+        }
     }
+
+    /** True while `peerId`'s link is up right now (false for unknown peers). */
+    isLinked(peerId: string): boolean {
+        return (this.linkedSinceMs.get(peerId) ?? null) != null;
+    }
+
+    /** Called whenever a peer's link goes up or down. Returns an unsubscribe function. */
+    subscribe(listener: () => void): () => void {
+        this.listeners.add(listener);
+        return () => {
+            this.listeners.delete(listener);
+        };
+    }
+
+    private readonly listeners = new Set<() => void>();
 
     /** True when every peer's link has been up without a break since `ms` (vacuously true with no peers). */
     allLinkedSince(ms: number): boolean {

@@ -79,10 +79,9 @@ const WALKS: { mission: CastleMission; script: { objectives: { reach_exit: strin
     { mission: WEST_WALL_WALK, script: chapter3Scripts.west_wall_walk },
     { mission: ROYAL_CHAMBERS, script: chapter3Scripts.royal_chambers },
 ];
-/** Placeholder-boss missions (an Alpha Wolf on the boss POI). */
+/** Placeholder-boss missions (an Alpha Wolf on the boss POI). The Garden Heart has its own fight (`castle/gardenHeartMission.test.ts`). */
 const PLACEHOLDER_BOSSES: { mission: CastleMission; script: { objectives: { defeat_boss: string } } }[] = [
     { mission: THE_KINGS_COURT, script: chapter3Scripts.the_kings_court },
-    { mission: GARDEN_HEART, script: chapter3Scripts.garden_heart },
     { mission: ROYAL_BEDCHAMBER, script: chapter3Scripts.royal_bedchamber },
 ];
 const CASTLE_MISSIONS: CastleMission[] = [
@@ -165,6 +164,9 @@ describe('chapter 3 castle main path', () => {
                 [PLACEHOLDER_BOSS_OBJECTIVE_ID, script.objectives.defeat_boss],
             ]);
         }
+        expect(GARDEN_HEART.battleObjectives.map((o) => [o.id, o.label])).toEqual([
+            [PLACEHOLDER_BOSS_OBJECTIVE_ID, chapter3Scripts.garden_heart.objectives.defeat_boss],
+        ]);
         expect(WIZARDS_TOWER.battleObjectives.map((o) => [o.id, o.label])).toEqual(
             Object.entries(chapter3Scripts.wizards_tower.objectives),
         );
@@ -181,7 +183,7 @@ describe('chapter 3 castle main path', () => {
         }
     });
 
-    it("the king's court, the garden heart and the royal bedchamber are a placeholder Alpha Wolf on the boss spot, reachable from the entry", () => {
+    it("the king's court and the royal bedchamber are a placeholder Alpha Wolf on the boss spot, reachable from the entry", () => {
         for (const { mission } of PLACEHOLDER_BOSSES) {
             const id = mission.missionId;
             expect(mission.missionType, id).toBe('boss');

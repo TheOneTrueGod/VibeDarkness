@@ -1174,6 +1174,8 @@ class LobbyManager
         $researchLevelsByPlayer = [];
         $hungerDeltaByPlayer = [];
         $hungerStartFractionByPlayer = [];
+        $knowledgeKeysByPlayer = [];
+        $accountService = null;
         foreach ($selections as $playerId => $characterId) {
             $playerId = is_int($playerId) ? (string) $playerId : $playerId;
             if (!is_string($playerId) || !is_string($characterId)) {
@@ -1209,6 +1211,16 @@ class LobbyManager
                 $hungerStartFractionByPlayer[$playerId] = $character->getStartingHungerFraction();
 
                 $byPlayer[$playerId] = $equipment;
+
+                // Account knowledge the engine reads (e.g. Reactions), from the character's owner.
+                $accountService ??= new AccountService(new \App\Storage\FlatFilePlayerAccountStorage());
+                $owner = $accountService->getAccountById($character->getOwnerAccountId());
+                if ($owner !== null) {
+                    $engineKeys = BattleKnowledge::engineKeysFrom($owner->getKnowledge());
+                    if ($engineKeys !== []) {
+                        $knowledgeKeysByPlayer[$playerId] = $engineKeys;
+                    }
+                }
             }
         }
 
@@ -1248,6 +1260,9 @@ class LobbyManager
         }
         if ($hungerStartFractionByPlayer !== []) {
             $state['playerHungerStartFractionByPlayer'] = $hungerStartFractionByPlayer;
+        }
+        if ($knowledgeKeysByPlayer !== []) {
+            $state['playerKnowledgeKeysByPlayer'] = $knowledgeKeysByPlayer;
         }
         return $state;
     }

@@ -71,7 +71,7 @@ export function roadDarknessWave(): SpawnWaveEntry[] {
 }
 
 // --- Presets -------------------------------------------------------------
-export type CastleSpawnPresetId = 'castle_standard' | 'castle_explore' | 'castle_boss';
+export type CastleSpawnPresetId = 'castle_standard' | 'castle_explore' | 'castle_boss' | 'castle_boss_alone';
 
 /** One repeating darkness wave: `spawns` rise every `intervalRounds` rounds. */
 export interface CastleWaveDef {
@@ -126,6 +126,14 @@ export const CASTLE_SPAWN_PRESETS: Readonly<Record<CastleSpawnPresetId, CastleSp
         waves: [{ intervalRounds: CASTLE_EXPLORE_WAVE_INTERVAL_ROUNDS, spawns: roadDarknessWave() }],
         opening: [{ template: ENEMY_DARK_WOLF, stackSize: WOLF_STACK_SIZE }, { template: SLIME }],
         openingMax: 2,
+        openingMinDistanceFromEntryTiles: OPENING_MIN_DISTANCE_FROM_ENTRY_TILES,
+    },
+    /** No waves and no escort: the boss fight is the boss alone (the Garden Heart's plant is the fight). */
+    castle_boss_alone: {
+        id: 'castle_boss_alone',
+        waves: [],
+        opening: [],
+        openingMax: 0,
         openingMinDistanceFromEntryTiles: OPENING_MIN_DISTANCE_FROM_ENTRY_TILES,
     },
     /** No waves: one wolf stack waiting as the boss's escort. */

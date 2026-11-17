@@ -85,9 +85,17 @@ export function bindEngineCallbacks(session: BattleSession, engine: GameEngine):
                     assertNever(timeline);
             }
         });
+        // A plane stays open while a co-op Reaction claim request for it is undecided (Step 16).
+        engine.setParallelResumeHold((plane) => session.netAdapter?.isReactionClaimUndecidedFor(plane.planeId) ?? false);
     } else {
         engine.setOnParallelBatchResolved(null);
+        engine.setParallelResumeHold(null);
     }
+    // Claimants give up when the plane with the matching id closes (all roles).
+    engine.setOnParallelPlaneClosed((planeId) => {
+        if (engine.isSequentialTargetingPreview) return;
+        session.netAdapter?.handleParallelPlaneClosed(planeId);
+    });
     engine.setOnEmitMessage((text, npcId) => {
         if (!isHost) return;
         const onSent = (res: { messageId: number; chatEntry?: Record<string, unknown> }) => {

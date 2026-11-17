@@ -58,6 +58,10 @@ Two helpers in `TerrainType.ts` answer the two questions. Never compare to `Terr
 
 **Future variants fit without new checks.** Flowers: `variantOf: Grass`, no `access`; abilities that care read `type === Flowers`. River: `variantOf: ShallowWater` plus a future push property. Neither is built yet.
 
+## Durable terrain (Briar, Tangle)
+
+Runtime-only types driven by two `TerrainProperties` fields, logic in `durableTerrain.ts`, mutation on `TerrainManager`. `durability` (`maxHealth`, `kind`, `becomes`): Briar has 30 health and becomes Tangle at 0; `placeBriar(tiles)` lays it (skips rock, water, off-grid, existing Briar), `damageDurableTerrain` / `damageDurableTerrainByHits` chip it. `projectileWear` (`hits`, `becomes`): Tangle (`variantOf` Thick Grass, slow, `blocksProjectiles`) counts down once per projectile stopped at it (`Projectile` wall-stop calls `wearTerrainByProjectile`) and becomes Grass after 3. State is the floor tile's `destructible` (kind from the def, or `wear`), so it serializes with `floorTiles`. Projectiles with `rockHitsToBreak` also chip Briar. Not in `AUTHORED_TERRAIN_TYPES`.
+
 ## Thorns (def-driven)
 
 Thorn-style ground hazards (`bramble_slow`, `dark_thorn`) share one rule set: `TerrainEffectDef.thorns` in `game/terrainEffects/terrainEffectDefs.ts` (`hurts` creature filter, `enterDamage`, `landDamage`, `uses`). `game/terrainEffects/thorns.ts` (`triggerThorns`) applies it from `tileTransitions.ts` `onEnter` / `onLand`; there is no standing DoT. Both are `blockedOn: ROCK_AND_WATER_TERRAIN`: `TerrainLayerManager.add` skips rock/water cells (via the effective-terrain resolver `TerrainManager.setTerrainLayers` wires), and `TerrainManager.writeFloorTile` (every floor write) wipes them when a cell becomes rock or water. To add a variant: add a def entry with `thorns`, add a visual entry in `game/GameRenderer/terrainEffectDefs.ts`, and never rename existing effect-type strings (checkpoints store them).

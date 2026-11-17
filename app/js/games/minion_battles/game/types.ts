@@ -32,6 +32,12 @@ export interface OrderWaiter {
     ownerId: string;
 }
 
+/** A recorded co-op Reaction claim: `unitId` joined the open plane as a reactor. */
+export interface ReactionClaim {
+    unitId: string;
+    ownerId: string;
+}
+
 /**
  * Frozen set of units waiting for orders at this pause. All must queue orders at {@link atTick}
  * before the simulation unpauses.
@@ -40,6 +46,16 @@ export interface WaitingForOrders {
     waiters: OrderWaiter[];
     /** Tick at which batch orders apply (usually `gameTick + 1` at pause time). */
     atTick: number;
+    /**
+     * Deterministic identity of this pause plane: `${atTick}:${counter}`, the counter being the per-battle
+     * `GameState.pausePlaneCounter` (serialized). Omitted on planes restored from older checkpoints.
+     */
+    planeId?: string;
+    /**
+     * Co-op Reaction claims accepted on this plane (see `game/reactions/claimRule.ts`), in acceptance order.
+     * Each claimant is also in {@link waiters}. Serialized; omitted when empty.
+     */
+    claims?: ReactionClaim[];
     /**
      * Ephemeral: owners of player units whose casts were ended early by coop cooldown sync.
      * Omitted from checkpoints; used only for live UI (e.g. Teamwork burst).
@@ -69,6 +85,17 @@ export function normalizeWaitingForOrdersFromJSON(raw: unknown, gameTick: number
             a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
         );
         const result: WaitingForOrders = { waiters, atTick };
+        if (typeof o.planeId === 'string') result.planeId = o.planeId;
+        if (Array.isArray(o.claims)) {
+            const claims: ReactionClaim[] = [];
+            for (const c of o.claims) {
+                const rec = c as Record<string, unknown> | null;
+                if (rec && typeof rec.unitId === 'string' && typeof rec.ownerId === 'string') {
+                    claims.push({ unitId: rec.unitId, ownerId: rec.ownerId });
+                }
+            }
+            if (claims.length > 0) result.claims = claims;
+        }
         return result;
     }
     if (typeof o.unitId === 'string' && typeof o.ownerId === 'string') {
@@ -192,6 +219,10 @@ export interface SerializedGameState {
     darknessUpgradeBonuses?: import('../../../researchTrees/types').PassiveBonuses;
     /** Host's active Darkness Upgrade node ids (omitted when none). */
     darknessUpgradeNodeIds?: string[];
+    /** Battle-relevant knowledge keys per player id (omitted when empty). */
+    playerKnowledgeKeysByPlayer?: Record<string, string[]>;
+    /** Pause planes formed so far (stamps `WaitingForOrders.planeId`); omitted when 0. */
+    pausePlaneCounter?: number;
     /** Serialized ninjutsu pool configs and runtime state (budget, delay). */
     ninjutsuPools?: import('./ninjutsu/NinjutsuPool').SerializedNinjutsuPool[];
     /**

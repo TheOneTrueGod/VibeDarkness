@@ -42,6 +42,12 @@ import { PHASE_COMPONENT } from './phaseComponent';
 import { PHASE_HOOKS } from './phaseHooks';
 import { HP_STEP_COMPONENT } from './hpStepComponent';
 import { HP_STEP_HOOKS } from './hpStepHooks';
+import { FUSED_BODY_COMPONENT } from './fusedBodyComponent';
+import { FUSED_BODY_HOOKS } from './fusedBodyHooks';
+import { NODE_TREE_COMPONENT } from './nodeTree';
+import { NODE_TREE_HOOKS } from './nodeTreeHooks';
+import { SPAWNER_COMPONENT } from './spawnerComponent';
+import { SPAWNER_HOOKS } from './spawnerHooks';
 import { LANTERNITE_HOOKS } from '../../lanternite/lanterniteComponentHooks';
 import { SWARM_HOOKS } from '../../lanternite/swarmComponentHooks';
 
@@ -92,6 +98,12 @@ const HOOK_ENTRIES: HookEntry[] = [
     { type: PHASE_COMPONENT, hooks: PHASE_HOOKS },
     // After phases: a step cast sees any phase (enrage) the same hit entered.
     { type: HP_STEP_COMPONENT, hooks: HP_STEP_HOOKS },
+    // Fused bodies are independent of every other component (world-clock fuse, own death handling).
+    { type: FUSED_BODY_COMPONENT, hooks: FUSED_BODY_HOOKS },
+    // Node trees: the leash clamp, and death handling (tether to Briar, parent's onLastChildDied).
+    { type: NODE_TREE_COMPONENT, hooks: NODE_TREE_HOOKS },
+    // Generic spawners (Hive Gourd): after node trees so a child spawned this tick is not leashed until next tick.
+    { type: SPAWNER_COMPONENT, hooks: SPAWNER_HOOKS },
 ];
 
 /** Append hooks for a component type (tests and future components). Returns a function that unregisters them. */

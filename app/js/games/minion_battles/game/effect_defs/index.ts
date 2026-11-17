@@ -44,7 +44,7 @@ import {
     storyHomingParticleEffectDef,
     particleImageEffectDef,
 } from './deathEffects';
-import { damageNumberEffectDef, floatingTextEffectDef } from './textEffects';
+import { damageNumberEffectDef, floatingTextEffectDef, resistedDamageNumberEffectDef } from './textEffects';
 import { corruptionOrbEffectDef, torchProjectileEffectDef } from './corruptionEffects';
 import { lanterniteConstParticleEffectDef, auraPulseEffectDef } from './lanterniteEffects';
 import { daylightSearEffectDef, DAYLIGHT_SEAR_EFFECT_TYPE } from './dayLightEffects';
@@ -131,6 +131,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     Explosion: explosionEffectDef,
     [LIGHT_CONE_BURST_EFFECT_TYPE]: lightConeBurstEffectDef,
     DamageNumber: damageNumberEffectDef,
+    ResistedDamageNumber: resistedDamageNumberEffectDef,
     FloatingText: floatingTextEffectDef,
     LanterniteConstParticle: lanterniteConstParticleEffectDef,
     AuraPulse: auraPulseEffectDef,

@@ -57,6 +57,12 @@ export function serializeEngine(engine: GameEngine): SerializedGameState {
             ? {
                   waiters: engine.waitingForOrders.waiters,
                   atTick: engine.waitingForOrders.atTick,
+                  ...(engine.waitingForOrders.planeId !== undefined
+                      ? { planeId: engine.waitingForOrders.planeId }
+                      : {}),
+                  ...(engine.waitingForOrders.claims?.length
+                      ? { claims: engine.waitingForOrders.claims.map((c) => ({ ...c })) }
+                      : {}),
               }
             : null,
         orders: engine.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),
@@ -87,6 +93,10 @@ export function serializeEngine(engine: GameEngine): SerializedGameState {
         ...(engine.state.darknessUpgradeNodeIds.length > 0
             ? { darknessUpgradeNodeIds: [...engine.state.darknessUpgradeNodeIds] }
             : {}),
+        ...(Object.keys(engine.state.playerKnowledgeKeysByPlayer).length > 0
+            ? { playerKnowledgeKeysByPlayer: structuredClone(engine.state.playerKnowledgeKeysByPlayer) }
+            : {}),
+        ...(engine.state.pausePlaneCounter > 0 ? { pausePlaneCounter: engine.state.pausePlaneCounter } : {}),
         lightSources: engine.state.lightSourceManager.toJSON(),
         terrainEffects: engine.state.terrainLayers.toEffectsJSON(),
         floorTiles: engine.state.terrainLayers.toFloorTilesJSON(),
@@ -168,6 +178,10 @@ export function deserializeEngine(
 
     engine.darknessUpgradeBonuses = data.darknessUpgradeBonuses ? structuredClone(data.darknessUpgradeBonuses) : {};
     engine.darknessUpgradeNodeIds = data.darknessUpgradeNodeIds ? [...data.darknessUpgradeNodeIds] : [];
+    engine.playerKnowledgeKeysByPlayer = data.playerKnowledgeKeysByPlayer
+        ? structuredClone(data.playerKnowledgeKeysByPlayer)
+        : {};
+    engine.pausePlaneCounter = data.pausePlaneCounter ?? 0;
 
     engine.pendingOrders = (data.orders ?? []).map((o) => ({
         gameTick: o.gameTick,
@@ -215,6 +229,8 @@ export function deserializeEngine(
             engine.waitingForOrders = {
                 waiters: merged,
                 atTick,
+                ...(pauseBatch.planeId !== undefined ? { planeId: pauseBatch.planeId } : {}),
+                ...(pauseBatch.claims !== undefined ? { claims: pauseBatch.claims } : {}),
                 ...(pauseBatch.teamworkCancelledOwnerIds !== undefined
                     ? { teamworkCancelledOwnerIds: pauseBatch.teamworkCancelledOwnerIds }
                     : {}),

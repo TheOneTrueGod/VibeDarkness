@@ -21,6 +21,9 @@ import { unitAbilityHasTag } from '../../abilities/abilityUses';
 import { resolveWaitOrderWindow } from '../../abilities/WaitAbility';
 import { canPreempt } from '../units/castPriority';
 import { preemptUnitAbilities } from '../units/unitAbilityLifecycle';
+import { canUseAbilityNow } from '../../abilities/abilityUses';
+import { ResourceId } from '../../resources/resourceIds';
+import { applyReactionClaim } from '../reactions/claimRule';
 
 function specialActionKey(special: BattleOrderSpecialAction | undefined): string {
     if (!special) return '';
@@ -30,6 +33,32 @@ function specialActionKey(special: BattleOrderSpecialAction | undefined): string
 export class OrderManager {
     pendingOrders: OrderAtTick[] = [];
     waitingForOrders: WaitingForOrders | null = null;
+    /**
+     * Recorded Reaction claims whose pause plane has not formed on this engine yet (a client replaying behind the
+     * host). Drained when the plane commits ({@link drainReactionClaimsForPlane}). Runtime only, like
+     * `pendingOrders`: a checkpoint load skips rows at or before its tick and refetches the rest from the stream.
+     */
+    pendingReactionClaims: { atTick: number; planeId: string; unitId: string }[] = [];
+    /**
+     * `planeId|unitId` of every recorded claim this engine applied. Runtime only. Lets the network layer tell
+     * "my claim was applied, the plane then closed" from "I played ahead and missed it" (Step 16).
+     */
+    private readonly appliedReactionClaimKeys = new Set<string>();
+
+    hasAppliedReactionClaim(planeId: string, unitId: string): boolean {
+        return this.appliedReactionClaimKeys.has(`${planeId}|${unitId}`);
+    }
+
+    private applyAndRecordReactionClaim(planeId: string, unitId: string): void {
+        if (applyReactionClaim(this.ctx, planeId, unitId)) {
+            this.appliedReactionClaimKeys.add(`${planeId}|${unitId}`);
+            // Keep the set small: only recent planes matter.
+            if (this.appliedReactionClaimKeys.size > 64) {
+                const [oldest] = this.appliedReactionClaimKeys;
+                if (oldest !== undefined) this.appliedReactionClaimKeys.delete(oldest);
+            }
+        }
+    }
 
     private ctx: EngineContext;
     private onAfterOrderQueued: () => void;
@@ -135,6 +164,10 @@ export class OrderManager {
         // below (replacing a draft cancels a cast). Validation only; the order is applied in applyOrderLogic.
         const missingPickUnit = this.ctx.getUnit(order.unitId);
         if (missingPickUnit && !this.isMissingPickOrderAcceptable(missingPickUnit, order)) {
+            return;
+        }
+        // Reaction decision first, so it also covers the in-place confirm branches below.
+        if (missingPickUnit && !this.resolveReactionIfNeeded(missingPickUnit, order)) {
             return;
         }
         if (this.waitingForOrders) {
@@ -289,11 +322,70 @@ export class OrderManager {
         return true;
     }
 
+    /**
+     * Reaction decision (see `game/reactions/reactionFrame.ts`), the sibling of the conditional-cancel decision.
+     * Only a confirmed (`endTurn: true`) order decides, so a draft never spends Reflex.
+     * - `wait`: free. Clears `reactionPending`; the current cast keeps running.
+     * - Any castable ability: spends 1 Reflex, cancels the current cast with the conditional-cancel refund rules,
+     *   clears `reactionPending`. The order then queues normally (normal cooldown, normal time).
+     * - Not castable, unknown, or no Reflex: rejected, the unit stays pending.
+     * Returns false when the order is rejected.
+     */
+    private resolveReactionIfNeeded(unit: Unit, order: BattleOrder): boolean {
+        if (!unit.reactionPending || order.endTurn !== true) return true;
+        if (!unit.isAlive()) return false;
+        if (order.abilityId === 'wait') {
+            unit.reactionPending = undefined;
+            return true;
+        }
+        const ability = getAbility(order.abilityId);
+        const reflex = unit.getResource(ResourceId.Reflex);
+        if (!ability || !reflex || !canUseAbilityNow(unit, ability) || !reflex.spend(1)) return false;
+        for (const active of [...unit.activeAbilities]) {
+            const cancelled = getAbility(active.abilityId);
+            if (cancelled) refundAbilityCost(unit, cancelled, Math.max(0, getCastElapsed(unit, active, this.ctx)));
+            this.ctx.cancelActiveAbility(unit.id, active.abilityId);
+        }
+        unit.clearAbilityNote();
+        unit.reactionPending = undefined;
+        this.ctx.mixOrderFingerprint(unit.id, `reaction:${order.abilityId}`);
+        return true;
+    }
+
     /** Drop every order queued for `unitId` at or after `fromTick` (default: now). Returns how many were dropped. */
     dropPendingOrdersForUnit(unitId: string, fromTick = this.ctx.gameTick): number {
         const before = this.pendingOrders.length;
         this.pendingOrders = this.pendingOrders.filter((o) => !(o.order.unitId === unitId && o.gameTick >= fromTick));
         return before - this.pendingOrders.length;
+    }
+
+    /**
+     * Apply a claim read from the replayed order stream (`claimOrder.ts`). Plane open and matching: applied now
+     * ({@link applyReactionClaim}). Plane not formed yet: held until it commits. Anything else (plane already
+     * closed, or another plane id at that tick) is dropped. Idempotent: a claimant who is already a waiter fails
+     * `canClaimReaction`, so the host's local apply plus the later replay of its own row is harmless.
+     */
+    queueReactionClaim(atTick: number, planeId: string, unitId: string): void {
+        const plane = this.waitingForOrders;
+        if (plane && plane.atTick === atTick) {
+            if (plane.planeId === planeId) this.applyAndRecordReactionClaim(planeId, unitId);
+            return;
+        }
+        if (atTick < this.ctx.gameTick) return;
+        if (this.pendingReactionClaims.some((c) => c.planeId === planeId && c.unitId === unitId)) return;
+        this.pendingReactionClaims.push({ atTick, planeId, unitId });
+    }
+
+    /** Called right after a plane commits: apply held claims for it, drop held claims for earlier ticks. */
+    drainReactionClaimsForPlane(plane: WaitingForOrders): void {
+        if (this.pendingReactionClaims.length === 0) return;
+        const held = this.pendingReactionClaims;
+        this.pendingReactionClaims = held.filter((c) => c.atTick > plane.atTick);
+        for (const c of held) {
+            if (c.atTick === plane.atTick && c.planeId === plane.planeId) {
+                this.applyAndRecordReactionClaim(c.planeId, c.unitId);
+            }
+        }
     }
 
     queueOrder(atTick: number, order: BattleOrder): void {
@@ -444,6 +536,7 @@ export class OrderManager {
             if (!canPreempt(unit, order.castPriority, this.ctx.units, this.ctx, order.followUpOf)) return;
             preemptUnitAbilities(unit, this.ctx);
         }
+        if (!this.resolveReactionIfNeeded(unit, order)) return;
         if (!this.resolveConditionalCancelIfNeeded(unit, order)) return;
 
         // Missing-pick decision (see isMissingPickOrderAcceptable). Resolved here, at the top of the batch

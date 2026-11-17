@@ -34,6 +34,8 @@ import {
 } from './constants';
 import type { PeerLinkTracker } from './PeerLinkTracker';
 import { isAppendAtTickAccepted, isHostPlayaheadOverCap, maxAllowedAppendTick } from './hostPersistWindow';
+import { buildReactionClaimOrder } from '../reactions/claimOrder';
+import { ReactionClaimController } from './ReactionClaimController';
 import type {
 	ApplyRemoteOrdersResult,
 	BattleSessionHandle,
@@ -44,6 +46,9 @@ import type {
 	BattleNetArgs,
 	BattleNetPollOnceOptions,
 	BattleSyncNudge,
+	ReactionClaimEntry,
+	ReactionClaimMessage,
+	ReactionClaimState,
 	BattleHeartbeatApiResult,
 	BattleNetFactoryArgs,
 	SubmitOrderOptions,
@@ -74,6 +79,9 @@ export type {
 	BattleNetPollOnceOptions,
 	BattleNetFactoryArgs,
 	BattleSyncNudge,
+	ReactionClaimEntry,
+	ReactionClaimMessage,
+	ReactionClaimState,
 	LoadFromSnapshotOpts,
 	LocalSyncAnomalyContext,
 	RemoteOrderWireRow,
@@ -114,6 +122,10 @@ export class BattleNet implements BattleNetContext {
 	private readonly sendSyncNudgeFn: ((nudge: BattleSyncNudge) => void) | null;
 	/** Optional peer WebRTC link state (see {@link BattleNetArgs.peerLinks}). */
 	private readonly peerLinks: PeerLinkTracker | null;
+	/** Lobby host's player id, when known (see {@link BattleNetArgs.hostPlayerId}). */
+	private readonly hostPlayerId: string | null;
+	/** Co-op Reaction claim hints and state (Step 16). */
+	private readonly reactionClaims: ReactionClaimController;
 
 	/** {@link BattleNetContext} requires the controllers as a public surface for siblings. */
 	get syncStatus(): SyncStatusController {
@@ -171,6 +183,19 @@ export class BattleNet implements BattleNetContext {
 		this.playerId = args.playerId;
 		this.sendSyncNudgeFn = args.sendSyncNudge ?? null;
 		this.peerLinks = args.peerLinks ?? null;
+		this.hostPlayerId = args.hostPlayerId ?? null;
+		this.reactionClaims = new ReactionClaimController({
+			isHost: this.isHost,
+			playerId: this.playerId,
+			hostPlayerId: this.hostPlayerId,
+			session: this.session,
+			send: args.sendReactionClaimMessage ?? null,
+			isHostLinkUp: () => this.isHostLinkUp(),
+			recordClaim: (claim) => this.recordReactionClaim(claim),
+			requestResync: (reason) => this.requestResync(reason),
+			onChanged: (planeId) => this.emit('reaction-claims-changed', { planeId }),
+		});
+		this.peerLinks?.subscribe(() => this.emit('reaction-claims-changed', { planeId: null }));
 		this.heartbeatState.setHostTickChangeListener((prev, next) => this.logHostTailChange(prev, next));
 		this.heartbeatHttp = new HeartbeatHttp({
 			api: this.api,
@@ -1048,6 +1073,115 @@ export class BattleNet implements BattleNetContext {
 		const appended = await this.persistOrder(order, atTick, idHash, true);
 		if (appended) return true;
 		return this.deferredLocalOrders.some((row) => row.idHash === idHash);
+	}
+
+	/**
+	 * Host-only: record an ACCEPTED co-op Reaction claim in the replayed order stream and apply it to the host
+	 * engine. Step 16 calls this after validating the request with `canClaimReaction`, and sends "accepted" to the
+	 * claimant only when this resolves `true`; `false` (not host, endpoint failure, row not durably recorded) must
+	 * be answered as a rejection.
+	 *
+	 * Architecture (full rationale in `AppendReactionClaimHandler.php`): the claim is an order row in the
+	 * pending -> applied stream, so replays, late joiners, resyncs and checkpoint fingerprints include it. It is NOT
+	 * {@link submitOrder}: none of that method's early returns (recovering, awaiting ack, ahead of host heartbeat,
+	 * deferral) apply, and a failed POST is never queued for later (a deferred claim could land after the plane
+	 * closed). Local apply goes through `session.applyRemoteOrders`, the same path every other client uses to
+	 * replay the row, so it cannot diverge from a replay.
+	 *
+	 * While the POST is in flight the batch merge for `atTick` is held ({@link hostUnackedAppends}), so a merge
+	 * cannot run between "claim accepted" and "claim row in pending".
+	 */
+	async recordReactionClaim(claim: {
+		planeId: string;
+		atTick: number;
+		unitId: string;
+		/** The claimant: owner of `unitId`. */
+		playerId: string;
+	}): Promise<boolean> {
+		if (!this.isHost || !this.api.appendReactionClaim) return false;
+		const unackedKey = `reaction_claim|${claim.planeId}|${claim.unitId}`;
+		this.hostUnackedAppends.set(unackedKey, claim.atTick);
+		try {
+			const res = await this.api.appendReactionClaim(this.lobbyId, this.gameId, {
+				hostPlayerId: this.playerId,
+				playerId: claim.playerId,
+				atTick: claim.atTick,
+				planeId: claim.planeId,
+				unitId: claim.unitId,
+			});
+			if (!res.success || !res.idHash) return false;
+			const idHash = res.idHash;
+			if (!this.appliedOrderIdHashes.has(idHash)) {
+				this.appliedOrderIdHashes.add(idHash);
+				this.session.applyRemoteOrders([
+					{
+						atTick: claim.atTick,
+						playerId: claim.playerId,
+						idHash,
+						order: buildReactionClaimOrder(claim.planeId, claim.unitId),
+					},
+				]);
+			}
+			this.sendSyncNudge('order-appended', claim.atTick);
+			return true;
+		} catch (err) {
+			console.warn('[BattleNet] recordReactionClaim failed', err);
+			return false;
+		} finally {
+			this.hostUnackedAppends.delete(unackedKey);
+			void this.flushPendingHostMerges();
+		}
+	}
+
+	// ---------------------------------------------------------------------------------------------
+	// Co-op Reaction claims (Step 16). Client API for the claim button / plane HUD (Step 17):
+	//   requestReactionClaim(unitId)            -> send a claim for the open plane (false = nothing sent)
+	//   getReactionClaimState(planeId, unitId)  -> 'pending' | 'accepted' | 'rejected' | null
+	//   getReactionClaims(planeId)              -> every tracked claim (own and other players'), any state
+	//   getPendingReactionClaims(planeId)       -> claims still waiting for the host (for the plane HUD)
+	//   isHostLinkUp()                          -> mesh link to the host is up (always true on the host)
+	//   on('reaction-claims-changed', cb)       -> subscribe; also fires when the host link goes up/down
+	// ---------------------------------------------------------------------------------------------
+
+	/** Ask to React with `unitId` at the open pause plane. See {@link ReactionClaimController.requestClaim}. */
+	requestReactionClaim(unitId: string): boolean {
+		return this.reactionClaims.requestClaim(unitId);
+	}
+
+	getReactionClaimState(planeId: string, unitId: string): ReactionClaimState | null {
+		return this.reactionClaims.getState(planeId, unitId);
+	}
+
+	getReactionClaims(planeId: string): readonly ReactionClaimEntry[] {
+		return this.reactionClaims.getClaims(planeId);
+	}
+
+	getPendingReactionClaims(planeId: string): readonly ReactionClaimEntry[] {
+		return this.reactionClaims.getPendingClaims(planeId);
+	}
+
+	/**
+	 * True while the WebRTC link to the lobby host is up. The host itself has no hop, so always true there.
+	 * False when the mesh is not wired in (no `peerLinks` / `hostPlayerId`): the claim button stays disabled.
+	 */
+	isHostLinkUp(): boolean {
+		if (this.isHost) return true;
+		return this.hostPlayerId != null && this.peerLinks?.isLinked(this.hostPlayerId) === true;
+	}
+
+	/** Mesh -> here: a peer's `reaction-claim-request` / `reaction-claim-result` hint. */
+	handleReactionClaimMessage(fromPlayerId: string, message: ReactionClaimMessage): void {
+		this.reactionClaims.handleMessage(fromPlayerId, message);
+	}
+
+	/** Host: true while a claim request for `planeId` is undecided (`GameEngine.parallelResumeHold`). */
+	isReactionClaimUndecidedFor(planeId: string | undefined): boolean {
+		return this.reactionClaims.isUndecidedFor(planeId);
+	}
+
+	/** `GameEngine.onParallelPlaneClosed`: claimants give up on the plane with this id. */
+	handleParallelPlaneClosed(planeId: string): void {
+		this.reactionClaims.handlePlaneClosed(planeId);
 	}
 
 	/** Clears the post-recovery "Continue" UX gate (see {@link BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK} in `global_constants.js`). */

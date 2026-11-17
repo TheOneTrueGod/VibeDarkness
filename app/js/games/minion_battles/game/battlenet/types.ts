@@ -122,6 +122,47 @@ export interface BattleSessionHandle {
      * {@link BattleNet} normally keeps this cleared so optimistic playahead runs until a natural pause.
      */
     setMultiplayerAwaitHostCatchup(blocked: boolean): void;
+    /**
+     * Co-op Reaction claims (Step 16). Judge a claim request against the live engine: `ok` (would be accepted),
+     * `already_claimed` (the unit already claimed this plane) or `rejected`. Optional on test doubles.
+     */
+    evaluateReactionClaim?(
+        planeId: string,
+        atTick: number,
+        unitId: string,
+        claimantPlayerId: string,
+    ): ReactionClaimVerdict;
+    /** True once this client applied the recorded claim for `planeId` (even if the plane has since closed). */
+    hasReactionClaimBeenApplied?(planeId: string, unitId: string): boolean;
+    /** Re-run `tryResumeParallel` (host: after an undecided claim request settles and released its hold). */
+    retryParallelResume?(): void;
+}
+
+/** Outcome of judging a Reaction claim request against the engine (`evaluateReactionClaimRequest`). */
+export type ReactionClaimVerdict = 'ok' | 'already_claimed' | 'rejected';
+
+/**
+ * Co-op Reaction claim hints over the WebRTC mesh. Hints only: the truth is the recorded claim row
+ * (Step 15) and the engine's `waitingForOrders.claims`.
+ * - request: claimant -> host and peers ("I want to React at this plane"). Changes no state by itself.
+ * - result: host -> all, sent only after the claim is durably recorded (accepted) or refused.
+ */
+export type ReactionClaimMessage =
+    | { kind: 'reaction-claim-request'; planeId: string; atTick: number; unitId: string }
+    | { kind: 'reaction-claim-result'; planeId: string; atTick: number; unitId: string; accepted: boolean };
+
+export type ReactionClaimState = 'pending' | 'accepted' | 'rejected';
+
+/** One tracked claim for a pause plane (own claims and other players' pending claims). */
+export interface ReactionClaimEntry {
+    planeId: string;
+    atTick: number;
+    unitId: string;
+    /** The claimant player ('' when only a result was heard). */
+    playerId: string;
+    state: ReactionClaimState;
+    /** True for this client's own claim. */
+    own: boolean;
 }
 
 export type BattleNetSyncTerminalStatus =
@@ -193,6 +234,11 @@ export type BattleNetEventMap = {
     };
     /** Non-host: polls while paused for orders and `waiting_for_host` (battle UI gating + stall resync). */
     'waiting-for-host-poll-streak': { streak: number };
+    /**
+     * Reaction claim bookkeeping changed (a claim sent, heard, accepted, rejected or given up on) or the mesh link
+     * to the host went up/down. `planeId` is null for a link change. Re-read the getters, do not trust the payload.
+     */
+    'reaction-claims-changed': { planeId: string | null };
 };
 
 export type BattleNetListener<K extends keyof BattleNetEventMap> = (payload: BattleNetEventMap[K]) => void;
@@ -254,6 +300,12 @@ export interface BattleApi {
         hostTick?: number;
         hostFingerprint?: string | null;
     }>;
+    /** Host-only claim record (Step 15). Optional so partial API stubs keep compiling; BattleNet treats missing as failure. */
+    appendReactionClaim?(
+        lobbyId: string,
+        gameId: string,
+        body: { hostPlayerId: string; playerId: string; atTick: number; planeId: string; unitId: string },
+    ): Promise<{ success: boolean; idHash: string | null; rejectedReason?: string }>;
     persistHostCycles(
         lobbyId: string,
         gameId: string,
@@ -364,6 +416,10 @@ export interface BattleNetArgs {
      * last completed poll and no nudge since, an ITS pre-action refresh poll is skipped.
      */
     peerLinks?: PeerLinkTracker;
+    /** Lobby host's player id (for "is the mesh link to the host up" and to trust only the host's results). */
+    hostPlayerId?: string;
+    /** Broadcast a Reaction claim hint over the WebRTC mesh (see {@link ReactionClaimMessage}). Must be stable. */
+    sendReactionClaimMessage?: (message: ReactionClaimMessage) => void;
 }
 
 /**

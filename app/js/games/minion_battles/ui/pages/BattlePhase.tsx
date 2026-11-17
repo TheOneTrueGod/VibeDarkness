@@ -5,7 +5,7 @@
  * round tracking, targeting flow, order submission, and server sync.
  */
 
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { BattleSession } from '../../game/BattleSession';
@@ -19,6 +19,7 @@ import ObjectiveMarkerOverlay from '../components/ObjectiveMarkerOverlay';
 import TurnIndicator, { type TurnIndicatorSideControls } from '../components/TurnIndicator';
 import BattleNoticeSlot from '../components/BattleNoticeSlot';
 import ComboMeter from '../components/ComboMeter';
+import ReactionClaimControls from '../components/ReactionClaimControls';
 import {
     createBattleNoticeStore,
     type BattleNotice,
@@ -50,6 +51,7 @@ import { usePlaytestBridge } from './battlePhase/usePlaytestBridge';
 import { useInteractiveTargetingProgress } from './battlePhase/useInteractiveTargetingProgress';
 import { useBattleGhostPlans } from './battlePhase/useBattleGhostPlans';
 import { useBattleSyncNudges } from './battlePhase/useBattleSyncNudges';
+import { useReactionClaimMessages } from './battlePhase/useReactionClaimMessages';
 import { useRewindOverlay, REWIND_OVERLAY_FADE_MS } from './battlePhase/useRewindOverlay';
 import ITSTimelineControls from '../components/ITSTimelineControls';
 import { abilityDurationSecondsToTicks } from '../components/itsTimelineMath';
@@ -141,6 +143,11 @@ export default function BattlePhase({
         netRef,
         Object.keys(players).filter((id) => id !== playerId),
     );
+    const { sendReactionClaimMessage } = useReactionClaimMessages(netRef);
+    const hostPlayerId = useMemo(
+        () => Object.values(players).find((p) => p.isHost)?.id,
+        [players],
+    );
     const hudEffectCanvasRef = useRef<HudEffectCanvasHandle | null>(null);
     const battleCanvasAreaRef = useRef<HTMLDivElement>(null);
     // One notice store per mount; useInteractiveTargetingProgress shows ended-early / missing-pick notices in it.
@@ -158,6 +165,7 @@ export default function BattlePhase({
     }, [battleNoticeStore]);
     /** Stable engine accessor for self-polling HUD widgets (ComboMeter). */
     const getBattleEngine = useCallback(() => sessionRef.current?.getEngine() ?? null, []);
+    const getPlayerName = useCallback((id: string) => players[id]?.name ?? 'Player', [players]);
 
     const {
         netSyncStatus,
@@ -345,6 +353,8 @@ export default function BattlePhase({
         setNetSyncStatus,
         sendSyncNudge,
         peerLinks,
+        hostPlayerId,
+        sendReactionClaimMessage,
     });
 
     const objectivesPresenter = useObjectivesPresenter({
@@ -398,6 +408,7 @@ export default function BattlePhase({
     const tutorial = useBattleTutorial({
         api,
         missionId,
+        localPlayerId: playerId,
         engine: sessionRef.current?.getEngine() ?? null,
         camera: sessionRef.current?.getCamera() ?? null,
         knowledge: accountKnowledge,
@@ -503,6 +514,12 @@ export default function BattlePhase({
                 <>
                     <BattleNoticeSlot notices={battleNotices} />
                     <ComboMeter getEngine={getBattleEngine} />
+                    <ReactionClaimControls
+                        getEngine={getBattleEngine}
+                        netRef={netRef}
+                        playerId={playerId}
+                        getPlayerName={getPlayerName}
+                    />
                 </>
             }
             hostCatchupPopover={

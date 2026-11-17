@@ -10,6 +10,7 @@
  * **12 = Iron Warden** enemy family (see `card_defs/12_enemy_warden/`).
  * **13 = Storm** skill tree (see `card_defs/13_storm_core/StormCore.md`).
  * **14 = Court Magician** enemy family (see `card_defs/14_enemy_court_magician/`).
+ * **16 = Garden Heart** enemy family (see `card_defs/16_enemy_garden_heart/`).
  * **15 = Water** skill tree (see `card_defs/15_water/AGENTS.md`); its first cards overlap the Blood Mage.
  * **03 = Mage** is the Blood Mage tree (`card_defs/03_blood_mage/`, see its `AGENTS.md`).
  *
@@ -35,6 +36,7 @@ export enum AbilityGroupId {
     Storm = 13,
     EnemyCourtMagician = 14,
     Water = 15,
+    EnemyGardenHeart = 16,
 }
 
 export function formatGroupId(group: AbilityGroupId): string {

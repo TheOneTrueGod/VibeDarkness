@@ -44,6 +44,7 @@ import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { findSelectGateSplit, selectGateDeferredIds } from '../interaction/selectTargetLookahead';
 import { fizzleUnitActiveAbility } from './unitAbilityLifecycle';
 import { hasConditionalCancelFollowUp } from './unitAbilityQueries';
+import { requestReactionFrame } from '../reactions/reactionFrame';
 import { resolveCastBehaviourTarget } from '../../abilities/resolveCastBehaviourTarget';
 import { resolveActiveAbilityMode } from '../../abilities/resolveAbilityMode';
 import { triggerAbilityEvent } from '../../abilities/events';
@@ -597,6 +598,22 @@ export function tickUnitActiveAbilities(
                 };
                 entry.behaviour.onTick?.(tickCtx);
                 unit.activeCastBehaviours.delete(behaviourKey);
+            }
+        }
+
+        // Reaction frames: a Reactable ability's interval opening/closing pauses threatened players who can react.
+        if (ability.reactable) {
+            for (const interval of intervals) {
+                const frame = interval.reactionFrame;
+                if (!frame || !(frame.at === 'start' ? entered : exited).has(interval.id)) continue;
+                const area = frame.area({
+                    caster: unit,
+                    engine,
+                    targets: active.targets,
+                    abilityId: active.abilityId,
+                    castPayload: active.castPayload,
+                });
+                if (area) requestReactionFrame(engine, { sourceUnitId: unit.id, area, label: active.abilityId });
             }
         }
 

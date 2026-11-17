@@ -108,6 +108,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         waitMinEndTime: unit.waitMinEndTime,
         waitMaxEndTime: unit.waitMaxEndTime,
         ...(unit.waitAbilityMode != null ? { waitAbilityMode: unit.waitAbilityMode } : {}),
+        ...(unit.reactionPending ? { reactionPending: { ...unit.reactionPending } } : {}),
         movementPaused: unit.movementPaused,
         corruptionProgress: unit.corruptionProgress,
         crystalCorruptionProgress: unit.crystalCorruptionProgress,
@@ -162,6 +163,9 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         ...(unit.localFrozen ? { localFrozen: true } : {}),
         ...(unit.frozenHitPolicyFromStop !== undefined ? { frozenHitPolicyFromStop: unit.frozenHitPolicyFromStop } : {}),
         ...(unit.pendingFrozenHits.length > 0 ? { pendingFrozenHits: unit.pendingFrozenHits.map((h) => ({ ...h })) } : {}),
+        ...(unit.flatDamageReductions.length > 0
+            ? { flatDamageReductions: unit.flatDamageReductions.map((r) => ({ ...r })) }
+            : {}),
         combatSettings: unit.combatSettings,
         ...(unit.passiveBonuses && Object.keys(unit.passiveBonuses).length > 0
             ? { passiveBonuses: unit.passiveBonuses }

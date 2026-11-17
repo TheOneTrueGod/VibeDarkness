@@ -264,6 +264,18 @@ export class LobbyClient {
         return (data.user as AccountInfo | undefined) ?? null;
     }
 
+    /**
+     * Record a mission's start-granted knowledge (`startRewards.knowledgeKeys`) on the signed-in
+     * player's own account. The server accepts only `BattleKnowledge::START_GRANTABLE_KEYS`; idempotent.
+     */
+    async grantBattleStartKnowledge(keys: string[]): Promise<AccountInfo | null> {
+        const data = await this.request('/api/account/battle-start-knowledge', {
+            method: 'POST',
+            body: JSON.stringify({ keys }),
+        });
+        return (data.user as AccountInfo | undefined) ?? null;
+    }
+
     async createCampaign(): Promise<import('./types').CampaignState> {
         const data = await this.request('/api/campaigns', { method: 'POST', body: JSON.stringify({}) });
         return data.campaign as import('./types').CampaignState;
@@ -685,6 +697,31 @@ export class LobbyClient {
             hostTick: typeof data.hostTick === 'number' ? data.hostTick : undefined,
             hostFingerprint: typeof data.hostFingerprint === 'string' ? data.hostFingerprint : null,
         };
+    }
+
+    /**
+     * Host-only: record an accepted co-op Reaction claim in the replayed order stream (`reaction-claim` endpoint).
+     * `playerId` is the claimant (unit owner); `hostPlayerId` is the caller, who must be the lobby host.
+     * `success` is true only when the row is now in the stream (a repeat of the same claim also succeeds).
+     */
+    async appendReactionClaim(
+        lobbyId: string,
+        gameId: string,
+        body: { hostPlayerId: string; playerId: string; atTick: number; planeId: string; unitId: string },
+    ): Promise<{ success: boolean; idHash: string | null; rejectedReason?: string }> {
+        try {
+            const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/orders/reaction-claim`, {
+                method: 'POST',
+                body: JSON.stringify(body),
+            }) as unknown as { success?: boolean; idHash?: string | null; rejectedReason?: string };
+            return {
+                success: data.success === true,
+                idHash: typeof data.idHash === 'string' ? data.idHash : null,
+                rejectedReason: typeof data.rejectedReason === 'string' ? data.rejectedReason : undefined,
+            };
+        } catch {
+            return { success: false, idHash: null, rejectedReason: 'request_failed' };
+        }
     }
 
     async persistHostCycles(

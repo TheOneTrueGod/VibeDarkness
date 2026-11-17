@@ -195,6 +195,15 @@ export class GameEngine implements EngineContext {
     /** @internal read by `OrderPauseController`. */
     onParallelBatchResolved: ((batchAtTick: number) => void | Promise<void>) | null = null;
     /**
+     * Host: return true to keep the open plane from resuming even though every waiter has an order. The host
+     * holds a plane while a co-op Reaction claim request for it is undecided, so "accepted, then resumed anyway"
+     * cannot happen. Whoever releases the hold must call `tryResumeParallel` again. Wiring only, never serialized.
+     * @internal read by `OrderPauseController`.
+     */
+    parallelResumeHold: ((plane: WaitingForOrders) => boolean) | null = null;
+    /** Fired when a parallel plane closes (resumes), with its `planeId`. @internal read by `OrderPauseController`. */
+    onParallelPlaneClosed: ((planeId: string) => void) | null = null;
+    /**
      * Non-host multiplayer: during interactive targeting, freeze at parallel pauses that include the
      * local player so the sim cannot run past the host's order batch (lobby 39E984). Host/solo keep
      * legacy ITS playahead. Set by BattleSession from `isHost`.
@@ -379,6 +388,12 @@ export class GameEngine implements EngineContext {
     /** Host's active Darkness Upgrade node ids (reward source for all players). */
     get darknessUpgradeNodeIds(): string[] { return this.state.darknessUpgradeNodeIds; }
     set darknessUpgradeNodeIds(value: string[]) { this.state.darknessUpgradeNodeIds = value; }
+
+    /** Battle-relevant account knowledge keys per player id (see `reactions/playerKnowledge.ts`). */
+    get playerKnowledgeKeysByPlayer(): Record<string, string[]> { return this.state.playerKnowledgeKeysByPlayer; }
+    set playerKnowledgeKeysByPlayer(value: Record<string, string[]>) { this.state.playerKnowledgeKeysByPlayer = value; }
+    get pausePlaneCounter(): number { return this.state.pausePlaneCounter; }
+    set pausePlaneCounter(value: number) { this.state.pausePlaneCounter = value; }
 
     /** Install resolved DarknessStrengths before mission init / late spawns. */
     setActiveDarknessStrengths(active: ActiveDarknessStrength[]): void {
@@ -751,6 +766,7 @@ export class GameEngine implements EngineContext {
         this.randomSeed = config.randomSeed >>> 0;
         this.runtimeFingerprint = fingerprintInitial();
         this.state.runtimeFingerprintRing.clear();
+        this.pausePlaneCounter = 0;
         this.appliedRoundStartRecovery = false;
         this.appliedMidRoundRecovery = false;
         this.appliedDotTicks = 0;
@@ -806,6 +822,14 @@ export class GameEngine implements EngineContext {
 
     setOnParallelBatchResolved(cb: ((batchAtTick: number) => void | Promise<void>) | null): void {
         this.onParallelBatchResolved = cb;
+    }
+
+    setParallelResumeHold(cb: ((plane: WaitingForOrders) => boolean) | null): void {
+        this.parallelResumeHold = cb;
+    }
+
+    setOnParallelPlaneClosed(cb: ((planeId: string) => void) | null): void {
+        this.onParallelPlaneClosed = cb;
     }
 
     // ========================================================================
@@ -1582,6 +1606,14 @@ export class GameEngine implements EngineContext {
     }
 
     requestConditionalCancelPause(unit: Unit): void {
+        this.orderPause.requestMidCastOrderPause(unit);
+    }
+
+    /**
+     * Reaction frame: `unit` (already marked `reactionPending`) is added to the deferred pause. Same
+     * mechanics as a conditional cancel, so it merges with any other pause forming this tick.
+     */
+    requestReactionPause(unit: Unit): void {
         this.orderPause.requestMidCastOrderPause(unit);
     }
 

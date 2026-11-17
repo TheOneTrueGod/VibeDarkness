@@ -22,6 +22,7 @@ import { Effect } from '../../../game/effects/Effect';
 import { BEAM_SEGMENT_EFFECT_TYPE, type BeamSegmentEffectData } from '../../../game/effect_defs/beamEffects';
 import { FORMATION_PRESETS, formationSlots, type FormationPoint } from '../../../game/formations/formationDef';
 import { fitSlotsToTerrain } from '../../../game/formations/formationPlacement';
+import type { ReactionArea, ReactionFrameAreaContext } from '../../../game/reactions/reactionFrame';
 import type { StartTimeStopSpec, TimeStop } from '../../../game/time/TimeManager';
 import { ROUND_DURATION } from '../../../game/gameConstants';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
@@ -168,6 +169,36 @@ function drawBeam(ctx: CastBehaviourTickContext, rays: BeamRay[]): void {
     }
 }
 
+/** Lane half-width (px) a Reaction checks the party against, wider than the ray so a near miss still counts. */
+export const CRYSTAL_LASER_REACTION_LANE_HALF_WIDTH = 24;
+
+/**
+ * Reaction frame area: the rays from every wall slot toward the tracked player's live position (else the
+ * cast-start target), the same lanes the red sight-lines show.
+ */
+export function crystalLaserReactionArea(ctx: ReactionFrameAreaContext): ReactionArea | null {
+    const payload = readCrystalLaserPayload({ castPayload: ctx.castPayload });
+    if (!payload || payload.slots.length === 0) return null;
+    const tracked = payload.trackUnitId ? ctx.engine.getUnit(payload.trackUnitId) : undefined;
+    const aim = tracked?.isAlive() ? { x: tracked.x, y: tracked.y } : { x: payload.targetX, y: payload.targetY };
+    let cx = 0;
+    let cy = 0;
+    for (const s of payload.slots) {
+        cx += s.x;
+        cy += s.y;
+    }
+    cx /= payload.slots.length;
+    cy /= payload.slots.length;
+    const ang = Math.atan2(aim.y - cy, aim.x - cx);
+    const dx = Math.cos(ang) * CRYSTAL_LASER_LENGTH;
+    const dy = Math.sin(ang) * CRYSTAL_LASER_LENGTH;
+    return {
+        kind: 'lanes',
+        segments: payload.slots.map((s) => ({ x1: s.x, y1: s.y, x2: s.x + dx, y2: s.y + dy })),
+        halfWidth: CRYSTAL_LASER_REACTION_LANE_HALF_WIDTH,
+    };
+}
+
 const _base: AbilityStatic = defineAbility({
     id: CRYSTAL_LASER_ABILITY_ID,
     name: 'Crystal Laser',
@@ -177,6 +208,8 @@ const _base: AbilityStatic = defineAbility({
     maxUses: 1,
     prefireTime: AIM_END,
     requiredTags: [UnitTag.Enraged],
+    // Reactable: the reaction frame is the start of the aim window, when the Time Stop has just ended.
+    reactable: true,
     // Constant damage: no hit freeze per pulse.
     hitImpact: { hitstopSeconds: 0, hitstunSeconds: 0 },
     abilityTimings: withJuggernautBeforeCooldown([
@@ -216,6 +249,7 @@ const _base: AbilityStatic = defineAbility({
             start: CRYSTAL_LASER_FREEZE_SEC,
             end: AIM_END,
             abilityPhase: AbilityPhase.Windup,
+            reactionFrame: { at: 'start', area: crystalLaserReactionArea },
             castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(endFreeze) }],
         },
         {

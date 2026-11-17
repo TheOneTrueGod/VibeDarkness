@@ -1,5 +1,5 @@
 /** Pure tutorial rules: which tutorial to show, step advancing and progress. See `tutorialTypes.ts`. */
-import { readTutorialProgress, type AccountKnowledgeMap, type TutorialProgress } from '../../../accountKnowledge';
+import { hasAccountKnowledge, readTutorialProgress, type AccountKnowledgeMap, type TutorialProgress } from '../../../accountKnowledge';
 import {
     DEFAULT_BATTLE_START_WINDOW_SECONDS,
     type TutorialDef,
@@ -27,6 +27,8 @@ export interface TutorialBattleContext {
     gameTimeSeconds: number;
     /** Living units currently on screen (for `unitOnScreen` triggers). */
     unitsOnScreen?: readonly TutorialUnitView[];
+    /** The local player is a waiter with `reactionPending` at a reaction pause (for `reactionPause` triggers). */
+    reactionPause?: boolean;
 }
 
 export interface ActiveTutorial {
@@ -53,6 +55,8 @@ function triggerMatches(def: TutorialDef, ctx: TutorialBattleContext): boolean {
             );
         case 'unitOnScreen':
             return (ctx.unitsOnScreen ?? []).some((u) => unitMatchesTutorialFilter(u, trigger.unit));
+        case 'reactionPause':
+            return ctx.reactionPause === true;
     }
 }
 
@@ -106,6 +110,7 @@ export function findTriggeredTutorial(
     for (const def of tutorials) {
         if (exclude?.has(def.id)) continue;
         if (accept && !accept(def)) continue;
+        if (def.requiresKnowledge && !hasAccountKnowledge(knowledge, def.requiresKnowledge)) continue;
         if (def.steps.length === 0 || !triggerMatches(def, ctx)) continue;
         const progress = readTutorialProgress(knowledge, def.knowledgeKey, def.id);
         if (progress?.done) continue;

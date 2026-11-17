@@ -55,11 +55,16 @@ export class OrderPauseController {
         return waiters.some((w) => w.ownerId === this.engine.localPlayerId);
     }
 
-    /** True when any waiter unit has an active ability awaiting a conditional-cancel decision. */
+    /**
+     * True when any waiter unit is mid-cast awaiting a decision: a conditional cancel, or a reaction frame
+     * (`reactionPending`). Both are pauses the sim must freeze on (ITS) and neither is a natural completion.
+     */
     private waitersIncludeConditionalCancelPause(waiters: readonly OrderWaiter[]): boolean {
-        return waiters.some(
-            (w) => this.engine.getUnit(w.unitId)?.activeAbilities.some((a) => a.conditionalCancelPaused) ?? false,
-        );
+        return waiters.some((w) => {
+            const unit = this.engine.getUnit(w.unitId);
+            return unit?.reactionPending !== undefined
+                || (unit?.activeAbilities.some((a) => a.conditionalCancelPaused) ?? false);
+        });
     }
 
     /** True when any waiter unit has an active ability paused at a missing pick (`awaitingPickLabel`). */
@@ -201,11 +206,16 @@ export class OrderPauseController {
             );
         }
 
+        // Every plane gets a deterministic id from its tick and the per-battle counter.
+        engine.pausePlaneCounter += 1;
         engine.waitingForOrders = {
             waiters,
             atTick,
+            planeId: `${atTick}:${engine.pausePlaneCounter}`,
             ...(teamworkCancelledOwnerIds !== undefined ? { teamworkCancelledOwnerIds } : {}),
         };
+        // Recorded claims that were waiting for this plane (replaying client) join it before anyone sees it.
+        engine.state.orderMgr.drainReactionClaimsForPlane(engine.waitingForOrders);
         engine.isPaused = true;
         engine.snapshotIndex++;
         engine.onWaitingForOrders?.(engine.waitingForOrders);
@@ -265,6 +275,8 @@ export class OrderPauseController {
         if (!batch) return;
         const allReady = batch.waiters.every((w: OrderWaiter) => engine.state.orderMgr.hasPendingEndTurnOrderForUnit(w.unitId, batch.atTick));
         if (!allReady) return;
+        // Host: an undecided co-op claim request for this plane keeps it open (released by calling this again).
+        if (engine.parallelResumeHold?.(batch)) return;
 
         const unitIds = batch.waiters.map((w: OrderWaiter) => w.unitId).sort();
         const batchAtTick = batch.atTick;
@@ -279,6 +291,7 @@ export class OrderPauseController {
             engine.deferredOrderPause = null;
             engine.eventBus.emit('turn_end', { unitIds });
             engine.onStateChanged?.();
+            if (pauseBatch.planeId !== undefined) engine.onParallelPlaneClosed?.(pauseBatch.planeId);
         };
 
         const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {

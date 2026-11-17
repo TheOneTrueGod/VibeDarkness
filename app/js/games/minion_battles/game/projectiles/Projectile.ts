@@ -567,6 +567,13 @@ export class Projectile extends GameObject {
                 if (this.rockHitsToBreak !== undefined && wall && baseTerrainOf(wall.terrainType) === TerrainType.Rock) {
                     terrainManager.damageRockByHits(wall.col, wall.row, this.rockHitsToBreak, this.sourceUnitId);
                 }
+                if (wall) {
+                    // Durable terrain (Briar) takes the same opt-in chip as rock; worn terrain (Tangle) always wears.
+                    if (this.rockHitsToBreak !== undefined) {
+                        terrainManager.damageDurableTerrainByHits(wall.col, wall.row, this.rockHitsToBreak, this.sourceUnitId);
+                    }
+                    terrainManager.wearTerrainByProjectile(wall.col, wall.row, this.sourceUnitId);
+                }
                 this.triggerExpireEffect(engine);
                 this.active = false;
                 return;

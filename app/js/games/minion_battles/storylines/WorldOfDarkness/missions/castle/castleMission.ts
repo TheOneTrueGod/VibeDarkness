@@ -29,6 +29,7 @@ import type {
     LevelEvent,
     MissionMapLayout,
     PlayerSpawnPoint,
+    SpecialTilePlacement,
 } from '../../../types';
 import type { PostMissionStoryDef, PreMissionStoryDef } from '../../../storyTypes';
 import type { MapSegmentPOI } from '../../../../terrain/segmentSchema';
@@ -99,6 +100,10 @@ export interface CastleMissionConfig {
     preMissionStory?: PreMissionStoryDef;
     /** Story shown after victory, e.g. a scavenging quest's Hunger recovery and reward choice. */
     postMissionStory?: PostMissionStoryDef;
+    /** Granted when the battle starts (see `MissionDef.startRewards`), e.g. the Garden Heart's `Reactions`. */
+    startRewards?: { knowledgeKeys?: string[] };
+    /** Special tiles (lights, crystals) on mission-global cells, e.g. from `mirrorFourWays`. */
+    specialTiles?: readonly SpecialTilePlacement[];
 }
 
 export const CASTLE_EXIT_OBJECTIVE_ID = 'reach_exit';
@@ -213,6 +218,7 @@ export class CastleMission extends BaseMissionDef {
     playerSpawnPoints?: PlayerSpawnPoint[];
     preMissionStory?: PreMissionStoryDef;
     postMissionStory?: PostMissionStoryDef;
+    startRewards?: { knowledgeKeys?: string[] };
 
     lightLevelEnabled = true;
     globalLightLevel = DarknessLevel.FULL_DARKNESS;
@@ -234,6 +240,8 @@ export class CastleMission extends BaseMissionDef {
         this.isSideMission = config.isSideMission;
         this.preMissionStory = config.preMissionStory;
         this.postMissionStory = config.postMissionStory;
+        this.startRewards = config.startRewards;
+        if (config.specialTiles?.length) this.specialTiles = [...config.specialTiles];
 
         this.rooms = castleRoomLayout(config.rooms);
         this.mapLayout = this.rooms.layout;
@@ -295,6 +303,7 @@ export class CastleMission extends BaseMissionDef {
             ...castleOpeningEnemies(this.spawnPreset, spawnCells, this.entryCell),
         ]);
         super.initializeGameState(engine, params);
+        this.bossSetup?.onMissionStart?.(engine);
     }
 }
 

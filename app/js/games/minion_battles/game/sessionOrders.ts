@@ -16,6 +16,7 @@ import { isAtConditionalCancelDecision } from './interaction/isITSPreviewComplet
 import { toCanonical } from './interaction/simTimeline';
 import { type CanonicalToken } from './battlenet/canonicalToken';
 import type { BattleSession } from './BattleSession';
+import { reactionClaimOf } from './reactions/claimOrder';
 
 export function applyHeldRemoteOrdersFor(
     session: BattleSession,
@@ -33,7 +34,12 @@ export function applyHeldRemoteOrdersFor(
             if (key != null) session.appliedRemoteOrderKeys.add(key);
             continue;
         }
-        engine.state.orderMgr.queueOrder(atTick, order);
+        const heldClaim = reactionClaimOf(order);
+        if (heldClaim) {
+            engine.state.orderMgr.queueReactionClaim(atTick, heldClaim.planeId, heldClaim.unitId);
+        } else {
+            engine.state.orderMgr.queueOrder(atTick, order);
+        }
         if (key != null) {
             session.appliedRemoteOrderKeys.add(key);
         }
@@ -110,7 +116,13 @@ export function applyRemoteOrdersFor(
             continue;
         }
         const order = rec.order;
-        eng.state.orderMgr.queueOrder(atTick, order as unknown as BattleOrder);
+        // A recorded Reaction claim joins the replayed stream here: same path as host, client and late joiner.
+        const claim = reactionClaimOf(order);
+        if (claim) {
+            eng.state.orderMgr.queueReactionClaim(atTick, claim.planeId, claim.unitId);
+        } else {
+            eng.state.orderMgr.queueOrder(atTick, order as unknown as BattleOrder);
+        }
         session.appliedRemoteOrderKeys.add(key);
         newlyAppliedKeys.push(key);
     }

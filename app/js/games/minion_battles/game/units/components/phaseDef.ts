@@ -42,13 +42,74 @@ export type PhaseCondition =
  *  - `storyPause`: `engine.startStoryPause` for `durationSeconds` (whole sim halts; players gain can't-die).
  */
 export interface PhaseTransitionDef {
-    kind: 'none' | 'timeStop' | 'storyPause';
+    kind: 'none' | 'timeStop' | 'storyPause' | 'burrow';
     /** Length of the transition. Used by `timeStop` and `storyPause`; bounds the banner for `none`. */
     durationSeconds?: number;
     /** Unit takes no damage and cannot be targeted for this long after entering (`UnitTag.Invincible`). */
     invulnerableSeconds?: number;
     /** Text for the boss HUD banner while the transition lasts. */
     banner?: string;
+    /** Required for `kind: 'burrow'`: the stages and where the unit resurfaces. See `burrowPreset`. */
+    burrow?: BurrowTransitionDef;
+}
+
+/** Stages of a burrow transition, in order. */
+export const BURROW_STAGES = ['close', 'sink', 'travel', 'rise'] as const;
+export type BurrowStage = (typeof BURROW_STAGES)[number];
+
+/** A world-pixel circle the unit must not resurface inside (plus `minDistanceFromExclusions`). */
+export interface SproutExclusionZone {
+    x: number;
+    y: number;
+    radius: number;
+}
+
+/**
+ * Burrow transition: `close` (a callback closes the unit up, e.g. a Shell), `sink` (the unit goes under; the renderer
+ * masks it at ground level), `travel` (it moves along a burrow trail to the chosen point), `rise`. The unit cannot be
+ * targeted, damaged or act for the whole transition. All durations are tick-time seconds; the point is chosen once, at
+ * the start, so the choice is deterministic and serialized with the transition.
+ * Callbacks, point rules and exclusion sources are named in registries (`phaseBurrow.ts`) so defs stay serializable.
+ */
+export interface BurrowTransitionDef {
+    closeSeconds: number;
+    sinkSeconds: number;
+    travelSeconds: number;
+    riseSeconds: number;
+    /** Authored world-pixel positions the unit may resurface at (usually one or more per arena segment). */
+    sproutPoints: { x: number; y: number }[];
+    /** Registered point rule id. Default `'farthestFromParty'`. */
+    pointRule?: string;
+    /** Candidates closer than this to any exclusion zone edge are dropped (world px). Default 0. */
+    minDistanceFromExclusions?: number;
+    /** Static zones to keep away from. */
+    exclusionZones?: SproutExclusionZone[];
+    /** Registered exclusion-source ids whose zones are added at the moment of choosing (e.g. old Briar). */
+    exclusionSources?: string[];
+    /** Registered callback ids run when a stage begins. */
+    callbacks?: Partial<Record<BurrowStage, string>>;
+    /** Optional eruption where the unit rises. See `BurrowEruptionDef`. */
+    eruption?: BurrowEruptionDef;
+}
+
+/**
+ * An area burst where a burrowed unit rises. The `rise` stage is the telegraph: the burst lands when the rise
+ * completes (`riseSeconds` after the frame), hitting every living enemy of the unit within `radiusPx` of the sprout
+ * point for `damage`. With `reactable` (default true) the start of the rise is a reaction frame
+ * (`requestReactionFrame`), so players inside the circle who know Reactions may act before it lands.
+ */
+export interface BurrowEruptionDef {
+    radiusPx: number;
+    damage: number;
+    /** Open a reaction frame at the start of the rise. Default true. */
+    reactable?: boolean;
+    /** Stored as the reaction's `abilityId` label. Default `'burrow_eruption'`. */
+    label?: string;
+}
+
+/** Build a `burrow` transition. */
+export function burrowPreset(burrow: BurrowTransitionDef, banner?: string): PhaseTransitionDef {
+    return { kind: 'burrow', burrow, ...(banner !== undefined ? { banner } : {}) };
 }
 
 /** Permanent stat changes applied when a phase is entered. Extend with new fields rather than special cases. */
@@ -65,6 +126,13 @@ export interface UnitPhaseDef {
     /** Shown on the boss HUD while this is the current phase. */
     label?: string;
     enterWhen: PhaseCondition;
+    /**
+     * The hit that crosses this phase's HP threshold cannot take the unit below it: HP is held at exactly the
+     * threshold and the excess is lost, so one burst cannot skip a phase. (`invulnerableSeconds` does NOT do this:
+     * it only starts after the crossing hit has landed in full.) Needs a `health_below_percent` threshold in
+     * `enterWhen`, directly or inside `all`.
+     */
+    clampHitAtThreshold?: boolean;
     /** Tag changes; every `requiredTags` / `forbiddenTags` ability gate keeps working off these. */
     tags?: { add?: UnitTag[]; remove?: UnitTag[] };
     /** Explicit ability list changes, for finer control than tags. */
@@ -97,6 +165,21 @@ export function enragePreset(threshold: number, tag: UnitTag = UnitTag.Enraged, 
         enterWhen: { kind: 'health_below_percent', threshold },
         tags: { add: [tag] },
     };
+}
+
+/**
+ * The HP fraction a phase's `enterWhen` requires, when it has an unambiguous one: a `health_below_percent`, or the
+ * lowest one inside an `all`. Null otherwise (`any`, or no HP condition).
+ */
+export function getPhaseEntryHpThreshold(cond: PhaseCondition): number | null {
+    if (cond.kind === 'health_below_percent') return cond.threshold;
+    if (cond.kind !== 'all') return null;
+    let min: number | null = null;
+    for (const c of cond.conditions) {
+        const t = getPhaseEntryHpThreshold(c);
+        if (t !== null && (min === null || t < min)) min = t;
+    }
+    return min;
 }
 
 /** Every `health_below_percent` threshold in a phase list (descending), for HP-bar tick marks. */

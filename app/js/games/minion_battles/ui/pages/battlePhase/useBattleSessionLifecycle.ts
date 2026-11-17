@@ -10,6 +10,7 @@ import {
     type BattleNetSyncTerminalStatus,
     type BattleSyncNudge,
     type PeerLinkTracker,
+    type ReactionClaimMessage,
 } from '../../../game/battlenet';
 import { runBattleBootstrap, type BattleInitPhase } from '../../../game/battleBootstrap';
 import type { BattleNetSyncWireResult } from './useBattleNetSyncState';
@@ -46,6 +47,10 @@ interface UseBattleSessionLifecycleParams {
     sendSyncNudge?: (nudge: BattleSyncNudge) => void;
     /** Peer WebRTC link state (see `useBattleSyncNudges`). Must be stable. */
     peerLinks?: PeerLinkTracker;
+    /** Lobby host's player id (see `BattleNetArgs.hostPlayerId`). */
+    hostPlayerId?: string;
+    /** Co-op Reaction claim hints over the mesh (see `useReactionClaimMessages`). Must be stable. */
+    sendReactionClaimMessage?: (message: ReactionClaimMessage) => void;
 }
 
 /** Mount-once BattleSession load + UI subscription; preserves Strict Mode abort teardown (T1/T7). */
@@ -69,6 +74,8 @@ export function useBattleSessionLifecycle({
     setNetSyncStatus,
     sendSyncNudge,
     peerLinks,
+    hostPlayerId,
+    sendReactionClaimMessage,
 }: UseBattleSessionLifecycleParams) {
     const [battleInitPhase, setBattleInitPhase] = useState<BattleInitPhase>('fetching_assets');
 
@@ -99,6 +106,8 @@ export function useBattleSessionLifecycle({
             playerId,
             sendSyncNudge,
             peerLinks,
+            hostPlayerId,
+            sendReactionClaimMessage,
         });
         netRef.current = net;
         session.setNetAdapter(net);

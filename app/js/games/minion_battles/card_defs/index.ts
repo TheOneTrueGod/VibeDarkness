@@ -25,6 +25,10 @@ import { BlinkCard_1405 } from './14_enemy_court_magician/1405_Blink/1405Ability
 import { MirrorSwapCard_1406 } from './14_enemy_court_magician/1406_MirrorSwap/1406Ability';
 import { ConjureCrystalCard_1407 } from './14_enemy_court_magician/1407_ConjureCrystal/1407Ability';
 import { CrystalLaserCard_1490 } from './14_enemy_court_magician/1490_CrystalLaser/1490Ability';
+import { ThornFansCard_1601 } from './16_enemy_garden_heart/1601_ThornFans/1601Ability';
+import { LobSeedCard_1602 } from './16_enemy_garden_heart/1602_LobSeed/1602Ability';
+import { MendCard_1603 } from './16_enemy_garden_heart/1603_Mend/1603Ability';
+import { RunnerVineCard_1604 } from './16_enemy_garden_heart/1604_RunnerVine/1604Ability';
 import { AlphaWolfClawCard } from './dark_animals/0004_AlphaWolfClaw/0004Ability';
 import { AlphaWolfSummonCard } from './dark_animals/0005_AlphaWolfSummon/0005Ability';
 import { BoarChargeCard } from './dark_animals/0006_BoarCharge/0006Ability';
@@ -137,6 +141,10 @@ const cardDefs: CardDef[] = [
     MirrorSwapCard_1406,
     ConjureCrystalCard_1407,
     CrystalLaserCard_1490,
+    ThornFansCard_1601,
+    LobSeedCard_1602,
+    MendCard_1603,
+    RunnerVineCard_1604,
     AlphaWolfClawCard,
     AlphaWolfSummonCard,
     BoarChargeCard,

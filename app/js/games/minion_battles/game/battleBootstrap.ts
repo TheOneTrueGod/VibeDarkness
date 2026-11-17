@@ -6,6 +6,7 @@ import type { BattleNet } from './battlenet';
 import { fetchBattleAssets } from './fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import { logToLobbyLog } from '../../../lobbyLog';
+import { SPECTATOR_ID, isControlEnemy } from '../state';
 
 export type BattleInitPhase = 'fetching_assets' | 'loading_battle' | 'submitting' | 'ready';
 
@@ -29,6 +30,8 @@ export interface RunBattleBootstrapParams {
     darknessUpgradeBonuses?: import('../../../researchTrees/types').PassiveBonuses;
     /** Host's active upgrade node ids; non-host clients read them from the initial snapshot. */
     darknessUpgradeNodeIds?: string[];
+    /** Optional per-player knowledge override; normally read from the initial snapshot. */
+    playerKnowledgeKeysByPlayer?: Record<string, string[]>;
     isAlive: () => boolean;
     onPhase: (phase: BattleInitPhase) => void;
     wireNet: (net: BattleNet, session: BattleSession) => BattleBootstrapWireResult;
@@ -50,6 +53,7 @@ export async function runBattleBootstrap({
     initialGameState,
     darknessUpgradeBonuses,
     darknessUpgradeNodeIds,
+    playerKnowledgeKeysByPlayer,
     isAlive,
     onPhase,
     wireNet,
@@ -126,10 +130,21 @@ export async function runBattleBootstrap({
             initialSnapshot: (initialGameState as SerializedGameState | null | undefined) ?? undefined,
             darknessUpgradeBonuses,
             darknessUpgradeNodeIds,
+            playerKnowledgeKeysByPlayer,
         });
     }
 
     logInit('Battle Initialization: engine loaded');
+
+    // Mission start grant: the engine flag is already set from `startRewards` at load; also record it on
+    // this player's own account (idempotent; the server allowlists the keys). Best effort.
+    const startKnowledgeKeys = mission.startRewards?.knowledgeKeys ?? [];
+    const myChoice = characterSelections[playerId];
+    if (startKnowledgeKeys.length > 0 && myChoice && myChoice !== SPECTATOR_ID && !isControlEnemy(myChoice)) {
+        api.grantBattleStartKnowledge(startKnowledgeKeys).catch((err) => {
+            console.error('[BattlePhase] grantBattleStartKnowledge failed:', err);
+        });
+    }
 
     if (!isAlive()) {
         tearDownNetForAbortedLoad();

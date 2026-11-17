@@ -25,7 +25,9 @@ import {
     buildPrimaryTimelineSegments,
     computeVisiblePrimarySegments,
     visibleConditionalCancelMarks,
+    visibleReactionMarks,
     type TimelineCancelMark,
+    type TimelineReactionMark,
     getEnemyActionWindowFromIntervals,
     getTotalAbilityDurationForCast,
     normalizeAbilityTimingsToIntervals,
@@ -36,6 +38,8 @@ import {
 import { WaitAbility } from '../../abilities/WaitAbility';
 import { EXPOSED_BUFF_TYPE } from '../../buffs/ExposedBuff';
 import { getCastElapsed } from '../../game/time/actorClock';
+import { playerKnowsReactions } from '../../game/reactions/playerKnowledge';
+import { useHudAnchorRef } from './hudAnchors';
 
 export type TimelinePanelHover =
     | {
@@ -376,6 +380,38 @@ function collectExposedMarkers(engine: GameEngine): { unit: Unit; endFromNow: nu
     return result;
 }
 
+/** Red danger bar on the enemy row for a reaction frame; the first one is the tutorial's `reactionMark` anchor. */
+function ReactionMarkBar({
+    mark,
+    windowSeconds,
+    isAnchor,
+    onPointerEnter,
+}: {
+    mark: TimelineReactionMark;
+    windowSeconds: number;
+    isAnchor: boolean;
+    onPointerEnter: () => void;
+}) {
+    const anchorRef = useHudAnchorRef('reactionMark');
+    return (
+        <div
+            ref={isAnchor ? anchorRef : undefined}
+            data-testid="timeline-reaction-mark"
+            className="absolute top-1/2 z-40 flex -translate-y-1/2 cursor-default items-center"
+            style={{
+                left: `${(mark.start / windowSeconds) * 100}%`,
+                width: `${(mark.duration / windowSeconds) * 100}%`,
+                minWidth: 6,
+                height: 28,
+            }}
+            title={`${mark.label}: ${mark.description}`}
+            onPointerEnter={onPointerEnter}
+        >
+            <div className="h-[8px] w-full rounded-full bg-red-500 ring-1 ring-red-200" />
+        </div>
+    );
+}
+
 function renderEnemyTimelineTrack(
     windowSeconds: number,
     markers: {
@@ -385,6 +421,7 @@ function renderEnemyTimelineTrack(
         endFromNow: number;
         cooldownStartFromNow: number | null;
         cooldownEndFromNow: number | null;
+        reactionMarks: TimelineReactionMark[];
     }[],
     exposedMarkers: { unit: Unit; endFromNow: number }[],
     setHover: (next: TimelinePanelHover) => void,
@@ -488,6 +525,24 @@ function renderEnemyTimelineTrack(
                                     <div className="h-[4px] w-full rounded-full bg-red-600" />
                                 </div>
                             )}
+                            {marker.reactionMarks.map((mark, markIndex) => (
+                                <ReactionMarkBar
+                                    key={`reaction-${mark.start}`}
+                                    mark={mark}
+                                    windowSeconds={windowSeconds}
+                                    isAnchor={idx === 0 && markIndex === 0}
+                                    onPointerEnter={() =>
+                                        setHover({
+                                            rowKey,
+                                            segmentIndex: 1 + markIndex,
+                                            unit: marker.unit,
+                                            ability: marker.ability,
+                                            phaseLabel: mark.label,
+                                            phaseDescription: mark.description,
+                                        })
+                                    }
+                                />
+                            ))}
                             {iconLeft !== null && (
                                 <div
                                     className={`absolute top-1/2 z-30 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-default items-center justify-center overflow-hidden rounded-sm border border-black ${iconBg}`}
@@ -517,6 +572,7 @@ function renderEnemyTimelineTrack(
 function collectEnemyMarkers(
     engine: GameEngine,
     windowSeconds: number,
+    localPlayerId: string,
 ): {
     unit: Unit;
     ability: AbilityStatic;
@@ -524,6 +580,7 @@ function collectEnemyMarkers(
     endFromNow: number;
     cooldownStartFromNow: number | null;
     cooldownEndFromNow: number | null;
+    reactionMarks: TimelineReactionMark[];
 }[] {
     const markers: {
         unit: Unit;
@@ -532,7 +589,10 @@ function collectEnemyMarkers(
         endFromNow: number;
         cooldownStartFromNow: number | null;
         cooldownEndFromNow: number | null;
+        reactionMarks: TimelineReactionMark[];
     }[] = [];
+    // Reaction marks only mean something to a player who knows Reactions.
+    const showReactionMarks = playerKnowsReactions(engine, localPlayerId);
 
     for (const unit of engine.units) {
         if (!unit.isAlive() || unit.teamId !== 'enemy') continue;
@@ -547,10 +607,14 @@ function collectEnemyMarkers(
             const cooldownStartFromNow = cooldownStart !== null ? cooldownStart - elapsed : null;
             const cooldownEndFromNow = cooldownEnd !== null ? cooldownEnd - elapsed : null;
 
+            const reactionMarks = showReactionMarks
+                ? visibleReactionMarks(intervalsForAbility(ability, unit, engine), elapsed, windowSeconds)
+                : [];
+
             const actionVisible = endFromNow > 0 && startFromNow < windowSeconds;
             const cooldownVisible = cooldownEndFromNow !== null && cooldownEndFromNow > 0 &&
                 (cooldownStartFromNow ?? 0) < windowSeconds;
-            if (!actionVisible && !cooldownVisible) continue;
+            if (!actionVisible && !cooldownVisible && reactionMarks.length === 0) continue;
 
             markers.push({
                 unit,
@@ -559,6 +623,7 @@ function collectEnemyMarkers(
                 endFromNow: Math.min(windowSeconds, endFromNow),
                 cooldownStartFromNow,
                 cooldownEndFromNow,
+                reactionMarks,
             });
         }
     }
@@ -570,8 +635,9 @@ function renderEnemyRow(
     windowSeconds: number,
     layout: BattleTimelineLayout,
     setHover: (next: TimelinePanelHover) => void,
+    localPlayerId: string,
 ): React.ReactNode {
-    const markers = collectEnemyMarkers(engine, windowSeconds);
+    const markers = collectEnemyMarkers(engine, windowSeconds, localPlayerId);
     const exposedMarkers = collectExposedMarkers(engine);
 
     const labelRow = (
@@ -1210,7 +1276,7 @@ function BattleTimelineBody({
 
     const stripBody = (
         <>
-            {renderEnemyRow(engine, windowSeconds, 'strip', setPanelHover)}
+            {renderEnemyRow(engine, windowSeconds, 'strip', setPanelHover, localPlayerId)}
             {orderedPlayers.map(([playerId, player]) =>
                 renderPlayerRow(
                     engine,
@@ -1262,7 +1328,7 @@ function BattleTimelineBody({
                 </div>
                 <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-2 py-2 [scrollbar-gutter:stable]">
                     <div className="flex min-w-0 flex-col gap-3">
-                        {renderEnemyRow(engine, windowSeconds, 'rail', setPanelHover)}
+                        {renderEnemyRow(engine, windowSeconds, 'rail', setPanelHover, localPlayerId)}
                         <hr
                             className="border-0 border-t border-gray-500/80"
                             aria-hidden

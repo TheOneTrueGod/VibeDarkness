@@ -6,13 +6,20 @@ import { damageAmountToDisplayFontSize } from '../effects/damageNumberFontSize';
 /** Floating damage number: scales with damage; parabolic motion driven in Effect.update. */
 export const damageNumberEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Text {
-        const t = new Text({ text: '', style: new TextStyle({ fontSize: 14, fontWeight: '700', fill: 0xffffff }) });
+        const t = new Text({
+            text: '',
+            style: new TextStyle({ fontSize: 14, fontWeight: '700', fill: 0xffffff }),
+        });
         t.anchor.set(0.5, 0.5);
         return t;
     },
     updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
         const t = visual as Text;
-        const data = effect.effectData as { amount?: number; color?: number; prefix?: string };
+        const data = effect.effectData as {
+            amount?: number;
+            color?: number;
+            prefix?: string;
+        };
         const amount = data.amount ?? 0;
         const color = data.color ?? 0xffffff;
         const fontSize = damageAmountToDisplayFontSize(amount);
@@ -42,10 +49,51 @@ export const damageNumberEffectDef: IEffectDef = {
     },
 };
 
+/** Grey, smaller, slower-drifting number for damage a flat per-hit reduction took off a hit. */
+export const RESISTED_DAMAGE_NUMBER_COLOR = 0x9ca3af;
+export const RESISTED_DAMAGE_NUMBER_DURATION_SEC = 1.5;
+export const RESISTED_DAMAGE_NUMBER_FONT_SIZE = 11;
+
+export const resistedDamageNumberEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Text {
+        const t = new Text({
+            text: '',
+            style: new TextStyle({
+                fontSize: RESISTED_DAMAGE_NUMBER_FONT_SIZE,
+                fill: RESISTED_DAMAGE_NUMBER_COLOR,
+            }),
+        });
+        t.anchor.set(0.5, 0.5);
+        return t;
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const t = visual as Text;
+        const data = effect.effectData as {
+            amount?: number;
+            color?: number;
+            prefix?: string;
+        };
+        const color = data.color ?? RESISTED_DAMAGE_NUMBER_COLOR;
+        const p = effect.progress;
+        t.text = `${data.prefix ?? ''}${data.amount ?? 0}`;
+        t.style = new TextStyle({
+            fontFamily: 'Arial, Helvetica, sans-serif',
+            fontSize: RESISTED_DAMAGE_NUMBER_FONT_SIZE,
+            fontWeight: '700',
+            fill: color,
+            stroke: { color: 0x050508, width: 2 },
+        });
+        t.alpha = Math.min(1, 0.3 + 0.8 * Math.pow(1 - p, 0.8));
+    },
+};
+
 /** Floating text label (e.g. "Dodged"): fixed string, parabolic motion, yellow tint. */
 export const floatingTextEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Text {
-        const t = new Text({ text: '', style: new TextStyle({ fontSize: 16, fontWeight: '700', fill: 0xfacc15 }) });
+        const t = new Text({
+            text: '',
+            style: new TextStyle({ fontSize: 16, fontWeight: '700', fill: 0xfacc15 }),
+        });
         t.anchor.set(0.5, 0.5);
         return t;
     },

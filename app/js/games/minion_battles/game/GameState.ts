@@ -130,6 +130,19 @@ export class GameState {
      */
     darknessUpgradeNodeIds: string[] = [];
 
+    /**
+     * Account knowledge keys each player brings into this battle (only keys the engine reads, e.g.
+     * `Reactions`), resolved once at load from account knowledge plus the mission's start grants.
+     * Serialized so every client agrees. Read with `playerHasBattleKnowledge` / `playerKnowsReactions`.
+     */
+    playerKnowledgeKeysByPlayer: Record<string, string[]> = {};
+
+    /**
+     * Pause planes formed so far this battle; stamps `WaitingForOrders.planeId` (`${atTick}:${counter}`).
+     * Serialized so every client derives the same ids.
+     */
+    pausePlaneCounter = 0;
+
     /** AI controller ID for enemy units. */
     aiControllerId: string | null = null;
 

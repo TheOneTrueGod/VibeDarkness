@@ -21,6 +21,7 @@ import { resolveActiveDarknessStrengths } from '../../../darknessStrength/resolv
 import type { PassiveBonuses } from '../../../researchTrees/types';
 import type { BattleSession, BattleSessionLoadArgs } from './BattleSession';
 import { finalizeEngine } from './sessionEngineBinding';
+import { resolvePlayerKnowledgeKeysByPlayer } from './reactions/playerKnowledge';
 
 function segmentRestoreOpts(
     mission: IBaseMissionDef,
@@ -49,6 +50,7 @@ export async function loadSession(
     darknessStrength,
     darknessUpgradeBonuses,
     darknessUpgradeNodeIds,
+    playerKnowledgeKeysByPlayer,
 }: BattleSessionLoadArgs,
 ): Promise<void> {
     session.updateLobbyContext(players, characterSelections);
@@ -143,6 +145,15 @@ export async function loadSession(
     engine.darknessUpgradeNodeIds = [
         ...(darknessUpgradeNodeIds ?? (snapshotRecord?.darknessUpgradeNodeIds as string[] | undefined) ?? []),
     ];
+    // Per-player knowledge the engine reads (Reactions): account knowledge from the server-merged
+    // snapshot, plus this mission's start grants. Install before initializeGameState.
+    engine.playerKnowledgeKeysByPlayer = resolvePlayerKnowledgeKeysByPlayer({
+        playerIds: playerUnits.map((pu) => pu.playerId),
+        accountKeysByPlayer:
+            playerKnowledgeKeysByPlayer
+            ?? (snapshotRecord?.playerKnowledgeKeysByPlayer as Record<string, string[]> | undefined),
+        missionStartKeys: mission.startRewards?.knowledgeKeys,
+    });
     const terrainSegmentPOIs = composed?.pois ?? getMissionSegmentPOIs(mission.segmentIds);
     const terrainSegmentZones = composed?.zones ?? getMissionSegmentZones(mission.segmentIds);
     mission.initializeGameState(engine, {

@@ -13,6 +13,7 @@ import { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainType } from '../../terrain/TerrainType';
 import { createUnitFromSpawnConfig } from '../../game/units';
 import type { Unit } from '../../game/units/Unit';
+import { attachReflexIfKnown } from '../../resources/Reflex';
 import { executeUnitAbility } from '../../game/units/unitAbilityLifecycle';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { resolveParallelOrderPause } from '../../testing/runner/SimulationRunner';
@@ -654,6 +655,33 @@ describe('Crystal Laser', () => {
         cast(engine, mage, CRYSTAL_LASER_ABILITY_ID, at(front, front.id));
         return { engine, mage, front, back };
     }
+
+    it('opens a reaction frame at the start of the aim window, after the Time Stop, for players in the lane', () => {
+        const { engine, mage, front, back } = laserScene();
+        engine.playerKnowledgeKeysByPlayer = { [PLAYER_ID]: ['Reactions'] };
+        attachReflexIfKnown(front, engine.eventBus, true);
+        attachReflexIfKnown(back, engine.eventBus, true);
+        // Move the back player out of every lane.
+        back.y = centre(2);
+        let pausedAt = -1;
+        for (let i = 0; i < (CRYSTAL_LASER_FREEZE_SEC + 1) * TICKS_PER_SEC && pausedAt < 0; i++) {
+            const plane = engine.waitingForOrders;
+            if (plane?.waiters.some((w) => engine.getUnit(w.unitId)?.reactionPending)) {
+                pausedAt = engine.gameTick;
+                break;
+            }
+            resolveParallelOrderPause(engine);
+            engine.stepSimulationFixedTicks(1);
+        }
+        expect(pausedAt).toBeGreaterThan(0);
+        expect(front.reactionPending).toEqual({ abilityId: CRYSTAL_LASER_ABILITY_ID, casterId: mage.id });
+        expect(back.reactionPending).toBeUndefined();
+        // The Time Stop is over and the beam has not fired yet.
+        expect((engine.state.timeManager as unknown as { timeStops: unknown[] }).timeStops.length).toBe(0);
+        expect(pausedAt / TICKS_PER_SEC).toBeGreaterThan(CRYSTAL_LASER_FREEZE_SEC - 0.1);
+        expect(pausedAt / TICKS_PER_SEC).toBeLessThan(CRYSTAL_LASER_FREEZE_SEC + 0.3);
+        engine.destroy();
+    });
 
     it('stops time, walls the crystals in front of him, then burns and pushes only the first body in line', () => {
         const titles: { text: string; durationSec: number }[] = [];

@@ -26,7 +26,8 @@ import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses'
 import { TimeDilationBuff, applyTimeDilationBuff } from '../../../buffs/TimeDilationBuff';
 import { getUnitAITree, isNodeInTree, setCurrentNodeId } from '../unitAI';
 import { grantAiCasts } from '../unitAI/grantedCasts';
-import type { PhaseCondition, UnitPhaseDef } from './phaseDef';
+import { getPhaseEntryHpThreshold, type PhaseCondition, type UnitPhaseDef } from './phaseDef';
+import { burrowTotalSeconds, cancelBurrow, startBurrow } from './phaseBurrow';
 import { peekPhaseState, phasesOf, type UnitPhaseState } from './phaseComponent';
 
 /** Phase modifier buffs never expire (world seconds; JSON-safe, unlike Infinity). */
@@ -81,6 +82,27 @@ export function evaluatePhaseCondition(
 // ---------------------------------------------------------------------------
 // Evaluation
 // ---------------------------------------------------------------------------
+
+/**
+ * `clampHitAtThreshold`: call right after a damage event, BEFORE `evaluateUnitPhases` (and before the death check:
+ * `applyDamageToUnitDetailed` emits `damage_taken` with HP already reduced but before it kills the unit). If the hit
+ * took the unit through the next phase's HP threshold, HP is put back at exactly the threshold and the excess is lost.
+ * `hpDamageDealt` is the HP the hit removed, so a unit that was already at or below the threshold is left alone.
+ * Stacked units (several members share the HP bar) are not clamped.
+ */
+export function clampHitAtPhaseThreshold(unit: Unit, hpDamageDealt: number): void {
+    const state = peekPhaseState(unit);
+    if (!state || unit.maxHp <= 0 || unit.stackSize > 1) return;
+    const phase = phasesOf(unit)[state.index];
+    if (!phase?.clampHitAtThreshold) return;
+    const threshold = getPhaseEntryHpThreshold(phase.enterWhen);
+    if (threshold === null) return;
+    const floor = threshold * unit.maxHp;
+    if (unit.hp >= floor || unit.hp + hpDamageDealt <= floor) return;
+    unit.hp = floor;
+    // Float safety: the phase check reads `hp / maxHp <= threshold`.
+    if (unit.hp / unit.maxHp > threshold) unit.hp -= unit.maxHp * 1e-9;
+}
 
 /** Enter every phase whose condition now holds, in order. No-op for dead units and units without phases. */
 export function evaluateUnitPhases(unit: Unit, engine: EngineContext, trigger: PhaseCheckTrigger = 'tick'): void {
@@ -215,11 +237,15 @@ function applyAiSwitch(unit: Unit, phase: UnitPhaseDef): void {
 function startTransition(unit: Unit, state: UnitPhaseState, phase: UnitPhaseDef, engine: EngineContext): void {
     const t = phase.transition;
     if (!t) return;
-    const duration = Math.max(0, t.durationSeconds ?? 0);
-    const invulnerable = Math.max(0, t.invulnerableSeconds ?? 0);
+    // A burrow's length is its stages, and the unit is untargetable for all of it.
+    const burrow = t.kind === 'burrow' ? t.burrow : undefined;
+    const burrowSeconds = burrow ? burrowTotalSeconds(burrow) : 0;
+    const duration = Math.max(burrowSeconds, t.durationSeconds ?? 0);
+    const invulnerable = burrow ? duration : Math.max(0, t.invulnerableSeconds ?? 0);
 
     // A later phase's transition (several thresholds in one hit) supersedes the earlier one.
     clearTransition(unit, state);
+    cancelBurrow(unit, state);
 
     let timeStopId: string | null = null;
     if (t.kind === 'timeStop' && duration > 0) {
@@ -244,6 +270,7 @@ function startTransition(unit: Unit, state: UnitPhaseState, phase: UnitPhaseDef,
         timeStopId,
         banner: t.banner ?? null,
     };
+    if (burrow) startBurrow(unit, state, phase.id, burrow, engine);
 }
 
 /** Release the invulnerability a transition added and forget it. The engine ends Time Stops / story pauses itself. */

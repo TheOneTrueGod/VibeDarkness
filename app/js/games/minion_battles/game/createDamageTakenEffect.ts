@@ -8,6 +8,7 @@ import type { Unit } from './units/Unit';
 import { Effect } from './effects/Effect';
 import { buildDamageNumberMotionFields, type DamageNumberMotionData } from './effects/damageNumberMotion';
 import { getCreatureType } from './units/unit_defs/unitDef';
+import { RESISTED_DAMAGE_NUMBER_COLOR, RESISTED_DAMAGE_NUMBER_DURATION_SEC } from './effect_defs/textEffects';
 import { DAYLIGHT_SEAR_EFFECT_TYPE } from './effect_defs/dayLightEffects';
 import { DAYLIGHT_DAMAGE_NUMBER_COLOR, DAYLIGHT_SEAR_DURATION_SEC } from './lighting/dayLightVfx';
 
@@ -40,6 +41,7 @@ function spawnDamageNumberEffect(
     color: number,
     from: { x: number; y: number } | null,
     prefix?: string,
+    variant?: { effectType: string; duration: number },
 ): void {
     const motion = buildDamageNumberMotionFields(unit.x, unit.y, (a, b) => ctx.generateRandomInteger(a, b), from);
     const effectData: DamageNumberMotionData & { prefix?: string } = {
@@ -52,8 +54,8 @@ function spawnDamageNumberEffect(
         new Effect({
             x: unit.x,
             y: unit.y,
-            duration: 0.92,
-            effectType: 'DamageNumber',
+            duration: variant?.duration ?? 0.92,
+            effectType: variant?.effectType ?? 'DamageNumber',
             effectData,
         }),
     );
@@ -64,11 +66,11 @@ function spawnDamageNumberEffect(
  * Uses source unit position for flight direction when `sourceUnitId` resolves to a live unit.
  */
 export function createDamageTakenEffect(ctx: DamageTakenEffectContext, ev: DamageTakenEvent): void {
-    if (ev.amount <= 0) return;
+    const resisted = Math.round(ev.resisted ?? 0);
+    if (ev.amount <= 0 && resisted <= 0) return;
     const unit = ctx.getUnit(ev.unitId);
     if (!unit) return;
 
-    const color = pickDamageNumberColor(unit, ev.visualKind);
     let from: { x: number; y: number } | null = null;
     if (ev.sourceUnitId) {
         const src = ctx.getUnit(ev.sourceUnitId);
@@ -76,6 +78,16 @@ export function createDamageTakenEffect(ctx: DamageTakenEffectContext, ev: Damag
             from = { x: src.x, y: src.y };
         }
     }
+    if (resisted > 0) {
+        // Reduced hit: grey, small, slow number showing damage actually dealt, instead of the normal pop.
+        spawnDamageNumberEffect(ctx, unit, Math.max(0, ev.amount), RESISTED_DAMAGE_NUMBER_COLOR, from, undefined, {
+            effectType: 'ResistedDamageNumber',
+            duration: RESISTED_DAMAGE_NUMBER_DURATION_SEC,
+        });
+        return;
+    }
+
+    const color = pickDamageNumberColor(unit, ev.visualKind);
     spawnDamageNumberEffect(ctx, unit, ev.amount, color, from);
     if (ev.visualKind === DAMAGE_VISUAL_KIND_DAYLIGHT) {
         ctx.addEffect(

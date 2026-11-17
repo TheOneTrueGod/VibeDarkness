@@ -24,6 +24,7 @@ use App\Http\Handlers\Battle\AppendOrderHandler;
 use App\Http\Handlers\Battle\GetFingerprintsRangeHandler;
 use App\Http\Handlers\Battle\GetHeartbeatHandler;
 use App\Http\Handlers\Battle\GetInitialStateHandler;
+use App\Http\Handlers\Battle\AppendReactionClaimHandler;
 use App\Http\Handlers\Battle\MergeAppliedOrdersHandler;
 use App\Http\Handlers\Battle\PersistHostCyclesHandler;
 use App\Http\Handlers\Battle\GetOrdersRangeHandler;
@@ -47,6 +48,7 @@ use App\Http\Handlers\GetAdminAccountDetailsHandler;
 use App\Http\Handlers\GrantAccountItemHandler;
 use App\Http\Handlers\GrantAccountKnowledgeHandler;
 use App\Http\Handlers\RecordTutorialProgressHandler;
+use App\Http\Handlers\GrantBattleStartKnowledgeHandler;
 use App\Http\Handlers\GrantAccountResourceHandler;
 use App\Http\Handlers\GrantCampaignResourceHandler;
 use App\Http\Handlers\ResetCampaignResourcesHandler;
@@ -90,6 +92,7 @@ class Router
             ['GET', '#^/api/account/characters$#', ListCharactersHandler::class],
             ['POST', '#^/api/account/characters$#', CreateCharacterHandler::class],
             ['POST', '#^/api/account/tutorial-progress$#', RecordTutorialProgressHandler::class],
+            ['POST', '#^/api/account/battle-start-knowledge$#', GrantBattleStartKnowledgeHandler::class],
             ['GET', '#^/api/admin/ci-status$#', GetCiStatusHandler::class],
             ['GET',    '#^/api/admin/lobbies$#',                                      ListAdminLobbiesHandler::class],
             ['DELETE', '#^/api/admin/lobbies/([A-Z0-9]+)$#',                          DeleteAdminLobbyHandler::class],
@@ -123,6 +126,7 @@ class Router
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/state$#', UpdateGameStateHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/reset-to-initial-snapshot$#', ResetGameToInitialSnapshotHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders/merge-applied$#', MergeAppliedOrdersHandler::class],
+            ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders/reaction-claim$#', AppendReactionClaimHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/persist-cycles$#', PersistHostCyclesHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders$#', AppendOrderHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders$#', GetOrdersRangeHandler::class],

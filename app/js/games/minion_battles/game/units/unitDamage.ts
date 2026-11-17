@@ -4,6 +4,7 @@ import type { EngineContext } from '../EngineContext';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import { applyDamageToShields } from './unitShield';
+import { applyUnitFlatReductions } from './flatDamageReduction';
 import type { ShieldBuff } from '../../buffs/ShieldBuff';
 import { applyDamageLinks } from './unitDamageLinks';
 import {
@@ -53,6 +54,8 @@ export interface DamageBreakdown {
     armourRemoved: number;
     /** Shield-buff hp consumed by this hit (shields are consumed before armour). */
     shieldAbsorbed: number;
+    /** Damage taken off by flat per-hit reductions (omitted when none applied). */
+    resisted?: number;
     /** Shield buffs that absorbed part of this hit (omitted when none did). */
     absorbingShields?: readonly ShieldBuff[];
 }
@@ -88,7 +91,9 @@ export function applyDamageToUnitDetailed(
     if (debugSettingsSnapshot.godModeEnabled && unit.isPlayerControlled()) {
         return NO_DAMAGE_BREAKDOWN;
     }
-    const incomingAmount = unit.hasBuff('exposed') ? Math.round(amount * 1.2) : amount;
+    const exposedAmount = unit.hasBuff('exposed') ? Math.round(amount * 1.2) : amount;
+    // Flat per-hit reduction runs after percentage modifiers and before shields/armour.
+    const { damage: incomingAmount, resisted } = applyUnitFlatReductions(unit, exposedAmount);
     // `shieldShare` < 1 lets part of the hit bypass shields (e.g. Blood Pact's redirected damage).
     const shieldShare = Math.min(1, Math.max(0, opts?.shieldShare ?? 1));
     const shieldable = incomingAmount * shieldShare;
@@ -130,6 +135,7 @@ export function applyDamageToUnitDetailed(
         hpDamage: actual,
         armourRemoved: armourDamage.armourRemoved,
         shieldAbsorbed: shieldDamage.shieldAbsorbed,
+        ...(resisted > 0 ? { resisted } : {}),
         ...(shieldDamage.absorbingShields.length > 0 ? { absorbingShields: shieldDamage.absorbingShields } : {}),
     };
 
@@ -141,6 +147,7 @@ export function applyDamageToUnitDetailed(
         hpDamage: actual,
         armourRemoved: armourDamage.armourRemoved,
         shieldAbsorbed: shieldDamage.shieldAbsorbed,
+        ...(resisted > 0 ? { resisted } : {}),
         visualKind: opts?.visualKind,
     });
 

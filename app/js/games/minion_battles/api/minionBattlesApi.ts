@@ -61,6 +61,11 @@ export class MinionBattlesApi {
         await this.lobbyClient.recordTutorialProgress(progress);
     }
 
+    /** Record the mission's start-granted knowledge on the local player's account (idempotent). */
+    async grantBattleStartKnowledge(keys: string[]): Promise<void> {
+        await this.lobbyClient.grantBattleStartKnowledge(keys);
+    }
+
     // -- Character CRUD -----------------------------------------------------
 
     async getMyCharacters(): Promise<CampaignCharacterPayload[]> {

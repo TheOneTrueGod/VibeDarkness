@@ -585,7 +585,30 @@ final class BattleStorage
         $order = $rec['order'] ?? null;
         $unitId = is_array($order) && isset($order['unitId']) ? (string) $order['unitId'] : '';
 
-        return (int) ($rec['atTick'] ?? 0) . "\0" . (string) ($rec['playerId'] ?? '') . "\0" . $unitId;
+        // A recorded Reaction claim is a row of its own: it must never shadow, or be shadowed by, the same
+        // unit's real order at that tick (they share player, unit and atTick).
+        $claimSuffix = self::isReactionClaimOrder($order) ? "\0reaction_claim" : '';
+
+        return (int) ($rec['atTick'] ?? 0) . "\0" . (string) ($rec['playerId'] ?? '') . "\0" . $unitId . $claimSuffix;
+    }
+
+    /**
+     * True for the order body of a recorded co-op Reaction claim (`order.reactionClaim.planeId`).
+     * Mirrors `game/reactions/claimOrder.ts`.
+     */
+    public static function isReactionClaimOrder(mixed $order): bool
+    {
+        return is_array($order)
+            && isset($order['reactionClaim'])
+            && is_array($order['reactionClaim'])
+            && isset($order['reactionClaim']['planeId'])
+            && is_string($order['reactionClaim']['planeId']);
+    }
+
+    /** Deterministic row id of a Reaction claim: a repeat for the same plane and unit is one row. */
+    public static function reactionClaimIdHash(string $planeId, string $unitId): string
+    {
+        return sha1('reaction_claim|' . $planeId . '|' . $unitId);
     }
 
     /** Rows without the flag predate drafts and count as finalized (same default as {@see appendOrder}). */

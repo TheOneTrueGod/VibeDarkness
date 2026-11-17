@@ -7,6 +7,7 @@
 import type { UnitComponentHooks } from './unitComponentHooks';
 import { peekPhaseState } from './phaseComponent';
 import { evaluateUnitPhases, tickPhaseTransition } from './phaseRuntime';
+import { tickBurrow } from './phaseBurrow';
 
 export const PHASE_HOOKS: UnitComponentHooks = {
     tick(ctx) {
@@ -14,6 +15,7 @@ export const PHASE_HOOKS: UnitComponentHooks = {
         for (const unit of [...ctx.units]) {
             const state = peekPhaseState(unit);
             if (!state) continue;
+            tickBurrow(unit, state, ctx.engine); // before the transition ends, so the unit has landed first
             tickPhaseTransition(unit, state, ctx.engine);
             evaluateUnitPhases(unit, ctx.engine);
         }

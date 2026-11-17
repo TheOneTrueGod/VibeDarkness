@@ -16,6 +16,7 @@ import { applyCcArmourStateFromJSON } from '../../crowdControl/ccArmourState';
 import { hoverFlightFromJSON } from './hoverFlight';
 import { deserializeCastBehaviourPayloads, deserializeSetupFiredBehaviourKeys } from './castBehaviourStateSerialization';
 import type { PendingFrozenHit } from './unitDamage';
+import type { FlatDamageReduction } from './flatDamageReduction';
 import type { HeldConjuredWeaponState } from '../conjuredWeapons/registry';
 import { readActorAnimation } from '../animation/actorAnimation';
 import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
@@ -131,6 +132,11 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;
     unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;
     unit.waitAbilityMode = (data.waitAbilityMode as string | null) ?? null;
+    const reactionPending = data.reactionPending as { abilityId?: unknown; casterId?: unknown } | undefined;
+    unit.reactionPending =
+        reactionPending && typeof reactionPending.abilityId === 'string' && typeof reactionPending.casterId === 'string'
+            ? { abilityId: reactionPending.abilityId, casterId: reactionPending.casterId }
+            : undefined;
     unit.movementPaused = (data.movementPaused as boolean | undefined) ?? false;
     applyCcArmourStateFromJSON(unit, data);
     unit.corruptionProgress = Math.max(0, Math.min(1, (data.corruptionProgress as number) ?? 0));
@@ -208,6 +214,9 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
             : undefined;
     unit.pendingFrozenHits = Array.isArray(data.pendingFrozenHits)
         ? (data.pendingFrozenHits as PendingFrozenHit[]).map((h) => ({ ...h }))
+        : [];
+    unit.flatDamageReductions = Array.isArray(data.flatDamageReductions)
+        ? (data.flatDamageReductions as FlatDamageReduction[]).map((r) => ({ ...r }))
         : [];
     unit.tags = parseUnitTagsFromJSON(data.tags);
     unit.lockedAbilityModes = parseLockedAbilityModes(data.lockedAbilityModes);

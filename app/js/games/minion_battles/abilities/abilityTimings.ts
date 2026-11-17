@@ -9,6 +9,7 @@ import type { TimingTargetDef } from './timingTargetDef';
 import { isSelectTargetDef } from './timingTargetDef';
 import { getStepLungeBehaviour } from './stepLunge';
 import type { AbilityTag } from './Ability';
+import type { ReactionFrameDef } from '../game/reactions/reactionFrame';
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
 import type { ResolvedTarget } from '../game/types';
@@ -207,6 +208,13 @@ export interface AbilityTimingInterval {
      */
     conditionalCancel?: ConditionalCancelDef;
     /**
+     * Reaction frame: when this window opens (`at: 'start'`) or closes (`at: 'end'`), every player unit that
+     * knows Reactions, has at least 1 Reflex and is inside `area` is paused to answer (see
+     * `game/reactions/reactionFrame.ts`). Valid only on abilities with `reactable: true`
+     * ({@link validateReactionFrames}). Not a CC interrupt. applyCoopTailSplit does NOT preserve this field.
+     */
+    reactionFrame?: ReactionFrameDef;
+    /**
      * Visual effects spawned at the target position when this timing's hit resolves.
      * - Projectile abilities: fires when the projectile reaches its target (via ProjectileLaunchBehaviour).
      * - Instant abilities: fires at the first tick of this timing window.
@@ -246,6 +254,23 @@ export function validateAbilityTimings(entries: AbilityTimingEntry[]): void {
             }
         } else if (e.duration <= 0) {
             throw new Error(`abilityTimings[${i}]: legacy duration must be positive`);
+        }
+    }
+}
+
+/**
+ * Throws when an interval declares a `reactionFrame` on an ability that is not `reactable`.
+ * Call with the ability's resolved intervals (e.g. from `defineAbility`).
+ */
+export function validateReactionFrames(
+    abilityId: string,
+    reactable: boolean | undefined,
+    entries: readonly AbilityTimingEntry[],
+): void {
+    if (reactable) return;
+    for (const e of entries) {
+        if (isAbilityTimingInterval(e) && e.reactionFrame) {
+            throw new Error(`ability ${abilityId}: interval ${e.id} has a reactionFrame but the ability is not reactable`);
         }
     }
 }
@@ -681,6 +706,53 @@ export function visibleConditionalCancelMarks(
             ? `An ability tagged ${tags.join(', ')} can end the rest of this cast.`
             : 'Another ability can end the rest of this cast. Passing keeps it going.';
         marks.push({ start, duration, label: TIMELINE_CANCEL_MARK_LABEL, description });
+    }
+    return marks;
+}
+
+/** Timeline label for a reaction frame. */
+export const TIMELINE_REACTION_MARK_LABEL = 'Reaction';
+
+/** Tooltip for a reaction frame mark. */
+export const TIMELINE_REACTION_MARK_DESCRIPTION = 'Reactable: spend 1 Reflex to act here.';
+
+/** Length (seconds) of a reaction mark. Same width as an enemy danger tick, ending on the frame. */
+export const TIMELINE_REACTION_SECTION_SECONDS = TIMELINE_DANGER_TICK_SECONDS;
+
+export interface TimelineReactionMark {
+    /** Seconds from now to the start of the red section. */
+    start: number;
+    duration: number;
+    label: string;
+    description: string;
+}
+
+/**
+ * Red sections for reaction frames still ahead of `elapsed` and inside the timeline window.
+ * Each section ends on the frame itself (the interval's start or end, per `reactionFrame.at`).
+ * Pure: the caller decides whether the viewer knows Reactions.
+ */
+export function visibleReactionMarks(
+    intervals: AbilityTimingInterval[],
+    elapsed: number,
+    windowSeconds: number,
+): TimelineReactionMark[] {
+    const marks: TimelineReactionMark[] = [];
+    for (const interval of intervals) {
+        const frame = interval.reactionFrame;
+        if (!frame) continue;
+        const end = (frame.at === 'start' ? interval.start : interval.end) - elapsed;
+        if (end <= 0) continue;
+        const start = Math.max(0, end - TIMELINE_REACTION_SECTION_SECONDS);
+        if (start >= windowSeconds) continue;
+        const duration = Math.min(end, windowSeconds) - start;
+        if (duration <= 0) continue;
+        marks.push({
+            start,
+            duration,
+            label: TIMELINE_REACTION_MARK_LABEL,
+            description: TIMELINE_REACTION_MARK_DESCRIPTION,
+        });
     }
     return marks;
 }

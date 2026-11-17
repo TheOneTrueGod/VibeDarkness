@@ -32,6 +32,8 @@ import type { SimTimeline } from './interaction/simTimeline';
 import { bumpEpoch, enterPreview, toCanonical } from './interaction/simTimeline';
 import { PreviewEmissionBuffer } from './interaction/PreviewEmissionBuffer';
 import { mintCanonicalToken, type CanonicalToken } from './battlenet/canonicalToken';
+import type { ReactionClaimVerdict } from './battlenet/types';
+import { evaluateReactionClaimRequest } from './reactions/claimRule';
 import { bindEngineCallbacks } from './sessionEngineBinding';
 import {
     applyHeldRemoteOrdersFor,
@@ -77,6 +79,11 @@ export interface BattleSessionLoadArgs {
     darknessUpgradeBonuses?: import('../../../researchTrees/types').PassiveBonuses;
     /** Host's active Darkness Upgrade node ids; falls back to the initial snapshot's ids. */
     darknessUpgradeNodeIds?: string[];
+    /**
+     * Account knowledge keys per player id (engine-relevant keys only). Falls back to the initial
+     * snapshot's `playerKnowledgeKeysByPlayer` (server-merged). The mission's `startRewards` are added on top.
+     */
+    playerKnowledgeKeysByPlayer?: Record<string, string[]>;
 }
 
 /**
@@ -600,6 +607,26 @@ export class BattleSession implements BattleSessionHandle {
 
     getWaitingForOrdersBatch(): WaitingForOrders | null {
         return this.engine?.waitingForOrders ?? null;
+    }
+
+    /** Co-op Reaction claims: judge a request against the live engine (see `evaluateReactionClaimRequest`). */
+    evaluateReactionClaim(
+        planeId: string,
+        atTick: number,
+        unitId: string,
+        claimantPlayerId: string,
+    ): ReactionClaimVerdict {
+        const eng = this.engine;
+        if (!eng) return 'rejected';
+        return evaluateReactionClaimRequest(eng, { planeId, atTick, unitId, claimantPlayerId });
+    }
+
+    hasReactionClaimBeenApplied(planeId: string, unitId: string): boolean {
+        return this.engine?.state.orderMgr.hasAppliedReactionClaim(planeId, unitId) ?? false;
+    }
+
+    retryParallelResume(): void {
+        this.engine?.tryResumeParallel();
     }
 
     /** Hold or release this client's simulation (local only; see `GameState.localSimulationHold`). */

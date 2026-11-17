@@ -11,6 +11,7 @@ import { SuperBar } from './SuperBar';
 import { Charge } from './Charge';
 import { Static } from './Static';
 import { Water } from './Water';
+import { Reflex } from './Reflex';
 import { isResourceId, type ResourceId } from './resourceIds';
 
 /**
@@ -30,6 +31,7 @@ const RESOURCE_FACTORIES: { [K in ResourceId]: () => Resource } = {
     charge: () => new Charge(),
     static: () => new Static(),
     water: () => new Water(),
+    reflex: () => new Reflex(),
 };
 
 /** Instantiate a fresh resource for checkpoint restore. Returns null for unknown IDs. */

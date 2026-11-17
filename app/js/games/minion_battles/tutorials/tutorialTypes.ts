@@ -38,6 +38,13 @@ export type TutorialTrigger =
            */
           type: 'unitOnScreen';
           unit: TutorialUnitFilter;
+      }
+    | {
+          /**
+           * In any mission, while the local player is a waiter at a reaction pause (their unit has
+           * `reactionPending`; see `reactionPauseQuery.ts`). Pair it with `requiresKnowledge` and `pauseGame`.
+           */
+          type: 'reactionPause';
       };
 
 export const DEFAULT_BATTLE_START_WINDOW_SECONDS = 1;
@@ -85,6 +92,11 @@ export interface TutorialDef {
     /** Short heading shown above the step text. */
     title: string;
     trigger: TutorialTrigger;
+    /**
+     * Only show to players whose account has this knowledge key (a systems key, e.g. `Reactions`). Progress is
+     * still stored under `knowledgeKey`, which must be a recordable `tutorial` key.
+     */
+    requiresKnowledge?: string;
     /**
      * Hold this player's simulation while the tutorial is up, and let it start at any moment of the battle
      * (not only on their turn): the hold is what makes it safe to interrupt live play. The game resumes when

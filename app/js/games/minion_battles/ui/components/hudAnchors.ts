@@ -10,6 +10,12 @@ export type HudAnchorId =
     | 'objectives'
     /** The crowd control protection circles (or Exposed timer) under the boss health bar. */
     | 'bossCcArmour'
+    /** The Reflex resource display on the local player's resource HUD (registered by Step 13). */
+    | 'reflexDisplay'
+    /** The reaction frame mark on the enemy timeline (registered by Step 13). */
+    | 'reactionMark'
+    /** The local player's ability bar (registered by Step 13). */
+    | 'abilityBar'
     /** A card in the local player's battle hand (see {@link abilityCardHudAnchorId}). */
     | `abilityCard:${string}`;
 

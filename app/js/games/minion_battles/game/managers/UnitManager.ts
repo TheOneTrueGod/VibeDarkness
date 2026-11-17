@@ -6,7 +6,7 @@
 import { Unit } from '../units/Unit';
 import { UnitTag } from '../units/unitTag';
 import { PHASE_COMPONENT } from '../units/components/phaseComponent';
-import { evaluateUnitPhases } from '../units/components/phaseRuntime';
+import { clampHitAtPhaseThreshold, evaluateUnitPhases } from '../units/components/phaseRuntime';
 import { areAllies } from '../teams';
 import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
@@ -115,16 +115,20 @@ export class UnitManager {
     }
 
     registerListeners(): void {
-        this.ctx.eventBus.on('damage_taken', (event) => this.processPhaseTriggers(event.unitId));
+        this.ctx.eventBus.on('damage_taken', (event) => this.processPhaseTriggers(event.unitId, event.hpDamage));
     }
 
     /**
      * After damage: enter any phase the hit satisfied (HP thresholds; a hit crossing several enters each in order).
      * Non-damage conditions are checked once per tick by the `phase` component's tick hook.
      */
-    private processPhaseTriggers(unitId: string): void {
+    private processPhaseTriggers(unitId: string, hpDamage = 0): void {
         const unit = this.getUnit(unitId);
-        if (!unit?.isAlive() || !unit.components.has(PHASE_COMPONENT.id)) return;
+        if (!unit?.components.has(PHASE_COMPONENT.id)) return;
+        // Before the alive check: a clamped hit that would have killed the unit must leave it alive (the kill is
+        // applied after this event).
+        if (unit.active) clampHitAtPhaseThreshold(unit, hpDamage);
+        if (!unit.isAlive()) return;
         evaluateUnitPhases(unit, this.ctx, 'damage');
     }
 

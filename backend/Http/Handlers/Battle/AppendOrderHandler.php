@@ -90,6 +90,11 @@ class AppendOrderHandler
             http_response_code(400);
             return ['success' => false, 'error' => 'order.unitId is required'];
         }
+        if (BattleStorage::isReactionClaimOrder($order)) {
+            // Claims only enter the stream through the host-only reaction-claim endpoint.
+            http_response_code(400);
+            return ['success' => false, 'error' => 'reaction claims are recorded via /orders/reaction-claim'];
+        }
         $abilityId = isset($order['abilityId']) && is_string($order['abilityId']) ? $order['abilityId'] : null;
         $clientIdHash =
             isset($data['idHash']) && is_string($data['idHash']) && $data['idHash'] !== '' ? $data['idHash'] : null;

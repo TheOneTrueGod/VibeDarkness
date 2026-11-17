@@ -7,3 +7,6 @@ import './swarmComponent';
 import './petComponent';
 import './phaseComponent';
 import './hpStepComponent';
+import './fusedBodyComponent';
+import './nodeTree';
+import './spawnerComponent';

@@ -436,6 +436,11 @@ export interface AbilityStatic {
     /** Optional tags (e.g. recovery-charge priority). Distinct from `keywords`. */
     readonly tags?: readonly AbilityTag[];
     /**
+     * Reactable: intervals of this ability may declare a `reactionFrame`, letting players who know Reactions
+     * pause and answer it (see `game/reactions/reactionFrame.ts`). Not a CC interrupt.
+     */
+    readonly reactable?: boolean;
+    /**
      * Order channel. `'special'` abilities fill `BattleOrder.specialAction` and never occupy
      * `activeAbilities` (zero-frame). Default `'primary'`.
      */

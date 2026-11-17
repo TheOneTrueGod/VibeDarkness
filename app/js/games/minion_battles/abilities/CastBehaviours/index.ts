@@ -13,6 +13,7 @@ import { createCharge, type ChargeConfig, type ChargeNoteLike, type ChargeBehavi
 import { SpawnUnits, type SpawnUnitsConfig, type SpawnUnitsBehaviour } from './SpawnUnitsBehaviour';
 import { Leap, type LeapConfig, type LeapBehaviour } from './LeapBehaviour';
 import { GroundPatch, type GroundPatchConfig, type GroundPatchBehaviour } from './GroundPatchBehaviour';
+import { GroundTrail, type GroundTrailConfig, type GroundTrailBehaviour } from './GroundTrailBehaviour';
 import { terrainStrike, type TerrainStrikeBehaviour } from './TerrainStrikeBehaviour';
 import { pulse, type PulseConfig, type PulseBehaviour } from './PulseBehaviour';
 import { arcSweep, type ArcSweepConfig, type ArcSweepBehaviour } from './ArcSweepBehaviour';
@@ -54,6 +55,8 @@ export const CastBehaviours = {
     Leap: (config: LeapConfig): LeapBehaviour => Leap(config),
     /** Lays a patch of ground effect (e.g. thorns) at a chosen point, with ownership replace rules. */
     GroundPatch: (config: GroundPatchConfig): GroundPatchBehaviour => GroundPatch(config),
+    /** A runner head that lays a ground effect tile by tile along a heading over its window (the Creeper's thorn trail). */
+    GroundTrail: (config: GroundTrailConfig): GroundTrailBehaviour => GroundTrail(config),
     /** Fluent terrain interaction (damage / consume rock, etc.) at a chosen point or tile area. Chain `.atPoint(...)`, `.damageRock()`, ... */
     TerrainStrike: (): TerrainStrikeBehaviour => terrainStrike(),
     /** Repeated pulses through its window; the damage function receives the pulse number. */

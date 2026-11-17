@@ -35,7 +35,17 @@ import { TERRAIN_CLEARS, matchesClearSpec } from '../game/terrainEffects/terrain
 import { NavGrid } from '../pathfinding/NavGrid';
 import { PathQuery } from '../pathfinding/PathQuery';
 
+import {
+    canTakeDurableTerrain,
+    durableFloorTile,
+    freshDurableState,
+    isDurableTerrain,
+    isProjectileWornTerrain,
+    type DurableTerrainTransition,
+} from './durableTerrain';
+
 export type { TerrainStoneDamagedTransition as TerrainStoneDamagedEvent } from './FloorTile';
+export type { DurableTerrainTransition } from './durableTerrain';
 
 /** Water left at or below this counts as drained (absorbs float error from many per-tick fractions). */
 const WATER_DRAINED_EPSILON = 1e-9;
@@ -616,6 +626,134 @@ export class TerrainManager {
             this.onWaterDrained?.(event);
         }
         return event;
+    }
+
+    // -------------------------------------------------------------------------
+    // Durable terrain (Briar, Tangle) — floor tile layer. See `durableTerrain.ts`.
+    // -------------------------------------------------------------------------
+
+    /**
+     * Lay `type` (a terrain with `durability` or `projectileWear`) on each tile at full health. Skips
+     * off-grid tiles and tiles `canTakeDurableTerrain` refuses (rock, water, existing Briar), clears
+     * nothing else, and tells pathfinding once per changed tile. Returns the tiles that changed.
+     */
+    placeDurableTerrain(type: TerrainType, tiles: Iterable<{ col: number; row: number }>): { col: number; row: number }[] {
+        const placed: { col: number; row: number }[] = [];
+        if (!this.terrainLayers) return placed;
+        for (const { col, row } of tiles) {
+            if (!this.isInBounds(col, row)) continue;
+            if (!canTakeDurableTerrain(this.getEffectiveTerrainType(col, row), type)) continue;
+            this.writeFloorTile(col, row, durableFloorTile(type));
+            this.notifyNavChanged(col, row);
+            placed.push({ col, row });
+        }
+        return placed;
+    }
+
+    /**
+     * Place Briar on these tiles (the entry point for "this vine died, leave Briar along its tiles").
+     * Returns the tiles that actually became Briar.
+     */
+    placeBriar(tiles: Iterable<{ col: number; row: number }>): { col: number; row: number }[] {
+        return this.placeDurableTerrain(TerrainType.Briar, tiles);
+    }
+
+    /** Current health of the durable terrain at (col, row) (Briar), or 0 when the tile has none. */
+    getDurableTerrainHealth(col: number, row: number): number {
+        if (!this.isInBounds(col, row) || !isDurableTerrain(this.getEffectiveTerrainType(col, row))) return 0;
+        return this.getFloorTile(col, row)?.destructible?.health ?? 0;
+    }
+
+    /** Projectile hits left before the worn terrain at (col, row) (Tangle) becomes its `becomes` type; 0 when none. */
+    getTerrainWearRemaining(col: number, row: number): number {
+        if (!this.isInBounds(col, row) || !isProjectileWornTerrain(this.getEffectiveTerrainType(col, row))) return 0;
+        return this.getFloorTile(col, row)?.destructible?.health ?? 0;
+    }
+
+    /**
+     * Chip `damage` off the durable terrain at (col, row) (Briar). At 0 the tile becomes the def's
+     * `becomes` type (Tangle) at full health / unworn and pathfinding is told. Null when the tile is
+     * not durable or `damage <= 0`.
+     */
+    damageDurableTerrain(
+        col: number,
+        row: number,
+        damage: number,
+        sourceUnitId?: string | null,
+    ): DurableTerrainTransition | null {
+        if (!this.terrainLayers || !this.isInBounds(col, row) || !(damage > 0)) return null;
+        const previousTerrainType = this.getEffectiveTerrainType(col, row);
+        const durability = TERRAIN_PROPERTIES[previousTerrainType].durability;
+        if (!durability) return null;
+        const previous = this.getFloorTile(col, row)?.destructible;
+        const maxHealth = previous?.maxHealth ?? durability.maxHealth;
+        const previousHealth = previous?.health ?? maxHealth;
+        const health = Math.max(0, previousHealth - damage);
+        return this.writeDurableChange(col, row, previousTerrainType, previousHealth, health, maxHealth, durability.becomes, sourceUnitId);
+    }
+
+    /** Like `damageDurableTerrain`, but breaks the tile after `hitsToBreak` hits from full health. */
+    damageDurableTerrainByHits(
+        col: number,
+        row: number,
+        hitsToBreak: number,
+        sourceUnitId?: string | null,
+    ): DurableTerrainTransition | null {
+        if (!this.isInBounds(col, row) || hitsToBreak <= 0) return null;
+        const durability = TERRAIN_PROPERTIES[this.getEffectiveTerrainType(col, row)].durability;
+        if (!durability) return null;
+        const maxHealth = this.getFloorTile(col, row)?.destructible?.maxHealth ?? durability.maxHealth;
+        return this.damageDurableTerrain(col, row, Math.ceil(maxHealth / hitsToBreak), sourceUnitId);
+    }
+
+    /**
+     * Count one stopped projectile against the worn terrain at (col, row) (Tangle). After the def's
+     * `hits` it becomes the `becomes` type (Grass). Null when the tile is not projectile-worn.
+     */
+    wearTerrainByProjectile(col: number, row: number, sourceUnitId?: string | null): DurableTerrainTransition | null {
+        if (!this.terrainLayers || !this.isInBounds(col, row)) return null;
+        const previousTerrainType = this.getEffectiveTerrainType(col, row);
+        const wear = TERRAIN_PROPERTIES[previousTerrainType].projectileWear;
+        if (!wear) return null;
+        const previous = this.getFloorTile(col, row)?.destructible;
+        const maxHealth = previous?.maxHealth ?? wear.hits;
+        const previousHealth = previous?.health ?? maxHealth;
+        return this.writeDurableChange(col, row, previousTerrainType, previousHealth, Math.max(0, previousHealth - 1), maxHealth, wear.becomes, sourceUnitId);
+    }
+
+    private writeDurableChange(
+        col: number,
+        row: number,
+        previousTerrainType: TerrainType,
+        previousHealth: number,
+        health: number,
+        maxHealth: number,
+        becomes: TerrainType,
+        sourceUnitId: string | null | undefined,
+    ): DurableTerrainTransition {
+        const typeChanged = health <= 0;
+        if (typeChanged) {
+            // `becomes` keeps its own fresh state (Tangle starts unworn; Grass has none).
+            this.writeFloorTile(col, row, durableFloorTile(becomes));
+            this.notifyNavChanged(col, row);
+        } else {
+            const floor = this.getFloorTile(col, row);
+            this.writeFloorTile(col, row, {
+                terrainType: previousTerrainType,
+                destructible: { health, maxHealth, kind: floor?.destructible?.kind ?? freshDurableState(previousTerrainType)!.kind },
+            });
+        }
+        return {
+            col,
+            row,
+            previousHealth,
+            health: typeChanged ? 0 : health,
+            maxHealth,
+            previousTerrainType,
+            terrainType: typeChanged ? becomes : previousTerrainType,
+            typeChanged,
+            sourceUnitId: sourceUnitId ?? null,
+        };
     }
 
     setWaterDrainedEmitter(emitter: ((event: TerrainWaterDrainedTransition) => void) | undefined): void {

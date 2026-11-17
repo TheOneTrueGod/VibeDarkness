@@ -10,6 +10,7 @@ import type { BattleSessionEvent } from '../../../game/BattleSession';
 import type { Camera } from '../../../game/Camera';
 import type { GameEngine } from '../../../game/GameEngine';
 import { TUTORIALS } from '../../../storylines/tutorialRegistry';
+import { isLocalPlayerInReactionPause } from '../../../tutorials/reactionPauseQuery';
 import { tutorialUnitsOnScreen } from '../../../tutorials/tutorialUnits';
 import {
     findTriggeredTutorial,
@@ -22,6 +23,8 @@ import type { TutorialDef } from '../../../tutorials/tutorialTypes';
 interface UseBattleTutorialParams {
     api: MinionBattlesApi;
     missionId: string;
+    /** The local player's id (for `reactionPause` triggers). */
+    localPlayerId?: string | null;
     engine: GameEngine | null;
     /** Battle camera; `unitOnScreen` triggers only see units inside its viewport. */
     camera: Camera | null;
@@ -56,6 +59,7 @@ export interface BattleTutorialState {
 export function useBattleTutorial({
     api,
     missionId,
+    localPlayerId,
     engine,
     camera,
     knowledge,
@@ -79,6 +83,7 @@ export function useBattleTutorial({
                     missionId,
                     gameTimeSeconds: engine.gameTime,
                     unitsOnScreen: camera ? tutorialUnitsOnScreen(engine, camera) : [],
+                    reactionPause: isLocalPlayerInReactionPause(engine, localPlayerId),
                 },
                 shownRef.current,
                 accept,
@@ -88,7 +93,7 @@ export function useBattleTutorial({
             activeRef.current = found;
             setActive(found);
         },
-        [engine, camera, knowledge, missionId],
+        [engine, camera, knowledge, missionId, localPlayerId],
     );
 
     // Whenever the player can act and no tutorial is up, start the first one whose trigger matches. Off their

@@ -37,6 +37,16 @@ export enum TerrainType {
      * "Terrain variants" in `terrain/AGENTS.md`.
      */
     Brick = 9,
+    /**
+     * Garden vine wall (runtime only, never authored): blocks movement and projectiles, has health
+     * (`durability`) and becomes Tangle when destroyed. Placed with `TerrainManager.placeBriar`.
+     */
+    Briar = 10,
+    /**
+     * Torn-down Briar (runtime only): a Thick Grass variant (`variantOf`) that is very slow to cross and
+     * stops projectiles, each stopped projectile wearing it (`projectileWear`) until it becomes Grass.
+     */
+    Tangle = 11,
     // Append new types only; checkpoints store these numbers, so never renumber.
 }
 
@@ -56,6 +66,13 @@ export type TerrainRenderStrategy = 'marching-squares' | 'hard-edge';
  * `HardEdgeLayerRenderer`). `running-bond`: brick courses with joints offset half a brick.
  */
 export type HardEdgePatternId = 'running-bond';
+
+/** Health of one Briar tile. */
+export const BRIAR_HEALTH = 30;
+/** Tangle speed multiplier (Thick Grass is 0.75). */
+export const TANGLE_SPEED_MULTIPLIER = 0.3;
+/** Projectiles a Tangle tile stops before it wears away to Grass. */
+export const TANGLE_PROJECTILE_HITS = 3;
 
 export interface TerrainProperties {
     /** Display name. */
@@ -120,7 +137,37 @@ export interface TerrainProperties {
      * Omitted when there is no gate. Checked with `canUnitAffectTerrain`.
      */
     access?: TerrainAccessId;
+    /**
+     * Terrain with health that is not rock (Briar). A floor tile of this type carries a
+     * `DestructibleState` of `kind` at `maxHealth`; at 0 it becomes `becomes`. Damage it with
+     * `TerrainManager.damageDurableTerrain`.
+     */
+    durability?: DurabilityDef;
+    /**
+     * Terrain worn down by projectiles it stops (Tangle). Each stopped projectile removes one of
+     * `hits` from the tile's wear counter (a `DestructibleState` of kind `WEAR_DESTRUCTIBLE_KIND`);
+     * at 0 it becomes `becomes`. Needs `blocksProjectiles`. See `TerrainManager.wearTerrainByProjectile`.
+     */
+    projectileWear?: ProjectileWearDef;
 }
+
+/** See `TerrainProperties.durability`. */
+export interface DurabilityDef {
+    maxHealth: number;
+    /** `DestructibleState.kind` written on the floor tile. */
+    kind: string;
+    /** Terrain left behind when health reaches 0. */
+    becomes: TerrainType;
+}
+
+/** See `TerrainProperties.projectileWear`. */
+export interface ProjectileWearDef {
+    hits: number;
+    becomes: TerrainType;
+}
+
+/** `DestructibleState.kind` of a worn terrain tile's remaining projectile hits (Tangle). */
+export const WEAR_DESTRUCTIBLE_KIND = 'wear';
 
 export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
     [TerrainType.Dirt]: {
@@ -287,6 +334,41 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         hardEdgePattern: 'running-bond',
         variantOf: TerrainType.Rock,
         access: 'brick',
+    },
+    [TerrainType.Briar]: {
+        name: 'Briar',
+        color: '#1f4d3f',
+        passable: false,
+        forcedMovementPassable: false,
+        speedMultiplier: 0,
+        pathfindingWeight: Infinity,
+        projectilePassable: true,
+        blocksProjectiles: true,
+        // A tangle of vines: you can see and light through it.
+        blocksVision: false,
+        blocksLight: false,
+        renderStrategy: 'hard-edge',
+        blocksBleed: true,
+        hardEdgeFamily: [],
+        durability: { maxHealth: BRIAR_HEALTH, kind: 'briar', becomes: TerrainType.Tangle },
+    },
+    [TerrainType.Tangle]: {
+        name: 'Tangle',
+        color: '#24663f',
+        passable: true,
+        forcedMovementPassable: true,
+        // Much slower than Thick Grass (0.75).
+        speedMultiplier: TANGLE_SPEED_MULTIPLIER,
+        pathfindingWeight: 4.0,
+        projectilePassable: true,
+        blocksProjectiles: true,
+        blocksVision: false,
+        blocksLight: false,
+        renderStrategy: 'marching-squares',
+        blocksBleed: false,
+        hardEdgeFamily: [],
+        variantOf: TerrainType.ThickGrass,
+        projectileWear: { hits: TANGLE_PROJECTILE_HITS, becomes: TerrainType.Grass },
     },
 };
 

@@ -4332,3 +4332,75 @@ describe('BattleNet fingerprint queue epoch (playtest 0003, lobby DA8A43)', () =
         expect(net.fingerprintBatcher.getPendingCount()).toBe(1);
     });
 });
+
+describe('BattleNet.recordReactionClaim (Step 15)', () => {
+    const claim = { planeId: '10:3', atTick: 10, unitId: 'unit_far', playerId: 'p2' };
+
+    it('host: records through the dedicated endpoint, then applies the claim row through the session', async () => {
+        const appendReactionClaim = vi.fn(async () => ({ success: true, idHash: 'claimhash' }));
+        const appendBattleOrder = vi.fn();
+        const applyRemoteOrders = vi.fn(() => ({ newlyAppliedKeys: ['claimhash'], skippedKeys: [] }));
+        const net = new BattleNet({
+            api: makeApi({ appendReactionClaim, appendBattleOrder }),
+            session: makeSession({ applyRemoteOrders }),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+        });
+        await expect(net.recordReactionClaim(claim)).resolves.toBe(true);
+        expect(appendReactionClaim).toHaveBeenCalledWith('l1', 'g1', {
+            hostPlayerId: 'host',
+            playerId: 'p2',
+            atTick: 10,
+            planeId: '10:3',
+            unitId: 'unit_far',
+        });
+        expect(appendBattleOrder).not.toHaveBeenCalled(); // never submitOrder / POST /orders
+        expect(applyRemoteOrders).toHaveBeenCalledTimes(1);
+        const rows = (applyRemoteOrders.mock.calls[0] as unknown as [Array<Record<string, unknown>>])[0];
+        expect(rows[0]).toMatchObject({ atTick: 10, playerId: 'p2', idHash: 'claimhash' });
+        expect((rows[0].order as { reactionClaim: unknown }).reactionClaim).toEqual({ planeId: '10:3' });
+    });
+
+    it('host: a failed endpoint is false and nothing is applied (the host must reject)', async () => {
+        const applyRemoteOrders = vi.fn(() => ({ newlyAppliedKeys: [], skippedKeys: [] }));
+        const net = new BattleNet({
+            api: makeApi({ appendReactionClaim: vi.fn(async () => ({ success: false, idHash: null, rejectedReason: 'tick_in_past' })) }),
+            session: makeSession({ applyRemoteOrders }),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+        });
+        await expect(net.recordReactionClaim(claim)).resolves.toBe(false);
+        expect(applyRemoteOrders).not.toHaveBeenCalled();
+    });
+
+    it('host: a thrown request is false', async () => {
+        const net = new BattleNet({
+            api: makeApi({ appendReactionClaim: vi.fn(async () => { throw new Error('network'); }) }),
+            session: makeSession(),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+        });
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        await expect(net.recordReactionClaim(claim)).resolves.toBe(false);
+    });
+
+    it('a non-host never records a claim', async () => {
+        const appendReactionClaim = vi.fn();
+        const net = new BattleNet({
+            api: makeApi({ appendReactionClaim }),
+            session: makeSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p2',
+        });
+        await expect(net.recordReactionClaim(claim)).resolves.toBe(false);
+        expect(appendReactionClaim).not.toHaveBeenCalled();
+    });
+});

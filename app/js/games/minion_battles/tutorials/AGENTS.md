@@ -39,6 +39,10 @@ player sees their own.
    pointer. Step text may use `{stackSize}` (the pointed unit's stack count; `formatTutorialStepText`).
    Live unit lookups (on screen, nearest, darkness) are in `tutorialUnits.ts`.
 
+   A third trigger, `reactionPause`, fires while the local player is a waiter with `reactionPending`
+   (`reactionPauseQuery.ts`). `requiresKnowledge` on a tutorial limits it to players holding another
+   (e.g. systems) knowledge key, while progress stays under its own `tutorial` key.
+
 5. Options on a tutorial:
    - `pauseGame: true` holds this player's simulation (`GameState.localSimulationHold`, local only, never
      synced) while the tutorial is up and lets it start on any frame, not just on their turn (the hook polls

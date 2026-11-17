@@ -4,7 +4,9 @@ import {
     KNOWLEDGE_TUTORIAL_CRYSTALS,
     KNOWLEDGE_TUTORIAL_CC_RESISTANCE,
     KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES,
+    KNOWLEDGE_REACTIONS,
     KNOWLEDGE_TUTORIAL_LIGHT,
+    KNOWLEDGE_TUTORIAL_REACTIONS,
     KNOWLEDGE_TUTORIAL_STACKED_UNITS,
 } from '../../../../accountKnowledge';
 import type { TutorialDef } from '../../tutorials/tutorialTypes';
@@ -133,6 +135,37 @@ export const TUTORIAL_JUGGERNAUT_FRAMES: TutorialDef = {
     ],
 };
 
+/**
+ * The first reaction pause a player who knows Reactions gets (the Garden Heart grants it). Holds the game
+ * for this player until dismissed. Pointers resolve once Step 13 registers the HUD anchors; until then the
+ * text shows without them.
+ */
+export const TUTORIAL_REACTIONS: TutorialDef = {
+    id: 'reactions_intro',
+    knowledgeKey: KNOWLEDGE_TUTORIAL_REACTIONS,
+    requiresKnowledge: KNOWLEDGE_REACTIONS,
+    title: 'Reactions',
+    trigger: { type: 'reactionPause' },
+    pauseGame: true,
+    steps: [
+        {
+            text: 'An enemy attack is about to land on you. Time stops here so you can react.',
+            pointAt: { type: 'hudAnchor', anchorId: 'reactionMark' },
+            advance: { type: 'next' },
+        },
+        {
+            text: 'Reflex lets you act during a reaction. You get 1 Reflex back each round.',
+            pointAt: { type: 'hudAnchor', anchorId: 'reflexDisplay' },
+            advance: { type: 'next' },
+        },
+        {
+            text: 'Pick an ability to spend 1 Reflex and interrupt your current action.\nPass to spend nothing.',
+            pointAt: { type: 'hudAnchor', anchorId: 'abilityBar' },
+            advance: { type: 'next', label: 'Got it' },
+        },
+    ],
+};
+
 export const WORLD_OF_DARKNESS_TUTORIALS: readonly TutorialDef[] = [
     TUTORIAL_FIRST_BATTLE,
     TUTORIAL_LIGHT,
@@ -140,4 +173,5 @@ export const WORLD_OF_DARKNESS_TUTORIALS: readonly TutorialDef[] = [
     TUTORIAL_STACKED_UNITS,
     TUTORIAL_CC_RESISTANCE,
     TUTORIAL_JUGGERNAUT_FRAMES,
+    TUTORIAL_REACTIONS,
 ];

@@ -28,6 +28,7 @@ import { HardEdgeLayerRenderer } from './HardEdgeLayerRenderer';
 export const LAYER_ORDER: readonly TerrainType[] = [
     TerrainType.Grass,
     TerrainType.ThickGrass,
+    TerrainType.Tangle,
     TerrainType.Dirt,
     TerrainType.ShallowWater,
     TerrainType.Water,
@@ -35,6 +36,7 @@ export const LAYER_ORDER: readonly TerrainType[] = [
     TerrainType.Gravel,
     TerrainType.Rock,
     TerrainType.Brick,
+    TerrainType.Briar,
 ];
 
 function cellKey(col: number, row: number): string {
