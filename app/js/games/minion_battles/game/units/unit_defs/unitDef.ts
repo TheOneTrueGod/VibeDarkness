@@ -791,7 +791,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         baseSpawn: ENEMY_THORNSPITTER,
         characterSpriteKey: 'curling_vines',
         hp: 40,
-        // Rooted: nodes never walk (`burrowHop` moves the casters).
+        // Rooted: nodes never walk (`burrowHop` moves them).
         speed: 0,
         size: 'Medium',
         stamina: 1,
@@ -814,7 +814,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         baseSpawn: ENEMY_POD_MORTAR,
         characterSpriteKey: 'curling_vines',
         hp: 40,
-        // Rooted: nodes never walk (`burrowHop` moves the casters).
+        // Rooted: nodes never walk (`burrowHop` moves them).
         speed: 0,
         size: 'Medium',
         stamina: 1,
@@ -859,7 +859,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         baseSpawn: ENEMY_HIVE_GOURD,
         characterSpriteKey: 'curling_vines',
         hp: 70,
-        // Rooted: nodes never walk (`burrowHop` moves the casters).
+        // Rooted: nodes never walk (`burrowHop` moves them).
         speed: 0,
         size: 'Large',
         stamina: 1,
@@ -869,6 +869,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+            componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
             componentSpec(SPAWNER_COMPONENT, {
                 spawnerId: HIVE_GOURD_SPAWNER_ID,
                 maxChildren: HIVE_GOURD_MAX_CHILDREN,
@@ -887,7 +888,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         baseSpawn: ENEMY_CREEPER,
         characterSpriteKey: 'curling_vines',
         hp: 45,
-        // Rooted: nodes never walk (`burrowHop` moves the casters).
+        // Rooted: nodes never walk (`burrowHop` moves them).
         speed: 0,
         size: 'Medium',
         stamina: 1,

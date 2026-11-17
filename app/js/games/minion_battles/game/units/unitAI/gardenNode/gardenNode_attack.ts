@@ -24,7 +24,7 @@ export const gardenNode_attack: AINode<'gardenNode', GardenNodeId> = {
                 return;
             }
             ctx.targetUnitId = target.id;
-            if (!isBurrowHopDue(unit) && inSight.length > 0 && tryQueueAbilityOrder(unit, context, inSight, nearby)) return;
+            if (!isBurrowHopDue(unit, context.gameTime) && inSight.length > 0 && tryQueueAbilityOrder(unit, context, inSight, nearby)) return;
             queueWaitAndEndTurn(unit, context);
         },
     },

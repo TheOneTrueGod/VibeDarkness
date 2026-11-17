@@ -1,6 +1,6 @@
 /**
  * `burrowHop` component hooks (rules in `burrowHop.ts`). `tick` runs once per simulation tick in the nest phase: it
- * counts casts, holds the rest after each cast, starts a due hop, and drives a hop in progress.
+ * schedules the next hop, starts a due hop once any cast in progress has finished, and drives a hop in progress.
  */
 
 import type { EngineContext } from '../../EngineContext';
@@ -22,14 +22,15 @@ import { UnitTag, addUnitTag, hasUnitTag, removeUnitTag } from '../unitTag';
 /** Random points tried per hop before giving up. */
 const HOP_CANDIDATES = 16;
 
-/** Count casts that started since the last one counted; roll the next hop's cast count when it is not set. */
-function countCasts(unit: Unit, state: BurrowHopState, options: BurrowHopOptions, rng: (min: number, max: number) => number): void {
-    for (const active of unit.activeAbilities) {
-        if (state.lastCountedCastStart !== null && active.startTime <= state.lastCountedCastStart) continue;
-        state.lastCountedCastStart = active.startTime;
-        state.casts++;
-        if (state.castsNeeded === 0) state.castsNeeded = rng(options.usesPerHop.min, options.usesPerHop.max);
-    }
+/** World seconds until the next hop, rolled to the millisecond between the interval's bounds. */
+export function rollHopInterval(options: BurrowHopOptions, rng: (min: number, max: number) => number): number {
+    const lo = Math.round(Math.max(0, options.intervalSeconds.min) * 1000);
+    const hi = Math.max(lo, Math.round(options.intervalSeconds.max * 1000));
+    return rng(lo, hi) / 1000;
+}
+
+function scheduleNextHop(state: BurrowHopState, options: BurrowHopOptions, gameTime: number, rng: (min: number, max: number) => number): void {
+    state.nextHopAtGameTime = gameTime + rollHopInterval(options, rng);
 }
 
 /** True when standing at (x, y) keeps every tether this unit is part of within its leash. */
@@ -75,34 +76,30 @@ export function chooseHopPoint(
     return null;
 }
 
-function finishHop(unit: Unit, state: BurrowHopState): void {
+function finishHop(unit: Unit, state: BurrowHopState, options: BurrowHopOptions, gameTime: number, rng: (min: number, max: number) => number): void {
     if (state.addedInvincibleTag) removeUnitTag(unit, UnitTag.Invincible);
     state.addedInvincibleTag = false;
-    state.casts = 0;
-    state.castsNeeded = 0;
+    scheduleNextHop(state, options, gameTime, rng);
 }
 
 function tickUnit(unit: Unit, state: BurrowHopState, options: BurrowHopOptions, engine: EngineContext, gameTime: number, rng: (min: number, max: number) => number): void {
     if (state.burrow) {
         advanceBurrow(unit, state, burrowHopDef(options), engine);
-        if (!state.burrow) finishHop(unit, state);
+        if (!state.burrow) finishHop(unit, state, options, gameTime, rng);
         return;
     }
-    countCasts(unit, state, options, rng);
-    if (unit.activeAbilities.length > 0) {
-        state.restUntilGameTime = gameTime + options.restSeconds;
+    if (state.nextHopAtGameTime === null) {
+        scheduleNextHop(state, options, gameTime, rng);
         return;
     }
-    if (state.castsNeeded === 0 || state.casts < state.castsNeeded) return;
-    if (gameTime < state.restUntilGameTime) return;
-    // Held by something else (stun, a phase's burrow): wait.
-    if (unit.controlled || peekPhaseState(unit)?.burrow) return;
+    if (gameTime < state.nextHopAtGameTime) return;
+    // Due: a cast in progress finishes first; held by something else (stun, a phase's burrow), wait too.
+    if (unit.activeAbilities.length > 0 || unit.controlled || peekPhaseState(unit)?.burrow) return;
 
     const to = chooseHopPoint(unit, options, engine, rng);
     if (!to) {
-        // Boxed in: give up this hop and count again.
-        state.casts = 0;
-        state.castsNeeded = 0;
+        // Boxed in: stay, and try again after a fresh interval.
+        scheduleNextHop(state, options, gameTime, rng);
         return;
     }
     if (!hasUnitTag(unit, UnitTag.Invincible)) {
@@ -110,7 +107,7 @@ function tickUnit(unit: Unit, state: BurrowHopState, options: BurrowHopOptions, 
         state.addedInvincibleTag = true;
     }
     beginBurrow(unit, state, BURROW_HOP_COMPONENT_ID, burrowHopDef(options), to, engine);
-    if (!state.burrow) finishHop(unit, state); // zero-length hop
+    if (!state.burrow) finishHop(unit, state, options, gameTime, rng); // zero-length hop
 }
 
 export const BURROW_HOP_HOOKS: UnitComponentHooks = {

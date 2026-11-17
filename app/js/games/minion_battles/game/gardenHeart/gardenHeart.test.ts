@@ -46,7 +46,6 @@ import {
     THORN_FAN_SIZE,
     GARDEN_NODE_HOP,
     STEM_LEASH_PX,
-    THORN_COOLDOWN_SEC,
 } from '../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
 import { thornFanOffsets } from '../../card_defs/16_enemy_garden_heart/1601_ThornFans/1601Ability';
 import { nodesInMendReach } from '../../card_defs/16_enemy_garden_heart/1603_Mend/1603Ability';
@@ -162,14 +161,14 @@ describe('Garden Heart registration', () => {
         }
     });
 
-    it('nothing in the garden walks; the casting node kinds hop by burrowing instead', () => {
+    it('nothing in the garden walks; every node but the Mender Bloom and the Heart hops by burrowing', () => {
         for (const id of ['garden_heart', THORNSPITTER_ID, POD_MORTAR_ID, MENDER_BLOOM_ID, HIVE_GOURD_ID, CREEPER_ID]) {
             expect(getUnitDefEntry(id)!.speed, id).toBe(0);
         }
         const hops = (id: string): boolean =>
             (getUnitDefEntry(id)!.components ?? []).some((c) => c.type.id === BURROW_HOP_COMPONENT_ID);
-        expect([THORNSPITTER_ID, POD_MORTAR_ID, CREEPER_ID].every(hops)).toBe(true);
-        expect([MENDER_BLOOM_ID, HIVE_GOURD_ID, 'garden_heart'].some(hops)).toBe(false);
+        expect([THORNSPITTER_ID, POD_MORTAR_ID, CREEPER_ID, HIVE_GOURD_ID].every(hops)).toBe(true);
+        expect([MENDER_BLOOM_ID, 'garden_heart'].some(hops)).toBe(false);
     });
 });
 
@@ -335,53 +334,71 @@ describe('Creeper', () => {
 });
 
 describe('node movement: rooted, hopping by burrow', () => {
-    it('holds still through every cast and 3 s after, then every 2-3 casts burrows up to 5 tiles within its leash', () => {
+    it('stays put between hops, and every 5-7 s burrows up to 5 tiles within its leash', () => {
         setupEngine();
         const knot = addEnemy(ENEMY_THORNSPITTER, centre(20), centre(20));
         const bud = addEnemy(ENEMY_THORNSPITTER, centre(24), centre(20));
         linkNodeChild(knot, bud, { tetherMaxLength: STEM_LEASH_PX });
         addPlayer(centre(38), centre(38)); // a living party keeps the battle running
         const start = { x: bud.x, y: bud.y };
-        const aim: ResolvedTarget[] = [{ type: 'pixel', position: { x: centre(24), y: centre(36) } }];
         const still = (): void => {
             expect([bud.x, bud.y]).toEqual([start.x, start.y]);
         };
 
-        let casts = 0;
-        while (!isBurrowHopDue(bud)) {
-            expect(casts).toBeLessThan(GARDEN_NODE_HOP.usesPerHop.max);
-            cast(bud, THORN_FANS_ABILITY_ID, aim);
-            expect(bud.activeAbilities).toHaveLength(1);
-            casts++;
-            stepSeconds(1 / TICKS_PER_SEC, still); // the hook counts the cast
-            let guard = 0;
-            while (bud.activeAbilities.length > 0 && guard++ < TICKS_PER_SEC * 5) stepSeconds(1 / TICKS_PER_SEC, still);
-            // Not due yet: wait out the cooldown, holding still the whole time.
-            if (!isBurrowHopDue(bud)) stepSeconds(THORN_COOLDOWN_SEC, still);
-        }
-        expect(casts).toBeGreaterThanOrEqual(GARDEN_NODE_HOP.usesPerHop.min);
+        stepSeconds(1 / TICKS_PER_SEC);
+        const state = peekBurrowHopState(bud)!;
+        const firstHop = state.nextHopAtGameTime!;
+        expect(firstHop - engine.gameTime).toBeGreaterThanOrEqual(GARDEN_NODE_HOP.intervalSeconds.min - 0.05);
+        expect(firstHop - engine.gameTime).toBeLessThanOrEqual(GARDEN_NODE_HOP.intervalSeconds.max);
 
-        // The rest after the last cast: still above ground, not moved.
-        stepSeconds(GARDEN_NODE_HOP.restSeconds - 0.2, still);
-        expect(peekBurrowHopState(bud)!.burrow).toBeNull();
+        // Until the time comes it does not move at all.
+        stepSeconds(firstHop - engine.gameTime - 0.1, still);
+        expect(state.burrow).toBeNull();
 
         let guard = 0;
-        while (!peekBurrowHopState(bud)!.burrow && guard++ < TICKS_PER_SEC) stepSeconds(1 / TICKS_PER_SEC);
-        expect(peekBurrowHopState(bud)!.burrow).not.toBeNull();
+        while (!state.burrow && guard++ < TICKS_PER_SEC) stepSeconds(1 / TICKS_PER_SEC);
+        expect(state.burrow).not.toBeNull();
         expect(hasUnitTag(bud, UnitTag.Invincible)).toBe(true);
-        expect(getBurrowVisual(peekBurrowHopState(bud), engine.tickTime)).not.toBeNull();
+        expect(getBurrowVisual(state, engine.tickTime)).not.toBeNull();
 
         guard = 0;
-        while (peekBurrowHopState(bud)!.burrow && guard++ < TICKS_PER_SEC * 5) stepSeconds(1 / TICKS_PER_SEC);
-        expect(peekBurrowHopState(bud)!.burrow).toBeNull();
+        while (state.burrow && guard++ < TICKS_PER_SEC * 5) stepSeconds(1 / TICKS_PER_SEC);
+        expect(state.burrow).toBeNull();
         const moved = Math.hypot(bud.x - start.x, bud.y - start.y);
         expect(moved).toBeGreaterThan(0);
         expect(moved).toBeLessThanOrEqual(GARDEN_NODE_HOP.maxDistancePx + 1);
         expect(Math.hypot(bud.x - knot.x, bud.y - knot.y)).toBeLessThanOrEqual(STEM_LEASH_PX);
         expect(engine.terrainManager!.isPassable(bud.x, bud.y)).toBe(true);
         expect(hasUnitTag(bud, UnitTag.Invincible)).toBe(false);
-        expect(isBurrowHopDue(bud)).toBe(false);
-        expect([knot.x, knot.y]).toEqual([centre(20), centre(20)]); // the Knot cast nothing, so it stayed
+        // The next hop is a fresh 5-7 s from landing.
+        expect(state.nextHopAtGameTime! - engine.gameTime).toBeGreaterThanOrEqual(GARDEN_NODE_HOP.intervalSeconds.min - 0.05);
+        expect(state.nextHopAtGameTime! - engine.gameTime).toBeLessThanOrEqual(GARDEN_NODE_HOP.intervalSeconds.max);
+    });
+
+    it('a hop that comes due mid-cast waits for the cast to finish, and the node starts no new cast meanwhile', () => {
+        setupEngine();
+        const bud = addEnemy(ENEMY_THORNSPITTER, centre(20), centre(20));
+        addPlayer(centre(38), centre(38));
+        stepSeconds(1 / TICKS_PER_SEC);
+        const state = peekBurrowHopState(bud)!;
+        const start = { x: bud.x, y: bud.y };
+
+        cast(bud, THORN_FANS_ABILITY_ID, [{ type: 'pixel', position: { x: centre(20), y: centre(36) } }]);
+        expect(bud.activeAbilities).toHaveLength(1);
+        state.nextHopAtGameTime = engine.gameTime + 0.1;
+        stepSeconds(0.3);
+        expect(bud.activeAbilities).toHaveLength(1); // still casting
+        expect(state.burrow).toBeNull();
+        expect(isBurrowHopDue(bud, engine.gameTime)).toBe(true); // the AI holds its next cast
+        expect([bud.x, bud.y]).toEqual([start.x, start.y]);
+
+        let guard = 0;
+        while (bud.activeAbilities.length > 0 && guard++ < TICKS_PER_SEC * 5) {
+            expect(state.burrow).toBeNull();
+            stepSeconds(1 / TICKS_PER_SEC);
+        }
+        stepSeconds(2 / TICKS_PER_SEC);
+        expect(state.burrow).not.toBeNull();
     });
 
     it('a hop keeps both ends of every Stem within its leash, and a hop in progress survives a checkpoint', () => {
@@ -397,8 +414,8 @@ describe('node movement: rooted, hopping by burrow', () => {
         expect(hopKeepsTethers(knot, centre(22), centre(10), engine)).toBe(false); // too far from its parent
 
         const state = peekBurrowHopState(bud)!;
-        state.casts = 2;
-        state.castsNeeded = 2;
+        stepSeconds(1 / TICKS_PER_SEC);
+        state.nextHopAtGameTime = engine.gameTime;
         stepSeconds(0.5);
         expect(state.burrow).not.toBeNull();
         const json = serializeUnit(bud, engine.gameTick);

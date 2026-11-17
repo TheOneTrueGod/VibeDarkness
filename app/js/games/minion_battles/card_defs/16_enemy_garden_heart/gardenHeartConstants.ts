@@ -48,12 +48,11 @@ export const GARDEN_GROW_TREE_CALLBACK_ID = 'gardenGrowTree';
 export const STEM_LEASH_PX = 6 * CELL_SIZE;
 
 /**
- * Nodes never walk. Every 2-3 casts, once they have held still for 3 s after the last one, they burrow and come up
- * within 5 tiles (keeping their Stems within the leash). Stage lengths are placeholder tuning, shorter than the Heart's.
+ * Nodes never walk. Every 6 s (plus or minus 1), after finishing any cast in progress, they burrow and come up within
+ * 5 tiles (keeping their Stems within the leash). Stage lengths are placeholder tuning, shorter than the Heart's.
  */
 export const GARDEN_NODE_HOP: BurrowHopOptions = {
-    usesPerHop: { min: 2, max: 3 },
-    restSeconds: 3,
+    intervalSeconds: { min: 5, max: 7 },
     maxDistancePx: 5 * CELL_SIZE,
     minDistancePx: 2 * CELL_SIZE,
     burrow: { closeSeconds: 0.3, sinkSeconds: 0.6, travelSeconds: 1, riseSeconds: 0.6 },
