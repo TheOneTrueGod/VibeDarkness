@@ -25,6 +25,8 @@ import { getNodeChildIds } from '../../../../game/units/components/nodeTree';
 import { gardenTreeLayout } from '../../../../game/gardenHeart/gardenTreeLayouts';
 import { peekPhaseState } from '../../../../game/units/components/phaseComponent';
 import { attachReflexIfKnown } from '../../../../resources/Reflex';
+import { getBattleVariable } from '../../../../game/battleVariables';
+import { GARDEN_GROWTH_PHASE_VARIABLE } from '../../../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
 import { KNOWLEDGE_REACTIONS } from '../../../../../../accountKnowledge';
 import type { Unit } from '../../../../game/units/Unit';
 import '../../../../abilities/AbilityRegistry';
@@ -122,6 +124,7 @@ describe('Garden Heart mission', () => {
         expect(treeUnits).toHaveLength(phase1.length); // nothing but the tree: no wolf escort
         expect(treeUnits.some((u) => u.characterId === 'thornspitter')).toBe(true);
         for (const u of treeUnits) expect(engine.terrainManager!.isPassable(u.x, u.y)).toBe(true);
+        expect(getBattleVariable(engine, GARDEN_GROWTH_PHASE_VARIABLE)).toBe(1); // the fight starts in growth phase 1
         engine.destroy();
     });
 

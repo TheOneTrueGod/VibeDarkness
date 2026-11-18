@@ -17,7 +17,8 @@ import { getNodeChildIds } from '../units/components/nodeTree';
 import type { SpawnDefinition } from '../units/spawning/spawnDefinition';
 import type { SpawnUnitContext } from '../units/spawning/spawnUnit';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
-import { STEM_LEASH_PX } from '../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
+import { GARDEN_GROWTH_PHASE_VARIABLE, STEM_LEASH_PX } from '../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
+import { setBattleVariable } from '../battleVariables';
 import { gardenTreeLayout, type GardenNodeSpec } from './gardenTreeLayouts';
 
 /** What growing needs from the engine: spawning, the unit list, and the player count enemy health scales by. */
@@ -105,6 +106,8 @@ export function growGardenTree(
     const layout = gardenTreeLayout(phase);
     const grown = new Map<string, Unit>();
     if (!layout) return grown;
+    // The fight has moved on: escalating node behaviour (Thorn Fans waves) reads this.
+    setBattleVariable(ctx, GARDEN_GROWTH_PHASE_VARIABLE, phase);
     const origin = options.at ?? { x: heart.x, y: heart.y };
     for (const spec of layout) {
         const parent = spec.parent === null ? heart : grown.get(spec.parent);

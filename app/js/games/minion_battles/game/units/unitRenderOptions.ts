@@ -103,8 +103,15 @@ export function resolveBurrowRender(unit: Unit, tickTime: number): BurrowRender 
     if (!visual) return null;
     const burrow = holder?.burrow;
     const eruption: FusedBodyTelegraph | null =
-        burrow && burrow.stage === 'rise' && burrow.eruptionRadiusPx !== undefined
-            ? { x: burrow.toX, y: burrow.toY, radiusPx: burrow.eruptionRadiusPx, fill: visual.stageProgress, color: DEFAULT_TELEGRAPH_COLOR }
+        burrow && burrow.eruptionRadiusPx !== undefined && (burrow.stage === 'rise' || (burrow.eruptionTelegraphFromTravel && burrow.stage === 'travel'))
+            ? {
+                  x: burrow.toX,
+                  y: burrow.toY,
+                  radiusPx: burrow.eruptionRadiusPx,
+                  // The inner fill grows over the rise; while travelling only the rim marks the spot.
+                  fill: burrow.stage === 'rise' ? visual.stageProgress : 0,
+                  color: DEFAULT_TELEGRAPH_COLOR,
+              }
             : null;
     return {
         visual,

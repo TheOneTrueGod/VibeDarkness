@@ -99,8 +99,18 @@ export interface BurrowTransitionDef {
  * (`requestReactionFrame`), so players inside the circle who know Reactions may act before it lands.
  */
 export interface BurrowEruptionDef {
-    radiusPx: number;
+    /** Blast radius in world px. Give this or `radiusUnitRadii`. */
+    radiusPx?: number;
+    /** Blast radius as a multiple of the burrowing unit's own radius (so one def fits every size). */
+    radiusUnitRadii?: number;
     damage: number;
+    /**
+     * When the blast circle starts showing: `'rise'` (default) for the rise only, or `'travel'` to mark the
+     * resurfacing point from the moment the unit starts moving underground (the fill still grows over the rise).
+     */
+    telegraphFrom?: 'rise' | 'travel';
+    /** Rock chips thrown up when the burst lands (visual only). */
+    rockShower?: { count: number };
     /** Open a reaction frame at the start of the rise. Default true. */
     reactable?: boolean;
     /** Stored as the reaction's `abilityId` label. Default `'burrow_eruption'`. */

@@ -151,6 +151,9 @@ export interface EngineContext {
     /** Per-player battle knowledge keys (serialized); read through `game/reactions/playerKnowledge.ts`. */
     readonly playerKnowledgeKeysByPlayer: Readonly<Record<string, readonly string[]>>;
 
+    /** Named battle-wide numbers (serialized); read and write through `game/battleVariables.ts`. Optional for stubs. */
+    battleVariables?: Record<string, number>;
+
     /**
      * Called from unitAbilityTick when an interval with a SelectTargetDef is entered but no
      * target is yet resolved. Freezes gameTime until the target is provided via the UI.

@@ -137,6 +137,9 @@ export class GameState {
      */
     playerKnowledgeKeysByPlayer: Record<string, string[]> = {};
 
+    /** Named battle-wide numbers any system may set and read (`game/battleVariables.ts`). Serialized. */
+    battleVariables: Record<string, number> = {};
+
     /**
      * Pause planes formed so far this battle; stamps `WaitingForOrders.planeId` (`${atTick}:${counter}`).
      * Serialized so every client derives the same ids.

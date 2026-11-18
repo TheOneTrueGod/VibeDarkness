@@ -223,6 +223,8 @@ export interface SerializedGameState {
     playerKnowledgeKeysByPlayer?: Record<string, string[]>;
     /** Pause planes formed so far (stamps `WaitingForOrders.planeId`); omitted when 0. */
     pausePlaneCounter?: number;
+    /** Named battle-wide numbers (`game/battleVariables.ts`); omitted when none are set. */
+    battleVariables?: Record<string, number>;
     /** Serialized ninjutsu pool configs and runtime state (budget, delay). */
     ninjutsuPools?: import('./ninjutsu/NinjutsuPool').SerializedNinjutsuPool[];
     /**

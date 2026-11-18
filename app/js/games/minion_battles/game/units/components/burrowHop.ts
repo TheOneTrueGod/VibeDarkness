@@ -11,9 +11,12 @@
  *   unit first ticks, and again after every hop lands.
  * - When the time comes the hop is DUE. A unit in the middle of a cast finishes it first; while a hop is due its AI
  *   should start no new cast (`isBurrowHopDue`), so the hop cannot be put off forever.
- * - The destination is a random open point `minDistancePx`-`maxDistancePx` away that keeps every Stem tether intact:
- *   within its parent's leash and within each tethered child's leash (`nodeTree`). Nothing valid: the unit stays and
- *   a fresh interval is rolled.
+ * - The destination is picked from random open points `minDistancePx`-`maxDistancePx` away that keep every Stem
+ *   tether intact: within its parent's leash and within each tethered child's leash (`nodeTree`). A named
+ *   `pointRule` (`registerHopPointRule`) picks among them, e.g. `betweenRootAndParty`; without one the first valid
+ *   point wins. Nothing valid: the unit stays and a fresh interval is rolled.
+ * - `burrow.eruption` makes the resurfacing a blast (see `BurrowEruptionDef`: size-scaled radius, early telegraph,
+ *   rock shower).
  * - The unit is untargetable (`UnitTag.Invincible`) and cannot act while it is under.
  */
 
@@ -25,6 +28,9 @@ import { defineUnitComponent, findComponentState, getComponentOptions } from './
 
 export const BURROW_HOP_COMPONENT_ID = 'burrowHop';
 
+/** Built-in hop point rule (`burrowHopHooks.ts`): the point closest to the line from the tree's root to the party. */
+export const BETWEEN_ROOT_AND_PARTY_RULE = 'betweenRootAndParty';
+
 export interface BurrowHopOptions {
     /** World seconds between hops, rolled each time (to the millisecond) between `min` and `max`. */
     intervalSeconds: { min: number; max: number };
@@ -32,6 +38,8 @@ export interface BurrowHopOptions {
     maxDistancePx: number;
     /** The shortest hop (world px). Default `maxDistancePx / 5`. */
     minDistancePx?: number;
+    /** Registered hop point rule id (`registerHopPointRule`) that picks among the valid points. */
+    pointRule?: string;
     /** Stage lengths and optional callbacks / eruption. `sproutPoints` and the point rule are not used. */
     burrow: Omit<BurrowTransitionDef, 'sproutPoints' | 'pointRule' | 'exclusionZones' | 'exclusionSources' | 'minDistanceFromExclusions'>;
 }

@@ -18,6 +18,7 @@ import { fireProjectileRing } from '../../../abilities/projectileRing';
 import { Effect } from '../../../game/effects/Effect';
 import { Projectile } from '../../../game/projectiles/Projectile';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { THORN_PROJECTILE_TYPE } from '../../../game/projectiles/projectile_defs/thornDef';
 import type { CardDef } from '../../types';
 import {
     NIGHTBLOOM_PRIMARY,
@@ -75,6 +76,7 @@ function fireRing(ctx: CastBehaviourTickContext): void {
             sourceUnitId: caster.id,
             sourceAbilityId: SPIKE_RING_ABILITY_ID,
             maxDistance: SPIKE_RING_RANGE,
+            projectileType: THORN_PROJECTILE_TYPE,
             collidesWithTerrain: [TerrainType.Rock],
         });
         thorn.radius = SPIKE_RING_RADIUS;

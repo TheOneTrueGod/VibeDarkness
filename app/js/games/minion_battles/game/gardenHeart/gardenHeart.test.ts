@@ -48,16 +48,24 @@ import {
     THORN_FANS_ABILITY_ID,
     THORN_FAN_COUNT,
     THORN_FAN_SIZE,
+    THORN_FAN_WAVES_BY_PHASE,
+    THORN_MAX_RANGE,
+    THORN_AI_RANGE,
+    GARDEN_GROWTH_PHASE_VARIABLE,
     GARDEN_NODE_HOP,
+    GARDEN_NODE_HOP_BLAST_RADII,
+    GARDEN_NODE_HOP_DAMAGE,
     STEM_LEASH_PX,
 } from '../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
-import { thornFanOffsets } from '../../card_defs/16_enemy_garden_heart/1601_ThornFans/1601Ability';
+import { thornFanOffsets, thornFanWaves, thornWaveTurn } from '../../card_defs/16_enemy_garden_heart/1601_ThornFans/1601Ability';
+import { getBattleVariable, setBattleVariable } from '../battleVariables';
 import { nodesInMendReach } from '../../card_defs/16_enemy_garden_heart/1603_Mend/1603Ability';
 import { trailTiles } from '../../abilities/CastBehaviours/GroundTrailBehaviour';
 import { gardenSpikeRingRate } from '../../card_defs/16_enemy_garden_heart/1605_SpikeRing/1605Ability';
 import { peekPhaseState } from '../units/components/phaseComponent';
 import { ROUND_DURATION } from '../gameConstants';
 import { BURROWING_PROJECTILE_TYPE } from '../projectiles/projectile_defs/burrowingDef';
+import { THORN_PROJECTILE_TYPE } from '../projectiles/projectile_defs/thornDef';
 import { DARK_THORN_EFFECT_TYPE } from '../terrainEffects/terrainEffectDefs';
 import {
     getNodeChildIds,
@@ -68,7 +76,8 @@ import {
 import { peekSpawnerState } from '../units/components/spawnerComponent';
 import { serializeUnit } from '../units/unitToJSON';
 import { applySerializedUnitState } from '../units/unitFromJSON';
-import { listLiveTethers, tetherCoveredTiles } from '../tethers/tether';
+import { distanceToSegment, listLiveTethers, tetherCoveredTiles } from '../tethers/tether';
+import { resolveBurrowRender } from '../units/unitRenderOptions';
 import { applyUnitFlatReductions } from '../units/flatDamageReduction';
 import { BURROW_HOP_COMPONENT_ID, isBurrowHopDue, peekBurrowHopState } from '../units/components/burrowHop';
 import { hopKeepsTethers } from '../units/components/burrowHopHooks';
@@ -230,7 +239,7 @@ describe('Shell on node units', () => {
 });
 
 describe('Thornspitter', () => {
-    it('spits two fans of three thorns at a player, each fan symmetric around the aim', () => {
+    it('spits two fans of five thorn-shaped thorns at a player, each fan symmetric around the aim', () => {
         setupEngine();
         const spitter = addEnemy(ENEMY_THORNSPITTER, centre(5), centre(20));
         const player = addPlayer(centre(20), centre(20));
@@ -239,11 +248,59 @@ describe('Thornspitter', () => {
             player.hp = player.maxHp;
         });
         const thorns = engine.projectiles.filter((p) => p.sourceUnitId === spitter.id);
+        expect(THORN_FAN_SIZE).toBe(5);
         expect(thorns).toHaveLength(THORN_FAN_COUNT * THORN_FAN_SIZE);
-        // Aim is along +x, so the three headings of a fan are (-d, 0, +d).
+        expect(thorns.every((p) => p.projectileType === THORN_PROJECTILE_TYPE)).toBe(true);
+        // Every thorn flies its full range (twice the cast range), past the player it was aimed at.
+        expect(THORN_MAX_RANGE).toBe(THORN_AI_RANGE * 2);
+        expect(thorns.every((p) => p.maxDistance === THORN_MAX_RANGE)).toBe(true);
+        // Aim is along +x: each fan is the evenly spread fan, turned by its wave's turn.
         const headings = thorns.map((p) => (Math.atan2(p.velocityY, p.velocityX) * 180) / Math.PI).sort((a, b) => a - b);
-        const expected = Array.from({ length: THORN_FAN_COUNT }, () => thornFanOffsets()).flat().sort((x, y) => x - y);
+        const expected = Array.from({ length: THORN_FAN_COUNT }, (_, w) =>
+            thornFanOffsets().map((d) => d + thornWaveTurn(w, THORN_FAN_COUNT)),
+        )
+            .flat()
+            .sort((x, y) => x - y);
         headings.forEach((h, i) => expect(h).toBeCloseTo(expected[i]!, 0));
+        // No thorn of the second wave flies along a first-wave heading: the waves interleave.
+        const first = new Set(thornFanOffsets().map((d) => Math.round(d + thornWaveTurn(0, THORN_FAN_COUNT))));
+        for (const d of thornFanOffsets()) expect(first.has(Math.round(d + thornWaveTurn(1, THORN_FAN_COUNT)))).toBe(false);
+    });
+
+    it('fires more waves as the garden grows, read from the growth-phase battle variable', () => {
+        setupEngine();
+        const spitter = addEnemy(ENEMY_THORNSPITTER, centre(5), centre(20));
+        const player = addPlayer(centre(20), centre(20));
+        const thornsFrom = (): number => engine.projectiles.filter((p) => p.sourceUnitId === spitter.id).length;
+        expect(thornFanWaves(engine)).toBe(THORN_FAN_COUNT); // unset: the default
+
+        // A Heart growing its phase-3 tree sets the variable itself.
+        const heart = addEnemy(ENEMY_GARDEN_HEART, centre(30), centre(5));
+        growGardenTree(growCtx(), heart, 3);
+        expect(getBattleVariable(engine, GARDEN_GROWTH_PHASE_VARIABLE)).toBe(3);
+        expect(thornFanWaves(engine)).toBe(THORN_FAN_WAVES_BY_PHASE[3]);
+
+        // No Heart needed: setting the variable directly escalates the same way.
+        dismissGardenTree(engine, heart);
+        setBattleVariable(engine, GARDEN_GROWTH_PHASE_VARIABLE, 4);
+        cast(spitter, THORN_FANS_ABILITY_ID, at(player));
+        stepSeconds(4, () => {
+            player.hp = player.maxHp;
+        });
+        expect(thornsFrom()).toBe(THORN_FAN_WAVES_BY_PHASE[4]! * THORN_FAN_SIZE);
+        expect(THORN_FAN_WAVES_BY_PHASE[4]).toBeGreaterThan(THORN_FAN_WAVES_BY_PHASE[1]!);
+    });
+
+    it('every wave of a cast flies down its own lanes, stepping across one gap', () => {
+        for (const waves of [2, 3, 4, 5]) {
+            const turns = Array.from({ length: waves }, (_, w) => thornWaveTurn(w, waves, 16));
+            // Distinct lanes: every turn is a different fraction of the 16 degree gap.
+            expect(new Set(turns.map((t) => (((Math.round(t * 100) % 1600) + 1600) % 1600))).size).toBe(waves);
+            expect(turns[waves - 1]! - turns[0]!).toBeLessThan(16);
+            expect(turns[0]! + turns[waves - 1]!).toBeCloseTo(0); // centred on the aim
+        }
+        expect(thornWaveTurn(1, 2, 16) - thornWaveTurn(0, 2, 16)).toBeCloseTo(8); // two waves: exactly half a gap
+        expect(thornWaveTurn(0, 1)).toBe(0);
     });
 
     it('fan offsets are evenly spaced around zero', () => {
@@ -455,6 +512,54 @@ describe('node movement: rooted, hopping by burrow', () => {
         expect(state.nextHopAtGameTime! - engine.gameTime).toBeLessThanOrEqual(GARDEN_NODE_HOP.intervalSeconds.max);
     });
 
+    it('tunnels toward the line between the Heart and the nearest player', () => {
+        setupEngine();
+        const heart = addEnemy(ENEMY_GARDEN_HEART, centre(20), centre(10));
+        const bud = addEnemy(ENEMY_THORNSPITTER, centre(25), centre(12));
+        linkNodeChild(heart, bud, { tetherMaxLength: STEM_LEASH_PX });
+        const player = addPlayer(centre(20), centre(36));
+        const offLine = (): number => distanceToSegment(bud.x, bud.y, heart.x, heart.y, player.x, player.y);
+        const before = offLine();
+        stepSeconds(1 / TICKS_PER_SEC);
+        const state = peekBurrowHopState(bud)!;
+        state.nextHopAtGameTime = engine.gameTime;
+        let guard = 0;
+        while (!state.burrow && guard++ < TICKS_PER_SEC) stepSeconds(1 / TICKS_PER_SEC);
+        guard = 0;
+        while (state.burrow && guard++ < TICKS_PER_SEC * 5) stepSeconds(1 / TICKS_PER_SEC);
+        expect(offLine()).toBeLessThan(before - CELL_SIZE);
+        expect(Math.hypot(bud.x - heart.x, bud.y - heart.y)).toBeLessThanOrEqual(STEM_LEASH_PX);
+    });
+
+    it('surfaces in a blast 4x its size, marked from the start of the tunnel, with a shower of rock chips', () => {
+        setupEngine();
+        const bud = addEnemy(ENEMY_THORNSPITTER, centre(20), centre(20));
+        const player = addPlayer(centre(38), centre(38));
+        stepSeconds(1 / TICKS_PER_SEC);
+        const state = peekBurrowHopState(bud)!;
+        state.nextHopAtGameTime = engine.gameTime;
+        let guard = 0;
+        while (state.burrow?.stage !== 'travel' && guard++ < TICKS_PER_SEC * 3) stepSeconds(1 / TICKS_PER_SEC);
+        const radius = GARDEN_NODE_HOP_BLAST_RADII * bud.radius;
+        const telegraph = resolveBurrowRender(bud, engine.tickTime)!.eruption!;
+        expect(telegraph).toMatchObject({ x: state.burrow!.toX, y: state.burrow!.toY, radiusPx: radius, fill: 0 });
+
+        // Stand at the edge of the circle: the blast reaches.
+        player.x = state.burrow!.toX + radius * 0.9;
+        player.y = state.burrow!.toY;
+        player.clearMovement();
+        const hpBefore = player.hp;
+        guard = 0;
+        while (state.burrow && guard++ < TICKS_PER_SEC * 5) {
+            player.x = state.burrow.toX + radius * 0.9;
+            player.y = state.burrow.toY;
+            stepSeconds(1 / TICKS_PER_SEC);
+        }
+        expect(player.hp).toBe(hpBefore - GARDEN_NODE_HOP_DAMAGE);
+        expect(engine.effects.filter((e) => e.effectType === 'RockChipParticle').length).toBeGreaterThan(0);
+        expect(engine.waitingForOrders).toBeFalsy(); // not a reaction frame
+    });
+
     it('a hop that comes due mid-cast waits for the cast to finish, and the node starts no new cast meanwhile', () => {
         setupEngine();
         const bud = addEnemy(ENEMY_THORNSPITTER, centre(20), centre(20));
@@ -598,6 +703,7 @@ describe('Spike Ring', () => {
         }
         const thorns = engine.projectiles.filter((p) => p.sourceAbilityId === SPIKE_RING_ABILITY_ID);
         expect(thorns).toHaveLength(SPIKE_RING_COUNT);
+        expect(thorns.every((p) => p.projectileType === THORN_PROJECTILE_TYPE)).toBe(true);
         const angles = thorns.map((p) => Math.atan2(p.velocityY, p.velocityX)).sort((a, b) => a - b);
         for (let i = 1; i < angles.length; i++) expect(angles[i]! - angles[i - 1]!).toBeCloseTo((Math.PI * 2) / SPIKE_RING_COUNT, 5);
         expect(thorns.every((p) => p.sourceTeamId === heart.teamId)).toBe(true);

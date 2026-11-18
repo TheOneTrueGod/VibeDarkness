@@ -97,6 +97,7 @@ export function serializeEngine(engine: GameEngine): SerializedGameState {
             ? { playerKnowledgeKeysByPlayer: structuredClone(engine.state.playerKnowledgeKeysByPlayer) }
             : {}),
         ...(engine.state.pausePlaneCounter > 0 ? { pausePlaneCounter: engine.state.pausePlaneCounter } : {}),
+        ...(Object.keys(engine.state.battleVariables).length > 0 ? { battleVariables: { ...engine.state.battleVariables } } : {}),
         lightSources: engine.state.lightSourceManager.toJSON(),
         terrainEffects: engine.state.terrainLayers.toEffectsJSON(),
         floorTiles: engine.state.terrainLayers.toFloorTilesJSON(),
@@ -182,6 +183,7 @@ export function deserializeEngine(
         ? structuredClone(data.playerKnowledgeKeysByPlayer)
         : {};
     engine.pausePlaneCounter = data.pausePlaneCounter ?? 0;
+    engine.battleVariables = data.battleVariables ? { ...data.battleVariables } : {};
 
     engine.pendingOrders = (data.orders ?? []).map((o) => ({
         gameTick: o.gameTick,

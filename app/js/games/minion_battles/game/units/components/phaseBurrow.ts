@@ -21,6 +21,7 @@ import { Effect } from '../../effects/Effect';
 import { interruptUnitAbilities } from '../unitAbilityLifecycle';
 import {
     BURROW_STAGES,
+    type BurrowEruptionDef,
     type BurrowStage,
     type BurrowTransitionDef,
     type SproutExclusionZone,
@@ -177,7 +178,8 @@ export function beginBurrow(
         fromY: unit.y,
         toX: to.x,
         toY: to.y,
-        ...(def.eruption ? { eruptionRadiusPx: def.eruption.radiusPx } : {}),
+        ...(def.eruption ? { eruptionRadiusPx: eruptionRadiusPx(def.eruption, unit) } : {}),
+        ...(def.eruption?.telegraphFrom === 'travel' ? { eruptionTelegraphFromTravel: true } : {}),
     };
     claimUnit(unit, state.burrow, def, engine);
     runCallback(def, 'close', unit, engine);
@@ -221,7 +223,7 @@ function advanceStages(unit: Unit, state: BurrowHolder, def: BurrowTransitionDef
         if (next === undefined) {
             unit.x = b.toX;
             unit.y = b.toY;
-            landEruption(unit, def, engine);
+            landEruption(unit, b, def, engine);
             unit.clearMovement();
             state.burrow = null;
             releaseUnit(unit);
@@ -241,29 +243,64 @@ function advanceStages(unit: Unit, state: BurrowHolder, def: BurrowTransitionDef
 
 export const BURROW_ERUPTION_LABEL = 'burrow_eruption';
 
+/** The eruption's radius for this unit: `radiusPx`, else `radiusUnitRadii` times the unit's radius. */
+export function eruptionRadiusPx(eruption: BurrowEruptionDef, unit: Pick<Unit, 'radius'>): number {
+    return eruption.radiusPx ?? unit.radius * (eruption.radiusUnitRadii ?? 0);
+}
+
 /** The rise begins: if the eruption is reactable, this tick is its reaction frame (the telegraph is the whole rise). */
 function openEruption(unit: Unit, b: ActiveBurrow, def: BurrowTransitionDef, engine: EngineContext): void {
     const eruption = def.eruption;
     if (!eruption || eruption.reactable === false) return;
     requestReactionFrame(engine, {
         sourceUnitId: unit.id,
-        area: { kind: 'circle', x: b.toX, y: b.toY, radius: eruption.radiusPx },
+        area: { kind: 'circle', x: b.toX, y: b.toY, radius: b.eruptionRadiusPx ?? eruptionRadiusPx(eruption, unit) },
         label: eruption.label ?? BURROW_ERUPTION_LABEL,
     });
 }
 
 /** The rise completed: the burst lands on everything still inside the circle. */
-function landEruption(unit: Unit, def: BurrowTransitionDef, engine: EngineContext): void {
+function landEruption(unit: Unit, b: ActiveBurrow, def: BurrowTransitionDef, engine: EngineContext): void {
     const eruption = def.eruption;
     if (!eruption) return;
+    const radius = b.eruptionRadiusPx ?? eruptionRadiusPx(eruption, unit);
     for (const target of [...engine.units]) {
         if (!target.isAlive() || !areEnemies(unit.teamId, target.teamId)) continue;
-        if (Math.hypot(target.x - unit.x, target.y - unit.y) > eruption.radiusPx + target.radius) continue;
+        if (Math.hypot(target.x - unit.x, target.y - unit.y) > radius + target.radius) continue;
         target.takeDamage(eruption.damage, unit.id, engine.eventBus);
     }
     engine.addEffect(
         new Effect({ x: unit.x, y: unit.y, duration: 0.6, effectType: 'Pulse', effectData: { colors: [0xe9d5ff] } }),
     );
+    if (eruption.rockShower) throwRockShower(engine, unit.x, unit.y, radius, eruption.rockShower.count);
+}
+
+/**
+ * Rock chips thrown up and out from where the unit surfaced, falling back under gravity. Visual only; the spread is a
+ * fixed pattern (index-based, no RNG) so it never touches the simulation's random stream.
+ */
+function throwRockShower(engine: EngineContext, x: number, y: number, radius: number, count: number): void {
+    for (let i = 0; i < count; i++) {
+        const jitter = ((i * 7919) % 97) / 97; // 0-1, uneven from chip to chip
+        const angle = (i / count) * Math.PI * 2 + jitter * 0.6;
+        const speed = radius * (0.9 + jitter * 0.9);
+        engine.addEffect(
+            new Effect({
+                x: x + Math.cos(angle) * radius * 0.15,
+                y: y + Math.sin(angle) * radius * 0.15,
+                duration: 0.45 + jitter * 0.25,
+                effectType: 'RockChipParticle',
+                effectData: {
+                    imageKey: 'rockChip',
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - (90 + jitter * 70),
+                    ay: 420,
+                    dampingK: 1.5,
+                    scale: 0.45 + jitter * 0.4,
+                },
+            }),
+        );
+    }
 }
 
 function stageProgress(b: ActiveBurrow, tickTime: number): number {

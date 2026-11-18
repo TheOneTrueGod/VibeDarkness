@@ -8,7 +8,7 @@
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import type { UnitRenderOptions } from '../../game/units/unitRenderOptions';
-import type { BurrowHopOptions } from '../../game/units/components/burrowHop';
+import { BETWEEN_ROOT_AND_PARTY_RULE, type BurrowHopOptions } from '../../game/units/components/burrowHop';
 
 const GROUP = formatGroupId(AbilityGroupId.EnemyGardenHeart);
 
@@ -52,29 +52,63 @@ export const STEM_LEASH_PX = 6 * CELL_SIZE;
 
 /**
  * Nodes never walk. Every 6 s (plus or minus 1), after finishing any cast in progress, they burrow and come up within
- * 5 tiles (keeping their Stems within the leash). Stage lengths are placeholder tuning, shorter than the Heart's.
+ * 5 tiles (keeping their Stems within the leash), as close as they can get to the line between the Heart and the
+ * nearest player. Where they come up is a blast 4x the node's own size, marked in red from the moment they start
+ * moving underground, with a shower of rock chips. Stage lengths and damage are placeholder tuning.
  */
+export const GARDEN_NODE_HOP_DAMAGE = 6;
+/** Blast radius as a multiple of the node's radius. */
+export const GARDEN_NODE_HOP_BLAST_RADII = 4;
 export const GARDEN_NODE_HOP: BurrowHopOptions = {
     intervalSeconds: { min: 5, max: 7 },
     maxDistancePx: 5 * CELL_SIZE,
     minDistancePx: 2 * CELL_SIZE,
-    burrow: { closeSeconds: 0.3, sinkSeconds: 0.6, travelSeconds: 1, riseSeconds: 0.6 },
+    pointRule: BETWEEN_ROOT_AND_PARTY_RULE,
+    burrow: {
+        closeSeconds: 0.3,
+        sinkSeconds: 0.6,
+        travelSeconds: 1,
+        riseSeconds: 0.6,
+        eruption: {
+            radiusUnitRadii: GARDEN_NODE_HOP_BLAST_RADII,
+            damage: GARDEN_NODE_HOP_DAMAGE,
+            // Every node hops every few seconds: a reaction frame each time would stall the fight.
+            reactable: false,
+            telegraphFrom: 'travel',
+            rockShower: { count: 10 },
+        },
+    },
 };
 
+/**
+ * Battle variable (`game/battleVariables.ts`) holding the Garden Heart's current growth phase (1-4); the Heart sets it
+ * each time it grows a tree. Node behaviour that escalates with the fight reads this, so a mission without the Heart
+ * can set it itself to get the same escalation. 0 = never set.
+ */
+export const GARDEN_GROWTH_PHASE_VARIABLE = 'gardenGrowthPhase';
+
 // ---- Thornspitter ----
+/** Fans per Thorn Fans cast when no growth phase is set (and in phase 1). */
 export const THORN_FAN_COUNT = 2;
-export const THORN_FAN_SIZE = 3;
+/** Fans per cast in each growth phase (`GARDEN_GROWTH_PHASE_VARIABLE`): one more wave each time the Heart regrows. */
+export const THORN_FAN_WAVES_BY_PHASE: Readonly<Record<number, number>> = { 1: 2, 2: 3, 3: 4, 4: 5 };
+export const THORN_FAN_SIZE = 5;
 /** Degrees between neighbouring thorns in a fan. */
 export const THORN_FAN_SPREAD_DEG = 16;
 export const THORN_SPEED = 90;
 export const THORN_DAMAGE = 3;
 export const THORN_RADIUS = 5;
-export const THORN_MAX_RANGE = 520;
+
 export const THORN_AIM_SEC = 0.7;
 /** Seconds between the two fans. */
-export const THORN_FAN_GAP_SEC = 0.45;
+export const THORN_FAN_GAP_SEC = 0.75;
 export const THORN_COOLDOWN_SEC = 2.5;
 export const THORN_AI_RANGE = 380;
+/**
+ * How far every Thorn Fans thorn flies (px), past whatever it was aimed at: twice the range it casts from, so the
+ * fans carry on well beyond their target.
+ */
+export const THORN_MAX_RANGE = THORN_AI_RANGE * 2;
 
 // ---- Pod Mortar ----
 /** The seed's reaction frame opens this long before it bursts: a last-moment dodge (i-frames, a dash). */

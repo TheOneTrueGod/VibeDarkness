@@ -392,6 +392,9 @@ export class GameEngine implements EngineContext {
     /** Battle-relevant account knowledge keys per player id (see `reactions/playerKnowledge.ts`). */
     get playerKnowledgeKeysByPlayer(): Record<string, string[]> { return this.state.playerKnowledgeKeysByPlayer; }
     set playerKnowledgeKeysByPlayer(value: Record<string, string[]>) { this.state.playerKnowledgeKeysByPlayer = value; }
+    /** Named battle-wide numbers (`game/battleVariables.ts`); read with `getBattleVariable(engine, id)`. */
+    get battleVariables(): Record<string, number> { return this.state.battleVariables; }
+    set battleVariables(value: Record<string, number>) { this.state.battleVariables = value; }
     get pausePlaneCounter(): number { return this.state.pausePlaneCounter; }
     set pausePlaneCounter(value: number) { this.state.pausePlaneCounter = value; }
 
@@ -767,6 +770,7 @@ export class GameEngine implements EngineContext {
         this.runtimeFingerprint = fingerprintInitial();
         this.state.runtimeFingerprintRing.clear();
         this.pausePlaneCounter = 0;
+        this.battleVariables = {};
         this.appliedRoundStartRecovery = false;
         this.appliedMidRoundRecovery = false;
         this.appliedDotTicks = 0;

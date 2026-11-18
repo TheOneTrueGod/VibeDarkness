@@ -31,6 +31,8 @@ export interface ActiveBurrow {
     toY: number;
     /** Radius of the rise eruption (from `BurrowEruptionDef`), when the def has one; the renderer draws its telegraph. */
     eruptionRadiusPx?: number;
+    /** Set when the eruption's circle shows from the travel stage on (`BurrowEruptionDef.telegraphFrom`). */
+    eruptionTelegraphFromTravel?: boolean;
 }
 
 export interface UnitPhaseState {
@@ -116,6 +118,7 @@ export function parseActiveBurrow(raw: unknown): ActiveBurrow | null {
                   toX: b.toX,
                   toY: b.toY,
                   ...(typeof b.eruptionRadiusPx === 'number' ? { eruptionRadiusPx: b.eruptionRadiusPx } : {}),
+                  ...(b.eruptionTelegraphFromTravel === true ? { eruptionTelegraphFromTravel: true } : {}),
               }
             : null;
 }
