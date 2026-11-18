@@ -63,6 +63,7 @@ import {
 import { NODE_TREE_COMPONENT } from '../components/nodeTree';
 import { SPAWNER_COMPONENT } from '../components/spawnerComponent';
 import { BURROW_HOP_COMPONENT } from '../components/burrowHop';
+import { CADENCE_CAST_COMPONENT } from '../components/cadenceCast';
 import type { FlatDamageReduction } from '../flatDamageReduction';
 import type { UnitRenderOptions } from '../unitRenderOptions';
 import {
@@ -72,6 +73,9 @@ import {
     HIVE_GOURD_SPAWNER_ID,
     SHELL_OPEN_CALLBACK_ID,
     GARDEN_NODE_HOP,
+    GARDEN_SPIKE_RING_RATE_RULE_ID,
+    SPIKE_RING_ABILITY_ID,
+    POD_SEED_REACTION_LEAD_SEC,
     SHELL_REDUCTION,
     GARDEN_NODE_RENDER_OPTIONS,
     NIGHTBLOOM_PRIMARY,
@@ -728,13 +732,15 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 0,
         creatureType: 'nature',
-        tags: [UnitTag.Structure],
-        // 5 s fuse, last 1.5 s telegraphed. Killing it first cancels the burst. Numbers are placeholders for Step 7 to tune.
+        tags: [UnitTag.Structure, UnitTag.BleedImmune],
+        // 5 s fuse, last 1.5 s telegraphed, reaction frame 0.2 s before the burst. Killing it first cancels the burst.
         components: [
             componentSpec(FUSED_BODY_COMPONENT, {
                 fuseSeconds: 5,
                 radiusPx: 96,
                 reactable: true,
+                // The frame is the last moment to dodge, not the start of the red warning.
+                reactionLeadSeconds: POD_SEED_REACTION_LEAD_SEC,
                 onExpiry: {
                     effectId: 'areaDamage',
                     params: { damage: 12 },
@@ -758,12 +764,13 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         ],
         uiDescription: 'A lobbed seed pod with a lit fuse. Shoot it before it bursts and the burst never comes.',
     },
-    // ---- Garden Heart nodes (browser plan 0008). Placeholder sprite; every node kind carries the Shell. ----
+    // ---- Garden Heart nodes (browser plan 0008). Placeholder sprite; every node kind carries the Shell. Every Garden
+    // Heart unit is a Structure (no knockback, pushes or forced movement) and BleedImmune (plants do not bleed). ----
     garden_heart: {
         bodyColor: 0x134e4a,
         displayName: 'The Garden Heart',
         sprite: UNIT_SPRITE_URLS.curling_vines,
-        bestiary: { abilityIds: [] },
+        bestiary: { abilityIds: [SPIKE_RING_ABILITY_ID] },
         baseSpawn: ENEMY_GARDEN_HEART,
         characterSpriteKey: 'curling_vines',
         hp: 300,
@@ -772,11 +779,13 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 700,
         creatureType: 'nature',
-        tags: [UnitTag.Boss, UnitTag.Structure],
+        tags: [UnitTag.Boss, UnitTag.Structure, UnitTag.BleedImmune],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+            // Spike Ring: from phase 2, faster as the current tree is cut down (`gardenSpikeRingRate`).
+            componentSpec(CADENCE_CAST_COMPONENT, { abilityId: SPIKE_RING_ABILITY_ID, rateRule: GARDEN_SPIKE_RING_RATE_RULE_ID }),
         ],
         // Retreats at 75 / 50 / 25%: the old tree dies to Briar, the Heart resurfaces elsewhere with the next tree.
         phases: GARDEN_HEART_PHASES,
@@ -797,6 +806,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 520,
         creatureType: 'nature',
+        tags: [UnitTag.Structure, UnitTag.BleedImmune],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
@@ -820,6 +830,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 520,
         creatureType: 'nature',
+        tags: [UnitTag.Structure, UnitTag.BleedImmune],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
@@ -842,7 +853,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 520,
         creatureType: 'nature',
-        tags: [UnitTag.Structure],
+        tags: [UnitTag.Structure, UnitTag.BleedImmune],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
@@ -865,6 +876,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 520,
         creatureType: 'nature',
+        tags: [UnitTag.Structure, UnitTag.BleedImmune],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
@@ -894,6 +906,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 520,
         creatureType: 'nature',
+        tags: [UnitTag.Structure, UnitTag.BleedImmune],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [

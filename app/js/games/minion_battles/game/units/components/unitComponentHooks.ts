@@ -49,6 +49,8 @@ import { NODE_TREE_HOOKS } from './nodeTreeHooks';
 import { SPAWNER_COMPONENT } from './spawnerComponent';
 import { BURROW_HOP_COMPONENT } from './burrowHop';
 import { BURROW_HOP_HOOKS } from './burrowHopHooks';
+import { CADENCE_CAST_COMPONENT } from './cadenceCast';
+import { CADENCE_CAST_HOOKS } from './cadenceCastHooks';
 import { SPAWNER_HOOKS } from './spawnerHooks';
 import { LANTERNITE_HOOKS } from '../../lanternite/lanterniteComponentHooks';
 import { SWARM_HOOKS } from '../../lanternite/swarmComponentHooks';
@@ -106,6 +108,8 @@ const HOOK_ENTRIES: HookEntry[] = [
     { type: NODE_TREE_COMPONENT, hooks: NODE_TREE_HOOKS },
     // Burrow hops: after the leash clamp; a hop's destination already keeps every tether within its leash.
     { type: BURROW_HOP_COMPONENT, hooks: BURROW_HOP_HOOKS },
+    // Cadence casts: after phases and hops, so a unit that started burrowing this tick (controlled) does not cast.
+    { type: CADENCE_CAST_COMPONENT, hooks: CADENCE_CAST_HOOKS },
     // Generic spawners (Hive Gourd): after node trees so a child spawned this tick is not leashed until next tick.
     { type: SPAWNER_COMPONENT, hooks: SPAWNER_HOOKS },
 ];

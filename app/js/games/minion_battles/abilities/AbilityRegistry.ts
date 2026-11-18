@@ -85,6 +85,7 @@ import { LobSeedAbility_1602 } from '../card_defs/16_enemy_garden_heart/1602_Lob
 import { MendAbility_1603 } from '../card_defs/16_enemy_garden_heart/1603_Mend/1603Ability';
 import '../card_defs/16_enemy_garden_heart/gardenHeartRegistrations';
 import { RunnerVineAbility_1604 } from '../card_defs/16_enemy_garden_heart/1604_RunnerVine/1604Ability';
+import { SpikeRingAbility_1605 } from '../card_defs/16_enemy_garden_heart/1605_SpikeRing/1605Ability';
 import { DogBiteAbility } from '../card_defs/07_command_core/0701_DogBite/0701Ability';
 import { PounceAbility } from '../card_defs/07_command_core/0702_Pounce/0702Ability';
 import { SicEmAbility } from '../card_defs/07_command_core/0704_SicEm/0704Ability';
@@ -230,6 +231,7 @@ register(ThornFansAbility_1601);
 register(LobSeedAbility_1602);
 register(MendAbility_1603);
 register(RunnerVineAbility_1604);
+register(SpikeRingAbility_1605);
 register(DogBiteAbility);
 register(PounceAbility);
 register(SicEmAbility);

@@ -24,6 +24,7 @@ import {
     peekFusedBodyState,
 } from './units/components/fusedBodyComponent';
 import { registerFusedBodyEffect } from './units/components/fusedBodyHooks';
+import { POD_SEED_REACTION_LEAD_SEC } from '../card_defs/16_enemy_garden_heart/gardenHeartConstants';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const TICKS_PER_SEC = 60;
@@ -130,6 +131,29 @@ describe('fused body', () => {
 
         step(engine, 0.5);
         expect(opened).toHaveLength(1);
+        engine.destroy();
+    });
+
+    it('opens its reaction frame once, 0.2 s before the burst, not when the telegraph opens', () => {
+        const { engine } = makeEngine();
+        const seed = spawnSeed(engine);
+        const frames: number[] = [];
+        engine.eventBus.on('fused_body_reaction_frame', (e) => frames.push(e.secondsLeft));
+
+        step(engine, options.fuseSeconds - FUSED_BODY_TELEGRAPH_SECONDS + 0.2);
+        expect(getFusedBodyStatus(seed)?.telegraphing).toBe(true);
+        expect(frames).toEqual([]);
+
+        step(engine, FUSED_BODY_TELEGRAPH_SECONDS - 0.2 - POD_SEED_REACTION_LEAD_SEC - 0.05);
+        expect(frames).toEqual([]);
+        step(engine, 0.1);
+        expect(frames).toHaveLength(1);
+        expect(frames[0]).toBeLessThanOrEqual(POD_SEED_REACTION_LEAD_SEC);
+        expect(frames[0]).toBeGreaterThan(POD_SEED_REACTION_LEAD_SEC - 0.1);
+        expect(peekFusedBodyState(seed)?.outcome).toBeNull(); // the burst is still to come
+
+        step(engine, 0.5);
+        expect(frames).toHaveLength(1);
         engine.destroy();
     });
 

@@ -16,6 +16,7 @@ export const THORN_FANS_ABILITY_ID = `${GROUP}01`;
 export const LOB_SEED_ABILITY_ID = `${GROUP}02`;
 export const MEND_ABILITY_ID = `${GROUP}03`;
 export const RUNNER_VINE_ABILITY_ID = `${GROUP}04`;
+export const SPIKE_RING_ABILITY_ID = `${GROUP}05`;
 
 /** Unit def ids. The Heart is the root Knot; the rest are node kinds. */
 export const GARDEN_HEART_ID = 'garden_heart';
@@ -32,10 +33,12 @@ export const NIGHTBLOOM_SECONDARY = 0xe9d5ff;
 
 /** The Shell: every hit on a node with a living child loses 10, never below 10. */
 export const SHELL_REDUCTION = { amount: 10, floor: 10, condition: 'hasLivingChildren' } as const;
+/** Garden soil: the churned earth of every burrow in the fight (the Heart, node hops, Lob Seed's growth). */
+export const GARDEN_DIRT_COLOR = 0x5a4120;
 /** Render options every node kind shares: the plated Shell look (closed while the Shell is up, open core after) and the burrow dirt. */
 export const GARDEN_NODE_RENDER_OPTIONS: UnitRenderOptions = {
     plated: { plateColor: NIGHTBLOOM_PRIMARY, seamColor: 0x0b2f2c, coreColor: NIGHTBLOOM_SECONDARY },
-    burrow: { dirtColor: 0x5a4120 },
+    burrow: { dirtColor: GARDEN_DIRT_COLOR },
 };
 /** Node-tree callback id fired on a Knot when its last child dies (the Shell opens). */
 export const SHELL_OPEN_CALLBACK_ID = 'gardenShellOpen';
@@ -74,10 +77,14 @@ export const THORN_COOLDOWN_SEC = 2.5;
 export const THORN_AI_RANGE = 380;
 
 // ---- Pod Mortar ----
+/** The seed's reaction frame opens this long before it bursts: a last-moment dodge (i-frames, a dash). */
+export const POD_SEED_REACTION_LEAD_SEC = 0.2;
 export const LOB_SEED_WINDUP_SEC = 0.9;
 export const LOB_SEED_COOLDOWN_SEC = 1.5;
 export const LOB_SEED_MIN_RANGE = 80;
 export const LOB_SEED_MAX_RANGE = 380;
+/** How fast the seed burrows out to where it surfaces (px/s): about 1.5 s to max range. */
+export const LOB_SEED_BURROW_SPEED = 260;
 
 // ---- Mender Bloom ----
 export const MEND_RADIUS_PX = 220;
@@ -103,3 +110,30 @@ export const RUNNER_VINE_RETRACT_SEC = 0.8;
 export const RUNNER_VINE_COOLDOWN_SEC = 3;
 export const RUNNER_VINE_THORN_LIFETIME_SEC = 24;
 export const RUNNER_VINE_AI_RANGE = 360;
+
+// ---- The Heart's Spike Ring ----
+/** Thorns per ring, fired evenly around the Heart. */
+export const SPIKE_RING_COUNT = 12;
+/** Slow on purpose: the ring is dodged by walking through a gap. */
+export const SPIKE_RING_SPEED = 120;
+export const SPIKE_RING_DAMAGE = 3;
+export const SPIKE_RING_RADIUS = 5;
+export const SPIKE_RING_RANGE = 480;
+/** The Heart swells (a pulse) for this long before the ring fires. */
+export const SPIKE_RING_WINDUP_SEC = 0.6;
+/** Cast rate rule id (`registerCastRateRule`) for the Heart's Spike Ring cadence. */
+export const GARDEN_SPIKE_RING_RATE_RULE_ID = 'gardenSpikeRingRate';
+/**
+ * Spike Rings per round in each growth phase: `base` with the whole tree alive, rising to `max` once every node of that
+ * phase's tree is gone. Phase 1 has none. The final phase ends at 8 a round.
+ */
+export const SPIKE_RING_RATES: Readonly<Record<number, { base: number; max: number }>> = {
+    2: { base: 1, max: 2.5 },
+    3: { base: 1.5, max: 4 },
+    4: { base: 2, max: 8 },
+};
+/**
+ * How the rate climbs with the share of nodes destroyed: `base + (max - base) * destroyed ^ SPIKE_RING_CURVE`. A cubic
+ * keeps the first few kills gentle and makes the last ones jump (half the tree gone = 1/8 of the climb).
+ */
+export const SPIKE_RING_CURVE = 3;

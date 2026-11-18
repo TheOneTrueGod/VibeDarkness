@@ -1,6 +1,6 @@
 /**
  * Registers the Garden Heart family's named hooks: the Hive Gourd's spawner spec, the Shell-opening node-tree
- * callback, and the two burrow callbacks that retire the old tree and grow the next. Imported for its side effects by `abilities/AbilityRegistry.ts`, next to the abilities, so every battle
+ * callback, the two burrow callbacks that retire the old tree and grow the next, and the Spike Ring's cast rate. Imported for its side effects by `abilities/AbilityRegistry.ts`, next to the abilities, so every battle
  * (and every test that loads the registry) has them. Defs refer to these by id (`HIVE_GOURD_SPAWNER_ID`,
  * `SHELL_OPEN_CALLBACK_ID`), never by closure.
  */
@@ -13,9 +13,15 @@ import { ENEMY_SWARMLING } from '../../constants/enemyConstants';
 import { SLIME } from '../../game/units/dark_animals/slime';
 import { registerBurrowCallback, registerSproutExclusionSource } from '../../game/units/components/phaseBurrow';
 import { peekPhaseState } from '../../game/units/components/phaseComponent';
+import { registerCastRateRule } from '../../game/units/components/cadenceCastHooks';
+import { getNodeChildIds } from '../../game/units/components/nodeTree';
+import { gardenTreeLayout } from '../../game/gardenHeart/gardenTreeLayouts';
+import type { Unit } from '../../game/units/Unit';
+import { gardenSpikeRingRate } from './1605_SpikeRing/1605Ability';
 import { dismissGardenTree, growGardenTree, type GardenGrowContext } from '../../game/gardenHeart/growGardenTree';
 import {
     GARDEN_DISMISS_TREE_CALLBACK_ID,
+    GARDEN_SPIKE_RING_RATE_RULE_ID,
     GARDEN_GROW_TREE_CALLBACK_ID,
     HIVE_GOURD_SPAWNER_ID,
     NIGHTBLOOM_SECONDARY,
@@ -108,4 +114,29 @@ registerSproutExclusionSource(GARDEN_BRIAR_EXCLUSION_SOURCE_ID, (_heart, engine)
         }
     }
     return zones;
+});
+
+/** Living nodes anywhere in `root`'s tree (not counting `root`). */
+export function countLivingTreeNodes(root: Unit, getUnit: (id: string) => Unit | undefined): number {
+    let n = 0;
+    const stack = [...getNodeChildIds(root)];
+    while (stack.length > 0) {
+        const node = getUnit(stack.pop()!);
+        if (!node?.isAlive()) continue;
+        n++;
+        stack.push(...getNodeChildIds(node));
+    }
+    return n;
+}
+
+/**
+ * The Spike Ring's rate: the growth phase the Heart is in (phase state `index` + 1, the same numbering as its tree
+ * layouts) and the share of that phase's tree already cut down.
+ */
+registerCastRateRule(GARDEN_SPIKE_RING_RATE_RULE_ID, (heart, engine) => {
+    const phase = (peekPhaseState(heart)?.index ?? 0) + 1;
+    const total = gardenTreeLayout(phase)?.length ?? 0;
+    if (total === 0) return gardenSpikeRingRate(phase, 1);
+    const living = countLivingTreeNodes(heart, (id) => engine.getUnit(id));
+    return gardenSpikeRingRate(phase, 1 - Math.min(living, total) / total);
 });

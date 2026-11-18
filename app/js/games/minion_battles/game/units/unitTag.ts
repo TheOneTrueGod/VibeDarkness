@@ -41,6 +41,8 @@ export enum UnitTag {
      * {@link UnitTag.Boss} bar-hiding. Lets the Displacer Spirit look identical to its clones.
      */
     ShowHpBar = 'showHpBar',
+    /** Cannot bleed: bleed stacks are never applied (`applyBleedStack`), e.g. the Garden Heart's plants. */
+    BleedImmune = 'bleedImmune',
 }
 
 /** Bosses hide their world HP bar (they use the boss HUD) unless tagged {@link UnitTag.ShowHpBar}. */
@@ -72,6 +74,11 @@ export function hasUnitTag(unit: Unit, tag: UnitTag): boolean {
 /** Structures cannot be knockbacked, pulled, nudged, lifted, or otherwise forcibly displaced. */
 export function isImmuneToForcedMovement(unit: Unit): boolean {
     return hasUnitTag(unit, UnitTag.Structure);
+}
+
+/** Units that never take bleed stacks ({@link UnitTag.BleedImmune}). */
+export function isImmuneToBleed(unit: Unit): boolean {
+    return hasUnitTag(unit, UnitTag.BleedImmune);
 }
 
 /** Clones are illusions: excluded from "eliminate all enemies" conditions. */

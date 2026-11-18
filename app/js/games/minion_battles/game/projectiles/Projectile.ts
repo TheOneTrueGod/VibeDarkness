@@ -1123,7 +1123,11 @@ export class Projectile extends GameObject {
         if (!this.active) return;
         triggerAbilityEventFromProjectileExpiry({ engine, projectile: this, hitUnitId });
         const caster = (engine as { getUnit?: (id: string) => Unit | undefined }).getUnit?.(this.sourceUnitId);
-        if (!caster) return;
+        if (!caster) {
+            // The caster died and was cleared mid-flight: only abilities that opt in still land.
+            getAbility(this.sourceAbilityId)?.onProjectileExpiredWithoutCaster?.(engine, this, hitUnitId);
+            return;
+        }
         const ability = getAbility(this.sourceAbilityId);
         ability?.onProjectileExpired?.(engine, caster, this, hitUnitId);
         if (this.onHitEffects?.length) {

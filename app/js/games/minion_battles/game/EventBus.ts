@@ -44,7 +44,8 @@ export type GameEventType =
     | 'time_stop_started'
     | 'time_stop_ended'
     | 'world_pace_changed'
-    | 'fused_body_telegraph_started';
+    | 'fused_body_telegraph_started'
+    | 'fused_body_reaction_frame';
 
 /** Optional combat VFX hint — does not change damage rules. */
 export const DAMAGE_VISUAL_KIND_DAYLIGHT = 'daylight' as const;
@@ -398,6 +399,8 @@ export type GameEventDataMap = {
     time_stop_ended: TimeStopEndedEvent;
     world_pace_changed: WorldPaceChangedEvent;
     fused_body_telegraph_started: FusedBodyTelegraphStartedEvent;
+    /** A Reactable fused body's reaction frame opened (`reactionLeadSeconds` before the burst). */
+    fused_body_reaction_frame: FusedBodyTelegraphStartedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

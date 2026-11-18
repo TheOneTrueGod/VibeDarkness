@@ -17,7 +17,11 @@
  *
  * Telegraph window: the last `telegraphSeconds` (default 1.5) of the fuse. Everything that wants to read it (the
  * renderer's red ring, a Reactable reaction frame) uses `getFusedBodyStatus` / `fusedBodyTelegraphArea`, and the
- * `fused_body_telegraph_started` event fires once on the tick the window opens (that tick is the reaction frame).
+ * `fused_body_telegraph_started` event fires once on the tick the window opens.
+ *
+ * Reaction frame: a Reactable body's frame is its own moment, `reactionLeadSeconds` before the burst (default: when
+ * the telegraph opens). The `fused_body_reaction_frame` event fires once on that tick; a short lead makes the frame a
+ * last-moment dodge (i-frames, a dash) rather than a long warning.
  */
 
 import type { VisualEffectDef } from '../../effects/visualEffectDef';
@@ -48,10 +52,12 @@ export interface FusedBodyOptions {
     /** Reach of the burst around the body. Also the telegraph area (what a reaction frame checks players against). */
     radiusPx: number;
     /**
-     * Reactable: when the telegraph window opens, players who know Reactions and stand in the burst get a
+     * Reactable: `reactionLeadSeconds` before the burst, players who know Reactions and stand in the burst get a
      * reaction frame (`requestReactionFrame`, wired in `engineEventWiring`).
      */
     reactable?: boolean;
+    /** World seconds before the burst that a Reactable body's reaction frame opens. Default: the telegraph start. */
+    reactionLeadSeconds?: number;
     /** Colour of the blast circle the renderer draws during the telegraph window. Default red. */
     telegraphColor?: number;
     /** Fired when the fuse runs out. */
@@ -65,20 +71,24 @@ export interface FusedBodyState {
     remaining: number | null;
     /** The telegraph window has opened (the start event fired). */
     telegraphed: boolean;
+    /** The reaction frame has opened (the reaction event fired). */
+    reactionOpened: boolean;
     outcome: FusedBodyOutcome | null;
 }
 
 export const FUSED_BODY_COMPONENT = defineUnitComponent<FusedBodyState, FusedBodyOptions>({
     id: 'fusedBody',
-    create: () => ({ remaining: null, telegraphed: false, outcome: null }),
+    create: () => ({ remaining: null, telegraphed: false, reactionOpened: false, outcome: null }),
     toJSON: (state) => ({
         ...(state.remaining !== null ? { fusedBodyRemaining: state.remaining } : {}),
         ...(state.telegraphed ? { fusedBodyTelegraphed: true } : {}),
+        ...(state.reactionOpened ? { fusedBodyReactionOpened: true } : {}),
         ...(state.outcome !== null ? { fusedBodyOutcome: state.outcome } : {}),
     }),
     fromJSON: (state, data) => {
         state.remaining = typeof data.fusedBodyRemaining === 'number' ? data.fusedBodyRemaining : null;
         state.telegraphed = data.fusedBodyTelegraphed === true;
+        state.reactionOpened = data.fusedBodyReactionOpened === true;
         state.outcome =
             data.fusedBodyOutcome === 'expired' || data.fusedBodyOutcome === 'killed' ? data.fusedBodyOutcome : null;
     },
@@ -94,6 +104,11 @@ export function fusedBodyOptionsOf(unit: Unit): FusedBodyOptions | undefined {
 
 export function fusedBodyTelegraphSeconds(options: FusedBodyOptions): number {
     return Math.min(options.fuseSeconds, options.telegraphSeconds ?? FUSED_BODY_TELEGRAPH_SECONDS);
+}
+
+/** World seconds before the burst that the reaction frame opens. */
+export function fusedBodyReactionLeadSeconds(options: FusedBodyOptions): number {
+    return Math.min(options.fuseSeconds, options.reactionLeadSeconds ?? fusedBodyTelegraphSeconds(options));
 }
 
 /** Read-only view of a fused body's fuse, for renderers, AI and reaction frames. */

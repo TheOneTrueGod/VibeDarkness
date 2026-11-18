@@ -1,5 +1,6 @@
 /**
- * Garden Heart boss: high-level, deterministic scenarios for the Shell, the phase retreat, the destructible seed and
+ * Garden Heart boss: high-level, deterministic scenarios for the Shell, the phase retreat, the destructible seed, the
+ * seed burrowing out from its Pod Mortar (and outliving it) and
  * Reactions (single player and the co-op claim). Assertions are about behaviour, not tuned numbers; the one exception
  * is the Shell rule (25 -> 15), which is a design rule.
  *
@@ -23,7 +24,7 @@ import { TerrainManager } from '../../../terrain/TerrainManager';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { resetGameObjectIdCounter } from '../../../game/GameObject';
 import { GameEngine as GameEngineClass } from '../../../game/GameEngine';
-import { ENEMY_POD_MORTAR, ENEMY_THORNSPITTER } from '../../../constants/enemyConstants';
+import { ENEMY_GARDEN_HEART, ENEMY_POD_MORTAR, ENEMY_THORNSPITTER } from '../../../constants/enemyConstants';
 import { getNodeChildIds, hasLivingChildren, linkNodeChild } from '../../../game/units/components/nodeTree';
 import { peekFusedBodyState } from '../../../game/units/components/fusedBodyComponent';
 import { spawnFusedBody } from '../../../game/units/components/fusedBodySpawn';
@@ -37,6 +38,11 @@ import { KNOWLEDGE_REACTIONS } from '../../../../../accountKnowledge';
 import { registerWorldOfDarknessSegments } from '../../../storylines/WorldOfDarkness/registerSegments';
 import { GARDEN_HEART } from '../../../storylines/WorldOfDarkness/missions/020_garden_heart';
 import { buildTinyBattleEngine, spawnTinyPlayerUnit, TINY_BATTLE_PLAYER_ID } from '../../harness/buildTinyBattleEngine';
+import { executeUnitAbility } from '../../../game/units/unitAbilityLifecycle';
+import { getAbility } from '../../../abilities/AbilityRegistry';
+import { BURROWING_PROJECTILE_TYPE } from '../../../game/projectiles/projectile_defs/burrowingDef';
+import { LOB_SEED_ABILITY_ID, SPIKE_RING_ABILITY_ID } from '../../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
+import { ROUND_DURATION } from '../../../game/gameConstants';
 import '../../../abilities/AbilityRegistry';
 
 const SECTION = 'Garden Heart';
@@ -281,6 +287,105 @@ export const gardenHeartSeedDestroyedScenario: ScenarioDefinition = {
     },
 };
 
+interface GrowthRun {
+    mortar: Unit;
+    player: Unit;
+    cast: boolean;
+    sawBurrow: boolean;
+    killedMortar: boolean;
+}
+const growthRuns = new WeakMap<GameEngine, GrowthRun>();
+const seedsOf = (engine: GameEngine): Unit[] => engine.units.filter((u) => u.characterId === 'pod_seed');
+
+export const gardenHeartSeedGrowthScenario: ScenarioDefinition = {
+    id: 'garden_heart_seed_growth',
+    title: 'Garden Heart: a Pod Mortar seed burrows out and still surfaces after the mortar dies',
+    category: 'general',
+    generalSection: SECTION,
+    maxDurationMs: 6000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 16, gridH: 10, localPlayerId: P1, grass: true });
+        engine.enemyScalingPlayerCount = 1;
+        // 8 tiles apart: inside Lob Seed's range, so the seed surfaces under the player.
+        const player = spawnTinyPlayerUnit(engine, { playerId: P1, x: cell(10), y: cell(5), abilities: [] });
+        const mortar = addEnemy(engine, ENEMY_POD_MORTAR, cell(2), cell(5));
+        growthRuns.set(engine, { mortar, player, cast: false, sawBurrow: false, killedMortar: false });
+        holdOpen(engine, player, 5);
+        return engine;
+    },
+    getInitialOrders(engine) {
+        return [{ unitId: engine.getLocalPlayerUnit()!.id, abilityId: 'wait', targets: [] }];
+    },
+    assertPass(engine) {
+        const run = growthRuns.get(engine)!;
+        if (!run.cast && engine.gameTick >= 2) {
+            executeUnitAbility(run.mortar, getAbility(LOB_SEED_ABILITY_ID)!, [
+                { type: 'pixel', position: { x: run.player.x, y: run.player.y } },
+            ], engine);
+            run.cast = true;
+        }
+        const burrowing = engine.projectiles.some((p) => p.projectileType === BURROWING_PROJECTILE_TYPE);
+        if (burrowing && seedsOf(engine).length === 0) run.sawBurrow = true;
+        // Kill the mortar while its seed is still underground.
+        if (run.sawBurrow && !run.killedMortar) {
+            run.mortar.takeDamage(run.mortar.maxHp * 10, run.player.id, engine.eventBus);
+            run.killedMortar = true;
+        }
+        const seed = seedsOf(engine)[0];
+        return (
+            run.killedMortar &&
+            !run.mortar.isAlive() &&
+            !!seed &&
+            seed.teamId === run.mortar.teamId &&
+            Math.hypot(seed.x - run.player.x, seed.y - run.player.y) < CELL_SIZE
+        );
+    },
+    failureMessage(engine) {
+        const run = growthRuns.get(engine);
+        return `cast=${run?.cast} sawBurrow=${run?.sawBurrow} killedMortar=${run?.killedMortar} seeds=${seedsOf(engine).length}`;
+    },
+};
+
+interface RingRun {
+    heart: Unit;
+    rings: number;
+}
+const ringRuns = new WeakMap<GameEngine, RingRun>();
+
+export const gardenHeartSpikeRingScenario: ScenarioDefinition = {
+    id: 'garden_heart_spike_ring_final',
+    title: 'Garden Heart: with the final tree cut down, the Heart fires 8 Spike Rings a round',
+    category: 'general',
+    generalSection: SECTION,
+    maxDurationMs: 12000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 30, gridH: 20, localPlayerId: P1, grass: true });
+        engine.enemyScalingPlayerCount = 1;
+        const player = spawnTinyPlayerUnit(engine, { playerId: P1, x: cell(4), y: cell(4), abilities: [] });
+        player.maxHp = 9999;
+        player.hp = 9999; // stands in the rings for the whole round
+        const heart = addEnemy(engine, ENEMY_GARDEN_HEART, cell(15), cell(10));
+        peekPhaseState(heart)!.index = 3; // final growth phase, no tree left
+        const run: RingRun = { heart, rings: 0 };
+        engine.eventBus.on('ability_used', (e) => {
+            if (e.abilityId === SPIKE_RING_ABILITY_ID) run.rings++;
+        });
+        ringRuns.set(engine, run);
+        holdOpen(engine, player, 11);
+        return engine;
+    },
+    getInitialOrders(engine) {
+        return [{ unitId: engine.getLocalPlayerUnit()!.id, abilityId: 'wait', targets: [] }];
+    },
+    assertPass(engine) {
+        const run = ringRuns.get(engine)!;
+        return engine.gameTime >= ROUND_DURATION + 0.1 && run.rings === 8;
+    },
+    failureMessage(engine) {
+        return `rings=${ringRuns.get(engine)?.rings} gameTime=${engine.gameTime.toFixed(2)}`;
+    },
+};
+
 // ---------------------------------------------------------------------------------------------------------------
 // Reactions
 // ---------------------------------------------------------------------------------------------------------------
@@ -435,6 +540,8 @@ export const GARDEN_HEART_SCENARIOS: ScenarioDefinition[] = [
     gardenHeartShellScenario,
     gardenHeartPhaseRetreatScenario,
     gardenHeartSeedDestroyedScenario,
+    gardenHeartSeedGrowthScenario,
+    gardenHeartSpikeRingScenario,
     gardenHeartReactionScenario,
     gardenHeartCoopClaimScenario,
 ];

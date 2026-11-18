@@ -20,6 +20,7 @@ import type { ResolvedTarget } from '../types';
 import type { EnemySpawnDef } from '../../storylines/types';
 import {
     ENEMY_CREEPER,
+    ENEMY_DARK_WOLF,
     ENEMY_GARDEN_HEART,
     ENEMY_HIVE_GOURD,
     ENEMY_MENDER_BLOOM,
@@ -32,12 +33,15 @@ import {
     HIVE_GOURD_INTERVAL_SEC,
     HIVE_GOURD_MAX_CHILDREN,
     LOB_SEED_ABILITY_ID,
+    LOB_SEED_WINDUP_SEC,
     MENDER_BLOOM_ID,
     MEND_ABILITY_ID,
     MEND_RADIUS_PX,
     POD_MORTAR_ID,
     POD_SEED_ID,
     RUNNER_VINE_ABILITY_ID,
+    SPIKE_RING_ABILITY_ID,
+    SPIKE_RING_COUNT,
     RUNNER_VINE_MAX_TILES,
     RUNNER_VINE_MIN_TILES,
     THORNSPITTER_ID,
@@ -50,6 +54,10 @@ import {
 import { thornFanOffsets } from '../../card_defs/16_enemy_garden_heart/1601_ThornFans/1601Ability';
 import { nodesInMendReach } from '../../card_defs/16_enemy_garden_heart/1603_Mend/1603Ability';
 import { trailTiles } from '../../abilities/CastBehaviours/GroundTrailBehaviour';
+import { gardenSpikeRingRate } from '../../card_defs/16_enemy_garden_heart/1605_SpikeRing/1605Ability';
+import { peekPhaseState } from '../units/components/phaseComponent';
+import { ROUND_DURATION } from '../gameConstants';
+import { BURROWING_PROJECTILE_TYPE } from '../projectiles/projectile_defs/burrowingDef';
 import { DARK_THORN_EFFECT_TYPE } from '../terrainEffects/terrainEffectDefs';
 import {
     getNodeChildIds,
@@ -66,6 +74,8 @@ import { BURROW_HOP_COMPONENT_ID, isBurrowHopDue, peekBurrowHopState } from '../
 import { hopKeepsTethers } from '../units/components/burrowHopHooks';
 import { getBurrowVisual } from '../units/components/phaseBurrow';
 import { UnitTag, hasUnitTag } from '../units/unitTag';
+import { applyBleedStack, isBleeding } from '../../buffs/bleedRuntime';
+import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { getUnitAITree } from '../units/unitAI';
 import {
     GARDEN_PHASE_COUNT,
@@ -142,7 +152,7 @@ const growCtx = (): GardenGrowContext => engine as unknown as GardenGrowContext;
 
 describe('Garden Heart registration', () => {
     it('registers every ability and card, every unit def, and lists the node kinds in the Bestiary', () => {
-        for (const id of [THORN_FANS_ABILITY_ID, LOB_SEED_ABILITY_ID, MEND_ABILITY_ID, RUNNER_VINE_ABILITY_ID]) {
+        for (const id of [THORN_FANS_ABILITY_ID, LOB_SEED_ABILITY_ID, MEND_ABILITY_ID, RUNNER_VINE_ABILITY_ID, SPIKE_RING_ABILITY_ID]) {
             expect(getAbility(id), id).toBeDefined();
             expect(CARD_DEF_MAP.get(id), id).toBeDefined();
         }
@@ -169,6 +179,34 @@ describe('Garden Heart registration', () => {
             (getUnitDefEntry(id)!.components ?? []).some((c) => c.type.id === BURROW_HOP_COMPONENT_ID);
         expect([THORNSPITTER_ID, POD_MORTAR_ID, CREEPER_ID, HIVE_GOURD_ID].every(hops)).toBe(true);
         expect([MENDER_BLOOM_ID, 'garden_heart'].some(hops)).toBe(false);
+    });
+});
+
+describe('Garden Heart units are rooted plants', () => {
+    const GARDEN_UNITS = ['garden_heart', THORNSPITTER_ID, POD_MORTAR_ID, MENDER_BLOOM_ID, HIVE_GOURD_ID, CREEPER_ID, POD_SEED_ID];
+
+    it('every Garden Heart unit is a Structure and bleed-immune', () => {
+        for (const id of GARDEN_UNITS) {
+            const tags = getUnitDefEntry(id)!.tags ?? [];
+            expect(tags, id).toContain(UnitTag.Structure);
+            expect(tags, id).toContain(UnitTag.BleedImmune);
+        }
+    });
+
+    it('a knockback does not move a node, and bleed never sticks to one (a wolf still bleeds)', () => {
+        setupEngine();
+        const node = addEnemy(ENEMY_THORNSPITTER, centre(20), centre(20));
+        const wolf = addEnemy(ENEMY_DARK_WOLF, centre(10), centre(10));
+        addPlayer(centre(30), centre(30));
+        const before = { x: node.x, y: node.y };
+        tryApplyKnockbackByTier(node, 3, { unitId: 'tester', abilityId: 'test' }, node.x - 40, node.y, knockbackCtxFromEngine(engine));
+        stepSeconds(0.5);
+        expect([node.x, node.y]).toEqual([before.x, before.y]);
+
+        applyBleedStack(node, engine.gameTime, engine.roundNumber, 5);
+        applyBleedStack(wolf, engine.gameTime, engine.roundNumber, 5);
+        expect(isBleeding(node)).toBe(false);
+        expect(isBleeding(wolf)).toBe(true);
     });
 });
 
@@ -215,20 +253,62 @@ describe('Thornspitter', () => {
 });
 
 describe('Pod Mortar', () => {
-    it('lobs a destructible seed that lands at the target and belongs to the enemy team', () => {
+    const seeds = (): Unit[] => engine.units.filter((u) => u.characterId === POD_SEED_ID);
+    const burrows = () => engine.projectiles.filter((p) => p.projectileType === BURROWING_PROJECTILE_TYPE);
+
+    it('sends a seed burrowing out from itself; it surfaces at the target as a destructible enemy seed', () => {
         setupEngine();
         const mortar = addEnemy(ENEMY_POD_MORTAR, centre(5), centre(20));
         const player = addPlayer(centre(12), centre(20));
-        expect(engine.units.some((u) => u.characterId === POD_SEED_ID)).toBe(false);
         cast(mortar, LOB_SEED_ABILITY_ID, at(player));
-        stepSeconds(0.5);
-        expect(engine.units.some((u) => u.characterId === POD_SEED_ID)).toBe(false);
-        stepSeconds(0.6);
-        const seed = engine.units.find((u) => u.characterId === POD_SEED_ID);
+        stepSeconds(LOB_SEED_WINDUP_SEC + 0.1);
+        // Launched: a burrowing projectile on its way from the node, nothing above ground yet.
+        expect(seeds()).toHaveLength(0);
+        const [growth] = burrows();
+        expect(growth).toBeDefined();
+        expect(growth!.x).toBeGreaterThan(mortar.x);
+        expect(growth!.x).toBeLessThan(player.x);
+
+        let guard = 0;
+        while (seeds().length === 0 && guard++ < TICKS_PER_SEC * 3) stepSeconds(1 / TICKS_PER_SEC);
+        const seed = seeds()[0];
         expect(seed).toBeDefined();
         expect(seed!.teamId).toBe(mortar.teamId);
         expect(Math.hypot(seed!.x - player.x, seed!.y - player.y)).toBeLessThan(CELL_SIZE);
         expect(seed!.isAlive()).toBe(true);
+        expect(burrows()).toHaveLength(0);
+    });
+
+    it('a launched seed still surfaces after the Pod Mortar dies', () => {
+        setupEngine();
+        const mortar = addEnemy(ENEMY_POD_MORTAR, centre(5), centre(20));
+        const player = addPlayer(centre(14), centre(20));
+        cast(mortar, LOB_SEED_ABILITY_ID, at(player));
+        stepSeconds(LOB_SEED_WINDUP_SEC + 0.1);
+        expect(burrows()).toHaveLength(1);
+
+        mortar.takeDamage(mortar.maxHp * 10, player.id, engine.eventBus);
+        stepSeconds(0.1);
+        expect(engine.getUnit(mortar.id)).toBeUndefined(); // dead and cleared from the field
+
+        let guard = 0;
+        while (seeds().length === 0 && guard++ < TICKS_PER_SEC * 3) stepSeconds(1 / TICKS_PER_SEC);
+        const seed = seeds()[0];
+        expect(seed).toBeDefined();
+        expect(seed!.teamId).toBe(mortar.teamId);
+        expect(Math.hypot(seed!.x - player.x, seed!.y - player.y)).toBeLessThan(CELL_SIZE);
+    });
+
+    it('a mortar killed during its windup launches nothing', () => {
+        setupEngine();
+        const mortar = addEnemy(ENEMY_POD_MORTAR, centre(5), centre(20));
+        const player = addPlayer(centre(12), centre(20));
+        cast(mortar, LOB_SEED_ABILITY_ID, at(player));
+        stepSeconds(LOB_SEED_WINDUP_SEC / 2);
+        mortar.takeDamage(mortar.maxHp * 10, player.id, engine.eventBus);
+        stepSeconds(3);
+        expect(burrows()).toHaveLength(0);
+        expect(seeds()).toHaveLength(0);
     });
 });
 
@@ -472,6 +552,75 @@ describe('phase tree layouts', () => {
     it('returns undefined for a phase with no layout', () => {
         expect(gardenTreeLayout(0)).toBeUndefined();
         expect(gardenTreeLayout(5)).toBeUndefined();
+    });
+});
+
+describe('Spike Ring', () => {
+    it('the rate climbs slowly at first and jumps at the end of each phase, reaching 8 a round in the final phase', () => {
+        expect(gardenSpikeRingRate(1, 1)).toBe(0); // phase 1: never
+        expect(gardenSpikeRingRate(2, 0)).toBe(1); // phase 2: about once a round with the tree whole
+        expect(gardenSpikeRingRate(4, 1)).toBe(8); // final tree gone: 8 a round
+        for (const phase of [2, 3, 4]) {
+            const at = (f: number): number => gardenSpikeRingRate(phase, f);
+            for (let f = 0.1; f <= 1; f += 0.1) expect(at(f)).toBeGreaterThan(at(f - 0.1));
+            const climb = at(1) - at(0);
+            expect(at(0.5) - at(0)).toBeLessThan(climb * 0.2); // half the tree gone: still gentle
+            expect(at(1) - at(0.75)).toBeGreaterThan(climb * 0.5); // the last quarter is most of the climb
+            if (phase > 2) expect(at(0)).toBeGreaterThan(gardenSpikeRingRate(phase - 1, 0)); // each phase starts higher
+        }
+    });
+
+    function ringsIn(seconds: number): number {
+        let n = 0;
+        const count = (e: { abilityId: string }): void => {
+            if (e.abilityId === SPIKE_RING_ABILITY_ID) n++;
+        };
+        engine.eventBus.on('ability_used', count);
+        stepSeconds(seconds);
+        engine.eventBus.off('ability_used', count);
+        return n;
+    }
+
+    function heartInPhase(phase: number): Unit {
+        setupEngine();
+        const heart = addEnemy(ENEMY_GARDEN_HEART, centre(20), centre(20));
+        addPlayer(centre(38), centre(38));
+        peekPhaseState(heart)!.index = phase - 1;
+        return heart;
+    }
+
+    it('fires a ring of thorns evenly around the Heart', () => {
+        const heart = heartInPhase(4);
+        dismissGardenTree(engine, heart);
+        let guard = 0;
+        while (!engine.projectiles.some((p) => p.sourceAbilityId === SPIKE_RING_ABILITY_ID) && guard++ < TICKS_PER_SEC * 5) {
+            stepSeconds(1 / TICKS_PER_SEC);
+        }
+        const thorns = engine.projectiles.filter((p) => p.sourceAbilityId === SPIKE_RING_ABILITY_ID);
+        expect(thorns).toHaveLength(SPIKE_RING_COUNT);
+        const angles = thorns.map((p) => Math.atan2(p.velocityY, p.velocityX)).sort((a, b) => a - b);
+        for (let i = 1; i < angles.length; i++) expect(angles[i]! - angles[i - 1]!).toBeCloseTo((Math.PI * 2) / SPIKE_RING_COUNT, 5);
+        expect(thorns.every((p) => p.sourceTeamId === heart.teamId)).toBe(true);
+    });
+
+    it('never fires in phase 1', () => {
+        const heart = heartInPhase(1);
+        growGardenTree(growCtx(), heart, 1);
+        expect(ringsIn(12)).toBe(0);
+    });
+
+    it('fires about once a round in phase 2 with the tree whole, and more once it is cut down', () => {
+        const heart = heartInPhase(2);
+        growGardenTree(growCtx(), heart, 2);
+        expect(ringsIn(ROUND_DURATION * 2 + 0.5)).toBe(2);
+        dismissGardenTree(engine, heart);
+        expect(ringsIn(ROUND_DURATION * 2 + 0.5)).toBe(5); // 2.5 a round
+    });
+
+    it('fires 8 times a round in the final phase with every node gone', () => {
+        const heart = heartInPhase(4);
+        dismissGardenTree(engine, heart);
+        expect(ringsIn(ROUND_DURATION + 0.1)).toBe(8);
     });
 });
 

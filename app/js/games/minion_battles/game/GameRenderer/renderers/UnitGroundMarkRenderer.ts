@@ -11,12 +11,10 @@ import {
     type BurrowRender,
     type FusedBodyTelegraph,
 } from '../../units/unitRenderOptions';
+import { drawBurrowMound, drawBurrowTrail } from './burrowTrailDrawing';
 
 /** Just under units (10) and level with tethers, so ground marks never cover a body. */
-const Z_GROUND_MARKS = 9;
-const TRAIL_MOUND_COUNT = 5;
-/** Spacing of the dirt mounds left behind a travelling burrower, in unit radii. */
-const TRAIL_MOUND_SPACING_RADII = 0.7;
+export const Z_GROUND_MARKS = 9;
 
 /**
  * Ground marks that belong to a unit's state rather than to its body, painted on one Graphics under the unit layer.
@@ -70,28 +68,14 @@ export class UnitGroundMarkRenderer {
         // The trail: a faint run of churned earth from the sink point to the rise point, so the party can see where
         // it is going. Brightest while travelling.
         const trailAlpha = stage === 'travel' ? 0.55 : 0.22;
-        const dx = toX - fromX;
-        const dy = toY - fromY;
-        const len = Math.hypot(dx, dy);
-        if (len > 1) {
-            const step = r * TRAIL_MOUND_SPACING_RADII * 2;
-            const count = Math.floor(len / step);
-            for (let i = 1; i < count; i++) {
-                const t = i / count;
-                g.ellipse(fromX + dx * t, fromY + dy * t + r * 0.6, r * 0.32, r * 0.14);
-                g.fill({ color: b.dirtColor, alpha: trailAlpha });
-            }
-        }
+        drawBurrowTrail(g, { x: fromX, y: fromY }, { x: toX, y: toY }, r, b.dirtColor, trailAlpha);
 
         if (stage === 'travel') {
             // A moving mound: heaped earth on the burrower's heels, fading along the path behind it.
-            const ux = len > 1 ? dx / len : 0;
-            const uy = len > 1 ? dy / len : 0;
-            for (let k = 0; k < TRAIL_MOUND_COUNT; k++) {
-                const back = k * r * TRAIL_MOUND_SPACING_RADII * 0.6;
-                g.ellipse(unit.x - ux * back, unit.y - uy * back + r * 0.6, r * (0.6 - k * 0.07), r * (0.26 - k * 0.03));
-                g.fill({ color: b.dirtColor, alpha: 0.9 - k * 0.15 });
-            }
+            const len = Math.hypot(toX - fromX, toY - fromY);
+            const ux = len > 1 ? (toX - fromX) / len : 0;
+            const uy = len > 1 ? (toY - fromY) / len : 0;
+            drawBurrowMound(g, unit.x, unit.y, ux, uy, r, b.dirtColor);
             return;
         }
 

@@ -29,6 +29,7 @@ import { ThornFansCard_1601 } from './16_enemy_garden_heart/1601_ThornFans/1601A
 import { LobSeedCard_1602 } from './16_enemy_garden_heart/1602_LobSeed/1602Ability';
 import { MendCard_1603 } from './16_enemy_garden_heart/1603_Mend/1603Ability';
 import { RunnerVineCard_1604 } from './16_enemy_garden_heart/1604_RunnerVine/1604Ability';
+import { SpikeRingCard_1605 } from './16_enemy_garden_heart/1605_SpikeRing/1605Ability';
 import { AlphaWolfClawCard } from './dark_animals/0004_AlphaWolfClaw/0004Ability';
 import { AlphaWolfSummonCard } from './dark_animals/0005_AlphaWolfSummon/0005Ability';
 import { BoarChargeCard } from './dark_animals/0006_BoarCharge/0006Ability';
@@ -145,6 +146,7 @@ const cardDefs: CardDef[] = [
     LobSeedCard_1602,
     MendCard_1603,
     RunnerVineCard_1604,
+    SpikeRingCard_1605,
     AlphaWolfClawCard,
     AlphaWolfSummonCard,
     BoarChargeCard,

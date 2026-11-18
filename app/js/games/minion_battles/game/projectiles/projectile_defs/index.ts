@@ -12,6 +12,7 @@ import { foldedDeployableDef } from './foldedDeployableDef';
 import { tetheredHookDef, TETHERED_HOOK_PROJECTILE_TYPE } from './tetheredHookDef';
 import { arcBoltDef, ARC_BOLT_PROJECTILE_TYPE } from './arcBoltDef';
 import { darkShardDef, DARK_SHARD_PROJECTILE_TYPE } from './darkShardDef';
+import { burrowingDef, BURROWING_PROJECTILE_TYPE } from './burrowingDef';
 import {
     DEPLOYABLE_DELIVERY_PROJECTILE_TYPE,
     LEGACY_TURRET_DELIVERY_PROJECTILE_TYPE,
@@ -30,6 +31,7 @@ const registry: Record<string, IProjectileDef> = {
     [TETHERED_HOOK_PROJECTILE_TYPE]: tetheredHookDef,
     [ARC_BOLT_PROJECTILE_TYPE]: arcBoltDef,
     [DARK_SHARD_PROJECTILE_TYPE]: darkShardDef,
+    [BURROWING_PROJECTILE_TYPE]: burrowingDef,
     [DEPLOYABLE_DELIVERY_PROJECTILE_TYPE]: foldedDeployableDef,
     [LEGACY_TURRET_DELIVERY_PROJECTILE_TYPE]: foldedDeployableDef,
 };

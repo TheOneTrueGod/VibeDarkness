@@ -2,6 +2,7 @@
  * `fusedBody` component hooks (rules in `fusedBodyComponent.ts`).
  *
  * - `tick`: counts the fuse down in world seconds, opens the telegraph window (event `fused_body_telegraph_started`),
+ *   opens a Reactable body's reaction frame `reactionLeadSeconds` before the burst (event `fused_body_reaction_frame`),
  *   and on zero fires `onExpiry` then removes the body.
  * - `onDeath`: a body that dies before its fuse ran out fires `onDeath` (the fizzle). A body that expired already has
  *   an outcome, so its own removal does not fizzle.
@@ -17,6 +18,7 @@ import { applyVisualEffectDefs } from '../../effects/applyVisualEffectDefs';
 import type { UnitComponentContext, UnitComponentHooks } from './unitComponentHooks';
 import {
     fusedBodyOptionsOf,
+    fusedBodyReactionLeadSeconds,
     fusedBodyTelegraphSeconds,
     peekFusedBodyState,
     type FusedBodyEffectSpec,
@@ -79,6 +81,18 @@ export function tickFusedBody(unit: Unit, ctx: UnitComponentContext, dt: number)
     if (!state.telegraphed && state.remaining <= fusedBodyTelegraphSeconds(options)) {
         state.telegraphed = true;
         ctx.eventBus.emit('fused_body_telegraph_started', {
+            unitId: unit.id,
+            x: unit.x,
+            y: unit.y,
+            radiusPx: options.radiusPx,
+            secondsLeft: state.remaining,
+        });
+    }
+
+    // Not on the burst tick itself: the burst lands this tick, so there is nothing left to react to.
+    if (options.reactable && !state.reactionOpened && state.remaining > 0 && state.remaining <= fusedBodyReactionLeadSeconds(options)) {
+        state.reactionOpened = true;
+        ctx.eventBus.emit('fused_body_reaction_frame', {
             unitId: unit.id,
             x: unit.x,
             y: unit.y,

@@ -39,8 +39,8 @@ export function wireCoreEventListeners(engine: GameEngine): void {
         handlePetReactionsOnAttackHit(engine as unknown as AbilityEngineContext, event);
     });
 
-    // Reactable fused bodies (e.g. the Pod Mortar seed): the telegraph start is the reaction frame.
-    engine.eventBus.on('fused_body_telegraph_started', (event) => {
+    // Reactable fused bodies (e.g. the Pod Mortar seed): the frame opens `reactionLeadSeconds` before the burst.
+    engine.eventBus.on('fused_body_reaction_frame', (event) => {
         const seed = engine.getUnit(event.unitId);
         if (!seed || !fusedBodyOptionsOf(seed)?.reactable) return;
         requestReactionFrame(engine, {

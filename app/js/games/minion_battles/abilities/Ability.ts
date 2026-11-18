@@ -808,6 +808,13 @@ export interface AbilityStatic {
     ): void;
 
     /**
+     * Optional. Like `onProjectileExpired`, for a projectile whose caster is gone (killed and cleared from the
+     * field while it was in flight). Without it such a projectile expires with no effect. The projectile still
+     * carries `sourceTeamId`, `sourceUnitId` and `expireData`; use this when the effect should land regardless.
+     */
+    onProjectileExpiredWithoutCaster?(engine: unknown, projectile: unknown, hitUnitId?: string): void;
+
+    /**
      * @deprecated Prefer `abilityEvents[AbilityEventType.ON_BLOCK_SUCCESS]` rules for new abilities.
      * Called on the blocking ability when it successfully blocks an attack.
      * Receives the engine, defender (unit holding the shield), and attackInfo (includes attackSourceX/Y for retaliation direction).

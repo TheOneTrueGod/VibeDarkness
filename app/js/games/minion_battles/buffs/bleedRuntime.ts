@@ -7,6 +7,7 @@ import type { EventBus } from '../game/EventBus';
 import { Effect } from '../game/effects/Effect';
 import { PARTICLE_EXPLOSION_DURATION_SECONDS } from '../game/deathEffects/ParticleExplosion';
 import { getCreatureType } from '../game/units/unit_defs/unitDef';
+import { isImmuneToBleed } from '../game/units/unitTag';
 import { BleedBuff, BLEED_BUFF_TYPE, BLEED_STACKS_PER_DAMAGE } from './BleedBuff';
 
 const MINI_DISSOLUTION_PARTICLE_COUNT = 6;
@@ -72,9 +73,9 @@ export function consumeBleedStacks(unit: Unit, max: number): number {
     return removed;
 }
 
-/** Add bleed stacks to the unit (merges into a single BleedBuff). */
+/** Add bleed stacks to the unit (merges into a single BleedBuff). Bleed-immune units take none. */
 export function applyBleedStack(unit: Unit, gameTime: number, roundNumber: number, count = 1): void {
-    if (!unit.isAlive()) return;
+    if (!unit.isAlive() || isImmuneToBleed(unit)) return;
     const existing = findBleedBuff(unit);
     if (existing) {
         existing.stacks += count;

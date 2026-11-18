@@ -80,6 +80,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private travelFullRange: boolean = false;
     private arcHeight?: number;
     private rotationSpeed?: number;
+    private trailColor?: number;
     private originFn: ((ctx: CastBehaviourSetupContext) => Point) | null = null;
     private directionFn: ((ctx: CastBehaviourSetupContext) => Point | null) | null = null;
     private emerge: {
@@ -159,6 +160,12 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     /** Hit policy forwarded to the spawned Projectile. Takes precedence over `withPierce`. */
     withHitPolicy(policy: ProjectileHitPolicy): this {
         this.hitPolicy = policy;
+        return this;
+    }
+
+    /** Trail colour for projectile types that draw one (e.g. the burrowing projectile's dirt). */
+    withTrailColor(color: number): this {
+        this.trailColor = color;
         return this;
     }
 
@@ -361,6 +368,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             collidesWithTerrain: this.collidesWithTerrain.length > 0 ? this.collidesWithTerrain : undefined,
             heldBy: flight.held ? { unitId: ctx.caster.id, abilityId: ctx.abilityId } : undefined,
             clearsTerrainEffects: this.terrainClear,
+            ...(this.trailColor !== undefined ? { trailColor: this.trailColor } : {}),
         });
         projectile.radius = this.radius;
         if (ctx.onProjectileHit?.length) {
