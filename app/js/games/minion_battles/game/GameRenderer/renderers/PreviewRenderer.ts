@@ -546,7 +546,15 @@ export class PreviewRenderer {
                         this.drawEnemyGhostMovePath(this.ghostPreviewGraphics, unit.x, unit.y, path);
                     }
                 } else {
-                    this.drawPlayerMoveTargetPathWithCap(this.ghostPreviewGraphics, unit.x, unit.y, path);
+                    const pursuit = entry.order.moveTargetUnitId ? engine.getUnit(entry.order.moveTargetUnitId) : undefined;
+                    this.drawPlayerMoveTargetPathWithCap(
+                        this.ghostPreviewGraphics,
+                        unit.x,
+                        unit.y,
+                        path,
+                        pursuit?.isAlive() ? { x: pursuit.x, y: pursuit.y, circleRadius: pursuit.radius + 6 } : undefined,
+                        entry.order.moveTargetPixel,
+                    );
                 }
             }
 
