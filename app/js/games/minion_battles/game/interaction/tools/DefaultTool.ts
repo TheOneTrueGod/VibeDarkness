@@ -81,7 +81,7 @@ export class DefaultTool implements InteractionTool {
 
         const unitGrid = grid.worldToGrid(unit.x, unit.y);
 
-        // CTRL path: pixel-precision move
+        // CTRL path: snap to the centre of the clicked tile (no exact pixel target)
         if (ctrlKey) {
             const destGrid = grid.worldToGrid(clampedX, clampedY);
             const waypoints = [{ ...destGrid }];
@@ -92,13 +92,12 @@ export class DefaultTool implements InteractionTool {
                 waypoints,
             );
             if (fullPath === null) return true;
-            const targetPixel = { x: clampedX, y: clampedY };
             this.pendingMoveWaypoints = waypoints;
             this.pendingMovePath = fullPath;
             this.pendingMoveTargetUnitId = null;
-            this.pendingMoveTargetPixel = targetPixel;
-            unit.setMovement(fullPath, undefined, engine.gameTick, targetPixel);
-            publishMovement(fullPath, undefined, targetPixel);
+            this.pendingMoveTargetPixel = null;
+            unit.setMovement(fullPath, undefined, engine.gameTick);
+            publishMovement(fullPath, undefined, undefined);
             return true;
         }
 
@@ -150,7 +149,7 @@ export class DefaultTool implements InteractionTool {
             return true;
         }
 
-        // Default path: single-waypoint move
+        // Default path: single-waypoint move to the exact clicked pixel
         const waypoints = [{ ...destGrid }];
         const fullPath = buildPlayerMovePathThroughWaypoints(
             engine.terrainManager,
@@ -160,12 +159,13 @@ export class DefaultTool implements InteractionTool {
         );
         if (fullPath === null) return true;
 
+        const targetPixel = { x: clampedX, y: clampedY };
         this.pendingMoveWaypoints = waypoints;
         this.pendingMovePath = fullPath;
         this.pendingMoveTargetUnitId = null;
-        this.pendingMoveTargetPixel = null;
-        unit.setMovement(fullPath, undefined, engine.gameTick);
-        publishMovement(fullPath, undefined, undefined);
+        this.pendingMoveTargetPixel = targetPixel;
+        unit.setMovement(fullPath, undefined, engine.gameTick, targetPixel);
+        publishMovement(fullPath, undefined, targetPixel);
         return true;
     }
 }
