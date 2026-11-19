@@ -4,6 +4,8 @@ import type { BattleSession } from '../../../game/BattleSession';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { BattleOrder, WaitingForOrders } from '../../../game/types';
 import type { AbilityBarChangedEvent } from '../../../game/EventBus';
+import { getAbility } from '../../../abilities/AbilityRegistry';
+import { isPreferredModeBlocked } from '../../../abilities/resolveAbilityMode';
 
 interface UseInteractionManagerBridgeParams {
     sessionRef: RefObject<BattleSession | null>;
@@ -78,6 +80,36 @@ export function useInteractionManagerBridge({
         };
         engine.eventBus.on('ability_bar_changed', onBar);
         return () => engine.eventBus.off('ability_bar_changed', onBar);
+    }, [battleInitPhase, sessionRef]);
+
+    // Auto-upgrade: a slot toggled to its fallback tier (Bloody Claws) moves back up to the preferred tier
+    // (Ice Claws) the moment that tier becomes castable again (e.g. Water recovered). Only the
+    // blocked -> castable transition triggers it, so a deliberate pick while both are castable sticks.
+    useEffect(() => {
+        if (battleInitPhase !== 'ready') return;
+        const blockedBefore: Record<string, boolean> = {};
+        const check = () => {
+            const session = sessionRef.current;
+            const unit = session?.engine?.getLocalPlayerUnit();
+            if (!session || !unit) return;
+            for (const abilityId of unit.abilities) {
+                const slotAbility = getAbility(abilityId);
+                if (!slotAbility?.abilityModes?.fallbackMode) continue;
+                const blocked = isPreferredModeBlocked(unit, slotAbility);
+                const wasBlocked = blockedBefore[abilityId] ?? blocked;
+                blockedBefore[abilityId] = blocked;
+                const config = slotAbility.abilityModes;
+                const picked = abilityModeByAbilityIdRef.current[abilityId];
+                if (!wasBlocked || blocked || picked === undefined || picked === config.defaultMode) continue;
+                const next = { ...abilityModeByAbilityIdRef.current };
+                delete next[abilityId];
+                abilityModeByAbilityIdRef.current = next;
+                setAbilityModeByAbilityId(next);
+                session.getInteractionManager()?.refreshNonconfirmedAbilityMode(abilityId);
+            }
+        };
+        const handle = window.setInterval(check, 150);
+        return () => window.clearInterval(handle);
     }, [battleInitPhase, sessionRef]);
 
     // Keydown: delegate to manager.onKeyDown.

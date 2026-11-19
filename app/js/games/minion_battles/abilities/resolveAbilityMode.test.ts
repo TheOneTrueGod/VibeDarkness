@@ -6,6 +6,7 @@ import { registerAbilityForTest } from './AbilityRegistry';
 import {
     getAvailableModes,
     getModeUnavailableReason,
+    isPreferredModeBlocked,
     resolveEffectiveMode,
     resolveSlotMode,
 } from './resolveAbilityMode';
@@ -100,6 +101,13 @@ describe('resolveAbilityMode helpers', () => {
         const lowHp = makeUnit(5, HP_COST);
         expect(getModeUnavailableReason(lowHp, SlotAbility, BLOOD)).toBe('Needs more HP');
         expect(getModeUnavailableReason(lowHp, SlotAbility, ICE)).toBeNull();
+    });
+
+    it('reports the preferred mode as blocked until its Water is recovered (drives the auto toggle up)', () => {
+        const unit = makeUnit(1);
+        expect(isPreferredModeBlocked(unit, SlotAbility)).toBe(true);
+        unit.getResource('water')!.current = WATER_COST;
+        expect(isPreferredModeBlocked(unit, SlotAbility)).toBe(false);
     });
 
     it('falls back when the chosen mode cannot be cast and returns when it can', () => {

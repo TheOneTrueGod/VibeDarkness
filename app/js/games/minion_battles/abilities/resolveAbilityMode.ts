@@ -87,6 +87,17 @@ export function resolveEffectiveMode(
 }
 
 /**
+ * True while the slot's preferred (default) mode is available but can't be cast right now, and a
+ * `fallbackMode` exists. The UI watches this flip to false to toggle a fallback pick back up.
+ */
+export function isPreferredModeBlocked(unit: Unit, slotAbility: AbilityStatic): boolean {
+    const config = slotAbility.abilityModes;
+    if (!config || config.fallbackMode === undefined || config.fallbackMode === config.defaultMode) return false;
+    if (!getAvailableModes(unit, slotAbility).includes(config.defaultMode)) return false;
+    return getModeUnavailableReason(unit, slotAbility, config.defaultMode) !== null;
+}
+
+/**
  * The mode a hand slot shows and submits. A mode the player picked on the strip (`pickedMode`) is honoured
  * even when it can't be cast, so they can toggle to it and read why it is out (the card shows disabled).
  * With no pick, the slot follows {@link resolveEffectiveMode}: the default mode, or its fallback while the
