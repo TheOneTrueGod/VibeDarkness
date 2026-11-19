@@ -6,6 +6,10 @@ Player-facing battle interaction: targeting tools and the **Interactive Targetin
 
 **Resume mode (missing-pick pause):** when a real-timeline cast reaches a select its order lacks, the owner is paused with `awaitingPickLabel` set. `InteractiveTargetingSession.beginResume` starts ITS from that pause (cursor up at once), and Done sends one `updateTargets` order; Pass (`handleWait`) sends `wait`, which fizzles the cast. Details and the saved-data-only rule: [`docs/interactive-sequential-targeting.md`](../../../../../../docs/interactive-sequential-targeting.md).
 
+**Swap during a preview:** clicking another card while previewing (Undo allowed) rewinds to the mark with the quick `'swap'` reason and starts the new preview. `getItsSwapBlockReason` (`itsSwap.ts`) is the one predicate for the card row and `swapItsPreviewAbility`. `reset` rebuilds `PlayerInteractionManager`, so post-reset work continues on `session.getInteractionManager()` after `adoptOrderUiState`. Details: [`docs/interactive-sequential-targeting.md`](../../../../../../docs/interactive-sequential-targeting.md).
+
+**Combo auto-continue:** `followUpDefault` (`ConditionalCancelDef`) becomes `conditionalCancelFollowUp` on the paused cast, and `maybeAutoContinueCombo` starts the same ability's follow-up preview once per pause plane (memory on `InteractiveTargetingSession`). Pass in a follow-up preview (`isAtFollowUpPreview`) rewinds and continues the cast. Details: the doc above.
+
 **ITS commit:** at commit time, `wouldCommitInPlace` decides **in-place** (keep the playahead state) vs **rollback** (restore the mark snapshot, with a rewind overlay). Predicate and UX: [`docs/interactive-sequential-targeting.md`](../../../../../../docs/interactive-sequential-targeting.md). Plan that introduced commit-time in-place / rewind: [`docs/plans/done/sequential-targeting-rollback-ux.md`](../../../../../../docs/plans/done/sequential-targeting-rollback-ux.md).
 
 | Path | Owns |

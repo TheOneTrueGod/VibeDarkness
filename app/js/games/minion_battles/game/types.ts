@@ -509,6 +509,11 @@ export interface ActiveAbility {
      */
     conditionalCancelTagFilter?: readonly string[];
     /**
+     * Auto-start hint copied from `ConditionalCancelDef.followUpDefault` when conditionalCancelPaused is set
+     * (like conditionalCancelTagFilter). Serialized.
+     */
+    conditionalCancelFollowUp?: 'same_ability';
+    /**
      * Combo Cancel chain depth for this cast (starts at 1 on a fresh cast). Serialized.
      */
     comboCount?: number;

@@ -633,6 +633,7 @@ export function tickUnitActiveAbilities(
                     if (!hasConditionalCancelFollowUp(unit, active, cc.abilityTagFilter, engine)) break;
                     active.conditionalCancelPaused = true;
                     active.conditionalCancelTagFilter = cc.abilityTagFilter ? [...cc.abilityTagFilter] : undefined;
+                    active.conditionalCancelFollowUp = cc.followUpDefault;
                     engine.requestConditionalCancelPause(unit);
                     break;
                 }

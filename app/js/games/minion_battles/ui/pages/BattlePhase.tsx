@@ -52,7 +52,7 @@ import { useInteractiveTargetingProgress } from './battlePhase/useInteractiveTar
 import { useBattleGhostPlans } from './battlePhase/useBattleGhostPlans';
 import { useBattleSyncNudges } from './battlePhase/useBattleSyncNudges';
 import { useReactionClaimMessages } from './battlePhase/useReactionClaimMessages';
-import { useRewindOverlay, REWIND_OVERLAY_FADE_MS } from './battlePhase/useRewindOverlay';
+import { useRewindOverlay } from './battlePhase/useRewindOverlay';
 import ITSTimelineControls from '../components/ITSTimelineControls';
 import { abilityDurationSecondsToTicks } from '../components/itsTimelineMath';
 import { getActorStepRate } from '../../game/time/actorClock';
@@ -549,7 +549,7 @@ export default function BattlePhase({
                             autoCommitItsAttemptedRef={autoCommitItsAttemptedRef}
                             rewindToken={rewindOverlay?.token ?? null}
                             rewindSeed={rewindSeed}
-                            rewindDurationMs={REWIND_OVERLAY_FADE_MS}
+                            rewindDurationMs={rewindOverlay?.fadeMs}
                         />
                     )
                     : null
@@ -565,6 +565,7 @@ export default function BattlePhase({
         activeLocalWaiter,
         canUseOrderUi,
         interactiveTargetingState,
+        isRewindCrossfade: rewindOverlay != null,
         roundNumber,
         roundProgress,
         isPaused,

@@ -3,9 +3,9 @@ import type { RefObject } from 'react';
 import type { BattleSession, SequentialTargetingRewindReason } from '../../../game/BattleSession';
 import { RewindingTextEffect } from '../../../game/effect_defs/hudEffects';
 import type { HudEffectCanvasHandle } from '../../components/HudEffectCanvas';
+import { rewindFadeMsForReason } from './rewindFade';
 
-/** DOM rewind overlay fade duration (rollback restore under a frozen frame). */
-export const REWIND_OVERLAY_FADE_MS = 1000;
+export { REWIND_OVERLAY_FADE_MS, REWIND_OVERLAY_QUICK_FADE_MS, rewindFadeMsForReason } from './rewindFade';
 
 interface UseRewindOverlayParams {
     battleCanvasAreaRef: RefObject<HTMLDivElement | null>;
@@ -14,7 +14,7 @@ interface UseRewindOverlayParams {
 
 /** Frozen-frame overlay state, fade timers, and capture on sequential targeting rewind. */
 export function useRewindOverlay({ battleCanvasAreaRef, hudEffectCanvasRef }: UseRewindOverlayParams) {
-    const [rewindOverlay, setRewindOverlay] = useState<{ frameUrl: string; token: number } | null>(null);
+    const [rewindOverlay, setRewindOverlay] = useState<{ frameUrl: string; token: number; fadeMs: number } | null>(null);
     const [rewindOverlayOpaque, setRewindOverlayOpaque] = useState(true);
     const rewindFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const rewindFadeRafRef = useRef<number | null>(null);
@@ -66,8 +66,11 @@ export function useRewindOverlay({ battleCanvasAreaRef, hudEffectCanvasRef }: Us
                 releasePresentationHold(pendingPresentationSessionRef.current);
             }
             pendingPresentationSessionRef.current = session;
-            hudEffectCanvasRef.current?.addHudEffect(new RewindingTextEffect(reason));
-            setRewindOverlay({ frameUrl, token: Date.now() });
+            const fadeMs = rewindFadeMsForReason(reason);
+            if (reason !== 'swap') {
+                hudEffectCanvasRef.current?.addHudEffect(new RewindingTextEffect(reason));
+            }
+            setRewindOverlay({ frameUrl, token: Date.now(), fadeMs });
             setRewindOverlayOpaque(true);
             rewindFadeRafRef.current = requestAnimationFrame(() => {
                 rewindFadeRafRef.current = requestAnimationFrame(() => {
@@ -77,7 +80,7 @@ export function useRewindOverlay({ battleCanvasAreaRef, hudEffectCanvasRef }: Us
                         setRewindOverlay(null);
                         rewindFadeTimerRef.current = null;
                         releasePresentationHold(session);
-                    }, REWIND_OVERLAY_FADE_MS);
+                    }, fadeMs);
                 });
             });
         },

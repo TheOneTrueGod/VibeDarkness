@@ -76,7 +76,7 @@ export class TeamworkTextEffect extends HudEffect {
 export const REWINDING_TEXT_DURATION_SEC = 1.0;
 
 /** Banner text per {@link SequentialTargetingRewindReason}. */
-export const REWIND_BANNER_LABELS: Record<SequentialTargetingRewindReason, string> = {
+export const REWIND_BANNER_LABELS: Record<Exclude<SequentialTargetingRewindReason, 'swap'>, string> = {
     rollback: 'Rewinding',
     turn_committed: 'Turn Committed',
 };
@@ -84,7 +84,8 @@ export const REWIND_BANNER_LABELS: Record<SequentialTargetingRewindReason, strin
 export class RewindingTextEffect extends HudEffect {
     declare effectData: { label: string };
 
-    constructor(reason: SequentialTargetingRewindReason = 'rollback') {
+    /** Not used for `'swap'` rewinds (they show no banner). */
+    constructor(reason: Exclude<SequentialTargetingRewindReason, 'swap'> = 'rollback') {
         super('RewindingText', REWINDING_TEXT_DURATION_SEC);
         this.effectData = { label: REWIND_BANNER_LABELS[reason] };
     }

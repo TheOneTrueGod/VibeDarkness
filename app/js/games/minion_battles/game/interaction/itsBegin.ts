@@ -61,6 +61,7 @@ export function itsBegin(its: InteractiveTargetingSession, order: BattleOrder, s
     its._isActive = true;
     its._resumeMode = false;
     its._resumeCastStartTime = null;
+    its._beganAtFollowUpPause = pausedCast != null;
     its._abilityId = abilityId;
     its._unitId = unitId;
     its.originalOrder = order;

@@ -198,6 +198,17 @@ export function getConditionalCancelDecisionCast(
     return unitId ? engine.getUnit(unitId)?.activeAbilities.find((a) => a.conditionalCancelPaused) : undefined;
 }
 
+/**
+ * True while an ITS preview that began on a conditional-cancel pause (a Combo / Entombed follow-up,
+ * auto-continued or clicked) is running. Pass then means "rewind to the pause, then continue the
+ * current cast". Sits next to {@link getConditionalCancelDecisionCast}: `handleWait` and the Pass
+ * button (`BattleAbilityBar`) both resolve through it. Callers check the decision, missing-pick and
+ * ended-early cases first; those keep precedence.
+ */
+export function isAtFollowUpPreview(its: { isActive: boolean; _beganAtFollowUpPause?: boolean }): boolean {
+    return its.isActive && its._beganAtFollowUpPause === true;
+}
+
 /** True when the local order UI is at a Combo / Entombed decision point for `unitId` (see {@link getConditionalCancelDecisionCast}). */
 export function isAtConditionalCancelDecision(
     engine: GameEngine,

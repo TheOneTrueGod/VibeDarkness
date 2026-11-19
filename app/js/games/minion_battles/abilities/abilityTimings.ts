@@ -153,6 +153,12 @@ export interface ConditionalCancelDef {
      * Undefined = no filter (all abilities selectable).
      */
     abilityTagFilter?: readonly AbilityTag[];
+    /**
+     * When set, the UI starts this follow-up preview automatically at the pause instead of waiting
+     * for a card click. `'same_ability'`: the paused ability's own follow-up (e.g. Throw Knife -> Throw Knife).
+     * Copied onto the paused cast as `conditionalCancelFollowUp`. Undefined = no auto-start.
+     */
+    followUpDefault?: 'same_ability';
 }
 
 /**

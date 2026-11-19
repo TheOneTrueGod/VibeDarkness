@@ -183,6 +183,9 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         ...(a.conditionalCancelTagFilter !== undefined
             ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }
             : {}),
+        ...(a.conditionalCancelFollowUp !== undefined
+            ? { conditionalCancelFollowUp: a.conditionalCancelFollowUp }
+            : {}),
         ...(a.comboCount !== undefined ? { comboCount: a.comboCount } : {}),
         ...(a.missingSelectLabels !== undefined ? { missingSelectLabels: [...a.missingSelectLabels] } : {}),
         ...(a.movementByLabel !== undefined

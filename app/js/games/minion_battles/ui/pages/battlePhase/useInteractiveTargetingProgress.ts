@@ -189,6 +189,8 @@ export function useInteractiveTargetingProgress({
             }
 
             const endedEarlyNow = endedEarly != null;
+            // A commit started this poll: Combo auto-continue runs after it, not alongside it.
+            let commitStarted = false;
             // Ended-early previews follow the Undo rule (commit when Undo is not allowed, otherwise wait for
             // Pass / Done); everything else follows Auto End. See shouldAutoCommitItsPreview.
             if (
@@ -224,8 +226,16 @@ export function useInteractiveTargetingProgress({
                 autoCommitItsAttemptedRef.current = true;
                 if (willCommit) {
                     setOrderSubmitFailed(false);
-                    void session.interactiveTargeting.commit(session, 'auto_end_turn');
+                    commitStarted = true;
+                    void session.interactiveTargeting.commit(session, 'auto_end_turn').then(() => {
+                        // ITS has ended; the combo pause is now a real pause.
+                        sessionRef.current?.getInteractionManager()?.maybeAutoContinueCombo();
+                    });
                 }
+            }
+            // A follow-up preview that finished on another Combo pause: continue the combo again.
+            if (nextState === 'done' && !commitStarted && session) {
+                session.getInteractionManager()?.maybeAutoContinueCombo();
             }
             setInteractiveTargetingState(nextState);
             setPlayerTileRefresh((n) => n + 1);

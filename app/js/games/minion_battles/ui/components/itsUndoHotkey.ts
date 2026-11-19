@@ -3,13 +3,7 @@
  * The hotkey must match the Undo button: same disabled reasons, no action when disabled.
  */
 
-export function isItsUndoDisabled(opts: {
-    isRewindCrossfade: boolean;
-    onlyUndoAtStart: boolean;
-    hasCollectedTargets: boolean;
-}): boolean {
-    return opts.isRewindCrossfade || (opts.onlyUndoAtStart && opts.hasCollectedTargets);
-}
+export { isItsUndoDisabled } from '../../game/interaction/itsUndoRules';
 
 export function isEscapeItsUndoHotkey(e: { code: string; repeat: boolean }): boolean {
     return e.code === 'Escape' && !e.repeat;

@@ -28,6 +28,9 @@ import {
 import { ThrowKnife } from '../card_defs/0109_ThrowKnife/0109Ability';
 import { BurstAbility_0302, BURST_HP_COST } from '../card_defs/03_blood_mage/0302_Burst/0302Ability';
 import { hasConditionalCancelFollowUp } from './units/unitAbilityQueries';
+import { Unit } from './units/Unit';
+import { buildComboCancelDef } from '../abilities/comboCancel/comboCancelDef';
+import { ENTOMB_WALL_CONDITIONAL_CANCEL } from '../abilities/entombed/entombedWallCancel';
 
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
 const THROW_CHARGED_ROCK_ABILITY_ID = 'throw_charged_rock';
@@ -331,5 +334,98 @@ describe('Combo Cancel runtime', () => {
         expect(player.abilityRuntime[THROW_ROCK_ABILITY_ID]?.currentUses ?? 0).toBeGreaterThan(0);
 
         engine.destroy();
+    });
+
+    it('Throw Knife combo pause carries conditionalCancelFollowUp and survives a unit JSON round trip', () => {
+        const engine = buildTinyBattleEngine({
+            gridW: 16,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const { player, dummy } = placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: { x: 120, y: 200 },
+            dummyWorld: { x: 280, y: 200 },
+            abilities: [THROW_KNIFE_ABILITY_ID, BURST_ABILITY_ID],
+        });
+        player.abilityModifiers = { [THROW_KNIFE_ABILITY_ID]: { comboUnlimited: true } };
+        initializeAbilityRuntimeForUnit(player);
+        expect(buildComboCancelDef().followUpDefault).toBe('same_ability');
+
+        const target = { type: 'pixel' as const, position: { x: dummy.x, y: dummy.y } };
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: THROW_KNIFE_ABILITY_ID,
+            targets: [target],
+        });
+
+        const findPaused = () => player.activeAbilities.find(
+            (a) => a.abilityId === THROW_KNIFE_ABILITY_ID && a.conditionalCancelPaused,
+        );
+        for (let i = 0; i < MAX_CHAIN_TICKS && !findPaused(); i++) engine.stepSimulationFixedTicks(1);
+        const paused = findPaused();
+        expect(paused).toBeDefined();
+        expect(paused!.conditionalCancelFollowUp).toBe('same_ability');
+
+        const restored = Unit.fromJSON(
+            JSON.parse(JSON.stringify(player.toJSON())) as Record<string, unknown>,
+            engine.eventBus,
+        );
+        const restoredPaused = restored.activeAbilities.find((a) => a.abilityId === THROW_KNIFE_ABILITY_ID);
+        expect(restoredPaused?.conditionalCancelPaused).toBe(true);
+        expect(restoredPaused?.conditionalCancelFollowUp).toBe('same_ability');
+
+        // The follow-up applies: the paused cast is replaced, so no cast keeps the stale hint.
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: THROW_KNIFE_ABILITY_ID,
+            endTurn: true,
+            targets: [target],
+        });
+        expect(player.activeAbilities.some((a) => a.conditionalCancelPaused)).toBe(false);
+        expect(player.activeAbilities.some((a) => a.conditionalCancelFollowUp !== undefined)).toBe(false);
+        engine.destroy();
+    });
+
+    it('wait at a combo pause clears conditionalCancelFollowUp', () => {
+        const engine = buildTinyBattleEngine({
+            gridW: 16,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const { player, dummy } = placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: { x: 120, y: 200 },
+            dummyWorld: { x: 280, y: 200 },
+            abilities: [THROW_KNIFE_ABILITY_ID],
+        });
+        player.abilityModifiers = { [THROW_KNIFE_ABILITY_ID]: { comboUnlimited: true } };
+        initializeAbilityRuntimeForUnit(player);
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: THROW_KNIFE_ABILITY_ID,
+            targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+        });
+        const findPaused = () => player.activeAbilities.find(
+            (a) => a.abilityId === THROW_KNIFE_ABILITY_ID && a.conditionalCancelPaused,
+        );
+        for (let i = 0; i < MAX_CHAIN_TICKS && !findPaused(); i++) engine.stepSimulationFixedTicks(1);
+        const paused = findPaused()!;
+        expect(paused.conditionalCancelFollowUp).toBe('same_ability');
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: 'wait',
+            endTurn: true,
+            targets: [],
+        });
+        expect(paused.conditionalCancelPaused).toBe(false);
+        expect(paused.conditionalCancelFollowUp).toBeUndefined();
+        engine.destroy();
+    });
+
+    it('Entombed conditional cancel does not set a follow-up default', () => {
+        expect(ENTOMB_WALL_CONDITIONAL_CANCEL.followUpDefault).toBeUndefined();
     });
 });

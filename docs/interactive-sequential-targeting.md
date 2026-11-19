@@ -146,7 +146,7 @@ Abilities without windup lunge (e.g. Double Punch, Light Blast) keep using pre-t
 
 ### Rewind overlay
 
-On every rollback restore (`commit` rollback path, `reset`, `replay`), ITS emits `sequential_targeting_rewind` **before** `_restoreToMark`. `BattlePhase` captures the canvas frame into a DOM overlay (not Pixi — the renderer is torn down), shows "⏪ Rewind", and fades it out over `REWIND_OVERLAY_FADE_MS` (1000 ms, `useRewindOverlay.ts`) while the engine rebuilds underneath. The capture is a synchronous `canvas.toDataURL('image/png')`. `BattlePhase` calls `deferRewindPresentationUntilNotified()`, so `_restoreToMark` does not resolve — and the ITS chrome (`itsControls`) stays mounted while `rewindOverlay != null` — until the fade timer fires: every rollback commit/reset/replay therefore takes at least ~1 s end to end. In-place commit never restores and never emits.
+On every rollback restore (`commit` rollback path, `reset`, `replay`), ITS emits `sequential_targeting_rewind` **before** `_restoreToMark`. `BattlePhase` captures the canvas frame into a DOM overlay (not Pixi — the renderer is torn down), shows "⏪ Rewind", and fades it out over `REWIND_OVERLAY_FADE_MS` (1000 ms; `'swap'` rewinds use `REWIND_OVERLAY_QUICK_FADE_MS`, about 150 ms, via `rewindFadeMsForReason` in `rewindFade.ts`) while the engine rebuilds underneath. The capture is a synchronous `canvas.toDataURL('image/png')`. `BattlePhase` calls `deferRewindPresentationUntilNotified()`, so `_restoreToMark` does not resolve — and the ITS chrome (`itsControls`) stays mounted while `rewindOverlay != null` — until the fade timer fires: every rollback commit/reset/replay therefore takes at least ~1 s end to end. In-place commit never restores and never emits.
 
 ### Reset / Replay / commit pre-restore refresh
 
@@ -193,6 +193,27 @@ A committed order with `missingSelectLabels` may reach one of those selects in t
 
 ---
 
+## Swap during a preview
+
+While a preview is running and Undo is allowed, clicking another ability card (or pressing its number key) rewinds to the preview's mark and starts the new ability's preview: one action instead of Undo plus click. It applies to every ITS preview.
+
+- One predicate, `getItsSwapBlockReason` (`game/interaction/itsSwap.ts`), is used by both the card row (`BattleAbilityBar`) and the handler. It blocks when ITS is not active, in resume mode, at an ended-early Done stop, on the ability already previewed (the preview keeps running), during a rewind crossfade, and when Undo is disabled (`isItsUndoDisabled`, in `itsUndoRules.ts`).
+- `PlayerInteractionManager.swapItsPreviewAbility` runs `reset(..., 'swap')` and then `activateAbilityTargeting(newCard)`. The conditional-cancel follow-up path is unchanged. Specials and uncastable abilities do not swap.
+- Swap rewinds use the `'swap'` reason on `SequentialTargetingRewindReason`: a quick fade (`rewindFadeMsForReason` returns `REWIND_OVERLAY_QUICK_FADE_MS`, about 150 ms, otherwise `REWIND_OVERLAY_FADE_MS`) and no "Rewinding" banner. `reset` still refreshes remote orders first.
+- **Gotcha:** `reset` rebuilds `PlayerInteractionManager` (`restoreFromInMemorySnapshot` then `startEngine`). Work after the reset must continue on `session.getInteractionManager()` after `adoptOrderUiState` copies the order UI state (`canUseOrderUi`, ability ids, mode resolver, pause plane) over. The React bridge only re-pushes it on its next render.
+
+## Combo auto-continue
+
+At a Combo window you usually want the same ability again, so its follow-up preview starts by itself.
+
+- Data, not code: `ConditionalCancelDef.followUpDefault: 'same_ability'` (set by `buildComboCancelDef`; Entombed does not set it). The pause copies it onto the paused `ActiveAbility` as `conditionalCancelFollowUp`, next to `conditionalCancelTagFilter`, and it is serialized with it.
+- `PlayerInteractionManager.maybeAutoContinueCombo()` reads the decision cast (`getConditionalCancelDecisionCast`) and calls `activateAbilityTargeting` for the same ability. It is called from `setWaitingForOrders` (a real-timeline combo pause) and from `useInteractiveTargetingProgress` when a preview is `done` at a conditional-cancel pause (after the auto-commit, not alongside it).
+- It skips when `shouldForceItsCommitAtComboWindow()` is true (it fires later, on the real pause after the forced commit), when the ability fails `canUseAbilityNow`, or when its card is not in the hand.
+- It fires at most once per pause plane (`unitId` plus `atTick`). The memory lives on `InteractiveTargetingSession` (`hasComboFollowUpStarted` / `noteComboFollowUpStarted`), because the session outlives the manager rebuild. Any follow-up started at a combo pause, auto or clicked, records the plane, so Undo or a swap back to it does not restart the preview.
+- To switch, click another card (swap). To stop the combo, press **Pass**: during a follow-up preview (`isAtFollowUpPreview(its)`, recorded at `begin` as `_beganAtFollowUpPause`) Pass rewinds with `reset(..., 'swap')` and then takes the Pass-at-decision path, which continues the paused cast. Missing-pick, ended-early and decision rules keep their precedence.
+
+---
+
 ## Controls
 
 | Button | Colour | Action |
@@ -200,6 +221,8 @@ A committed order with `missingSelectLabels` may reach one of those selects in t
 | **Reset** | Red | Refresh remote orders, restore to mark (rewind overlay), discard collected targets, abort the session |
 | **Replay** | Sky-blue | Refresh remote orders, restore to mark (rewind overlay), re-queue with collected targets pre-filled, replay without pausing |
 | **Continue** | Primary | Commit. Label is **Continue ⏪** when commit will rewind. When `AUTO_END_TURN` is true: auto-commit only if `wouldCommitInPlace()` (seamless); otherwise show Continue so the rewind is player-initiated. A late teammate pure-pass while sitting at Done no longer flips the predicate to in-place when assumed waits were used during preview. When seamless auto-commit fires, the status pill and buttons are hidden once all targets are collected. |
+| **Another ability card / its number key** (while previewing) | Card | Swap: quick `'swap'` rewind to the mark, then the new ability's preview. Blocked when Undo is disabled, during a rewind, or on the card already previewed |
+| **Pass** (follow-up preview) | Pass | Stop the combo: quick rewind to the combo pause, then continue the paused cast |
 
 ---
 
@@ -241,7 +264,8 @@ Interactive preview orders set `targetsByLabel: {}` (empty object, not `undefine
 | `game/interaction/InteractiveTargetingSession.ts` | Session lifecycle: begin / resolveTarget / reset / replay / commit; `wouldCommitInPlace` |
 | `game/BattleSession.ts` | `restoreFromInMemorySnapshot`, `persistInPlaceCommittedTargetingOrder`, held-order hold/apply, pre-action poll |
 | `game/battlenet/BattleNet.ts` | `persistCommittedOrder`; `submitOrder` `skipLocalApply`; `refreshRemoteOrdersForTargetingPreview` |
-| `game/interaction/PlayerInteractionManager.ts` | `activateAbilityTargeting` skips `AbilityTargetingTool` when flag is on |
+| `game/interaction/PlayerInteractionManager.ts` | `activateAbilityTargeting` skips `AbilityTargetingTool` when flag is on; `swapItsPreviewAbility`, `maybeAutoContinueCombo` |
+| `game/interaction/itsSwap.ts` | `getItsSwapBlockReason`, the single swap predicate |
 | `game/interaction/ghostPlanRenderPolicy.ts` | Hold / render policy for peer ghost plans during local ITS |
 | `ui/pages/BattlePhase.tsx` | Targeting cursor, status pill, Reset/Replay/Continue, rewind overlay, ghost hold/merge, conditional auto-commit |
 | `game/interactiveTargeting.test.ts` | Engine pause/resume, fingerprint parity, commit-time in-place, rewind emit |

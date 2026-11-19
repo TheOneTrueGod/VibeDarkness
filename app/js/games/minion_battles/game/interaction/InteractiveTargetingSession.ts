@@ -17,7 +17,7 @@ import { getAbility } from '../../abilities/AbilityRegistry';
 import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import type { BattleOrder, OrderAtTick, ResolvedTarget, SerializedGameState } from '../types';
 import { nextChainImmediateLabel } from './selectTargetLookahead';
-import type { BattleSession } from '../BattleSession';
+import type { BattleSession, SequentialTargetingRewindReason } from '../BattleSession';
 import type { GameEngine } from '../GameEngine';
 import type { KnockbackSource } from '../units/unitTypes';
 import {
@@ -61,6 +61,24 @@ export class InteractiveTargetingSession {
     collectedMovementByLabel: Record<string, MovementReInput> = {};
     /** Full positional targets array (lock-ons + aim pixel) supplied by UI on resolveTarget; empty for non-melee abilities. */
     _orderPositionalTargets: ResolvedTarget[] = [];
+    /**
+     * Combo pause planes (`${unitId}:${atTick}`) whose follow-up preview already started, by auto-continue
+     * or by a card click. Lives here, not on the PlayerInteractionManager: an ITS rewind rebuilds the
+     * manager (`BattleSession.startEngine`) while this session persists, so Undo / swap back to the same
+     * plane must not restart the follow-up preview.
+     */
+    private readonly _comboFollowUpStartedPlanes = new Set<string>();
+
+    /** True once a follow-up preview has started on this combo pause plane. */
+    hasComboFollowUpStarted(planeKey: string): boolean {
+        return this._comboFollowUpStartedPlanes.has(planeKey);
+    }
+
+    /** Record that a follow-up preview started on this combo pause plane (auto-continue fires at most once per plane). */
+    noteComboFollowUpStarted(planeKey: string): void {
+        this._comboFollowUpStartedPlanes.add(planeKey);
+    }
+
     /** Remote orders that arrived while preview is active; held until preview ends. */
     heldRemoteOrders: Map<string, HeldRemoteOrder> = new Map();
     /** The label currently waiting for player input (set externally by UI). */
@@ -76,6 +94,12 @@ export class InteractiveTargetingSession {
     _resumeMode = false;
     /** `startTime` of the paused cast a resume run continues (null outside resume mode). */
     _resumeCastStartTime: number | null = null;
+    /**
+     * True when this preview began on a conditional-cancel (Combo / Entombed) pause for its caster, i.e. it
+     * is a follow-up preview (auto-continued or clicked). Set at {@link itsBegin}, cleared in `_clearActive`.
+     * Pass during such a preview rewinds and continues the paused cast (see `isAtFollowUpPreview`).
+     */
+    _beganAtFollowUpPause = false;
     /** Other batch waiters that received an assumed wait at begin() (not already confirmed). */
     assumedWaitUnitIds: Set<string> = new Set();
     /**
@@ -514,13 +538,14 @@ export class InteractiveTargetingSession {
         session: BattleSession,
         actionSource: ItsActionSource = 'ui_reset',
         cancelReason: ItsCancelReason = 'user_reset',
+        rewindReason?: SequentialTargetingRewindReason,
     ): Promise<void> {
         if (!this._isActive) return;
         logItsButtonClick(session, this, actionSource);
         logItsResetPausePlane(session, this, 'before_restore', actionSource);
         const logSnapshot = this._captureLogSnapshot(session);
         await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
-        await this._restoreToMark(session);
+        await this._restoreToMark(session, rewindReason ? { reason: rewindReason } : undefined);
         logItsResetPausePlane(session, this, 'after_restore', actionSource);
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
         this.collectedMovementByLabel = {};
@@ -652,6 +677,7 @@ export class InteractiveTargetingSession {
         this._previewOrderQueued = false;
         this._resumeMode = false;
         this._resumeCastStartTime = null;
+        this._beganAtFollowUpPause = false;
         this.previewRunId = null;
         this.assumedWaitUnitIds = new Set();
         this.assumedRemoteWaitDuringPreview = false;

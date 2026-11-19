@@ -8,6 +8,7 @@ import { STUCK_PAUSE_PLANE_DESYNC_MESSAGE } from '../battlenet/constants';
 /** User-initiated ITS control (UI buttons or AUTO_END_TURN). */
 export type ItsActionSource =
     | 'ui_reset'
+    | 'ui_swap'
     | 'ui_replay'
     | 'ui_done'
     | 'auto_end_turn'
@@ -26,6 +27,7 @@ export const ITS_AUTO_COMMIT_BLOCK_UNDO_ALLOWED = 'undo_allowed_wait_for_pass';
 /** Non-user ITS cancellation (resync, terminal teardown). */
 export type ItsCancelReason =
     | 'user_reset'
+    | 'user_swap'
     | 'resync_load_from_snapshot'
     | 'terminal_outcome_teardown';
 
@@ -38,6 +40,7 @@ export type ItsEndDetail =
     | 'submit_failed'
     | 'persist_failed'
     | 'user_reset'
+    | 'user_swap'
     | 'resync'
     | 'terminal_outcome';
 
@@ -71,6 +74,7 @@ export interface ItsPausePlaneLog {
 
 const ITS_BUTTON_CLICK_MESSAGES: Partial<Record<ItsActionSource, string>> = {
     ui_reset: 'ITS: Reset button clicked',
+    ui_swap: 'ITS: ability swap during preview',
     ui_replay: 'ITS: Replay button clicked',
     ui_done: 'ITS: Done button clicked',
     auto_end_turn: 'ITS: auto end turn commit',
@@ -342,7 +346,9 @@ export function logItsPreviewCancelled(
     const detail: ItsEndDetail =
         reason === 'user_reset'
             ? 'user_reset'
-            : reason === 'resync_load_from_snapshot'
+            : reason === 'user_swap'
+                ? 'user_swap'
+                : reason === 'resync_load_from_snapshot'
                 ? 'resync'
                 : 'terminal_outcome';
     logItsPreviewEnded(session, snapshot, 'cancelled', detail, { cancelReason: reason });

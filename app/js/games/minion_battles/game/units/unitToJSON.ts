@@ -70,6 +70,9 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             ...(a.conditionalCancelTagFilter !== undefined
                 ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }
                 : {}),
+            ...(a.conditionalCancelFollowUp !== undefined
+                ? { conditionalCancelFollowUp: a.conditionalCancelFollowUp }
+                : {}),
             ...(a.comboCount !== undefined && a.comboCount !== 1 ? { comboCount: a.comboCount } : {}),
             ...(a.processedElapsed !== undefined ? { processedElapsed: a.processedElapsed } : {}),
             ...(a.pendingSelectGate !== undefined ? { pendingSelectGate: a.pendingSelectGate } : {}),

@@ -91,7 +91,8 @@ export interface BattleSessionLoadArgs {
  * their turn and the preview is replaced by the committed order. `rollback`: every other restore
  * (cancel, re-aim, stale batch).
  */
-export type SequentialTargetingRewindReason = 'rollback' | 'turn_committed';
+/** `'swap'`: quick rewind when switching ability mid-preview (short fade, no banner). */
+export type SequentialTargetingRewindReason = 'rollback' | 'turn_committed' | 'swap';
 
 export type BattleSessionEvent =
     | {

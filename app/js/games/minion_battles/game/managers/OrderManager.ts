@@ -300,6 +300,7 @@ export class OrderManager {
         if (order.abilityId === 'wait') {
             pausedAbility.conditionalCancelPaused = false;
             pausedAbility.conditionalCancelTagFilter = undefined;
+            pausedAbility.conditionalCancelFollowUp = undefined;
             return true;
         }
 

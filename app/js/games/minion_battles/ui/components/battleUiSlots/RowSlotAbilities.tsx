@@ -101,6 +101,11 @@ interface RowSlotAbilitiesProps {
      * return that card to ordinary chrome.
      */
     itsPreviewPhase?: ItsHandPreviewPhase;
+    /**
+     * While an ITS preview runs (`isMyTurn` false), true when clicking this card swaps to it
+     * (rewinds to the preview's mark). Such cards are clickable, titled "Switch to <name> (rewinds)".
+     */
+    canSwapToAbility?: (ability: AbilityStatic) => boolean;
     /** Ability id of the local ITS cast while a preview run is active. */
     itsAbilityId?: string | null;
     /** Preview is frozen on a parallel-order pause while the poll still says `playing`. */
@@ -129,6 +134,7 @@ export default function RowSlotAbilities({
     onHoverAbility,
     turnIndicator,
     itsPreviewPhase = 'inactive',
+    canSwapToAbility,
     itsAbilityId = null,
     itsAtParallelPause = false,
     isReactionPause = false,
@@ -273,13 +279,13 @@ export default function RowSlotAbilities({
             ability: card.ability,
             abilityId: card.abilityId,
             currentUses: card.runtime.currentUses,
-            isMyTurn,
+            isMyTurn: isMyTurn || canSwapToAbility?.(card.ability) === true,
             allUnits,
             engine: priorityEngine,
             conditionalCancelContext,
         });
         onHoverAbility(disabledReason == null ? card.ability : null);
-    }, [hoveredCardId, handCards, playerUnit, isMyTurn, allUnits, priorityEngine, conditionalCancelContext, onHoverAbility]);
+    }, [hoveredCardId, handCards, playerUnit, isMyTurn, canSwapToAbility, allUnits, priorityEngine, conditionalCancelContext, onHoverAbility]);
 
     // Register card top-center page positions as HUD flight targets, keyed by charge type so
     // particles only fly to cards that actually recover that resource.
@@ -404,12 +410,14 @@ export default function RowSlotAbilities({
 
     const renderHandCard = (card: (typeof handCards)[number], index: number) => {
         if (!playerUnit) return null;
+        // A swappable card is clickable mid-preview; affordability / uses still grey it out.
+        const isSwapTarget = !isMyTurn && canSwapToAbility?.(card.ability) === true;
         const disabledReason = getAbilityDisabledReason({
             playerUnit,
             ability: card.ability,
             abilityId: card.abilityId,
             currentUses: card.runtime.currentUses,
-            isMyTurn,
+            isMyTurn: isMyTurn || isSwapTarget,
             allUnits,
             engine: priorityEngine,
             conditionalCancelContext,
@@ -452,6 +460,7 @@ export default function RowSlotAbilities({
                     else unregisterHudAnchor(abilityCardHudAnchorId(card.abilityId));
                 }}
                 data-testid={battleAbilityCardTestId(card.abilityId)}
+                title={isSwapTarget && disabledReason == null ? `Switch to ${card.ability.name} (rewinds)` : undefined}
                 data-disabled-reason={
                     disabledReason
                         ? `${disabledReason.reason_id}: ${getDisabledReasonDisplay(disabledReason).title}`

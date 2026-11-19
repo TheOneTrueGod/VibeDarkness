@@ -4,7 +4,14 @@ import type { AbilityStatic } from '../../../abilities/Ability';
 import type { BattleSession } from '../../../game/BattleSession';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { BattleOrder, OrderWaiter } from '../../../game/types';
-import { getConditionalCancelDecisionCast, isAtMissingPickDecision } from '../../../game/interaction/isITSPreviewComplete';
+import { canUseAbilityNow } from '../../../abilities/abilityUses';
+import { getItsSwapBlockReason } from '../../../game/interaction/itsSwap';
+import { ONLY_UNDO_AT_START } from '../../../game/gameConstants';
+import {
+    getConditionalCancelDecisionCast,
+    isAtFollowUpPreview,
+    isAtMissingPickDecision,
+} from '../../../game/interaction/isITSPreviewComplete';
 import { useAutoEndTurn } from '../../components/useAutoEndTurn';
 import CornerSlotPlayerStats from '../../components/battleUiSlots/CornerSlotPlayerStats';
 import RowSlotAbilities from '../../components/battleUiSlots/RowSlotAbilities';
@@ -21,6 +28,8 @@ interface BattleAbilityBarProps {
     activeLocalWaiter: OrderWaiter | null;
     canUseOrderUi: boolean;
     interactiveTargetingState: 'inactive' | 'playing' | 'paused' | 'done';
+    /** The rewind overlay is visible (a rewind is crossfading); swaps are blocked meanwhile. */
+    isRewindCrossfade?: boolean;
     roundNumber: number;
     roundProgress: number;
     isPaused: boolean;
@@ -52,6 +61,7 @@ export function useBattleAbilityBarSlots({
     activeLocalWaiter,
     canUseOrderUi,
     interactiveTargetingState,
+    isRewindCrossfade = false,
     roundNumber,
     roundProgress,
     isPaused,
@@ -102,12 +112,40 @@ export function useBattleAbilityBarSlots({
     const atEndedEarlyDone =
         interactiveTargetingState === 'done'
         && sessionRef.current?.interactiveTargeting.getPreviewCastEndedEarly(engine) != null;
-    const passEnabled = isMyTurn || atMissingPickDecision || atEndedEarlyDone;
+    // Mid-preview card click = swap (rewind to the mark, start that card's preview). Same predicate
+    // PlayerInteractionManager.swapItsPreviewAbility gates on; per target ability (same ability = blocked).
+    const canSwapToAbility = (ability: AbilityStatic): boolean => {
+        if (!its?.isActive || !canUseOrderUi || atMissingPickDecision || isMyTurn) return false;
+        if (ability.actionChannel === 'special') return false;
+        if (playerUnit && !canUseAbilityNow(playerUnit, ability)) return false;
+        return getItsSwapBlockReason({
+            itsActive: its.isActive,
+            itsAbilityId: its.abilityId ?? null,
+            targetAbilityId: ability.id,
+            isResumeMode: its.isResumeMode,
+            atEndedEarlyDone,
+            isRewindCrossfade,
+            onlyUndoAtStart: ONLY_UNDO_AT_START,
+            hasCollectedTargets: Object.keys(its.collectedTargets ?? {}).length > 0,
+        }) == null;
+    };
+    // Pass during a follow-up preview rewinds and continues the paused cast (same resolver as handleWait;
+    // decision, missing-pick and ended-early rules keep precedence).
+    const atFollowUpPreview =
+        canUseOrderUi
+        && !isConditionalCancelPause
+        && !atMissingPickDecision
+        && !atEndedEarlyDone
+        && its != null
+        && isAtFollowUpPreview(its);
+    const passEnabled = isMyTurn || atMissingPickDecision || atEndedEarlyDone || atFollowUpPreview;
     const onWait = nonconfirmedOrder && !autoEndTurn && !atEndedEarlyDone
         ? () => sessionRef.current?.getInteractionManager()?.handleEndTurn()
         : () => sessionRef.current?.getInteractionManager()?.handleWait();
     const waitDisabledReason =
-        isItsPreviewActive && !conditionalCancelContext && !atMissingPickDecision ? 'its_preview_active' : null;
+        isItsPreviewActive && !conditionalCancelContext && !atMissingPickDecision && !atFollowUpPreview
+            ? 'its_preview_active'
+            : null;
     // Reaction pause: the local unit has `reactionPending` (set by the engine at the reaction frame).
     const isReactionPause = activeLocalWaiter != null && playerUnit?.reactionPending != null;
     const passAction: TurnIndicatorPassAction = {
@@ -119,6 +157,8 @@ export function useBattleAbilityBarSlots({
             ? 'Pass: commit this timeline (Space)'
             : atMissingPickDecision
             ? 'Pass: skip the pick (the ability fizzles)'
+            : atFollowUpPreview
+            ? 'Pass: stop the combo (Space)'
             : !isMyTurn
               ? waitDisabledReason === 'its_preview_active'
                   ? 'Pass unavailable during targeting preview (Undo to cancel)'
@@ -158,6 +198,7 @@ export function useBattleAbilityBarSlots({
                 onHoverAbility={setHoveredAbility}
                 turnIndicator={renderTurnIndicator?.(sideControls)}
                 itsPreviewPhase={interactiveTargetingState}
+                canSwapToAbility={canSwapToAbility}
                 itsAbilityId={its?.isActive ? (its.abilityId ?? null) : null}
                 itsAtParallelPause={engine.waitingForOrders != null}
                 isReactionPause={isReactionPause}

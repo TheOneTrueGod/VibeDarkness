@@ -7,6 +7,7 @@ import { comboWindowOpen, unitComboGrant } from './comboGrant';
  */
 export function buildComboCancelDef(): ConditionalCancelDef {
     return {
+        followUpDefault: 'same_ability',
         condition: ({ caster, abilityId }) => {
             const active = caster.activeAbilities.find((a) => a.abilityId === abilityId);
             const comboCount = active?.comboCount ?? 1;

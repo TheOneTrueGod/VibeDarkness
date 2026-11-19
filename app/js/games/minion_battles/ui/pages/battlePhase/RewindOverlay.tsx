@@ -1,8 +1,6 @@
 import React from 'react';
-import { REWIND_OVERLAY_FADE_MS } from './useRewindOverlay';
-
 interface RewindOverlayProps {
-    overlay: { frameUrl: string; token: number };
+    overlay: { frameUrl: string; token: number; fadeMs: number };
     opaque: boolean;
 }
 
@@ -14,7 +12,7 @@ export default function RewindOverlay({ overlay, opaque }: RewindOverlayProps) {
             className="pointer-events-none absolute inset-0 z-40 transition-opacity ease-out"
             style={{
                 opacity: opaque ? 1 : 0,
-                transitionDuration: `${REWIND_OVERLAY_FADE_MS}ms`,
+                transitionDuration: `${overlay.fadeMs}ms`,
             }}
             aria-hidden
         >

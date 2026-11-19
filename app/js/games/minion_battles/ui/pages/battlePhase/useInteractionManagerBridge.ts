@@ -51,11 +51,12 @@ export function useInteractionManagerBridge({
         const mgr = sessionRef.current?.getInteractionManager();
         if (!mgr) return;
         mgr.setCanUseOrderUi(canUseOrderUi);
-        mgr.setWaitingForOrders(waitingForOrders);
         mgr.setMyAbilityIds(myAbilityIds);
         // The mode the player picked on the strip, or undefined: the manager then follows the
         // default mode (or its fallback while the default can't be cast) via `resolveSlotMode`.
         mgr.setAbilityModeResolver((abilityId) => abilityModeByAbilityIdRef.current[abilityId]);
+        // Last: a new pause plane can auto-continue a Combo, which needs the hand and mode set above.
+        mgr.setWaitingForOrders(waitingForOrders);
     }, [canUseOrderUi, waitingForOrders, myAbilityIds, battleInitPhase, abilityModeByAbilityId, sessionRef]);
 
     // A Create card's replacement starts on its first mode, even if that card was toggled earlier.

@@ -6,15 +6,44 @@ import type { BattleOrder, ResolvedTarget, WaitingForOrders } from '../types';
 
 export interface PlayerInteractionSession {
     submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void>;
+    /**
+     * The session's current manager. An ITS rewind restores the engine, which rebuilds the manager
+     * (`BattleSession.startEngine`), so a swap must continue on this one, not the one that started it.
+     */
+    getInteractionManager?(): {
+        activateAbilityTargeting(cardIndex: number, ability: AbilityStatic): void;
+        adoptOrderUiState(from: {
+            canUseOrderUi: boolean;
+            myAbilityIds: readonly string[];
+            abilityModeResolver: ((abilityId: string) => string | undefined) | null;
+        }): void;
+        submitOrder(abilityId: string, targets: ResolvedTarget[]): void;
+    } | null;
     /** ITS preview gate — used to block wait/end-turn while a local preview is active. */
     readonly interactiveTargeting: {
         readonly isActive: boolean;
         readonly previewOrderQueued: boolean;
         /** True while a resume preview (picking at a missing-pick pause) is running. */
         readonly isResumeMode: boolean;
+        /** Ability the active preview runs (null when inactive). Optional so minimal test doubles still fit. */
+        readonly abilityId?: string | null;
+        /** Caster of the active preview (null when inactive). */
+        readonly unitId?: string | null;
+        /** Targets collected so far; Undo / swap rules read whether any exist. */
+        readonly collectedTargets?: Readonly<Record<string, unknown>>;
         shouldForceItsCommitAtComboWindow(): boolean;
+        /** True while a commit is running. Optional so minimal test doubles still fit. */
+        readonly isCommitInFlight?: boolean;
+        /** Combo pause planes whose follow-up already started (survives the manager rebuild a rewind causes). */
+        hasComboFollowUpStarted?(planeKey: string): boolean;
+        noteComboFollowUpStarted?(planeKey: string): void;
         commit(session: PlayerInteractionSession, actionSource?: string): Promise<void>;
-        reset(session: PlayerInteractionSession, actionSource?: string): Promise<void>;
+        reset(
+            session: PlayerInteractionSession,
+            actionSource?: string,
+            cancelReason?: string,
+            rewindReason?: string,
+        ): Promise<void>;
         /** Non-null when the preview cast ended early (interrupt / fizzle / death); Pass then commits at Done. */
         getPreviewCastEndedEarly?(engine: GameEngine): unknown;
     };

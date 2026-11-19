@@ -16,8 +16,16 @@ import { getAbility } from '../../abilities/AbilityRegistry';
 import { resolveModeAbilityId, resolveSlotMode } from '../../abilities/resolveAbilityMode';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import { logOrderUiKeyAction } from './itsLobbyLog';
-import { isAtConditionalCancelDecision, isAtMissingPickDecision, isITSPreviewComplete } from './isITSPreviewComplete';
+import {
+    getConditionalCancelDecisionCast,
+    isAtConditionalCancelDecision,
+    isAtFollowUpPreview,
+    isAtMissingPickDecision,
+    isITSPreviewComplete,
+} from './isITSPreviewComplete';
 import { canUseAbilityNow } from '../../abilities/abilityUses';
+import { getItsSwapBlockReason } from './itsSwap';
+import { ONLY_UNDO_AT_START } from '../gameConstants';
 
 declare global {
     interface Window {
@@ -55,6 +63,8 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
     private myAbilityIds: string[] = [];
     private resolveAbilityMode: ((abilityId: string) => string | undefined) | null = null;
     private readonly listeners = new Set<UIListener>();
+    /** True from a swap's rewind until it hands over to the new preview; blocks a second swap meanwhile. */
+    private _swapInFlight = false;
 
     // -------------------------------------------------------------------------
     // IPlayerInteractionManager — public read-only accessors
@@ -117,7 +127,59 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
                     : null,
             };
             this.emitChange();
+            if (info != null) this.maybeAutoContinueCombo();
         }
+    }
+
+    /** The ability a hand slot casts, honouring a mode toggle that swaps the slot to another ability. */
+    private resolveSlotAbility(index: number): AbilityStatic | null {
+        const slotAbilityId = this.myAbilityIds[index];
+        const slotAbility = slotAbilityId ? getAbility(slotAbilityId) : null;
+        if (!slotAbility) return null;
+        return getAbility(resolveModeAbilityId(slotAbility, this.effectiveAbilityMode(slotAbility.id))) ?? slotAbility;
+    }
+
+    /** `${unitId}:${atTick}` of the pause plane the local order UI is at (engine truth, then the pushed one). */
+    private comboPlaneKey(unitId: string): string | null {
+        const atTick = this.ctx?.engine.waitingForOrders?.atTick ?? this._waitingForOrders?.atTick;
+        return atTick == null ? null : `${unitId}:${atTick}`;
+    }
+
+    /**
+     * Combo auto-continue: at a conditional-cancel pause whose cast asks for it
+     * (`conditionalCancelFollowUp === 'same_ability'`), start the same ability's follow-up preview by
+     * itself, through the normal `activateAbilityTargeting` Combo follow-up path.
+     *
+     * Local player's active waiter only, and only while the order UI is usable. Fires at most once per
+     * pause plane; the memory lives on the ITS session so Undo / swap back to the plane (which rebuilds
+     * this manager) does not restart it. Skipped while the preview must be committed first
+     * (`shouldForceItsCommitAtComboWindow`): it then fires on the real combo pause after that commit.
+     * Called from `setWaitingForOrders` and from the ITS progress poll when a preview is done.
+     */
+    maybeAutoContinueCombo(): boolean {
+        const ctx = this.ctx;
+        if (!ctx || !this._canUseOrderUi || !this._waitingForOrders) return false;
+        const its = ctx.session.interactiveTargeting;
+        if (its.isCommitInFlight || this._swapInFlight) return false;
+        if (this.isAtMissingPickPause()) return false;
+        const active = ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(ctx.playerId);
+        if (!active) return false;
+        const cast = getConditionalCancelDecisionCast(ctx.engine, active.unitId, its);
+        if (cast?.conditionalCancelFollowUp !== 'same_ability') return false;
+        if (its.shouldForceItsCommitAtComboWindow()) return false;
+        const planeKey = this.comboPlaneKey(active.unitId);
+        if (planeKey == null || its.hasComboFollowUpStarted?.(planeKey)) return false;
+        const caster = ctx.engine.getUnit(active.unitId);
+        if (!caster) return false;
+        for (let index = 0; index < this.myAbilityIds.length; index++) {
+            const ability = this.resolveSlotAbility(index);
+            if (!ability || ability.id !== cast.abilityId) continue;
+            if (!canUseAbilityNow(caster, ability)) return false;
+            // activateAbilityTargeting records the plane once the follow-up actually starts.
+            this.activateAbilityTargeting(index, ability);
+            return true;
+        }
+        return false;
     }
 
     setMyAbilityIds(ids: string[]): void {
@@ -299,12 +361,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         if (digit > 0 && this._canUseOrderUi && !this.isAtMissingPickPause()) {
             const index = digit - 1;
             if (index < this.myAbilityIds.length) {
-                const slotAbilityId = this.myAbilityIds[index];
-                const slotAbility = slotAbilityId ? getAbility(slotAbilityId) : null;
-                // Honour a mode toggle that swaps the slot to another ability.
-                const ability = slotAbility
-                    ? (getAbility(resolveModeAbilityId(slotAbility, this.effectiveAbilityMode(slotAbility.id))) ?? slotAbility)
-                    : null;
+                const ability = this.resolveSlotAbility(index);
                 if (ability) {
                     e.preventDefault();
                     this.activateAbilityTargeting(index, ability);
@@ -346,7 +403,86 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         this.emitChange();
     }
 
+    /**
+     * Copy the order-UI inputs the React bridge normally pushes. An ITS rewind rebuilds the manager
+     * (`BattleSession.startEngine`) and the bridge only re-pushes on its next render, so a swap
+     * hands the old manager's state to the new one synchronously and reads the pause plane from the
+     * restored engine.
+     */
+    adoptOrderUiState(from: {
+        canUseOrderUi: boolean;
+        myAbilityIds: readonly string[];
+        abilityModeResolver: ((abilityId: string) => string | undefined) | null;
+    }): void {
+        this._canUseOrderUi = from.canUseOrderUi;
+        this.myAbilityIds = [...from.myAbilityIds];
+        this.resolveAbilityMode = from.abilityModeResolver;
+        this.setWaitingForOrders(this.ctx?.engine.waitingForOrders ?? null);
+    }
+
+    /**
+     * Clicking another ability card (or its number key) while an ITS preview is running: rewind to
+     * the preview's mark with the quick `'swap'` rewind, then start the new ability's preview.
+     * Gated by {@link getItsSwapBlockReason}; returns false when nothing was done.
+     */
+    swapItsPreviewAbility(cardIndex: number, ability: AbilityStatic): boolean {
+        if (!this.ctx || this._swapInFlight) return false;
+        const session = this.ctx.session;
+        const its = session.interactiveTargeting;
+        // Specials never enter ITS; an uncastable ability would rewind to an instantly-interrupted preview.
+        if (ability.actionChannel === 'special') return false;
+        const caster = its.unitId ? (this.ctx.engine.getUnit(its.unitId) ?? undefined) : undefined;
+        if (caster && !canUseAbilityNow(caster, ability)) return false;
+        const blockReason = getItsSwapBlockReason({
+            itsActive: its.isActive,
+            itsAbilityId: its.abilityId ?? null,
+            targetAbilityId: ability.id,
+            isResumeMode: its.isResumeMode,
+            atEndedEarlyDone: this.isAtEndedEarlyDone(),
+            isRewindCrossfade: this._swapInFlight,
+            onlyUndoAtStart: ONLY_UNDO_AT_START,
+            hasCollectedTargets: Object.keys(its.collectedTargets ?? {}).length > 0,
+        });
+        if (blockReason != null) return false;
+
+        const carried = {
+            canUseOrderUi: this._canUseOrderUi,
+            myAbilityIds: this.myAbilityIds,
+            abilityModeResolver: this.resolveAbilityMode,
+        };
+        this._swapInFlight = true;
+        this.deactivateTool();
+        void its.reset(session, 'ui_swap', 'user_swap', 'swap').then(
+            () => {
+                this._swapInFlight = false;
+                // The restore rebuilt the manager; continue on the session's current one.
+                const next = session.getInteractionManager?.() ?? this;
+                next.adoptOrderUiState(carried);
+                next.activateAbilityTargeting(cardIndex, ability);
+            },
+            () => {
+                this._swapInFlight = false;
+            },
+        );
+        return true;
+    }
+
     activateAbilityTargeting(cardIndex: number, ability: AbilityStatic): void {
+        // Mid-preview card click = swap. Checked before the pause-plane guard below: during playahead
+        // `_waitingForOrders` may be null. A click at a Combo / Entombed pause (a done ITS) keeps the
+        // existing conditional-cancel follow-up path.
+        if (this.ctx?.session.interactiveTargeting.isActive) {
+            const waiter = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
+            const atDecision = isAtConditionalCancelDecision(
+                this.ctx.engine,
+                waiter?.unitId ?? this.ctx.session.interactiveTargeting.unitId,
+                this.ctx.session.interactiveTargeting,
+            );
+            if (!atDecision && !this.isAtMissingPickPause()) {
+                this.swapItsPreviewAbility(cardIndex, ability);
+                return;
+            }
+        }
         if (!this._waitingForOrders || !this.ctx) return;
         const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
         if (!active) return;
@@ -364,6 +500,13 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         // Throw Rock); an uncastable order would only start a preview that is instantly interrupted.
         if (caster && ability.actionChannel !== 'special' && !canUseAbilityNow(caster, ability)) {
             return;
+        }
+
+        // A follow-up from a Combo pause starts here (auto or clicked): remember the plane so Undo / swap
+        // back to it does not auto-continue again.
+        if (comboCancelPause) {
+            const planeKey = this.comboPlaneKey(active.unitId);
+            if (planeKey != null) this.ctx.session.interactiveTargeting.noteComboFollowUpStarted?.(planeKey);
         }
 
         // Same card again: toggle off, unless a mode toggle swapped the card to another ability.
@@ -587,6 +730,12 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
                     });
                 return;
             }
+            // Pass in a follow-up preview: rewind to the combo pause (quick 'swap' rewind), then continue
+            // the paused cast with `wait` (the same end state as Pass at the decision).
+            if (isAtFollowUpPreview(this.ctx.session.interactiveTargeting)) {
+                this.passFromFollowUpPreview(logWait);
+                return;
+            }
             // Deferred-first-select ITS keeps waitingForOrders + active waiter, so Space would
             // otherwise POST wait for the open batch (lobby 10EA88 / 12D040).
             logWait(true, 'its_preview_active');
@@ -603,6 +752,39 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         logWait(false, null);
         this.deactivateTool();
         this.confirmPendingClientOrders();
+    }
+
+    /**
+     * Pass during a follow-up preview. `reset` rebuilds this manager (`BattleSession.startEngine`), so the
+     * `wait` is submitted on the session's current manager after carrying the order-UI state across, as
+     * `swapItsPreviewAbility` does. The plane memory on the ITS session stops auto-continue restarting the preview.
+     */
+    private passFromFollowUpPreview(logWait: (blocked: boolean, blockReason: string | null) => void): void {
+        if (!this.ctx || this._swapInFlight) return;
+        if (!this._canUseOrderUi) {
+            logWait(true, 'can_use_order_ui_false');
+            return;
+        }
+        logWait(false, 'follow_up_preview_pass');
+        const session = this.ctx.session;
+        const carried = {
+            canUseOrderUi: this._canUseOrderUi,
+            myAbilityIds: this.myAbilityIds,
+            abilityModeResolver: this.resolveAbilityMode,
+        };
+        this._swapInFlight = true;
+        this.deactivateTool();
+        void session.interactiveTargeting.reset(session, 'ui_reset', 'user_reset', 'swap').then(
+            () => {
+                this._swapInFlight = false;
+                const next = session.getInteractionManager?.() ?? this;
+                next.adoptOrderUiState(carried);
+                next.submitOrder('wait', []);
+            },
+            () => {
+                this._swapInFlight = false;
+            },
+        );
     }
 
     handleEndTurn(): void {
