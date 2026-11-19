@@ -5,7 +5,7 @@ import type { AbilityStatic } from '../../../abilities/Ability';
 import type { BattleOrder, WaitingForOrders } from '../../../game/types';
 import type { AbilityBarChangedEvent } from '../../../game/EventBus';
 import { getAbility } from '../../../abilities/AbilityRegistry';
-import { isPreferredModeBlocked } from '../../../abilities/resolveAbilityMode';
+import { isPreferredModeBlocked, resolveSlotMode } from '../../../abilities/resolveAbilityMode';
 
 interface UseInteractionManagerBridgeParams {
     sessionRef: RefObject<BattleSession | null>;
@@ -82,34 +82,85 @@ export function useInteractionManagerBridge({
         return () => engine.eventBus.off('ability_bar_changed', onBar);
     }, [battleInitPhase, sessionRef]);
 
-    // Auto-upgrade: a slot toggled to its fallback tier (Bloody Claws) moves back up to the preferred tier
-    // (Ice Claws) the moment that tier becomes castable again (e.g. Water recovered). Only the
-    // blocked -> castable transition triggers it, so a deliberate pick while both are castable sticks.
+    // Mode tiers (Bloody Claws <-> Ice Claws).
+    // - Freeze: while a slot's ability is in use (target selection, ITS preview playing) its shown mode is
+    //   pinned with a temporary pick, so the in-use card stays visible even when its cost (Water) was just
+    //   spent. The pin lifts at the end of the use, or at the next pause plane (`waitingForOrders`).
+    // - Auto-upgrade: a slot on its fallback tier (Bloody Claws) moves back up to the preferred tier (Ice
+    //   Claws) the moment that tier becomes castable again. Only the blocked -> castable transition
+    //   triggers it, so a deliberate pick while both are castable sticks. Held back while the slot is in use.
     useEffect(() => {
         if (battleInitPhase !== 'ready') return;
         const blockedBefore: Record<string, boolean> = {};
+        /** Slot id -> the pick before the freeze, and the temporary pick the freeze wrote. */
+        const frozen: Record<string, { prevPick: string | undefined; pinned: string }> = {};
+        const writePicks = (next: Record<string, string>) => {
+            abilityModeByAbilityIdRef.current = next;
+            setAbilityModeByAbilityId(next);
+        };
         const check = () => {
             const session = sessionRef.current;
             const unit = session?.engine?.getLocalPlayerUnit();
             if (!session || !unit) return;
+            const manager = session.getInteractionManager();
+            const its = session.interactiveTargeting;
+            const uiState = manager?.getUIState();
+            // Ability ids in use: the selected card, the ITS cast while it plays (not at a pause plane), a pending order.
+            const inUseIds = new Set<string>();
+            if (uiState?.selectedAbility) inUseIds.add(uiState.selectedAbility.id);
+            if (uiState?.nonconfirmedOrder) inUseIds.add(uiState.nonconfirmedOrder.abilityId);
+            if (its.isActive && its.abilityId && session.engine?.waitingForOrders == null) inUseIds.add(its.abilityId);
+
             for (const abilityId of unit.abilities) {
                 const slotAbility = getAbility(abilityId);
-                if (!slotAbility?.abilityModes?.fallbackMode) continue;
+                const config = slotAbility?.abilityModes;
+                if (!slotAbility || !config) continue;
+                const modeAbilityIds = Object.values(config.modeAbilityIds ?? {});
+                const inUse = inUseIds.has(abilityId) || modeAbilityIds.some((id) => inUseIds.has(id));
+                const picks = abilityModeByAbilityIdRef.current;
+                const picked = picks[abilityId];
+
+                if (inUse) {
+                    if (!frozen[abilityId]) {
+                        const pinned = resolveSlotMode(unit, slotAbility, picked);
+                        if (pinned === undefined) continue;
+                        frozen[abilityId] = { prevPick: picked, pinned };
+                        if (picked !== pinned) writePicks({ ...picks, [abilityId]: pinned });
+                    }
+                    continue; // blockedBefore stays stale so a recovery during use upgrades once it ends.
+                }
+
+                const freeze = frozen[abilityId];
+                if (freeze) {
+                    delete frozen[abilityId];
+                    // Lift the pin unless the player picked something else meanwhile.
+                    if (picks[abilityId] === freeze.pinned) {
+                        const next = { ...picks };
+                        if (freeze.prevPick === undefined) delete next[abilityId];
+                        else next[abilityId] = freeze.prevPick;
+                        writePicks(next);
+                    }
+                }
+
+                if (!config.fallbackMode) continue;
                 const blocked = isPreferredModeBlocked(unit, slotAbility);
                 const wasBlocked = blockedBefore[abilityId] ?? blocked;
                 blockedBefore[abilityId] = blocked;
-                const config = slotAbility.abilityModes;
-                const picked = abilityModeByAbilityIdRef.current[abilityId];
-                if (!wasBlocked || blocked || picked === undefined || picked === config.defaultMode) continue;
+                const current = abilityModeByAbilityIdRef.current[abilityId];
+                if (!wasBlocked || blocked || current === undefined || current === config.defaultMode) continue;
                 const next = { ...abilityModeByAbilityIdRef.current };
                 delete next[abilityId];
-                abilityModeByAbilityIdRef.current = next;
-                setAbilityModeByAbilityId(next);
-                session.getInteractionManager()?.refreshNonconfirmedAbilityMode(abilityId);
+                writePicks(next);
+                manager?.refreshNonconfirmedAbilityMode(abilityId);
             }
         };
         const handle = window.setInterval(check, 150);
-        return () => window.clearInterval(handle);
+        // Pin the instant a card is selected (before the cast spends its cost), not on the next poll.
+        const unsubscribe = sessionRef.current?.getInteractionManager()?.subscribe(check);
+        return () => {
+            window.clearInterval(handle);
+            unsubscribe?.();
+        };
     }, [battleInitPhase, sessionRef]);
 
     // Keydown: delegate to manager.onKeyDown.
