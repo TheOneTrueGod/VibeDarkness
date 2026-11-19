@@ -28,7 +28,7 @@ import {
     BATTLE_BOTTOM_ROW_PADDING_Y_PX,
     TURN_INDICATOR_GAP_Y_PX,
 } from './battleBottomBarLayout';
-import { abilityHandCardFlags, type ItsHandPreviewPhase } from './abilityHandCardFlags';
+import { abilityHandCardFlags, isModeStripInteractive, type ItsHandPreviewPhase } from './abilityHandCardFlags';
 
 const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
 
@@ -511,7 +511,7 @@ export default function RowSlotAbilities({
                             ? (mode) => onSetAbilityMode(card.slotAbilityId, mode)
                             : undefined
                     }
-                    modeStripInteractive={isMyTurn}
+                    modeStripInteractive={isModeStripInteractive({ isMyTurn, isSwapTarget })}
                 />
                 {isReactionPause && (
                     <span

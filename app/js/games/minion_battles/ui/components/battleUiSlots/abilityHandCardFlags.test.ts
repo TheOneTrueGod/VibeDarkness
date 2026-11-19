@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { abilityHandCardFlags } from './abilityHandCardFlags';
+import { abilityHandCardFlags, isModeStripInteractive } from './abilityHandCardFlags';
 
 const BASE = {
     handIndex: 1,
@@ -101,5 +101,19 @@ describe('abilityHandCardFlags', () => {
             isSelected: true,
             isActive: false,
         });
+    });
+});
+
+describe('isModeStripInteractive', () => {
+    it('lets a swappable card toggle its mode during a preview (Combo auto-continue)', () => {
+        expect(isModeStripInteractive({ isMyTurn: false, isSwapTarget: true })).toBe(true);
+    });
+
+    it('keeps the previewed card and locked cards fixed', () => {
+        expect(isModeStripInteractive({ isMyTurn: false, isSwapTarget: false })).toBe(false);
+    });
+
+    it('allows toggling on the player turn', () => {
+        expect(isModeStripInteractive({ isMyTurn: true, isSwapTarget: false })).toBe(true);
     });
 });

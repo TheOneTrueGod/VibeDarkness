@@ -55,3 +55,13 @@ export function abilityHandCardFlags(
     const isActive = playaheadGreen || (executing && !atPausePlane);
     return { isSelected, isActive };
 }
+
+/**
+ * Whether a card's mode strip (e.g. Blood / Ice) can be toggled: whenever clicking the card would act on it.
+ * That is the player's turn, or a card that a click would switch to during an ITS preview (`canSwapToAbility`),
+ * which covers the follow-up preview Combo auto-continue starts on its pause. The previewed card itself is
+ * not a swap target, so its mode stays fixed while it plays.
+ */
+export function isModeStripInteractive(input: { isMyTurn: boolean; isSwapTarget: boolean }): boolean {
+    return input.isMyTurn || input.isSwapTarget;
+}
