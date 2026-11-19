@@ -21,6 +21,7 @@ import type { PlayerState } from '../../../types';
 import { BattleSession } from './BattleSession';
 import type { BattleOrder } from './types';
 import { ensureAbilityRuntimeState } from '../abilities/abilityUses';
+import { stubNetAdapter } from './testNetAdapter';
 
 const FIXED_DT = 1 / 60;
 
@@ -90,9 +91,9 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
                     releaseNetSubmit = resolve;
                 }),
         );
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             submitOrder: netSubmitOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         const order = makeWaitOrder(unitId, col + 1, row);
         const done = session.submitPlayerOrder(order, { canSubmitOrders: true });
@@ -121,9 +122,9 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
         if (typeof atTick !== 'number') throw new Error('expected waitingForOrders.atTick');
 
         const netSubmitOrder = vi.fn(async () => {});
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             submitOrder: netSubmitOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         // Swing Sword (0112) uses deferred-first select — begin leaves waitingForOrders set.
         const swordBegan = session.interactiveTargeting.begin(
@@ -174,9 +175,9 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
         const pauseAtTick = engine.waitingForOrders!.atTick;
 
         const netSubmitOrder = vi.fn(async () => {});
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             submitOrder: netSubmitOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         const commitSpy = vi.spyOn(session.interactiveTargeting, 'commit').mockImplementation(async () => {
             its._isActive = false;
@@ -217,9 +218,9 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
         }];
 
         const netSubmitOrder = vi.fn(async () => {});
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             submitOrder: netSubmitOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         await session.submitPlayerOrder(
             { unitId, abilityId: 'throw_rock', targets: [], endTurn: true },
@@ -250,9 +251,9 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
         unit.activeAbilities = [pausedThrow];
 
         const netSubmitOrder = vi.fn(async () => {});
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             submitOrder: netSubmitOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         const failures: unknown[] = [];
         const unsub = session.subscribe((ev) => {
             if (ev.type === 'order_submit_failed') failures.push(ev);
@@ -291,9 +292,9 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
             conditionalCancelTagFilter: ['Combo'],
         }];
 
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             submitOrder: vi.fn(async () => {}),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         await session.submitPlayerOrder(
             { unitId, abilityId: 'throw_rock', targets: [], endTurn: true },
@@ -310,9 +311,9 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
         const { its } = enterThrowOneComboWindowPreview(session, unitId);
 
         const netSubmitOrder = vi.fn(async () => {});
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             submitOrder: netSubmitOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         const commitSpy = vi.spyOn(session.interactiveTargeting, 'commit').mockImplementation(async () => {
             its._isActive = false;

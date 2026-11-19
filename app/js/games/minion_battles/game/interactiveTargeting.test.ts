@@ -16,7 +16,7 @@
  * Scenario J: Swing Mace preview with positional target runs windup lunge before hit interval.
  */
 
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { bumpEpoch, enterPreview, toCanonical, type SimTimeline } from './interaction/simTimeline';
 import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
@@ -79,6 +79,7 @@ import {
     EARTH_TREE_ID,
 } from '../../../researchTrees/trees/earth';
 import { resolveItsSelectTargetForClick } from './interaction/itsCanvasInput';
+import { stubNetAdapter } from './testNetAdapter';
 
 /** Digging Claws ability id — matches `0534Ability.ts`. */
 const DIGGING_CLAWS_ABILITY_ID = '0534';
@@ -123,9 +124,9 @@ beforeAll(() => {
     }
 });
 
-afterAll(() => {
-    vi.unstubAllGlobals();
-});
+// Do not unstub: tests here start sessions whose engine loop keeps a pending requestAnimationFrame timeout at
+// file teardown; unstubbing makes it throw `requestAnimationFrame is not defined` as an unhandled error.
+// Each test file runs in its own isolated worker, so the stub cannot leak into other files.
 
 function makeApiStub(): MinionBattlesApi {
     return {
@@ -1926,11 +1927,11 @@ describe('commit-time in-place decision (Step 1)', () => {
         const unsubRewind = session.subscribe((ev) => {
             if (ev.type === 'sequential_targeting_rewind') rewindEvents.push(ev);
         });
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
             persistCommittedOrder: vi.fn().mockResolvedValue(true),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
@@ -1999,10 +2000,10 @@ describe('commit-time in-place decision (Step 1)', () => {
         const unsubRewind = session.subscribe((ev) => {
             if (ev.type === 'sequential_targeting_rewind') rewindEvents.push(ev);
         });
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
@@ -2043,10 +2044,10 @@ describe('commit-time in-place decision (Step 1)', () => {
         const unsubRewind = session.subscribe((ev) => {
             if (ev.type === 'sequential_targeting_rewind') rewindEvents.push(ev);
         });
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
@@ -2082,10 +2083,10 @@ describe('commit-time in-place decision (Step 1)', () => {
         const moveKey = hashOrderId('p2', atTick, moveWait);
 
         const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
@@ -2120,10 +2121,10 @@ describe('commit-time in-place decision (Step 1)', () => {
         };
         const realKey = hashOrderId('p2', atTick, realOrder);
 
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
@@ -2196,10 +2197,10 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
         const passOrder = makePurePassOrder(remoteUnitId);
         its.holdRemoteOrder(atTick, passOrder, hashOrderId('p1', atTick, passOrder));
 
-        nonHostSession.setNetAdapter({
+        nonHostSession.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         expect(its.wouldCommitInPlace(nonHostSession)).toBe(false);
 
@@ -2237,10 +2238,10 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             endTurn: true,
         };
 
-        nonHostSession.setNetAdapter({
+        nonHostSession.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         vi.spyOn(nonHostSession, 'getEngine').mockReturnValue({
             gameTick: markTick + 26,
@@ -2278,10 +2279,10 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             endTurn: true,
         };
 
-        nonHostSession.setNetAdapter({
+        nonHostSession.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         vi.spyOn(nonHostSession, 'getEngine').mockReturnValue({
             gameTick: markTick + 26,
@@ -2307,10 +2308,10 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
         const passOrder = makePurePassOrder(casterUnitId);
         const passKey = hashOrderId('p1', atTick, passOrder);
 
-        nonHostSession.setNetAdapter({
+        nonHostSession.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         const its = nonHostSession.interactiveTargeting;
         its['_isActive'] = true;
@@ -2349,11 +2350,11 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             if (ev.type === 'order_submit_failed') failEvents.push(ev);
         });
 
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
             hasDeferredOrderFor: vi.fn().mockReturnValue(true),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
@@ -2389,11 +2390,11 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
         // ever reaching that gate — the pre-fix regression dropped the order and showed the
         // "Your order was not accepted" banner even though BattleNet would have deferred it.
         const submitOrder = vi.fn().mockResolvedValue(undefined);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => false,
             submitOrder,
             hasDeferredOrderFor: vi.fn().mockReturnValue(true),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
@@ -2424,14 +2425,14 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             if (ev.type === 'order_submit_failed') failEvents.push(ev);
         });
 
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn(async (order: BattleOrder, tick: number) => {
                 // Simulates optimistic apply + tryResumeParallel consuming the pending row.
                 session.seedRemoteOrderDedupeKeys([hashOrderId('p1', tick, order)]);
             }),
             hasDeferredOrderFor: vi.fn().mockReturnValue(false),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
@@ -2461,11 +2462,11 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             if (ev.type === 'order_submit_failed') failEvents.push(ev);
         });
 
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
             hasDeferredOrderFor: vi.fn().mockReturnValue(false),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
@@ -2503,14 +2504,14 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
                 eng.state.orderMgr.queueOrder(tick, { ...order, endTurn: true });
             }
         });
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             isOrderBatchTickSubmittable: (tick: number) => tick >= HEARTBEAT_BATCH,
             getHeartbeatOrderBatchAtTick: () => HEARTBEAT_BATCH,
             isLocalPlayerExpectedToAct: () => true,
             submitOrder,
             hasDeferredOrderFor: vi.fn().mockReturnValue(false),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
@@ -2695,9 +2696,9 @@ describe('Reset/Replay pre-restore refresh (Step 2)', () => {
         const { session, casterUnitId, blastPixel } = fixture;
         const enemyId = 'enemy_commit_test';
 
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             refreshRemoteOrdersForTargetingPreview: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         const its = session.interactiveTargeting;
         its.begin(
@@ -2780,9 +2781,9 @@ describe('Reset/Replay pre-restore refresh (Step 2)', () => {
         const fixture = await mountLightBlastSessionFixture();
         const { session, casterUnitId, blastPixel } = fixture;
 
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             refreshRemoteOrdersForTargetingPreview: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         const rewindReasons: string[] = [];
         session.subscribe((ev) => {
@@ -2827,9 +2828,9 @@ describe('Reset/Replay pre-restore refresh (Step 2)', () => {
         const passOrder = makePurePassOrder(remoteUnitId);
         const passKey = hashOrderId('p2', atTick, passOrder);
 
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             refreshRemoteOrdersForTargetingPreview: vi.fn().mockResolvedValue(undefined),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         const previewEngine = session.getEngine()!;
         const its = session.interactiveTargeting;
@@ -2920,10 +2921,10 @@ describe('terminal outcome during ITS preview (auto-commit before surfacing UI)'
         engine.state.orderMgr.applyOrder(makePurePassOrder(remoteUnitId));
 
         const persistCommittedOrder = vi.fn().mockResolvedValue(true);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
 
         armVictoryOnDummyKill(engine);
@@ -2959,10 +2960,10 @@ describe('terminal outcome during ITS preview (auto-commit before surfacing UI)'
         const engine = session.getEngine()!;
 
         const submitOrder = vi.fn().mockResolvedValue(undefined);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
 
         armVictoryOnDummyKill(engine);
@@ -3153,10 +3154,10 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         const markBatchAtTick = its.getDiagState().markBatchAtTick;
 
         const persistCommittedOrder = vi.fn().mockResolvedValue(true);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         await its.commit(session);
 
@@ -3182,22 +3183,22 @@ describe('interactive sequential targeting — conditional cancel stop point', (
     it('host follow-up at conditional-cancel pause is accepted after promotion flushes the preview checkpoint (lobby E27AE2)', async () => {
         const { session, engine, player, its } = await mountDiggingClawsConditionalCancelPreview();
 
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder: vi.fn().mockResolvedValue(true),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         await its.commit(session);
 
         // promotePreview flushes the preview's latest checkpoint, so the heartbeat host tick
         // jumps to the engine tick; batches at or before it are stale (BattleNet.isOrderBatchTickSubmittable).
         const hostTickAfterFlush = engine.gameTick;
         const submitOrder = vi.fn().mockResolvedValue(undefined);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             isOrderBatchTickSubmittable: (atTick: number) => atTick > hostTickAfterFlush,
             isLocalPlayerExpectedToAct: () => true,
             submitOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         const failures: unknown[] = [];
         const unsub = session.subscribe((ev) => {
             if (ev.type === 'order_submit_failed') failures.push(ev);
@@ -3530,13 +3531,13 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         const aimPixel = { x: player.x + 160, y: player.y };
 
         const persistCommittedOrder = vi.fn().mockResolvedValue(true);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
             queueFingerprint: vi.fn(),
             saveSnapshotOnPause: vi.fn(),
             mergeAppliedOrdersForBatch: vi.fn(),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
 
         stepUntil(engine, () => engine.waitingForOrders?.waiters.some((w) => w.unitId === player.id) ?? false);
         const its = session.interactiveTargeting;
@@ -3904,13 +3905,13 @@ describe('ITS preview cast ended early before targets collected (lobbies 0AD6EA 
         // teammate pause during the playahead, so the commit stays in place.
         engine.state.orderMgr.applyOrder(makeLongPassOrder(remoteUnitId));
         const persistCommittedOrder = vi.fn().mockResolvedValue(true);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
             // The host checkpoints and fingerprints at the caster's next order pause after the commit.
             saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
             queueFingerprint: vi.fn(),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
         const its = session.interactiveTargeting;
 
@@ -4116,13 +4117,13 @@ describe('ITS missing-pick resume (beginResume at a missing-pick pause)', () => 
 
     function installPersistAdapter(session: BattleSession) {
         const persistCommittedOrder = vi.fn().mockResolvedValue(true);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
             // The host checkpoints and fingerprints at the caster's order pause formed on commit.
             saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
             queueFingerprint: vi.fn(),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         return persistCommittedOrder;
     }
 
@@ -4303,11 +4304,11 @@ describe('ITS rollback commit latency', () => {
         );
         // The server never answers: the commit must still finish once the order is handed off.
         const submitOrder = vi.fn(() => new Promise<void>(() => {}));
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             refreshRemoteOrdersForTargetingPreview,
             submitOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
 
         // Host with a second player: the preview assumed their pass, so rollback is certain.
