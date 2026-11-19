@@ -12,6 +12,7 @@ import {
 } from '../../../game/interaction/isITSPreviewComplete';
 import { ONLY_UNDO_AT_START } from '../../../game/gameConstants';
 import { isItsUndoDisabled } from '../../components/itsUndoHotkey';
+import { syncItsAutoCommitRun } from './itsAutoCommitRun';
 import {
     ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
     ITS_AUTO_COMMIT_BLOCK_UNDO_ALLOWED,
@@ -60,6 +61,8 @@ export function useInteractiveTargetingProgress({
     const [itsCommitInFlight, setItsCommitInFlight] = useState(false);
     const prevItsStateRef = useRef<string>('inactive');
     const autoCommitItsAttemptedRef = useRef(false);
+    /** Mark of the ITS run `autoCommitItsAttemptedRef` belongs to (see `syncItsAutoCommitRun`). */
+    const autoCommitRunMarkRef = useRef<object | null>(null);
     const lastSelectPauseLabelRef = useRef<string | null>(null);
     /** Key of the ended-early notice already shown for this ITS run (reason:atTick); null when none. */
     const endedEarlyKeyRef = useRef<string | null>(null);
@@ -97,8 +100,14 @@ export function useInteractiveTargetingProgress({
         const pollIts = (): void => {
             const session = sessionRef.current;
             const its = session?.interactiveTargeting;
+            // Auto-commit once per run, keyed by mark: a Combo follow-up begins with no inactive poll between.
+            const run = syncItsAutoCommitRun(
+                { runMark: autoCommitRunMarkRef.current, attempted: autoCommitItsAttemptedRef.current },
+                its?.isActive ? its.mark : null,
+            );
+            autoCommitRunMarkRef.current = run.runMark;
+            autoCommitItsAttemptedRef.current = run.attempted;
             if (!its?.isActive) {
-                autoCommitItsAttemptedRef.current = false;
                 lastSelectPauseLabelRef.current = null;
                 endedEarlyKeyRef.current = null;
                 endedEarlyStopLoggedRef.current = false;
