@@ -16,6 +16,7 @@
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { DarknessLevel } from '../darknessLevels';
 import { areAllies, areEnemies, type TeamId } from '../teams';
+import { UnitTag } from '../units/unitTag';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { forEachTileOnLine, isTileLineClearPermissive } from '../../terrain/tileLine';
 import { PERF_TEAM_PERCEPTION, tickPerformanceTracker } from '../performance/tickPerformanceTracker';
@@ -37,7 +38,20 @@ export interface PerceivedUnit extends SensingUnit {
     readonly x: number;
     readonly y: number;
     readonly teamId: TeamId;
+    /** Unit tags; any of {@link ALWAYS_PERCEIVED_TAGS} makes the unit always `'seen'`. */
+    readonly tags?: readonly string[];
     isAlive(): boolean;
+}
+
+/**
+ * Tags that make an enemy always `'seen'`, whatever vision, darkness, walls or range say. Bosses are
+ * always on screen; Displacer clones share the rule so the real Spirit can't be picked out in the dark.
+ */
+export const ALWAYS_PERCEIVED_TAGS: readonly string[] = [UnitTag.Boss, UnitTag.Clone];
+
+/** True when the unit carries an {@link ALWAYS_PERCEIVED_TAGS} tag. */
+export function isAlwaysPerceived(unit: Pick<PerceivedUnit, 'tags'>): boolean {
+    return unit.tags?.some((t) => ALWAYS_PERCEIVED_TAGS.includes(t)) ?? false;
 }
 
 /** The engine fields perception reads. `GameEngine` satisfies this. */
@@ -205,7 +219,7 @@ function unitTile(ctx: PerceptionContext, unit: PerceivedUnit): { col: number; r
 
 /** Detection for one unit against a built context. Senses are tried strongest first (`SENSE_IDS_BY_PRIORITY`). */
 function detectUnit(ctx: PerceptionContext, teamId: TeamId, unit: PerceivedUnit): Detection {
-    if (!areEnemies(teamId, unit.teamId)) return 'seen';
+    if (!areEnemies(teamId, unit.teamId) || isAlwaysPerceived(unit)) return 'seen';
     const { col, row } = unitTile(ctx, unit);
     for (const senseId of SENSE_IDS_BY_PRIORITY) {
         const d = SENSE_DETECTORS[senseId](ctx, col, row);

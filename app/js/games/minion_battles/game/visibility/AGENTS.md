@@ -9,7 +9,7 @@ What the local team can perceive: unit senses and the derived team perception th
 
 ## Tiers
 
-Each enemy is perceived at the strongest tier any allied living unit reaches: **seen > glimpsed > heard > felt > hidden**. Seen and glimpsed units are drawn; heard and felt units show pulse indicators; hidden units are not drawn. Non-enemies are always seen, and everything is seen when the mission's light system is off.
+Each enemy is perceived at the strongest tier any allied living unit reaches: **seen > glimpsed > heard > felt > hidden**. Seen and glimpsed units are drawn; heard and felt units show pulse indicators; hidden units are not drawn. Non-enemies are always seen, so are enemies with an `ALWAYS_PERCEIVED_TAGS` tag (`Boss`, and `Clone` so Displacer clones stay indistinguishable), and everything is seen when the mission's light system is off.
 
 - **Seen:** the enemy's tile is in the team's vision mask. A tile is in a viewer's vision when it is within vision range, a **forgiving sight line** to it is clear of `blocksVision` terrain, and the darkness cost summed along the centre line stays within the viewer's darkness budget (penetration plus darkvision). The forgiving line (`isTileLineClearPermissive` in `terrain/tileLine.ts`) passes when the centre-to-centre line is clear or any segment between sample points inside the two tiles (centre plus four inset corners) is clear, so a lone pillar that only clips the line does not hide what is behind it. Endpoints are exempt, so wall faces are visible. Light occlusion keeps the strict centre line (`isTileLineClear`), so pillars still cast full shadows.
 - **Glimpsed:** not seen, but the enemy stands on a lit tile and some viewer with `glimpseLit` has a clear forgiving sight line to it. No range cap.

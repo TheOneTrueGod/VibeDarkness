@@ -15,6 +15,7 @@ import {
     type SenseGrant,
     type SenseProfile,
 } from './senses';
+import { UnitTag } from '../units/unitTag';
 import { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainGrid, CELL_SIZE } from '../../terrain/TerrainGrid';
 import { TerrainType } from '../../terrain/TerrainType';
@@ -109,6 +110,17 @@ describe('computeTeamPerception', () => {
             walls: [[VIEWER_COL + 1, ROW + 1]],
         });
         expect(detectionOf(e, 'e')).toBe('seen');
+    });
+
+    it('always sees a Boss or a Clone, even in the dark behind a wall', () => {
+        const wall = { walls: wallColumn(VIEWER_COL + 6), dark: () => true };
+        const boss = { ...unitAt('b', 'enemy', VIEWER_COL + 10), tags: [UnitTag.Boss] };
+        const clone = { ...unitAt('c', 'enemy', VIEWER_COL + 10, ROW + 1), tags: [UnitTag.Clone] };
+        const grunt = { ...unitAt('g', 'enemy', VIEWER_COL + 10, ROW + 2), tags: [UnitTag.Structure] };
+        const e = world([player(), boss, clone, grunt], wall);
+        expect(detectionOf(e, 'b')).toBe('seen');
+        expect(detectionOf(e, 'c')).toBe('seen');
+        expect(detectionOf(e, 'g')).toBe('hidden');
     });
 
     it('hides a dark enemy 10 tiles away', () => {
