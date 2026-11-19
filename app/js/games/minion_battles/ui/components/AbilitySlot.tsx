@@ -29,6 +29,7 @@ import {
     abilityUseDiamondSizePx,
 } from './battleUiSlots/battleBottomBarLayout';
 import { AbilityModeStrip } from './AbilityModeStrip';
+import { getUseDiamondStates, type UseDiamondState } from './abilityUseDiamondStates';
 import { ensureSvgViewBox } from './abilityIconSvg';
 
 /** Fixed card width in the ability bar (must match the card `width` style below). */
@@ -54,17 +55,22 @@ export const ABILITY_MODE_STRIP_TOTAL_HEIGHT_PX = ABILITY_MODE_STRIP_HEIGHT_PX +
 /** `border-2` on the card. Use diamonds are centered on this stroke. */
 const ABILITY_SLOT_BORDER_PX = 2;
 
-/** Use pips drawn red when a click would rewind to before the uses existed (`unusable_at_rewind`). */
-const USE_DIAMOND_WARN_COLOR = '#f87171';
+/** Outline of a use that exists now but not at the rewind target a click would cause. */
+const USE_DIAMOND_GONE_AT_REWIND_COLOR = '#f87171';
 
 /**
- * Use pips along the bottom edge. Filled diamonds are uses still left, left to right.
- * `warn`: the uses are there now but not at the rewind target; drawn red.
+ * Use pips along the bottom edge, left to right (see `getUseDiamondStates`). With `rewindUses` set, the
+ * filled pips are the uses at the rewind target and live uses beyond them are hollow with a red outline.
  */
-function AbilityUseDiamonds({ usesLeft, maxUses, dimmed, warn = false }: { usesLeft: number; maxUses: number; dimmed: boolean; warn?: boolean }) {
-    const count = Math.max(1, maxUses);
-    const filled = Math.max(0, Math.min(count, usesLeft));
-    const size = abilityUseDiamondSizePx(count, ABILITY_SLOT_WIDTH_PX);
+function AbilityUseDiamonds({ usesLeft, maxUses, dimmed, rewindUses = null }: {
+    usesLeft: number;
+    maxUses: number;
+    dimmed: boolean;
+    rewindUses?: number | null;
+}) {
+    const states = getUseDiamondStates(usesLeft, maxUses, rewindUses);
+    const filled = states.filter((st) => st === 'filled').length;
+    const size = abilityUseDiamondSizePx(states.length, ABILITY_SLOT_WIDTH_PX);
     return (
         <div
             data-className="AbilityUseDiamonds"
@@ -74,17 +80,17 @@ function AbilityUseDiamonds({ usesLeft, maxUses, dimmed, warn = false }: { usesL
                 transform: `translate(-50%, calc(50% + ${ABILITY_SLOT_BORDER_PX / 2}px))`,
             }}
             role="img"
-            aria-label={`${filled} of ${count} uses`}
+            aria-label={`${filled} of ${states.length} uses`}
         >
-            {Array.from({ length: count }, (_, index) => (
-                <UseDiamond key={index} filled={index < filled} size={size} warn={warn} />
+            {states.map((state, index) => (
+                <UseDiamond key={index} state={state} size={size} />
             ))}
         </div>
     );
 }
 
-function UseDiamond({ filled, size, warn }: { filled: boolean; size: number; warn: boolean }) {
-    const color = warn ? USE_DIAMOND_WARN_COLOR : '#ffffff';
+function UseDiamond({ state, size }: { state: UseDiamondState; size: number }) {
+    const goneAtRewind = state === 'goneAtRewind';
     return (
         <svg
             width={size}
@@ -94,9 +100,9 @@ function UseDiamond({ filled, size, warn }: { filled: boolean; size: number; war
         >
             <polygon
                 points="8,1.2 14.8,8 8,14.8 1.2,8"
-                fill={filled ? color : '#000000'}
-                stroke={color}
-                strokeWidth="1.2"
+                fill={state === 'filled' ? '#ffffff' : '#000000'}
+                stroke={goneAtRewind ? USE_DIAMOND_GONE_AT_REWIND_COLOR : '#ffffff'}
+                strokeWidth={goneAtRewind ? 2 : 1.2}
                 strokeLinejoin="miter"
             />
         </svg>
@@ -110,6 +116,11 @@ interface AbilitySlotProps {
     /** Whether this card is currently being used (ability executing). */
     isActive?: boolean;
     disabledReason: DisabledReason | null;
+    /**
+     * Uses at the rewind target while a click would rewind an ITS preview (`getRewindTargetUnit`); null
+     * otherwise. The pips then show these uses, and red-outline live uses the rewind removes.
+     */
+    rewindUses?: number | null;
     onSelect: () => void;
     isHovered: boolean;
     onHoverChange: (hovered: boolean) => void;
@@ -146,6 +157,7 @@ export default function AbilitySlot({
     isSelected,
     isActive = false,
     disabledReason,
+    rewindUses = null,
     onSelect,
     isHovered,
     onHoverChange,
@@ -166,7 +178,6 @@ export default function AbilitySlot({
 }: AbilitySlotProps) {
     const cardRef = useRef<HTMLDivElement | null>(null);
     const isDisabled = disabledReason !== null;
-    const usesGoneAtRewind = disabledReason?.reason_id === 'unusable_at_rewind' && disabledReason.resourceId == null;
 
     const handleClick = useCallback(() => {
         if (isDisabled) return;
@@ -326,9 +337,9 @@ export default function AbilitySlot({
                 <AbilityUseDiamonds
                     usesLeft={usesLeft}
                     maxUses={maxUses}
-                    // Red, not dimmed: the uses exist now; the rewind a click causes removes them.
-                    dimmed={isDisabled && !usesGoneAtRewind}
-                    warn={usesGoneAtRewind}
+                    // Not dimmed when only the rewind removes the uses: the red outlines are the point.
+                    dimmed={isDisabled && disabledReason?.reason_id !== 'unusable_at_rewind'}
+                    rewindUses={rewindUses}
                 />
 
                 {/* Resource cost — inset from top-right corner */}

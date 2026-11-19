@@ -481,6 +481,10 @@ export default function RowSlotAbilities({
                     isSelected={isSelected}
                     isActive={isActive}
                     disabledReason={disabledReason}
+                    rewindUses={rewindContext
+                        // Same runtime lookup as the card itself (shown ability, then its slot).
+                        ? ((rewindContext.unit.abilityRuntime[card.abilityId] ?? rewindContext.unit.abilityRuntime[card.slotAbilityId])?.currentUses ?? null)
+                        : null}
                     onSelect={() => handleSelectCard(index)}
                     isHovered={isHovered}
                     onHoverChange={(hovered) => {
