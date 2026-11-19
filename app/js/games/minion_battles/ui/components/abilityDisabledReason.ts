@@ -1,4 +1,6 @@
-import { getAbilityResourceCosts, type AbilityStatic } from '../../abilities/Ability';
+import type { AbilityStatic } from '../../abilities/Ability';
+import { getUnaffordableResourceId } from '../../abilities/abilityAffordability';
+import { getRewindUnusableCause } from '../../game/interaction/itsHandView';
 import type { Unit } from '../../game/units/Unit';
 import { getLivingPetsOfUnit } from '../../game/units/petHelpers';
 import { isUnitBusy, type CastPriorityEngine } from '../../game/units/castPriority';
@@ -17,7 +19,9 @@ export type DisabledReasonId =
     | 'no_uses_remaining'
     | 'no_pet_source'
     | 'no_free_spirit'
-    | 'tag_filter_mismatch';
+    | 'tag_filter_mismatch'
+    /** Usable now, but a click during an ITS preview rewinds to before that ability, when it was not. */
+    | 'unusable_at_rewind';
 
 export interface DisabledReason {
     reason_id: DisabledReasonId;
@@ -29,6 +33,8 @@ export interface DisabledReason {
     refillsEachRound?: boolean;
     /** Populated for 'no_uses_remaining': recovery charges the unit gains each round, by type. */
     chargesPerRound?: Partial<Record<RecoveryChargeType, number>>;
+    /** Populated for 'unusable_at_rewind': the previewed ability a click would rewind to before. */
+    rewindAbilityName?: string;
 }
 
 /** Disabled-reason text renders as plain text, so drop legacy `{n}` highlight braces. */
@@ -82,32 +88,26 @@ export function getDisabledReasonDisplay(reason: DisabledReason): { title: strin
             return { title: 'Not Available', description: 'Requires an unoccupied spirit animal.' };
         case 'tag_filter_mismatch':
             return { title: 'Wrong Ability Type', description: "This ability can't be used right now." };
+        case 'unusable_at_rewind': {
+            const before = reason.rewindAbilityName ?? 'this ability';
+            if (reason.resourceId) {
+                const name = getResourceDisplayName(reason.resourceId);
+                return {
+                    title: `Not Enough ${name} Before ${before}`,
+                    description: `Switching rewinds to before ${before}, when you had too little ${name}.`,
+                };
+            }
+            return {
+                title: `No Uses Before ${before}`,
+                description: `Switching rewinds to before ${before}, when this had no uses.`,
+            };
+        }
     }
 }
 
 function getAffordabilityFailReason(unit: Unit, ability: AbilityStatic): DisabledReason | null {
-    for (const cost of getAbilityResourceCosts(ability, unit)) {
-        const resource = unit.getResource(cost.resourceId);
-        if (!resource) return { reason_id: 'cannot_afford', resourceId: cost.resourceId };
-        if (cost.allowPartialIfPositive) {
-            if (resource.current <= 0) return { reason_id: 'cannot_afford', resourceId: cost.resourceId };
-            continue;
-        }
-        if (!resource.canAfford(cost.amount)) return { reason_id: 'cannot_afford', resourceId: cost.resourceId };
-    }
-    return null;
-}
-
-/**
- * Checks affordability of an ability's `hpCost`, separate from the generic resource-cost
- * pipeline since HP is deducted manually by the ability's cast behaviour, not via `Resource`.
- */
-function getHpAffordabilityFailReason(unit: Unit, ability: AbilityStatic): DisabledReason | null {
-    if (ability.hpCost == null) return null;
-    const gate = ability.hpCostGate ?? 'requireSurplus';
-    if (gate !== 'requireSurplus') return null;
-    if (unit.hp <= ability.hpCost) return { reason_id: 'cannot_afford', resourceId: 'hp' };
-    return null;
+    const resourceId = getUnaffordableResourceId(unit, ability);
+    return resourceId == null ? null : { reason_id: 'cannot_afford', resourceId };
 }
 
 export function getAbilityDisabledReason(params: {
@@ -123,27 +123,44 @@ export function getAbilityDisabledReason(params: {
      */
     engine?: CastPriorityEngine;
     conditionalCancelContext?: { abilityTagFilter?: readonly string[] } | null;
+    /**
+     * Set while a click would rewind an ITS preview (`getRewindTargetUnit`): the caster at the rewind target
+     * and the previewed ability's name. Uses and costs are then judged there, since the click acts after
+     * the rewind: usable now but not there is `unusable_at_rewind`; unusable now but usable there is enabled.
+     */
+    rewind?: { unit: Unit; abilityName: string } | null;
 }): DisabledReason | null {
-    const { playerUnit, ability, abilityId, currentUses, isMyTurn, allUnits, engine, conditionalCancelContext } = params;
+    const { playerUnit, ability, abilityId, currentUses, isMyTurn, allUnits, engine, conditionalCancelContext, rewind } = params;
 
     if (!isMyTurn) return { reason_id: 'not_my_turn' };
 
-    if (playerUnit) {
-        const affordReason = getAffordabilityFailReason(playerUnit, ability);
+    const liveCostReason = (): DisabledReason | null => {
+        const affordReason = playerUnit ? getAffordabilityFailReason(playerUnit, ability) : null;
         if (affordReason) return affordReason;
+        if (currentUses <= 0) {
+            const useConfig = getAbilityUseConfig(abilityId);
+            return {
+                reason_id: 'no_uses_remaining',
+                recoveries: useConfig.recoveries,
+                refillsEachRound: useConfig.refillsEachRound,
+                chargesPerRound: getChargesPerRound(playerUnit),
+            };
+        }
+        return null;
+    };
 
-        const hpAffordReason = getHpAffordabilityFailReason(playerUnit, ability);
-        if (hpAffordReason) return hpAffordReason;
-    }
-
-    if (currentUses <= 0) {
-        const useConfig = getAbilityUseConfig(abilityId);
-        return {
-            reason_id: 'no_uses_remaining',
-            recoveries: useConfig.recoveries,
-            refillsEachRound: useConfig.refillsEachRound,
-            chargesPerRound: getChargesPerRound(playerUnit),
-        };
+    if (rewind) {
+        const cause = getRewindUnusableCause(rewind.unit, ability);
+        if (cause) {
+            return liveCostReason() ?? {
+                reason_id: 'unusable_at_rewind',
+                rewindAbilityName: rewind.abilityName,
+                ...(cause.kind === 'resource' ? { resourceId: cause.resourceId } : {}),
+            };
+        }
+    } else {
+        const costReason = liveCostReason();
+        if (costReason) return costReason;
     }
 
     const source = ability.abilitySource;

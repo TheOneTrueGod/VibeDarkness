@@ -25,6 +25,7 @@ import {
 } from './isITSPreviewComplete';
 import { canUseAbilityNow } from '../../abilities/abilityUses';
 import { getItsSwapBlockReason } from './itsSwap';
+import { getRewindTargetUnit, getRewindUnusableCause } from './itsHandView';
 import { ONLY_UNDO_AT_START } from '../gameConstants';
 
 declare global {
@@ -431,8 +432,11 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         const its = session.interactiveTargeting;
         // Specials never enter ITS; an uncastable ability would rewind to an instantly-interrupted preview.
         if (ability.actionChannel === 'special') return false;
-        const caster = its.unitId ? (this.ctx.engine.getUnit(its.unitId) ?? undefined) : undefined;
-        if (caster && !canUseAbilityNow(caster, ability)) return false;
+        // Castability at the rewind target (the mark), the same view the ability bar shows.
+        const liveCaster = its.unitId ? (this.ctx.engine.getUnit(its.unitId) ?? null) : null;
+        const rewindCaster = getRewindTargetUnit(this.ctx.engine, its, liveCaster);
+        if (rewindCaster ? getRewindUnusableCause(rewindCaster, ability) != null
+            : liveCaster != null && !canUseAbilityNow(liveCaster, ability)) return false;
         const blockReason = getItsSwapBlockReason({
             itsActive: its.isActive,
             itsAbilityId: its.abilityId ?? null,

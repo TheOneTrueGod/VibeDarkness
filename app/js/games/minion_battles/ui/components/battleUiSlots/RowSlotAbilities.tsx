@@ -106,6 +106,11 @@ interface RowSlotAbilitiesProps {
      * (rewinds to the preview's mark). Such cards are clickable, titled "Switch to <name> (rewinds)".
      */
     canSwapToAbility?: (ability: AbilityStatic) => boolean;
+    /**
+     * Set while a card click would rewind an ITS preview: uses and costs are judged at the rewind target
+     * (`getAbilityDisabledReason` `rewind`), so a card the rewind makes unusable shows `unusable_at_rewind`.
+     */
+    rewindContext?: { unit: Unit; abilityName: string } | null;
     /** Ability id of the local ITS cast while a preview run is active. */
     itsAbilityId?: string | null;
     /** Preview is frozen on a parallel-order pause while the poll still says `playing`. */
@@ -135,6 +140,7 @@ export default function RowSlotAbilities({
     turnIndicator,
     itsPreviewPhase = 'inactive',
     canSwapToAbility,
+    rewindContext = null,
     itsAbilityId = null,
     itsAtParallelPause = false,
     isReactionPause = false,
@@ -283,9 +289,10 @@ export default function RowSlotAbilities({
             allUnits,
             engine: priorityEngine,
             conditionalCancelContext,
+            rewind: rewindContext,
         });
         onHoverAbility(disabledReason == null ? card.ability : null);
-    }, [hoveredCardId, handCards, playerUnit, isMyTurn, canSwapToAbility, allUnits, priorityEngine, conditionalCancelContext, onHoverAbility]);
+    }, [hoveredCardId, handCards, playerUnit, isMyTurn, canSwapToAbility, rewindContext, allUnits, priorityEngine, conditionalCancelContext, onHoverAbility]);
 
     // Register card top-center page positions as HUD flight targets, keyed by charge type so
     // particles only fly to cards that actually recover that resource.
@@ -421,6 +428,7 @@ export default function RowSlotAbilities({
             allUnits,
             engine: priorityEngine,
             conditionalCancelContext,
+            rewind: rewindContext,
         });
         const isHovered = hoveredCardId === card.abilityId;
         const activeAbilityIds = playerUnit.activeAbilities.map((a) => a.abilityId);

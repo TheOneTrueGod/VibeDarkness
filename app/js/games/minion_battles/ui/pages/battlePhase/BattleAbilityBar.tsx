@@ -4,7 +4,7 @@ import type { AbilityStatic } from '../../../abilities/Ability';
 import type { BattleSession } from '../../../game/BattleSession';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { BattleOrder, OrderWaiter } from '../../../game/types';
-import { canUseAbilityNow } from '../../../abilities/abilityUses';
+import { getAbility } from '../../../abilities/AbilityRegistry';
 import { getItsSwapBlockReason } from '../../../game/interaction/itsSwap';
 import { ONLY_UNDO_AT_START } from '../../../game/gameConstants';
 import {
@@ -12,6 +12,7 @@ import {
     isAtFollowUpPreview,
     isAtMissingPickDecision,
 } from '../../../game/interaction/isITSPreviewComplete';
+import { getRewindTargetUnit } from '../../../game/interaction/itsHandView';
 import { useAutoEndTurn } from '../../components/useAutoEndTurn';
 import CornerSlotPlayerStats from '../../components/battleUiSlots/CornerSlotPlayerStats';
 import RowSlotAbilities from '../../components/battleUiSlots/RowSlotAbilities';
@@ -97,6 +98,11 @@ export function useBattleAbilityBarSlots({
         (activeLocalWaiter != null
             ? engine.getUnit(activeLocalWaiter.unitId) ?? engine.getLocalPlayerUnit()
             : engine.getLocalPlayerUnit()) ?? null;
+    // While a click would rewind the preview, cards judge uses and costs at the rewind target (ITS mark).
+    const rewindUnit = getRewindTargetUnit(engine, its, playerUnit);
+    const rewindContext = rewindUnit
+        ? { unit: rewindUnit, abilityName: (its?.abilityId ? getAbility(its.abilityId)?.name : null) ?? 'this ability' }
+        : null;
     const isItsPreviewActive = interactiveTargetingState !== 'inactive';
     const isConditionalCancelPause = conditionalCancelContext != null;
     // Missing-pick pause (or its ITS resume preview): ability cards stay locked, but Pass is enabled and
@@ -114,10 +120,10 @@ export function useBattleAbilityBarSlots({
         && sessionRef.current?.interactiveTargeting.getPreviewCastEndedEarly(engine) != null;
     // Mid-preview card click = swap (rewind to the mark, start that card's preview). Same predicate
     // PlayerInteractionManager.swapItsPreviewAbility gates on; per target ability (same ability = blocked).
+    // Uses and costs are not checked here: the card's disabled reason judges them at the rewind target.
     const canSwapToAbility = (ability: AbilityStatic): boolean => {
         if (!its?.isActive || !canUseOrderUi || atMissingPickDecision || isMyTurn) return false;
         if (ability.actionChannel === 'special') return false;
-        if (playerUnit && !canUseAbilityNow(playerUnit, ability)) return false;
         return getItsSwapBlockReason({
             itsActive: its.isActive,
             itsAbilityId: its.abilityId ?? null,
@@ -180,6 +186,7 @@ export function useBattleAbilityBarSlots({
             <RowSlotAbilities
                 abilityIds={myAbilityIds}
                 playerUnit={playerUnit}
+                rewindContext={rewindContext}
                 isMyTurn={isMyTurn}
                 roundNumber={roundNumber}
                 selectedCardIndex={selectedCardIndex}

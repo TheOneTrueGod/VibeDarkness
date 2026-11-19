@@ -2,7 +2,7 @@ import type { GameEngine } from '../GameEngine';
 import type { Camera } from '../Camera';
 import type { GameRenderer } from '../GameRenderer';
 import type { AbilityStatic } from '../../abilities/Ability';
-import type { BattleOrder, ResolvedTarget, WaitingForOrders } from '../types';
+import type { BattleOrder, ResolvedTarget, SerializedGameState, WaitingForOrders } from '../types';
 
 export interface PlayerInteractionSession {
     submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void>;
@@ -25,6 +25,8 @@ export interface PlayerInteractionSession {
         readonly previewOrderQueued: boolean;
         /** True while a resume preview (picking at a missing-pick pause) is running. */
         readonly isResumeMode: boolean;
+        /** Snapshot a rewind restores; the ability hand reads its caster during a preview (`getHandViewUnit`). */
+        readonly mark?: SerializedGameState | null;
         /** Ability the active preview runs (null when inactive). Optional so minimal test doubles still fit. */
         readonly abilityId?: string | null;
         /** Caster of the active preview (null when inactive). */

@@ -54,8 +54,14 @@ export const ABILITY_MODE_STRIP_TOTAL_HEIGHT_PX = ABILITY_MODE_STRIP_HEIGHT_PX +
 /** `border-2` on the card. Use diamonds are centered on this stroke. */
 const ABILITY_SLOT_BORDER_PX = 2;
 
-/** Use pips along the bottom edge. Filled diamonds are uses still left, left to right. */
-function AbilityUseDiamonds({ usesLeft, maxUses, dimmed }: { usesLeft: number; maxUses: number; dimmed: boolean }) {
+/** Use pips drawn red when a click would rewind to before the uses existed (`unusable_at_rewind`). */
+const USE_DIAMOND_WARN_COLOR = '#f87171';
+
+/**
+ * Use pips along the bottom edge. Filled diamonds are uses still left, left to right.
+ * `warn`: the uses are there now but not at the rewind target; drawn red.
+ */
+function AbilityUseDiamonds({ usesLeft, maxUses, dimmed, warn = false }: { usesLeft: number; maxUses: number; dimmed: boolean; warn?: boolean }) {
     const count = Math.max(1, maxUses);
     const filled = Math.max(0, Math.min(count, usesLeft));
     const size = abilityUseDiamondSizePx(count, ABILITY_SLOT_WIDTH_PX);
@@ -71,13 +77,14 @@ function AbilityUseDiamonds({ usesLeft, maxUses, dimmed }: { usesLeft: number; m
             aria-label={`${filled} of ${count} uses`}
         >
             {Array.from({ length: count }, (_, index) => (
-                <UseDiamond key={index} filled={index < filled} size={size} />
+                <UseDiamond key={index} filled={index < filled} size={size} warn={warn} />
             ))}
         </div>
     );
 }
 
-function UseDiamond({ filled, size }: { filled: boolean; size: number }) {
+function UseDiamond({ filled, size, warn }: { filled: boolean; size: number; warn: boolean }) {
+    const color = warn ? USE_DIAMOND_WARN_COLOR : '#ffffff';
     return (
         <svg
             width={size}
@@ -87,8 +94,8 @@ function UseDiamond({ filled, size }: { filled: boolean; size: number }) {
         >
             <polygon
                 points="8,1.2 14.8,8 8,14.8 1.2,8"
-                fill={filled ? '#ffffff' : '#000000'}
-                stroke="#ffffff"
+                fill={filled ? color : '#000000'}
+                stroke={color}
                 strokeWidth="1.2"
                 strokeLinejoin="miter"
             />
@@ -159,6 +166,7 @@ export default function AbilitySlot({
 }: AbilitySlotProps) {
     const cardRef = useRef<HTMLDivElement | null>(null);
     const isDisabled = disabledReason !== null;
+    const usesGoneAtRewind = disabledReason?.reason_id === 'unusable_at_rewind' && disabledReason.resourceId == null;
 
     const handleClick = useCallback(() => {
         if (isDisabled) return;
@@ -315,7 +323,13 @@ export default function AbilitySlot({
                 </div>
                 )}
 
-                <AbilityUseDiamonds usesLeft={usesLeft} maxUses={maxUses} dimmed={isDisabled} />
+                <AbilityUseDiamonds
+                    usesLeft={usesLeft}
+                    maxUses={maxUses}
+                    // Red, not dimmed: the uses exist now; the rewind a click causes removes them.
+                    dimmed={isDisabled && !usesGoneAtRewind}
+                    warn={usesGoneAtRewind}
+                />
 
                 {/* Resource cost — inset from top-right corner */}
                 {displayCosts.length > 0 && (

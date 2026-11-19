@@ -193,8 +193,10 @@ export function finalizeEngine(session: BattleSession, engine: GameEngine): void
         session.emit({ type: 'round_number', roundNumber: rn + 1 });
         session.emit({ type: 'card_state', engine });
     });
+    // Not gated on ITS preview: the round bar is display only and should keep moving during playahead
+    // (Combo auto-continue keeps the player in previews). A rewind restarts the engine, which re-emits
+    // the mark's round number and progress above.
     engine.setOnStateChanged(() => {
-        if (engine.isSequentialTargetingPreview) return;
         session.emit({ type: 'round_progress', progress: engine.roundProgress });
         session.emit({ type: 'round_number', roundNumber: engine.roundNumber });
     });
