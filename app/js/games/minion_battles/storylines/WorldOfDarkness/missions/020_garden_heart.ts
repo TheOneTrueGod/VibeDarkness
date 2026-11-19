@@ -30,11 +30,21 @@ const POND_CENTRE = { col: 21.5, row: 21.5 };
  * other three (12 in all). Each cell and its mirrors are open ground, off the paths and clear of
  * the sprout points.
  */
+/**
+ * The garden's corrupted crystals give plain, untinted light: no purple `colorFilter` square and FireLight (the
+ * untinted default channel) instead of DarkLight's purple wash, which made the garden's terrain hard to read.
+ */
+const { colorFilter: _gardenNoFilter, ...DARK_CRYSTAL_NO_FILTER } = DARK_CRYSTAL_TILE_DEFAULTS;
+const GARDEN_DARK_CRYSTAL: Omit<SpecialTilePlacement, 'col' | 'row'> = {
+    ...DARK_CRYSTAL_NO_FILTER,
+    emitsLight: { ...DARK_CRYSTAL_TILE_DEFAULTS.emitsLight!, lightType: 'FireLight' },
+};
+
 const CORRUPTED_CRYSTALS = mirrorFourWays(
     [
-        { ...DARK_CRYSTAL_TILE_DEFAULTS, col: 12, row: 12 }, // diagonal, where the loop paths cross
-        { ...DARK_CRYSTAL_TILE_DEFAULTS, col: 18, row: 14 }, // north shore
-        { ...DARK_CRYSTAL_TILE_DEFAULTS, col: 12, row: 18 }, // west shore
+        { ...GARDEN_DARK_CRYSTAL, col: 12, row: 12 }, // diagonal, where the loop paths cross
+        { ...GARDEN_DARK_CRYSTAL, col: 18, row: 14 }, // north shore
+        { ...GARDEN_DARK_CRYSTAL, col: 12, row: 18 }, // west shore
     ],
     POND_CENTRE,
 );

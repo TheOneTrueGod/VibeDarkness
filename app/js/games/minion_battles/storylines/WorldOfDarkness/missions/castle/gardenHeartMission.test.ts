@@ -128,15 +128,17 @@ describe('Garden Heart mission', () => {
         engine.destroy();
     });
 
-    it('rings the pond with corrupted crystal lights, four-way symmetric, on open ground', () => {
+    it('rings the pond with untinted corrupted crystal lights, four-way symmetric, on open ground', () => {
         const engine = initMission(GARDEN_HEART);
         const grid = GARDEN_HEART.createTerrain();
         const crystals = engine.specialTiles.filter((t) => t.defId === 'DarkCrystal');
         expect(crystals).toHaveLength(12);
         const cells = new Set(crystals.map((t) => `${t.col}:${t.row}`));
         for (const t of crystals) {
+            // Plain light: FireLight (no typed wash) and no purple colour filter.
+            expect(t.colorFilter).toBeUndefined();
             expect(t.emitsLight).toMatchObject({
-                lightType: 'DarkLight',
+                lightType: 'FireLight',
                 lightAmount: DARK_CRYSTAL_TILE_DEFAULTS.emitsLight!.lightAmount + GARDEN_LIGHT_BOOST.lightAmount,
                 radius: DARK_CRYSTAL_TILE_DEFAULTS.emitsLight!.radius + GARDEN_LIGHT_BOOST.radius,
             });
