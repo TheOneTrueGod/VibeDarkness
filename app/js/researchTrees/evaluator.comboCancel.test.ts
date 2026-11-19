@@ -1,10 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { computeAbilityModifiersFromResearch } from './evaluator';
+import { mergeAbilityModifierInto } from './abilityModifierMerge';
+import type { AbilityModifier } from './types';
 import { expandAbilityIdsForResearchModifiers } from '../games/minion_battles/abilities/abilityModifierHelpers';
 import {
     EARTH_NODE_RAPID_THROW,
     EARTH_TREE_ID,
 } from './trees/earth';
+import { KNOWLEDGE_COMBOS } from '../accountKnowledge';
+import { meetsRequirement, type ResearchContext } from './evaluator';
+import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
+import { weaponsTree } from './trees/weapons';
+import { KNIVES_ROOT_NODE_ID, NODE_KNIFE_COMBO, WEAPONS_TREE_ID } from './trees/weaponTreeIds';
+import type { AccountState, CampaignResources } from '../types';
 
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
 const THROW_CHARGED_ROCK_ABILITY_ID = 'throw_charged_rock';
@@ -65,5 +73,52 @@ describe('computeAbilityModifiersFromResearch — Combo Cancel', () => {
         );
         expect(modifiers[THROW_ROCK_ABILITY_ID]?.comboMax).toBe(3);
         expect(modifiers[THROW_CHARGED_ROCK_ABILITY_ID]?.comboMax).toBe(3);
+    });
+
+    it('merges comboUnlimited (OR) with a bounded comboMax', () => {
+        const entry: AbilityModifier = { comboMax: 2 };
+        mergeAbilityModifierInto(entry, { comboUnlimited: true });
+        expect(entry).toEqual({ comboMax: 2, comboUnlimited: true });
+    });
+});
+
+describe('Flurry (knife combo research node)', () => {
+    const THROW_KNIFE_ABILITY_ID = 'throw_knife';
+
+    function ctxWithKnowledge(knowledge: Record<string, object>): ResearchContext {
+        return {
+            account: { id: 1, name: 't', role: 'user', fire: 0, water: 0, earth: 0, air: 0, knowledge } as AccountState,
+            character: fromCampaignCharacterData({
+                id: 'c1',
+                name: 'C',
+                equipment: [],
+                knowledge: {},
+                traits: [],
+                portraitId: '',
+                battleChipDetails: {},
+                campaignId: 'world_of_darkness',
+                missionId: '',
+                researchTrees: {},
+            }),
+            campaignResources: { vigor: 100, metal: 100, population: 10, attunement: 100 } as CampaignResources,
+        };
+    }
+
+    it('grants unlimited Combo on throw_knife when researched', () => {
+        const modifiers = computeAbilityModifiersFromResearch(
+            { [WEAPONS_TREE_ID]: [NODE_KNIFE_COMBO] },
+            undefined,
+            [THROW_KNIFE_ABILITY_ID],
+        );
+        expect(modifiers[THROW_KNIFE_ABILITY_ID]?.comboUnlimited).toBe(true);
+    });
+
+    it('requires Knowledge: Combos', () => {
+        const node = weaponsTree.nodes.find((n) => n.id === NODE_KNIFE_COMBO)!;
+        const researched = { [WEAPONS_TREE_ID]: new Set([KNIVES_ROOT_NODE_ID]) };
+        const without = ctxWithKnowledge({});
+        const withKnowledge = ctxWithKnowledge({ [KNOWLEDGE_COMBOS]: {} });
+        expect(node.requirements.every((r) => meetsRequirement(r, without, researched))).toBe(false);
+        expect(node.requirements.every((r) => meetsRequirement(r, withKnowledge, researched))).toBe(true);
     });
 });

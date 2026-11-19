@@ -17,7 +17,6 @@ import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import type { Unit } from '../../game/units/Unit';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
-import { AbilityPhase } from '../../abilities/abilityTimings';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { buildTagDescriptionLines } from '../../abilities/abilityTagCatalog';
 import { type CardDef } from '../types';
@@ -126,20 +125,15 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
         abilityTimings: baseTimings,
         getAbilityTimings(caster, gameState) {
             const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
-            const mod = getAbilityModifier(gameState, caster, id);
-            const comboCancelPhase = (mod.comboMax ?? 0) > 0 ? AbilityPhase.Cooldown : undefined;
-            const opts = { comboCancelPhase };
             return hasMoreRockResearch(research)
                 ? buildMoreRockTimings({
                     launchBehaviour: rockLaunchBehaviour(id),
                     entombed: ENTOMBED_MORE_ROCK_OPTS,
-                    ...opts,
                 })
                 : buildThrowBaseTimings({
                     profile: ROCK_THROW_PROFILE,
                     launchBehaviour: rockLaunchBehaviour(id),
                     entombed: ENTOMBED_OPTS,
-                    ...opts,
                 });
         },
         targets: TWO_PIXEL_TARGETS,
@@ -168,9 +162,7 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
 
             const activeTags: string[] = [...tags];
             if (mod.addTags) activeTags.push(...mod.addTags);
-            if ((mod.comboMax ?? 0) > 0) activeTags.push('Combo');
-            const magnitudes = (mod.comboMax ?? 0) > 0 ? { Combo: mod.comboMax! - 1 } : undefined;
-            return [...lines, ...buildTagDescriptionLines(activeTags, magnitudes)];
+            return [...lines, ...buildTagDescriptionLines(activeTags)];
         },
 
         beginActiveCast(engine, caster, _targets, active) {

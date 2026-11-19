@@ -1,5 +1,5 @@
 // Sword and mace feel: see `./Weapons.md`.
-import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
+import { KNOWLEDGE_COMBOS, KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
 import type { ResearchNodeDef, ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
 import { WEAPON_TREE_PREMIUM_METAL_COST, WEAPON_TREE_STANDARD_METAL_COST } from '../weaponResearchCosts';
@@ -10,6 +10,7 @@ import {
     KNIVES_ROOT_NODE_ID,
     MACE_ROOT_NODE_ID,
     NODE_IRON_WRISTS,
+    NODE_KNIFE_COMBO,
     NODE_MORE_POWER,
     NODE_MORE_ROCK,
     NODE_STRENGTHENING_LIGHT,
@@ -128,6 +129,26 @@ export const weaponsTree: ResearchTreeDef = {
             description: 'Throw sharpened knives at enemies from a distance.',
             abilityId: 'throw_knife',
         }),
+        {
+            id: NODE_KNIFE_COMBO,
+            title: 'Flurry',
+            description: 'Throw Knife gains {Combo}.',
+            flavorText: 'The next knife is already in your hand.',
+            order: 25,
+            tier: 13,
+            prereqNodeIds: [KNIVES_ROOT_NODE_ID],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: WEAPONS_TREE_ID, nodeIds: [KNIVES_ROOT_NODE_ID] },
+                { type: 'accountKnowledge', key: KNOWLEDGE_COMBOS },
+            ],
+            cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
+            effects: [],
+            abilityResearchModifiers: [
+                { abilitySpecification: { type: 'abilityId', abilityId: 'throw_knife' }, comboUnlimited: true },
+            ],
+            modifiesAbility: { from: 'throw_knife', to: 'throw_knife' },
+        },
 
         // Melee
         weaponRoot({

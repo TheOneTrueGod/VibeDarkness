@@ -45,4 +45,5 @@ export function mergeAbilityModifierInto(entry: AbilityModifier, modifier: Abili
     if (modifier.comboMax !== undefined) {
         entry.comboMax = Math.max(entry.comboMax ?? 0, modifier.comboMax);
     }
+    if (modifier.comboUnlimited) entry.comboUnlimited = true;
 }

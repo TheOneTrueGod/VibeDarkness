@@ -96,6 +96,12 @@ export const KNOWLEDGE_TUTORIAL_REACTIONS = 'TutorialReactions';
 export const KNOWLEDGE_REACTIONS = 'Reactions';
 
 /**
+ * Systems: Combos. Gates the research that gives abilities the Combo keyword (Flurry). Nothing grants it
+ * yet (admin grant only). The engine does not read it: a Combo only exists once its node is researched.
+ */
+export const KNOWLEDGE_COMBOS = 'Combos';
+
+/**
  * Knowledge keys the battle engine reads per player. Only these are copied into engine state
  * (`playerKnowledgeKeysByPlayer`); the server keeps the same list in `backend/BattleKnowledge.php`.
  */
@@ -202,6 +208,13 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
         type: 'systems',
         tier: 3,
         description: 'Gives player units Reflex and pauses them at a Reactable enemy attack’s reaction frame.',
+    },
+    {
+        key: KNOWLEDGE_COMBOS,
+        label: 'Combos',
+        type: 'systems',
+        tier: 3,
+        description: 'Unlocks research that gives abilities the Combo keyword.',
     },
     {
         key: KNOWLEDGE_COMPLETED_CHAPTER_1,

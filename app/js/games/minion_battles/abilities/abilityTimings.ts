@@ -9,6 +9,7 @@ import type { TimingTargetDef } from './timingTargetDef';
 import { isSelectTargetDef } from './timingTargetDef';
 import { getStepLungeBehaviour } from './stepLunge';
 import type { AbilityTag } from './Ability';
+import { applyComboGrantToTimings } from './comboCancel/applyComboGrant';
 import type { ReactionFrameDef } from '../game/reactions/reactionFrame';
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
@@ -799,7 +800,8 @@ export function resolveAbilityTimingEntries(
     caster?: unknown,
     gameState?: unknown,
 ): AbilityTimingEntry[] {
-    return ability.getAbilityTimings?.(caster, gameState) ?? ability.abilityTimings;
+    const entries = ability.getAbilityTimings?.(caster, gameState) ?? ability.abilityTimings;
+    return ability.id ? applyComboGrantToTimings(entries, caster, ability.id) : entries;
 }
 
 /**

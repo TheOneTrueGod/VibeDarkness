@@ -12,12 +12,21 @@ function isComboOrEntombLingerInterval(interval: AbilityTimingInterval): boolean
     return interval.id.includes('_entomb_wall_linger') || interval.id.includes('_combo_cancel_linger');
 }
 
+function lastIndexOfPhase(timings: readonly AbilityTimingInterval[], phase: AbilityPhase): number {
+    for (let i = timings.length - 1; i >= 0; i--) {
+        if (timings[i]!.abilityPhase === phase) return i;
+    }
+    return -1;
+}
+
 export function withComboCancelAtPhaseStart(
     timings: readonly AbilityTimingInterval[],
     phase: AbilityPhase,
     opts?: {
-        /** Cooldown interval id (default: first interval whose abilityPhase === phase). */
+        /** Cooldown interval id (default: the `which` interval whose abilityPhase === phase). */
         cooldownIntervalId?: string;
+        /** Which matching-phase interval to wrap when `cooldownIntervalId` is not given (default 'first'). */
+        which?: 'first' | 'last';
         /** Interval whose exit triggers combo pause (default: interval ending at cooldown.start). */
         cancelIntervalId?: string;
         lingerSec?: number;
@@ -28,7 +37,9 @@ export function withComboCancelAtPhaseStart(
 
     let cooldownIdx = opts?.cooldownIntervalId
         ? timings.findIndex((t) => t.id === opts.cooldownIntervalId)
-        : timings.findIndex((t) => t.abilityPhase === phase);
+        : opts?.which === 'last'
+          ? lastIndexOfPhase(timings, phase)
+          : timings.findIndex((t) => t.abilityPhase === phase);
     if (cooldownIdx < 0) {
         throw new Error(`withComboCancelAtPhaseStart: missing cooldown interval for phase ${phase}`);
     }

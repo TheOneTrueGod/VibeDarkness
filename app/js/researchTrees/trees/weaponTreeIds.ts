@@ -40,3 +40,4 @@ export const NODE_TRAINING_REGIME = 'pipe_bat_damage';
 export const NODE_STRENGTHENING_LIGHT = 'extra_shields';
 export const NODE_MORE_ROCK = 'more_rock';
 export const NODE_IRON_WRISTS = 'sword_extra_uses';
+export const NODE_KNIFE_COMBO = 'knife_combo';

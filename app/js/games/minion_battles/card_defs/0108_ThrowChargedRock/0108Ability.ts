@@ -34,7 +34,6 @@ import {
     throwMovementPenaltyStatesForActive,
     TWO_PIXEL_TARGETS,
 } from '../throwSharedTimings';
-import { AbilityPhase } from '../../abilities/abilityTimings';
 import { buildTagDescriptionLines } from '../../abilities/abilityTagCatalog';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 import { spawnBrightLight, type EngineWithLight } from '../../abilities/brightKeyword';
@@ -129,17 +128,15 @@ function chargedRockSelectOpts(explosionRadius: number, maxTargets: number) {
     };
 }
 
-function buildChargedRockTimings(research: Set<string>, comboCancelPhase?: AbilityPhase) {
+function buildChargedRockTimings(research: Set<string>) {
     const explosionRadius = getExplosionRadiusForResearch(research);
     const maxTargets = hasMorePowerResearch(research) ? MORE_POWER_MAX_TARGETS : BASE_MAX_TARGETS;
     const selectOpts = chargedRockSelectOpts(explosionRadius, maxTargets);
-    const comboOpts = comboCancelPhase !== undefined ? { comboCancelPhase } : {};
     if (hasMoreRockResearch(research)) {
         return buildMoreRockTimings({
             launchBehaviour: chargedRockLaunchBehaviour(),
             entombed: ENTOMBED_MORE_ROCK_OPTS,
             ...selectOpts,
-            ...comboOpts,
         });
     }
     return buildThrowBaseTimings({
@@ -147,7 +144,6 @@ function buildChargedRockTimings(research: Set<string>, comboCancelPhase?: Abili
         launchBehaviour: chargedRockLaunchBehaviour(),
         entombed: ENTOMBED_OPTS,
         ...selectOpts,
-        ...comboOpts,
     });
 }
 
@@ -167,9 +163,7 @@ export const ThrowChargedRock: AbilityStatic = {
     abilityTimings: THROW_CHARGED_ROCK_BASE_TIMINGS,
     getAbilityTimings(caster, gameState) {
         const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
-        const mod = getAbilityModifier(gameState, caster, CARD_ID);
-        const comboCancelPhase = (mod.comboMax ?? 0) > 0 ? AbilityPhase.Cooldown : undefined;
-        return buildChargedRockTimings(research, comboCancelPhase);
+        return buildChargedRockTimings(research);
     },
     targets: TWO_PIXEL_TARGETS,
     /** Toggle button swaps this card with Throw Rock (shown only while Charged Rock is unlocked). */
@@ -232,9 +226,6 @@ export const ThrowChargedRock: AbilityStatic = {
         const tagLines: string[] = [];
         if (mod.addTags?.length) {
             tagLines.push(...buildTagDescriptionLines(mod.addTags));
-        }
-        if ((mod.comboMax ?? 0) > 0) {
-            tagLines.push(...buildTagDescriptionLines(['Combo'], { Combo: mod.comboMax! - 1 }));
         }
         return [...lines, ...tagLines];
     },

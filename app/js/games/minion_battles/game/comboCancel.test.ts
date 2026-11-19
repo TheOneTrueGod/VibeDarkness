@@ -25,10 +25,18 @@ import {
     EARTH_NODE_RAPID_THROW,
     EARTH_TREE_ID,
 } from '../../../researchTrees/trees/earth';
+import { ThrowKnife } from '../card_defs/0109_ThrowKnife/0109Ability';
+import { BurstAbility_0302, BURST_HP_COST } from '../card_defs/03_blood_mage/0302_Burst/0302Ability';
+import { hasConditionalCancelFollowUp } from './units/unitAbilityQueries';
 
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
 const THROW_CHARGED_ROCK_ABILITY_ID = 'throw_charged_rock';
 const COMBO_MAX_TWO = 2;
+const THROW_KNIFE_ABILITY_ID = ThrowKnife.id!;
+const BURST_ABILITY_ID = BurstAbility_0302.id!;
+const KNIFE_CHAIN_PAUSES = 3;
+const KNIFE_CHAIN_BURST_COMBO_COUNT = KNIFE_CHAIN_PAUSES + 1;
+const MAX_CHAIN_TICKS = 1500;
 
 describe('Combo Cancel runtime', () => {
     it('chains two throws via Combo Cancel then skips a third pause at comboMax', () => {
@@ -188,6 +196,109 @@ describe('Combo Cancel runtime', () => {
 
         expect(pauseSeen).toBe(true);
         expect(player.abilityModifiers[THROW_ROCK_ABILITY_ID]?.comboMax).toBe(3);
+        engine.destroy();
+    });
+
+    it('unlimited Throw Knife combo chains knife x3 into Burst, which ends the chain', () => {
+        const engine = buildTinyBattleEngine({
+            gridW: 16,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const { player, dummy } = placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: { x: 120, y: 200 },
+            dummyWorld: { x: 280, y: 200 },
+            abilities: [THROW_KNIFE_ABILITY_ID, BURST_ABILITY_ID],
+        });
+        player.abilityModifiers = { [THROW_KNIFE_ABILITY_ID]: { comboUnlimited: true } };
+        initializeAbilityRuntimeForUnit(player);
+        expect(player.hp).toBeGreaterThan(BURST_HP_COST);
+
+        const target = { type: 'pixel' as const, position: { x: dummy.x, y: dummy.y } };
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: THROW_KNIFE_ABILITY_ID,
+            targets: [target],
+        });
+
+        const pauseComboCounts: number[] = [];
+        let burstComboCount: number | undefined;
+        let burstPaused = false;
+        let lastPauseTick = -1;
+
+        for (let i = 0; i < MAX_CHAIN_TICKS; i++) {
+            const pausedKnife = player.activeAbilities.find(
+                (a) => a.abilityId === THROW_KNIFE_ABILITY_ID && a.conditionalCancelPaused,
+            );
+            if (pausedKnife && lastPauseTick !== i) {
+                lastPauseTick = i;
+                pauseComboCounts.push(pausedKnife.comboCount ?? 1);
+                const followUp = pauseComboCounts.length < KNIFE_CHAIN_PAUSES
+                    ? THROW_KNIFE_ABILITY_ID
+                    : BURST_ABILITY_ID;
+                engine.state.orderMgr.applyOrder({
+                    unitId: player.id,
+                    abilityId: followUp,
+                    endTurn: true,
+                    targets: [target],
+                });
+            }
+            const burst = player.activeAbilities.find((a) => a.abilityId === BURST_ABILITY_ID);
+            if (burst) {
+                burstComboCount ??= burst.comboCount;
+                if (burst.conditionalCancelPaused) burstPaused = true;
+            }
+            engine.stepSimulationFixedTicks(1);
+        }
+
+        expect(pauseComboCounts).toEqual([1, 2, 3]);
+        expect(burstComboCount).toBe(KNIFE_CHAIN_BURST_COMBO_COUNT);
+        expect(burstPaused).toBe(false);
+        engine.destroy();
+    });
+
+    it('Rapid Throw combo window now offers a non-Combo ability (Burst) as a follow-up', () => {
+        const engine = buildTinyBattleEngine({
+            gridW: 16,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const { player, dummy } = placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: { x: 120, y: 200 },
+            dummyWorld: { x: 280, y: 200 },
+            abilities: [THROW_ROCK_ABILITY_ID, BURST_ABILITY_ID],
+        });
+        player.abilityModifiers = { [THROW_ROCK_ABILITY_ID]: { comboMax: COMBO_MAX_TWO } };
+        initializeAbilityRuntimeForUnit(player);
+        expect(unitAbilityHasTag(player, BURST_ABILITY_ID, 'Combo')).toBe(false);
+
+        const target = { type: 'pixel' as const, position: { x: dummy.x, y: dummy.y } };
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: THROW_ROCK_ABILITY_ID,
+            targets: [target],
+        });
+
+        let paused = player.activeAbilities.find((a) => a.conditionalCancelPaused);
+        for (let i = 0; i < MAX_CHAIN_TICKS && !paused; i++) {
+            engine.stepSimulationFixedTicks(1);
+            paused = player.activeAbilities.find((a) => a.conditionalCancelPaused);
+        }
+        expect(paused?.abilityId).toBe(THROW_ROCK_ABILITY_ID);
+        expect(hasConditionalCancelFollowUp(player, paused!, undefined, engine)).toBe(true);
+
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: BURST_ABILITY_ID,
+            endTurn: true,
+            targets: [target],
+        });
+        engine.stepSimulationFixedTicks(1);
+        expect(player.activeAbilities.some((a) => a.abilityId === BURST_ABILITY_ID)).toBe(true);
         engine.destroy();
     });
 

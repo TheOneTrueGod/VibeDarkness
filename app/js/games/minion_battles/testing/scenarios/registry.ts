@@ -167,6 +167,7 @@ import {
     earthCoreStoneTombScoursGroundScenario,
 } from './abilities/earthCoreScenarios';
 import { rapidThrowComboScenario } from './abilities/rapidThrowComboScenario';
+import { throwKnifeComboScenario } from './abilities/throwKnifeComboScenario';
 import { CAST_ENDED_EARLY_SCENARIOS } from './general/castEndedEarly';
 import { TIME_DILATION_SCENARIOS } from './general/timeDilation';
 import { HUNGER_SCENARIOS } from './general/hunger';
@@ -260,6 +261,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     earthCoreGatherStoneRubbleStrikeScenario,
     earthCoreGatherStoneNoRubbleStrikeWithoutResearchScenario,
     rapidThrowComboScenario,
+    throwKnifeComboScenario,
     laserSwordHitsTwoTargetsScenario,
     throwTorchHitsDummyScenario,
     beastClawFrontHitBackMissScenario,

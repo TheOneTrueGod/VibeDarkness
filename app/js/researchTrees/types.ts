@@ -90,6 +90,8 @@ export interface AbilityModifier {
     addTags?: readonly string[];
     /** Max casts per Combo Cancel chain (research-granted, e.g. Rapid Throw). */
     comboMax?: number;
+    /** Combo with no chain limit; wins over `comboMax`. */
+    comboUnlimited?: boolean;
     /** Flat bonus added to resources this ability grants (e.g. Gather Light). */
     resourceGainFlat?: number;
     /** Flat bonus added to this ability's primary resource cost. */

@@ -170,6 +170,13 @@ registerGlossaryTerm({
 });
 
 registerGlossaryTerm({
+    title: 'Combo',
+    matches: ['combo'],
+    description:
+        'At the start of its cooldown, use this or another ability instead of waiting. A number is how many more casts can chain.',
+});
+
+registerGlossaryTerm({
     title: 'Stun',
     matches: ['stun', 'stuns', 'stunned'],
     description: 'Cannot move or act for that many seconds.',

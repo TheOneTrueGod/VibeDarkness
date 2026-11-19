@@ -11,6 +11,7 @@ import { NODE_IRON_WRISTS, WEAPONS_TREE_ID } from '../../../researchTrees/trees/
 import { getAbility } from './AbilityRegistry';
 import type { AbilityModifier } from '../../../researchTrees/types';
 import { evaluateSwapTriggers } from './abilitySwap';
+import { unitComboGrant } from './comboCancel/comboGrant';
 
 export type { RecoveryChargeType, AbilityRecoveryRule };
 
@@ -127,7 +128,7 @@ export function applyAbilityResearchModifiersToRuntime(
 export function unitAbilityHasTag(unit: Unit, abilityId: string, tag: string): boolean {
     if (abilityHasTag(abilityId, tag as AbilityTag)) return true;
     if (unit.abilityModifiers[abilityId]?.addTags?.includes(tag)) return true;
-    if (tag === 'Combo' && (unit.abilityModifiers[abilityId]?.comboMax ?? 0) > 0) return true;
+    if (tag === 'Combo' && unitComboGrant(unit, abilityId) !== null) return true;
     return false;
 }
 

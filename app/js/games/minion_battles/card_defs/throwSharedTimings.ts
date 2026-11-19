@@ -10,7 +10,6 @@ import { hasResearchNode } from '../abilities/abilityModifierHelpers';
 import type { AbilityEngineContext } from '../abilities/AbilityEngineContext';
 import type { CastBehaviour, CastBehaviourEntry } from '../abilities/castBehaviourTypes';
 import { withEntombedWallConditionalCancelAndLinger } from '../abilities/entombed/entombedWallCancel';
-import { withComboCancelAtPhaseStart } from '../abilities/comboCancel/comboCancelTimings';
 import type { TargetDef } from '../abilities/targeting';
 import type { SelectTargetDef } from '../abilities/timingTargetDef';
 import { nullHitbox, type HitboxSpec } from '../hitboxes';
@@ -202,8 +201,6 @@ export interface BuildThrowBaseTimingsOpts {
     /** Visual effects at the projectile's hit / expiry point. */
     onProjectileHit?: VisualEffectDef[];
     entombed?: EntombedTimingOpts;
-    /** When set, pipe timings through Combo Cancel at this phase entry (after entombed). */
-    comboCancelPhase?: AbilityPhase;
     /** Override the select hitbox (default `nullHitbox`). */
     selectHitbox?: HitboxSpec;
     /** Select filter (default `'any'`). */
@@ -271,23 +268,9 @@ export function buildThrowBaseTimings(opts: BuildThrowBaseTimingsOpts = {}): Abi
         },
     ];
 
-    if (opts.entombed) {
-        return applyThrowComboCancel(
-            withEntombedWallConditionalCancelAndLinger(raw, opts.entombed),
-            opts,
-        );
-    }
-    return applyThrowComboCancel(raw, opts);
-}
-
-function applyThrowComboCancel(
-    timings: AbilityTimingInterval[],
-    opts: Pick<BuildThrowBaseTimingsOpts, 'comboCancelPhase'>,
-): AbilityTimingInterval[] {
-    if (opts.comboCancelPhase === undefined) return timings;
-    return withComboCancelAtPhaseStart(timings, opts.comboCancelPhase, {
-        cooldownIntervalId: 'cooldown',
-    });
+    // Combo (research grant) is applied generically by `resolveAbilityTimingEntries`.
+    if (opts.entombed) return withEntombedWallConditionalCancelAndLinger(raw, opts.entombed);
+    return raw;
 }
 
 /**
@@ -346,7 +329,6 @@ export interface BuildMoreRockTimingsOpts {
     /** Label of the second pick (default `'Second target (More Rock)'`). */
     secondTargetLabel?: string;
     entombed?: EntombedTimingOpts;
-    comboCancelPhase?: AbilityPhase;
     selectHitbox?: HitboxSpec;
     selectFilter?: SelectTargetDef['filter'];
     lockOnMode?: SelectTargetDef['lockOnMode'];
@@ -421,13 +403,8 @@ export function buildMoreRockTimings(opts: BuildMoreRockTimingsOpts): AbilityTim
         },
     ];
 
-    if (entombed) {
-        return applyThrowComboCancel(
-            withEntombedWallConditionalCancelAndLinger(raw, entombed),
-            opts,
-        );
-    }
-    return applyThrowComboCancel(raw, opts);
+    if (entombed) return withEntombedWallConditionalCancelAndLinger(raw, entombed);
+    return raw;
 }
 
 export function beginThrowCastPayload(
