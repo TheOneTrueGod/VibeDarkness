@@ -1,5 +1,9 @@
 import type { InteractionTool, PlayerInteractionContext, IPlayerInteractionManager } from '../InteractionTool';
-import { PLAYER_MOVE_WAYPOINT_MAX, buildPlayerMovePathThroughWaypoints } from '../../../terrain/playerMovePath';
+import {
+    PLAYER_MOVE_WAYPOINT_MAX,
+    buildPlayerMovePathThroughWaypoints,
+    resolvePlayerMoveTargetPixel,
+} from '../../../terrain/playerMovePath';
 import type { Unit } from '../../units/Unit';
 
 const UNIT_HIT_RADIUS = 20;
@@ -159,11 +163,19 @@ export class DefaultTool implements InteractionTool {
         );
         if (fullPath === null) return true;
 
-        const targetPixel = { x: clampedX, y: clampedY };
+        // An unwalkable click snaps the path to the nearest walkable tile; drop the pixel so the unit
+        // ends on that tile's centre instead of steering into the blocked spot.
+        const targetPixel = resolvePlayerMoveTargetPixel(
+            engine.terrainManager,
+            fullPath,
+            { x: clampedX, y: clampedY },
+            unit.x,
+            unit.y,
+        );
         this.pendingMoveWaypoints = waypoints;
         this.pendingMovePath = fullPath;
         this.pendingMoveTargetUnitId = null;
-        this.pendingMoveTargetPixel = targetPixel;
+        this.pendingMoveTargetPixel = targetPixel ?? null;
         unit.setMovement(fullPath, undefined, engine.gameTick, targetPixel);
         publishMovement(fullPath, undefined, targetPixel);
         return true;

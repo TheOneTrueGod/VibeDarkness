@@ -3,7 +3,8 @@
  */
 
 import type { TerrainManager } from './TerrainManager';
-import { hasLineOfWalkCells } from '../pathfinding/lineOfWalk';
+import { hasLineOfWalk, hasLineOfWalkCells } from '../pathfinding/lineOfWalk';
+import { CELL_SIZE } from './TerrainGrid';
 
 const PLAYER_MOVE_WAYPOINT_MAX = 5;
 
@@ -70,6 +71,32 @@ export function resolvePlayerMoveSegment(
     }
 
     return terrain.findGridPath(fromCol, fromRow, toCol, toRow);
+}
+
+/**
+ * Validate an exact world-pixel move target against a built move path. The path planner snaps an
+ * unwalkable destination cell to the nearest passable one, but the pixel keeps pointing at the
+ * clicked spot, so a unit would steer into the wall / water. Returns `pixel` only when it lies in
+ * the path's final cell, that cell is passable, and the last leg (previous waypoint, or
+ * `originX/originY` for a one-cell path, to the pixel) has line of walk. Otherwise `undefined`, and
+ * the caller falls back to the final cell's centre.
+ */
+export function resolvePlayerMoveTargetPixel(
+    terrain: TerrainManager,
+    path: readonly GridCell[],
+    pixel: { x: number; y: number },
+    originX: number,
+    originY: number,
+): { x: number; y: number } | undefined {
+    const last = path[path.length - 1];
+    if (!last) return undefined;
+    if (Math.floor(pixel.x / CELL_SIZE) !== last.col || Math.floor(pixel.y / CELL_SIZE) !== last.row) return undefined;
+    if (!terrain.nav.isPassable('default', last.col, last.row)) return undefined;
+    const prev = path.length >= 2 ? path[path.length - 2]! : undefined;
+    const fromX = prev ? prev.col * CELL_SIZE + CELL_SIZE / 2 : originX;
+    const fromY = prev ? prev.row * CELL_SIZE + CELL_SIZE / 2 : originY;
+    if (!hasLineOfWalk(terrain.nav, 'default', fromX, fromY, pixel.x, pixel.y, 0)) return undefined;
+    return { x: pixel.x, y: pixel.y };
 }
 
 /**

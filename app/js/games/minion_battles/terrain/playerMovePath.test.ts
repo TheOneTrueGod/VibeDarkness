@@ -9,6 +9,7 @@ import {
     concatGridMoveSegments,
     isDirectGridLineTraversable,
     resolvePlayerMoveSegment,
+    resolvePlayerMoveTargetPixel,
 } from './playerMovePath';
 
 function managerFromTypes(rows: TerrainType[][]): TerrainManager {
@@ -89,6 +90,37 @@ describe('resolvePlayerMoveSegment', () => {
         const direct = resolvePlayerMoveSegment(tm, 0, 0, 2, 0);
         expect(direct?.find((c) => c.col === 1 && c.row === 0)).toBeUndefined();
         expect(direct?.[direct.length - 1]).toEqual({ col: 2, row: 0 });
+    });
+});
+
+describe('resolvePlayerMoveTargetPixel', () => {
+    const grass = TerrainType.Grass;
+    const rows = [
+        [grass, grass, grass],
+        [grass, TerrainType.Rock, grass],
+        [grass, grass, grass],
+    ];
+
+    it('keeps a pixel inside the walkable final cell', () => {
+        const tm = managerFromTypes(rows);
+        const px = { x: 2 * 40 + 10, y: 0 * 40 + 30 };
+        expect(resolvePlayerMoveTargetPixel(tm, [{ col: 2, row: 0 }], px, 20, 20)).toEqual(px);
+    });
+
+    it('drops a pixel inside an unwalkable cell (path snapped to a neighbour)', () => {
+        const tm = managerFromTypes(rows);
+        const path = buildPlayerMovePathThroughWaypoints(tm, 0, 1, [{ col: 1, row: 1 }])!;
+        const px = { x: 1 * 40 + 20, y: 1 * 40 + 20 };
+        expect(resolvePlayerMoveTargetPixel(tm, path, px, 20, 60)).toBeUndefined();
+    });
+
+    it('drops a pixel whose last leg is blocked by rock', () => {
+        const tm = managerFromTypes([
+            [grass, TerrainType.Rock, grass],
+            [grass, grass, grass],
+        ]);
+        // From the centre of (0,0) straight to a pixel in (2,0) crosses the rock at (1,0).
+        expect(resolvePlayerMoveTargetPixel(tm, [{ col: 2, row: 0 }], { x: 100, y: 20 }, 20, 20)).toBeUndefined();
     });
 });
 

@@ -54,6 +54,10 @@ export default function BattleCanvas({
         lastY: number;
         dragging: boolean;
     } | null>(null);
+    /** Set while the right button is held; the repeat effect below re-issues the move order from it. */
+    const rightHoldRef = useRef<{ x: number; y: number; shiftKey: boolean; ctrlKey: boolean } | null>(null);
+    const onCanvasRightClickRef = useRef(onCanvasRightClick);
+    onCanvasRightClickRef.current = onCanvasRightClick;
     const suppressClickRef = useRef(false);
     const autoFollowPausedUntilRef = useRef(0);
     const resumeAutoFollowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -266,6 +270,47 @@ export default function BattleCanvas({
         return () => canvas.removeEventListener('wheel', handleWheel);
     }, [camera, engine, followLocalPlayer]);
 
+    // Holding the right button keeps re-setting the move target at the cursor. The interval (not just
+    // pointermove) also covers a stationary cursor while the camera scrolls under it. Shift is excluded:
+    // it appends a waypoint per call, so repeating it would flood the path.
+    useEffect(() => {
+        const REPEAT_MS = 60;
+        const refresh = (e: PointerEvent | MouseEvent): void => {
+            const hold = rightHoldRef.current;
+            const canvas = canvasRef.current;
+            if (!hold || !canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            hold.x = e.clientX - rect.left;
+            hold.y = e.clientY - rect.top;
+            hold.shiftKey = e.shiftKey;
+            hold.ctrlKey = e.ctrlKey;
+        };
+        const release = (e: PointerEvent): void => {
+            if (e.type === 'pointerup' && e.button !== 2) return;
+            rightHoldRef.current = null;
+        };
+        const releaseOnBlur = (): void => {
+            rightHoldRef.current = null;
+        };
+        const timer = setInterval(() => {
+            const hold = rightHoldRef.current;
+            if (!hold || hold.shiftKey) return;
+            onCanvasRightClickRef.current?.(hold.x, hold.y, hold.shiftKey, hold.ctrlKey);
+        }, REPEAT_MS);
+        window.addEventListener('pointermove', refresh);
+        window.addEventListener('pointerup', release);
+        window.addEventListener('pointercancel', release);
+        window.addEventListener('blur', releaseOnBlur);
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('pointermove', refresh);
+            window.removeEventListener('pointerup', release);
+            window.removeEventListener('pointercancel', release);
+            window.removeEventListener('blur', releaseOnBlur);
+            rightHoldRef.current = null;
+        };
+    }, []);
+
     const handleContextMenu = useCallback(
         (e: React.MouseEvent<HTMLCanvasElement>) => {
             e.preventDefault();
@@ -290,6 +335,7 @@ export default function BattleCanvas({
         // instant can include it (contextmenu often waits until mouseup).
         if (e.button === 2) {
             const { x, y } = getScreenPoint(e);
+            rightHoldRef.current = { x, y, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey };
             onCanvasRightClick?.(x, y, e.shiftKey, e.ctrlKey);
             return;
         }
