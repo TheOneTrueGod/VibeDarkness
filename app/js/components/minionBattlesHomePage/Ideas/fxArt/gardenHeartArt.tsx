@@ -553,7 +553,7 @@ function OpeningArt({ colors, background }: FxArtProps) {
     );
 }
 
-/** The shell's damage cut: -10 per hit, never below 10, shown in small grey text that drifts slowly. */
+/** The shell's damage cut: -16 per hit, never below 1, shown in small grey text that drifts slowly. */
 function ShellDamageArt({ colors, background }: FxArtProps) {
     const dur = 2.6;
     const slash = (x: number, y: number) => (
@@ -565,14 +565,14 @@ function ShellDamageArt({ colors, background }: FxArtProps) {
             <Knot x={70} y={78} r={13} colors={colors} shelled />
             {slash(70, 78)}
             <text x={86} y={64} fontSize={8} fontWeight={600} fill={GRAY_TEXT} fontFamily={FONT} stroke="#050508" strokeWidth={0.6} style={{ ...anim('gfx-dmg-dull', dur, 0.05, {}, 'ease-out'), opacity: 0 }}>
-                15
+                9
             </text>
             <Knot x={190} y={78} r={13} colors={colors} shelled={false} />
             {slash(190, 78)}
             <text x={206} y={64} fontSize={15} fontWeight={800} fill="#ffffff" fontFamily={FONT} stroke="#050508" strokeWidth={1} className={P} style={{ ...anim('gfx-dmg-big', dur, 0.05, {}, 'ease-out'), opacity: 0 }}>
                 25
             </text>
-            <Label x={70} y={20}>Shelled: a 25-damage hit lands as 15</Label>
+            <Label x={70} y={20}>Shelled: a 25-damage hit lands as 9</Label>
             <Label x={70} y={120} fill={GRAY_TEXT}>small, grey, slow: "not working"</Label>
             <Label x={190} y={20}>Bare: full damage</Label>
             <Label x={190} y={120} fill={GRAY_TEXT}>the normal damage number</Label>
@@ -999,7 +999,7 @@ export const GARDEN_HEART_ART: FxArtPiece[] = [
     { id: 'gh-heart-pod', label: 'Seed pod', caption: 'shell closed and open', size: [140, 96], displayWidth: 168, Render: singleHeartArt('pod') },
     { id: 'gh-heart-wood', label: 'Heartwood', caption: 'shell closed and open', size: [140, 96], displayWidth: 168, Render: singleHeartArt('wood') },
     { id: 'gh-opening', label: 'Phase 1', caption: 'one living Stem and its Bud', size: [300, 170], displayWidth: 300, Render: OpeningArt },
-    { id: 'gh-shell', label: 'The Shell', caption: '-10 per hit (never below 10) while a node has children', size: [260, 130], displayWidth: 260, Render: ShellDamageArt },
+    { id: 'gh-shell', label: 'The Shell', caption: '-16 per hit (never below 1) while a node has children', size: [260, 130], displayWidth: 260, Render: ShellDamageArt },
     { id: 'gh-sever', label: 'Severing a Bud', caption: 'Stem to Briar to Tangle', size: [462, 140], displayWidth: 462, Render: SeverArt },
     { id: 'gh-tangle', label: 'Tangle', caption: 'projectile hits wear it down to Grass', size: [384, 130], displayWidth: 384, Render: TangleArt },
     { id: 'gh-retreat-rose', label: 'Retreat (Rosebud)', caption: 'close, sink, resprout', size: [290, 150], displayWidth: 290, Render: retreatArt('rose') },

@@ -2,7 +2,7 @@
  * Garden Heart boss: high-level, deterministic scenarios for the Shell, the phase retreat, the destructible seed, the
  * seed burrowing out from its Pod Mortar (and outliving it) and
  * Reactions (single player and the co-op claim). Assertions are about behaviour, not tuned numbers; the one exception
- * is the Shell rule (25 -> 15), which is a design rule.
+ * is the Shell rule (25 -> 9), which is a design rule.
  *
  * Harness notes:
  * - The runner auto-answers every order pause with `wait`, so scenarios that need a real reaction decision build the
@@ -149,8 +149,8 @@ export const gardenHeartShellScenario: ScenarioDefinition = {
         const [first, second] = run.hits;
         return (
             first!.shelled &&
-            first!.lost === 15 && // design rule: 25 -> 15 while shelled
-            first!.resisted === 10 &&
+            first!.lost === 9 && // design rule: 25 -> 9 while shelled (16 off, never below 1)
+            first!.resisted === 16 &&
             !second!.shelled &&
             second!.lost === 25 &&
             second!.resisted === 0

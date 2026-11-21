@@ -43,8 +43,8 @@ export const GLOAM_LILY_ID = 'gloam_lily';
 export const NIGHTBLOOM_PRIMARY = 0x134e4a;
 export const NIGHTBLOOM_SECONDARY = 0xe9d5ff;
 
-/** The Shell: every hit on a node with a living child loses 10, never below 10. */
-export const SHELL_REDUCTION = { amount: 10, floor: 10, condition: 'hasLivingChildren' } as const;
+/** The Shell: every hit on an unopened node (a Knot with a living child) loses 16, never below 1. */
+export const SHELL_REDUCTION = { amount: 16, floor: 1, condition: 'hasLivingChildren' } as const;
 /** The Heart's own Shell: while any node lives, every hit loses 100, down to nothing. Severance ignores it. */
 export const HEART_SHELL_REDUCTION = { amount: 100, floor: 0, condition: 'hasLivingChildren' } as const;
 /** Garden soil: the churned earth of every burrow in the fight (the Heart, node hops, Lob Seed's growth). */

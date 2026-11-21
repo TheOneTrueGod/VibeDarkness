@@ -250,7 +250,10 @@ describe('Shell on node units', () => {
         const knot = addEnemy(ENEMY_THORNSPITTER, centre(10), centre(10));
         const bud = addEnemy(ENEMY_THORNSPITTER, centre(14), centre(10));
         linkNodeChild(knot, bud);
-        expect(applyUnitFlatReductions(knot, 25).damage).toBeLessThan(25);
+        // 16 off every hit, never below 1.
+        expect(applyUnitFlatReductions(knot, 25).damage).toBe(9);
+        expect(applyUnitFlatReductions(knot, 14).damage).toBe(1);
+        expect(applyUnitFlatReductions(knot, 1).damage).toBe(1);
         bud.takeDamage(bud.maxHp * 10, null, engine.eventBus);
         expect(hasLivingChildren(knot)).toBe(false);
         expect(applyUnitFlatReductions(knot, 25).damage).toBe(25);
@@ -807,7 +810,7 @@ describe('Bared windows, Severance and regrowth', () => {
         const before = heart.hp;
         heart.takeDamage(60, 'tester', engine.eventBus);
         expect(heart.hp).toBe(before);
-        // A node's Shell is unchanged: 10 off, never below 10.
+        // Phase 2's nodes are Buds on the Heart: no Shell of their own.
         const [node] = gardenTreeDescendants(engine, heart);
         expect(applyUnitFlatReductions(node!, 30).damage).toBe(30);
     });
