@@ -9,9 +9,10 @@
  * Rules:
  *  - Progress fills by `rate * dt / ROUND_DURATION` each tick (world seconds, so Time Stop and world slow pause it);
  *    a cast fires when it reaches 1. A rate that changes mid-round changes the pace from that tick on.
- *  - Nothing fills while the unit is dead or held (`controlled`: stunned, burrowing). It does fill during the cast,
- *    so a long cast does not slow the cadence; a cast that is due waits for the previous one to end, and progress
- *    never banks more than one cast.
+ *  - Nothing fills while the unit is dead. It does fill during the cast, so a long cast does not slow the cadence,
+ *    and while the unit is held (`controlled`: stunned, burrowing), so being held delays a cast and never loses it.
+ *    A cast that is due waits for the previous one to end or the hold to lift, and progress never banks more than
+ *    one cast.
  *  - The ability does not need to be on the unit's ability list, so its AI never casts it by itself.
  */
 

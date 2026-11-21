@@ -53,6 +53,8 @@ import { BURROW_HOP_COMPONENT } from './burrowHop';
 import { BURROW_HOP_HOOKS } from './burrowHopHooks';
 import { BURROW_EMERGE_COMPONENT } from './burrowEmerge';
 import { BURROW_EMERGE_HOOKS } from './burrowEmergeHooks';
+import { ROUND_HOP_COMPONENT } from './roundHop';
+import { ROUND_HOP_HOOKS } from './roundHopHooks';
 import { CADENCE_CAST_COMPONENT } from './cadenceCast';
 import { CADENCE_CAST_HOOKS } from './cadenceCastHooks';
 import { SPAWNER_HOOKS } from './spawnerHooks';
@@ -117,6 +119,9 @@ const HOOK_ENTRIES: HookEntry[] = [
     { type: BURROW_HOP_COMPONENT, hooks: BURROW_HOP_HOOKS },
     // Emergence (a unit arriving by burrowing, e.g. a grown node): beside hops, the same stage machine.
     { type: BURROW_EMERGE_COMPONENT, hooks: BURROW_EMERGE_HOOKS },
+    // Round hops (a unit that moves once a round, e.g. the Garden Heart): after phases (a retreat wins) and before
+    // emergence ticks next tick for anything it carried.
+    { type: ROUND_HOP_COMPONENT, hooks: ROUND_HOP_HOOKS },
     // Cadence casts: after phases and hops, so a unit that started burrowing this tick (controlled) does not cast.
     { type: CADENCE_CAST_COMPONENT, hooks: CADENCE_CAST_HOOKS },
     // Generic spawners (Hive Gourd): after node trees so a child spawned this tick is not leashed until next tick.

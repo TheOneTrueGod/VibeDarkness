@@ -1,6 +1,7 @@
 /**
  * `burrowEmerge` hooks (state in `burrowEmerge.ts`): `startBurrowEmerge` puts a unit underground and sends it to where
- * it stands; `tick` drives every emergence in progress and hands the unit back when it has risen.
+ * it stands; `startBurrowMove` sends a unit on a whole burrow to a point; `tick` drives every one in progress and hands
+ * the unit back when it has risen.
  */
 
 import type { EngineContext } from '../../EngineContext';
@@ -13,7 +14,7 @@ import {
     peekBurrowEmergeState,
     type BurrowEmergeState,
 } from './burrowEmerge';
-import { advanceBurrow, beginBurrowUnderground } from './phaseBurrow';
+import { advanceBurrow, beginBurrow, beginBurrowUnderground } from './phaseBurrow';
 import { getComponentState } from './unitComponent';
 import { UnitTag, addUnitTag, hasUnitTag, removeUnitTag } from '../unitTag';
 
@@ -37,6 +38,8 @@ function finishEmerge(unit: Unit, state: BurrowEmergeState): void {
  */
 export function startBurrowEmerge(unit: Unit, engine: EngineContext, request: BurrowEmergeRequest): void {
     const state = getComponentState(unit, BURROW_EMERGE_COMPONENT);
+    state.closeSeconds = 0;
+    state.sinkSeconds = 0;
     state.travelSeconds = Math.max(0, request.travelSeconds);
     state.riseSeconds = Math.max(0, request.riseSeconds);
     if (!hasUnitTag(unit, UnitTag.Invincible)) {
@@ -55,6 +58,33 @@ export function startBurrowEmerge(unit: Unit, engine: EngineContext, request: Bu
         request.delaySeconds ?? 0,
     );
     if (!state.burrow) finishEmerge(unit, state); // zero-length emergence
+}
+
+export interface BurrowMoveRequest {
+    /** Where it comes up. */
+    to: { x: number; y: number };
+    closeSeconds: number;
+    sinkSeconds: number;
+    travelSeconds: number;
+    riseSeconds: number;
+}
+
+/**
+ * Send `unit` on a whole burrow (close, sink, travel, rise) from where it stands to `request.to`, with a harmless puff
+ * where it comes up. Untargetable and unable to act until it has risen. Any cast in progress is interrupted.
+ */
+export function startBurrowMove(unit: Unit, engine: EngineContext, request: BurrowMoveRequest): void {
+    const state = getComponentState(unit, BURROW_EMERGE_COMPONENT);
+    state.closeSeconds = Math.max(0, request.closeSeconds);
+    state.sinkSeconds = Math.max(0, request.sinkSeconds);
+    state.travelSeconds = Math.max(0, request.travelSeconds);
+    state.riseSeconds = Math.max(0, request.riseSeconds);
+    if (!hasUnitTag(unit, UnitTag.Invincible)) {
+        addUnitTag(unit, UnitTag.Invincible);
+        state.addedInvincibleTag = true;
+    }
+    beginBurrow(unit, state, BURROW_EMERGE_COMPONENT_ID, burrowEmergeDef(state), request.to, engine);
+    if (!state.burrow) finishEmerge(unit, state); // zero-length move
 }
 
 /** True while the unit is emerging (underground or rising). */

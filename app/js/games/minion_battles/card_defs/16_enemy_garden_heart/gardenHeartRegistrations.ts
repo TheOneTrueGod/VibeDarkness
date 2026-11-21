@@ -12,7 +12,10 @@ import { registerSpawnerSpec } from '../../game/units/components/spawnerHooks';
 import type { SpawnerChildSpec } from '../../game/units/components/spawnerCore';
 import { ENEMY_SWARMLING } from '../../constants/enemyConstants';
 import { SLIME } from '../../game/units/dark_animals/slime';
-import { registerBurrowCallback, registerSproutExclusionSource } from '../../game/units/components/phaseBurrow';
+import { registerBurrowCallback, registerSproutExclusionSource, registerSproutPointRule } from '../../game/units/components/phaseBurrow';
+import { registerRoundHopDestinationRule } from '../../game/units/components/roundHopHooks';
+import { ellipseOrbitAngle, ellipseOrbitClockwiseArc, moveAroundEllipseOrbit } from '../../game/geometry/ellipseOrbit';
+import { nearestPassablePoint } from '../../game/geometry/nearestPassablePoint';
 import { peekPhaseState } from '../../game/units/components/phaseComponent';
 import { registerCastRateRule } from '../../game/units/components/cadenceCastHooks';
 import { hasLivingChildren } from '../../game/units/components/nodeTree';
@@ -46,6 +49,11 @@ import {
     GARDEN_STATE_BANNER_SEC,
     GARDEN_GROW_TREE_CALLBACK_ID,
     GARDEN_NODE_EMERGE,
+    GARDEN_ORBIT,
+    GARDEN_PHASE_ORBIT_RULE_ID,
+    GARDEN_PHASE_ORBIT_TILES,
+    GARDEN_ROUND_ORBIT_RULE_ID,
+    GARDEN_ROUND_ORBIT_TILES,
     GARDEN_TRICKLE_REGROW_SEC_BY_PHASE,
     GARDEN_TRICKLE_RULE_ID,
     HIVE_GOURD_SPAWNER_ID,
@@ -218,3 +226,55 @@ registerNodeRegrowthCallback(GARDEN_REGROWN_CALLBACK_ID, (heart, ctx, request) =
     if (request.event !== 'regrown') return;
     showUnitBanner(ctx.engine as unknown as GameEngine, heart.id, GARDEN_REGROWN_BANNER_TEXT, GARDEN_STATE_BANNER_SEC);
 });
+
+/** Tries per move for a spot that suits (passable, and for a resprout clear of the party and Briar); each re-rolls the depth. */
+const ORBIT_TRIES = 6;
+
+/**
+ * Where the Heart goes when it moves `tiles` (rolled to the millisecond) clockwise around the ring path
+ * (`GARDEN_ORBIT`), at a depth across the band rolled per try so its path is never a perfect ellipse. `accept` vets a
+ * spot; when no try suits, the last one is used, nudged onto passable ground.
+ */
+export function gardenOrbitDestination(
+    heart: { x: number; y: number },
+    engine: EngineContext,
+    tiles: { min: number; max: number },
+    accept: (p: { x: number; y: number }) => boolean = () => true,
+): { x: number; y: number } {
+    const rng = (min: number, max: number): number => engine.generateRandomInteger(min, max);
+    const arcPx = (rng(Math.round(tiles.min * 1000), Math.round(tiles.max * 1000)) / 1000) * CELL_SIZE;
+    const half = GARDEN_ORBIT.thicknessPx / 2;
+    let last = { x: heart.x, y: heart.y };
+    for (let i = 0; i < ORBIT_TRIES; i++) {
+        const depth = rng(Math.round(-half), Math.round(half));
+        const p = moveAroundEllipseOrbit(GARDEN_ORBIT, heart, arcPx, depth);
+        last = p;
+        const tm = engine.terrainManager;
+        if ((!tm || tm.isPassable(p.x, p.y)) && accept(p)) return p;
+    }
+    return nearestPassablePoint(engine.terrainManager ?? null, last.x, last.y);
+}
+
+/** How many tiles clockwise around the ring path (along its middle line) `to` is from `from`. For tests and tuning. */
+export function gardenOrbitClockwiseTiles(from: { x: number; y: number }, to: { x: number; y: number }): number {
+    const arc = ellipseOrbitClockwiseArc(GARDEN_ORBIT, ellipseOrbitAngle(GARDEN_ORBIT, from), ellipseOrbitAngle(GARDEN_ORBIT, to));
+    return arc / CELL_SIZE;
+}
+
+/** Once a round the Heart moves 3-6 tiles clockwise around the ring path (its `roundHop`). */
+registerRoundHopDestinationRule(GARDEN_ROUND_ORBIT_RULE_ID, (heart, engine) =>
+    gardenOrbitDestination(heart, engine, GARDEN_ROUND_ORBIT_TILES),
+);
+
+/**
+ * Between phases the Heart resurfaces 8-14 tiles clockwise around the ring path, keeping clear of the party and of
+ * Briar when it can (the burrow's own distances). The authored candidates are not used.
+ */
+registerSproutPointRule(GARDEN_PHASE_ORBIT_RULE_ID, (_candidates, ctx) =>
+    gardenOrbitDestination(ctx.unit, ctx.engine, GARDEN_PHASE_ORBIT_TILES, (p) => {
+        if (!ctx.canRiseAt(p)) return false;
+        if (ctx.minDistanceFromParty > 0 && ctx.party.some((u) => Math.hypot(u.x - p.x, u.y - p.y) < ctx.minDistanceFromParty)) return false;
+        return !ctx.exclusionZones.some((z) => Math.hypot(z.x - p.x, z.y - p.y) < z.radius + ctx.minDistanceFromExclusions);
+    }),
+);
+

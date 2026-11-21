@@ -38,10 +38,16 @@ export const CADENCE_CAST_HOOKS: UnitComponentHooks = {
         for (const unit of [...ctx.units]) {
             const state = peekCadenceCastState(unit);
             const options = state ? cadenceCastOptionsOf(unit) : undefined;
-            if (!state || !options || !unit.isAlive() || unit.controlled) continue;
-            // Fills during the cast too, so the cast's own length does not slow the cadence.
+            if (!state || !options || !unit.isAlive()) continue;
+            // Fills during the cast too, so the cast's own length does not slow the cadence. It also fills while the
+            // unit is held (a burrow, a stun): being held delays a cast, never loses it, banking no more than one.
             state.progress += (cadenceCastRate(unit, ctx.engine) * ctx.dt) / ROUND_DURATION;
             if (state.progress < 1) continue;
+            if (unit.controlled) {
+                // Keep the overshoot (so the cadence does not slip by the hold), short of a second banked cast.
+                state.progress = Math.min(state.progress, 2 - 1e-6);
+                continue;
+            }
             const ability = getAbility(options.abilityId);
             if (!ability || unit.activeAbilities.some((a) => a.abilityId === options.abilityId)) {
                 state.progress = 1; // due: wait for the previous cast, banking no more than this one

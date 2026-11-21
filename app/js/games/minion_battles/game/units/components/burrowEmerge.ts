@@ -6,6 +6,9 @@
  * Reusable engine piece: nothing here names the Garden Heart. It is attached on first use (any unit can emerge, with
  * or without a def-declared `burrowHop`) and runs the same burrow stage machine as phases and hops (`phaseBurrow.ts`,
  * drawn by the same renderer). The unit is untargetable (`UnitTag.Invincible`) and cannot act until it has risen.
+ *
+ * The same component also carries a unit on a whole burrow to a point (`startBurrowMove`: close, sink, travel, rise),
+ * e.g. a node that moves with its tree's root. Either way it is one burrow at a time.
  */
 
 import type { Unit } from '../Unit';
@@ -27,7 +30,9 @@ export const BURROW_EMERGE_ERUPTION: BurrowEruptionDef = {
 export interface BurrowEmergeState {
     /** The emergence in progress, or null. */
     burrow: ActiveBurrow | null;
-    /** Stage lengths of the emergence in progress (tick-time seconds). */
+    /** Stage lengths of the burrow in progress (tick-time seconds). Close and sink are 0 for an emergence. */
+    closeSeconds: number;
+    sinkSeconds: number;
     travelSeconds: number;
     riseSeconds: number;
     /** The emergence added `UnitTag.Invincible` (so only it removes the tag). */
@@ -36,11 +41,13 @@ export interface BurrowEmergeState {
 
 export const BURROW_EMERGE_COMPONENT = defineUnitComponent<BurrowEmergeState>({
     id: BURROW_EMERGE_COMPONENT_ID,
-    create: () => ({ burrow: null, travelSeconds: 0, riseSeconds: 0, addedInvincibleTag: false }),
+    create: () => ({ burrow: null, closeSeconds: 0, sinkSeconds: 0, travelSeconds: 0, riseSeconds: 0, addedInvincibleTag: false }),
     toJSON: (s) =>
         s.burrow
             ? {
                   emergeBurrow: { ...s.burrow },
+                  ...(s.closeSeconds ? { emergeCloseSeconds: s.closeSeconds } : {}),
+                  ...(s.sinkSeconds ? { emergeSinkSeconds: s.sinkSeconds } : {}),
                   emergeTravelSeconds: s.travelSeconds,
                   emergeRiseSeconds: s.riseSeconds,
                   ...(s.addedInvincibleTag ? { emergeAddedInvincible: true } : {}),
@@ -48,6 +55,8 @@ export const BURROW_EMERGE_COMPONENT = defineUnitComponent<BurrowEmergeState>({
             : {},
     fromJSON: (s, data) => {
         s.burrow = parseActiveBurrow(data.emergeBurrow);
+        s.closeSeconds = typeof data.emergeCloseSeconds === 'number' ? data.emergeCloseSeconds : 0;
+        s.sinkSeconds = typeof data.emergeSinkSeconds === 'number' ? data.emergeSinkSeconds : 0;
         s.travelSeconds = typeof data.emergeTravelSeconds === 'number' ? data.emergeTravelSeconds : 0;
         s.riseSeconds = typeof data.emergeRiseSeconds === 'number' ? data.emergeRiseSeconds : 0;
         s.addedInvincibleTag = data.emergeAddedInvincible === true;
@@ -58,11 +67,13 @@ export function peekBurrowEmergeState(unit: Unit): BurrowEmergeState | undefined
     return findComponentState(unit, BURROW_EMERGE_COMPONENT);
 }
 
-/** The burrow def an emergence runs: travel then rise only. */
-export function burrowEmergeDef(state: Pick<BurrowEmergeState, 'travelSeconds' | 'riseSeconds'>): BurrowTransitionDef {
+/** The burrow def the burrow in progress runs (an emergence has no close or sink). */
+export function burrowEmergeDef(
+    state: Pick<BurrowEmergeState, 'travelSeconds' | 'riseSeconds'> & Partial<Pick<BurrowEmergeState, 'closeSeconds' | 'sinkSeconds'>>,
+): BurrowTransitionDef {
     return {
-        closeSeconds: 0,
-        sinkSeconds: 0,
+        closeSeconds: state.closeSeconds ?? 0,
+        sinkSeconds: state.sinkSeconds ?? 0,
         travelSeconds: state.travelSeconds,
         riseSeconds: state.riseSeconds,
         sproutPoints: [],

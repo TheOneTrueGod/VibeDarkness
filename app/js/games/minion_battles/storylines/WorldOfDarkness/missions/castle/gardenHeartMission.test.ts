@@ -17,11 +17,10 @@ import { castlePoi, castlePoiCell, type CastleMission } from './castleMission';
 import { SEGMENT_62_47_QUEENS_GARDEN } from '../../MapSegments/castle/62_47_queens_garden';
 import {
     GARDEN_ERUPTION_RADIUS_PX,
-    GARDEN_PHASE_SPROUT_CELLS,
-    GARDEN_PHASE_SPROUT_POINTS,
-    GARDEN_POND_ISLAND_RADIUS_TILES,
     GARDEN_SPROUT_MIN_PARTY_DISTANCE_PX,
 } from '../../../../card_defs/16_enemy_garden_heart/gardenHeartPhases';
+import { gardenOrbitClockwiseTiles } from '../../../../card_defs/16_enemy_garden_heart/gardenHeartRegistrations';
+import { ellipseOrbitPoint } from '../../../../game/geometry/ellipseOrbit';
 import { getEnemyHealthMultiplier } from '../../../../constants/enemyConstants';
 import { ENEMY_GARDEN_HEART } from '../../../../constants/enemyConstants';
 import { getNodeChildIds } from '../../../../game/units/components/nodeTree';
@@ -29,7 +28,12 @@ import { gardenTreeLayout } from '../../../../game/gardenHeart/gardenTreeLayouts
 import { peekPhaseState } from '../../../../game/units/components/phaseComponent';
 import { attachReflexIfKnown } from '../../../../resources/Reflex';
 import { getBattleVariable } from '../../../../game/battleVariables';
-import { GARDEN_GROWTH_PHASE_VARIABLE, GARDEN_HEART_HEALTH_POOLS } from '../../../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
+import {
+    GARDEN_GROWTH_PHASE_VARIABLE,
+    GARDEN_HEART_HEALTH_POOLS,
+    GARDEN_ORBIT,
+    GARDEN_PHASE_ORBIT_TILES,
+} from '../../../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
 import { KNOWLEDGE_REACTIONS } from '../../../../../../accountKnowledge';
 import type { Unit } from '../../../../game/units/Unit';
 import { UnitTag } from '../../../../game/units/unitTag';
@@ -123,20 +127,19 @@ describe('Garden Heart mission', () => {
         });
     });
 
-    it('authors each phase where it should: 2 centre-left, 3 north-east on passable ground, 4 in the pond\'s deep water', () => {
+    it('the ring path the Heart circles is walkable ground around the pond, not in it', () => {
         const grid = GARDEN_HEART.createTerrain();
-        const ground = [TerrainType.Grass, TerrainType.Dirt, TerrainType.ThickGrass];
-        for (const c of GARDEN_PHASE_SPROUT_CELLS[2]) {
-            expect(ground).toContain(grid.get(c.col, c.row));
-            expect(c.col).toBeLessThan(grid.width / 4); // left edge
-            expect(Math.abs(c.row - grid.height / 2)).toBeLessThanOrEqual(5); // around the middle row
+        const tm = new TerrainManager(grid);
+        const samples = 72;
+        let walkable = 0;
+        for (let i = 0; i < samples; i++) {
+            const p = ellipseOrbitPoint(GARDEN_ORBIT, (i / samples) * Math.PI * 2, 0);
+            const cell = { col: Math.floor(p.x / CELL_SIZE), row: Math.floor(p.y / CELL_SIZE) };
+            expect(grid.get(cell.col, cell.row)).not.toBe(TerrainType.DeepWater);
+            if (tm.isPassable(p.x, p.y)) walkable++;
         }
-        for (const c of GARDEN_PHASE_SPROUT_CELLS[3]) {
-            expect(ground).toContain(grid.get(c.col, c.row));
-            expect(c.col).toBeGreaterThan(grid.width / 2 - 1); // right half
-            expect(c.row).toBeLessThan(grid.height / 4); // top
-        }
-        for (const c of GARDEN_PHASE_SPROUT_CELLS[4]) expect(grid.get(c.col, c.row)).toBe(TerrainType.DeepWater);
+        // An estimate, not a trace: nearly all of the middle line is ground the Heart can stand on.
+        expect(walkable / samples).toBeGreaterThanOrEqual(0.85);
     });
 
     it('spawns the Heart on the boss POI with the phase-1 tree grown and no escort', () => {
@@ -232,13 +235,13 @@ describe('Garden Heart mission', () => {
         expect(heart.hp).toBeCloseTo(maxHp * retreatFraction(2), 5);
         expect(peekPhaseState(heart)!.burrow?.stage).toBe('close');
         const burrow = peekPhaseState(heart)!.burrow!;
-        expect(GARDEN_PHASE_SPROUT_POINTS[2].some((p) => p.x === burrow.toX && p.y === burrow.toY)).toBe(true);
-        // The candidate closest to the party (all are farther than the minimum).
+        // It resurfaces 8-14 tiles clockwise around the ring path (a little more or less: the spot is nudged), clear of the party.
+        const moved = gardenOrbitClockwiseTiles({ x: burrow.fromX, y: burrow.fromY }, { x: burrow.toX, y: burrow.toY });
+        expect(moved).toBeGreaterThanOrEqual(GARDEN_PHASE_ORBIT_TILES.min - 1.5);
+        expect(moved).toBeLessThanOrEqual(GARDEN_PHASE_ORBIT_TILES.max + 1.5);
         const hero = engine.units.find((u) => u.teamId === 'player')!;
-        const partyDist = (p: { x: number; y: number }) => Math.hypot(p.x - hero.x, p.y - hero.y);
-        const closest = Math.min(...GARDEN_PHASE_SPROUT_POINTS[2].map(partyDist));
-        expect(closest).toBeGreaterThanOrEqual(GARDEN_SPROUT_MIN_PARTY_DISTANCE_PX);
-        expect(partyDist({ x: burrow.toX, y: burrow.toY })).toBe(closest);
+        expect(Math.hypot(burrow.toX - hero.x, burrow.toY - hero.y)).toBeGreaterThanOrEqual(GARDEN_SPROUT_MIN_PARTY_DISTANCE_PX);
+        expect(engine.terrainManager!.isPassable(burrow.toX, burrow.toY)).toBe(true);
 
         let guard = 0;
         while (peekPhaseState(heart)!.burrow && guard++ < 60 * 12) stepTick(engine);
@@ -272,50 +275,28 @@ describe('Garden Heart mission', () => {
         engine.destroy();
     });
 
-    it('phase 3 comes up north-east, and phase 4 rises in the pond on new grass with 3-wide fords north and west', () => {
+    it('each retreat resurfaces farther clockwise around the ring path, and the pond is left as it is', () => {
         const engine = initMission(GARDEN_HEART);
         const heart = heartOf(engine);
         const tm = engine.terrainManager!;
-        const retreatTo = (fraction: number): void => {
+        const pondCentre = { col: Math.floor(GARDEN_ORBIT.cx / CELL_SIZE), row: Math.floor(GARDEN_ORBIT.cy / CELL_SIZE) };
+        const pondBefore = tm.getEffectiveTerrainType(pondCentre.col, pondCentre.row);
+        const retreatTo = (fraction: number): number => {
             heart.takeDamage(heart.hp - heart.maxHp * fraction + heart.maxHp, null, engine.eventBus);
             expect(heart.hp).toBeCloseTo(heart.maxHp * fraction, 5);
+            const b = peekPhaseState(heart)!.burrow!;
             let guard = 0;
             while (peekPhaseState(heart)!.burrow && guard++ < 60 * 12) stepTick(engine);
             expect(peekPhaseState(heart)!.burrow).toBeNull();
+            return gardenOrbitClockwiseTiles({ x: b.fromX, y: b.fromY }, { x: b.toX, y: b.toY });
         };
-        retreatTo(retreatFraction(2));
-        retreatTo(retreatFraction(3));
-        expect(GARDEN_PHASE_SPROUT_POINTS[3].some((p) => p.x === heart.x && p.y === heart.y)).toBe(true);
-
-        const pond = GARDEN_PHASE_SPROUT_CELLS[4][0]!;
-        expect(tm.getEffectiveTerrainType(pond.col, pond.row)).toBe(TerrainType.DeepWater);
-        retreatTo(retreatFraction(4));
-        expect([heart.x, heart.y]).toEqual([GARDEN_PHASE_SPROUT_POINTS[4][0]!.x, GARDEN_PHASE_SPROUT_POINTS[4][0]!.y]);
-
-        // The island: every tile within the radius is grass.
-        const r = GARDEN_POND_ISLAND_RADIUS_TILES;
-        for (let dr = -r; dr <= r; dr++) {
-            for (let dc = -r; dc <= r; dc++) {
-                if (Math.hypot(dc, dr) > r) continue;
-                expect(tm.getEffectiveTerrainType(pond.col + dc, pond.row + dr)).toBe(TerrainType.Grass);
-            }
+        for (const phase of [2, 3, 4] as const) {
+            const moved = retreatTo(retreatFraction(phase));
+            expect(moved, `phase ${phase}`).toBeGreaterThanOrEqual(GARDEN_PHASE_ORBIT_TILES.min - 1.5);
+            expect(moved, `phase ${phase}`).toBeLessThanOrEqual(GARDEN_PHASE_ORBIT_TILES.max + 1.5);
         }
-        // The fords: 3 wide (the centre line and one each side), Shallow Water out to the shore; 2 off-line stays water.
-        const walkable = (col: number, row: number) => tm.isPassable((col + 0.5) * CELL_SIZE, (row + 0.5) * CELL_SIZE);
-        for (let step = r + 1; step <= 6; step++) {
-            for (const side of [-1, 0, 1]) {
-                expect(tm.getEffectiveTerrainType(pond.col + side, pond.row - step)).toBe(TerrainType.ShallowWater); // north
-                expect(tm.getEffectiveTerrainType(pond.col - step, pond.row + side)).toBe(TerrainType.ShallowWater); // west
-            }
-            expect(walkable(pond.col, pond.row - step)).toBe(true);
-            expect(walkable(pond.col - step, pond.row)).toBe(true);
-        }
-        expect(tm.getEffectiveTerrainType(pond.col + 2, pond.row - 5)).not.toBe(TerrainType.ShallowWater);
-        // East and south stay open water.
-        expect(tm.getEffectiveTerrainType(pond.col + 5, pond.row)).toBe(TerrainType.Water);
-        expect(tm.getEffectiveTerrainType(pond.col, pond.row + 5)).toBe(TerrainType.Water);
-        // The phase-4 tree grew on the island and fords, not in the water.
-        // The tree is the plant kin: the darkness spawns (dark wolves) may have come in by now.
+        expect(tm.getEffectiveTerrainType(pondCentre.col, pondCentre.row)).toBe(pondBefore);
+        // The phase-4 tree is the plant kin (the darkness spawns may have come in by now), all on walkable ground.
         const tree = engine.units.filter((u) => u.isAlive() && u.id !== heart.id && u.tags.includes(UnitTag.GardenKin));
         expect(tree).toHaveLength(gardenTreeLayout(4)!.length);
         for (const u of [heart, ...tree]) expect(tm.isPassable(u.x, u.y)).toBe(true);

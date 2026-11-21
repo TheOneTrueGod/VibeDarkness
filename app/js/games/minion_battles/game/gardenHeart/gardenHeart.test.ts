@@ -52,6 +52,8 @@ import {
     GARDEN_REGROWN_BANNER_TEXT,
     GARDEN_SEVERANCE_DAMAGE,
     GARDEN_NODE_EMERGE,
+    GARDEN_ORBIT,
+    GARDEN_ROUND_ORBIT_TILES,
     GARDEN_TRICKLE_REGROW_SEC,
     GARDEN_TRICKLE_REGROW_SEC_BY_PHASE,
     HEART_SHELL_REDUCTION,
@@ -102,6 +104,9 @@ import { hopKeepsTethers } from '../units/components/burrowHopHooks';
 import { getBurrowVisual } from '../units/components/phaseBurrow';
 import { UnitTag, hasUnitTag, isCcImmune } from '../units/unitTag';
 import { isBurrowEmerging } from '../units/components/burrowEmergeHooks';
+import { peekRoundHopState } from '../units/components/roundHop';
+import { ellipseOrbitPoint } from '../geometry/ellipseOrbit';
+import { gardenOrbitClockwiseTiles } from '../../card_defs/16_enemy_garden_heart/gardenHeartRegistrations';
 import { getActiveUnitBanner } from '../unitBanner';
 import { getNodeRegrowthStatus } from '../units/components/nodeRegrowth';
 import { canHit } from '../hitRule';
@@ -736,7 +741,8 @@ describe('Spike Ring', () => {
         const heart = heartInPhase(4);
         growGardenTree(growCtx(), heart, 4);
         let guard = 0;
-        while (!engine.projectiles.some((p) => p.sourceAbilityId === SPIKE_RING_ABILITY_ID) && guard++ < TICKS_PER_SEC * 8) {
+        // Within a round and a bit: a ring due while the Heart is moving round the pond fires as it surfaces.
+        while (!engine.projectiles.some((p) => p.sourceAbilityId === SPIKE_RING_ABILITY_ID) && guard++ < TICKS_PER_SEC * 12) {
             stepSeconds(1 / TICKS_PER_SEC);
         }
         const thorns = engine.projectiles.filter((p) => p.sourceAbilityId === SPIKE_RING_ABILITY_ID);
@@ -894,6 +900,49 @@ describe('Bared windows, Severance and regrowth', () => {
         stepSeconds(0.5);
         expect(engine.projectiles.some((p) => p.sourceAbilityId === PINWHEEL_DOUBLED_ABILITY_ID)).toBe(true);
         expect(engine.projectiles.some((p) => p.sourceAbilityId === PINWHEEL_ABILITY_ID)).toBe(false);
+    });
+});
+
+describe('the Heart circles the pond', () => {
+    it('once a round, at the same moment in the second half, it burrows 3-6 tiles clockwise round the ring with its tree', () => {
+        setupEngine();
+        // Due west on the ring's middle line (the tiny map is big enough for the arena's ring).
+        const start = ellipseOrbitPoint(GARDEN_ORBIT, Math.PI, 0);
+        const heart = addEnemy(ENEMY_GARDEN_HEART, start.x, start.y);
+        addPlayer(centre(38), centre(38));
+        // Phase 1: no Spike Ring, so no cast ever delays the move.
+        const [bud] = [...growGardenTree(growCtx(), heart, 1).values()];
+        stepSeconds(1 / 60);
+        const state = peekRoundHopState(heart)!;
+        const offset = state.offsetSeconds!;
+        expect(offset).toBeGreaterThanOrEqual(ROUND_DURATION / 2);
+        expect(offset).toBeLessThanOrEqual(ROUND_DURATION);
+
+        const moves: Array<{ at: number; from: { x: number; y: number }; to: { x: number; y: number }; budCarried: boolean }> = [];
+        let wasMoving = false;
+        stepSeconds(ROUND_DURATION * 2.5, () => {
+            const b = state.burrow;
+            if (b && !wasMoving) {
+                moves.push({ at: engine.gameTime, from: { x: b.fromX, y: b.fromY }, to: { x: b.toX, y: b.toY }, budCarried: isBurrowEmerging(bud!) });
+                expect(hasUnitTag(heart, UnitTag.Invincible)).toBe(true);
+            }
+            wasMoving = b !== null;
+        });
+        expect(moves.length).toBeGreaterThanOrEqual(2);
+        for (const m of moves) {
+            // Same moment every round (to a tick).
+            const intoRound = m.at - Math.floor(m.at / ROUND_DURATION) * ROUND_DURATION;
+            expect(Math.abs(intoRound - offset)).toBeLessThan(2 / 60);
+            const tiles = gardenOrbitClockwiseTiles(m.from, m.to);
+            expect(tiles).toBeGreaterThanOrEqual(GARDEN_ROUND_ORBIT_TILES.min - 0.05);
+            expect(tiles).toBeLessThanOrEqual(GARDEN_ROUND_ORBIT_TILES.max + 0.05);
+        }
+        // The tree went with it at least once (a Bud mid-hop of its own stays put).
+        expect(moves.some((m) => m.budCarried)).toBe(true);
+        // Each landing is somewhere new: not a perfect ellipse (the depth across the band is rolled per move).
+        const depths = moves.map((m) => Math.hypot(m.to.x - GARDEN_ORBIT.cx, m.to.y - GARDEN_ORBIT.cy));
+        expect(new Set(depths.map((d) => Math.round(d))).size).toBeGreaterThan(1);
+        expect(hasUnitTag(heart, UnitTag.Invincible)).toBe(false);
     });
 });
 

@@ -22,6 +22,7 @@ import { peekPhaseState } from './components/phaseComponent';
 import { getBurrowVisual, type BurrowHolder, type BurrowVisual } from './components/phaseBurrow';
 import { peekBurrowHopState } from './components/burrowHop';
 import { peekBurrowEmergeState } from './components/burrowEmerge';
+import { peekRoundHopState } from './components/roundHop';
 import { getNodeRegrowthStatus } from './components/nodeRegrowth';
 import { fusedBodyOptionsOf, getFusedBodyStatus } from './components/fusedBodyComponent';
 
@@ -108,14 +109,16 @@ export interface BurrowRender {
     eruption: FusedBodyTelegraph | null;
 }
 
-/** The burrow this unit is in, from a phase transition, a hop (`burrowHop`) or an emergence (`burrowEmerge`); undefined when none. */
+/** The burrow this unit is in, from a phase transition, a hop (`burrowHop`), an emergence or carried move (`burrowEmerge`) or a round hop (`roundHop`); undefined when none. */
 function burrowHolderOf(unit: Unit): BurrowHolder | undefined {
     const phase = peekPhaseState(unit);
     if (phase?.burrow) return phase;
     const hop = peekBurrowHopState(unit);
     if (hop?.burrow) return hop;
     const emerge = peekBurrowEmergeState(unit);
-    return emerge?.burrow ? emerge : undefined;
+    if (emerge?.burrow) return emerge;
+    const roundHop = peekRoundHopState(unit);
+    return roundHop?.burrow ? roundHop : undefined;
 }
 
 export function resolveBurrowRender(unit: Unit, tickTime: number): BurrowRender | null {

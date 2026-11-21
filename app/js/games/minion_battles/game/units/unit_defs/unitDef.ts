@@ -65,6 +65,7 @@ import { NODE_TREE_COMPONENT } from '../components/nodeTree';
 import { NODE_REGROWTH_COMPONENT } from '../components/nodeRegrowth';
 import { SPAWNER_COMPONENT } from '../components/spawnerComponent';
 import { BURROW_HOP_COMPONENT } from '../components/burrowHop';
+import { ROUND_HOP_COMPONENT } from '../components/roundHop';
 import { CADENCE_CAST_COMPONENT } from '../components/cadenceCast';
 import type { DamageTakenMultiplier, FlatDamageReduction } from '../flatDamageReduction';
 import type { UnitRenderOptions } from '../unitRenderOptions';
@@ -91,6 +92,7 @@ import {
     POD_SEED_REACTION_LEAD_SEC,
     SHELL_REDUCTION,
     HEART_SHELL_REDUCTION,
+    GARDEN_HEART_ROUND_HOP,
     GARDEN_TRICKLE_RULE_ID,
     GARDEN_NODE_RENDER_OPTIONS,
     GARDEN_WILD_HIT_RULE,
@@ -830,13 +832,15 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
                 regrowCallback: GARDEN_REGROW_CALLBACK_ID,
                 callbacks: { opened: GARDEN_BARED_OPENED_CALLBACK_ID, regrown: GARDEN_REGROWN_CALLBACK_ID },
             }),
+            // Once a round, in the second half, it burrows 3-6 tiles clockwise around the pond's ring path, tree and all.
+            componentSpec(ROUND_HOP_COMPONENT, GARDEN_HEART_ROUND_HOP),
             // Spike Ring: from phase 2, at the phase's base rate while shelled, never while Bared (`gardenSpikeRingRate`).
             componentSpec(CADENCE_CAST_COMPONENT, { abilityId: SPIKE_RING_ABILITY_ID, rateRule: GARDEN_SPIKE_RING_RATE_RULE_ID }),
         ],
         // Retreats when a phase's health pool is gone: the old tree dies to Briar, the Heart resurfaces elsewhere with the next tree.
         phases: GARDEN_HEART_PHASES,
         uiDescription:
-            'A plated seed pod rooted in the garden. While anything grows from it, its Shell turns aside almost any hit, and every tip you cut costs it health. Cut the last tip and it is bared for five seconds: it spins thorns and takes extra damage, then the whole plant regrows. Stuns and knockbacks do nothing to it, and its thorns hurt everything but plants. When it has lost enough, it sinks into the ground and comes up elsewhere with a bigger plant.',
+            'A plated seed pod rooted in the garden. While anything grows from it, its Shell turns aside almost any hit, and every tip you cut costs it health. Cut the last tip and it is bared for five seconds: it spins thorns and takes extra damage, then the whole plant regrows. Stuns and knockbacks do nothing to it, and its thorns hurt everything but plants. Once a round it burrows a little way around the pond, plant and all. When it has lost enough, it sinks into the ground and comes up farther round the pond with a bigger plant.',
     },
     thornspitter: {
         bodyColor: 0x134e4a,

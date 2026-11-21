@@ -40,7 +40,7 @@ import { spawnFusedBody } from '../../../game/units/components/fusedBodySpawn';
 import { peekPhaseState } from '../../../game/units/components/phaseComponent';
 import { gardenTreeLayout } from '../../../game/gardenHeart/gardenTreeLayouts';
 import { gardenTreeDescendants, growGardenTree, type GardenGrowContext } from '../../../game/gardenHeart/growGardenTree';
-import { GARDEN_PHASE_SPROUT_POINTS } from '../../../card_defs/16_enemy_garden_heart/gardenHeartPhases';
+import { gardenOrbitClockwiseTiles } from '../../../card_defs/16_enemy_garden_heart/gardenHeartRegistrations';
 import { attachReflexIfKnown } from '../../../resources/Reflex';
 import { ResourceId } from '../../../resources/resourceIds';
 import { applyReactionClaim } from '../../../game/reactions/claimRule';
@@ -163,11 +163,13 @@ export const gardenHeartShellScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------------------------------------------
-// Phase retreat (the real mission, so sprout points, Briar and tree layouts are the shipped ones)
+// Phase retreat (the real mission, so the ring path, Briar and tree layouts are the shipped ones)
 // ---------------------------------------------------------------------------------------------------------------
 
 interface RetreatRun {
     heart: Unit;
+    /** Where the Heart stood when the retreat began. */
+    startAt: { x: number; y: number };
     oldTree: Unit[];
     briarBefore: number;
     maxHp: number;
@@ -221,6 +223,7 @@ export const gardenHeartPhaseRetreatScenario: ScenarioDefinition = {
         const { engine, heart, player } = buildGardenMissionEngine();
         const run: RetreatRun = {
             heart,
+            startAt: { x: heart.x, y: heart.y },
             oldTree: engine.units.filter((u) => u.id !== heart.id && u.teamId === heart.teamId),
             briarBefore: countBriar(engine),
             maxHp: heart.maxHp,
@@ -249,7 +252,8 @@ export const gardenHeartPhaseRetreatScenario: ScenarioDefinition = {
             Math.abs(heart.hp - run.maxHp * GARDEN_HEART_RETREAT_FRACTION_2) < 1e-6 && // damage past the threshold is lost
             run.oldTree.every((u) => !u.isAlive()) &&
             countBriar(engine) > run.briarBefore &&
-            GARDEN_PHASE_SPROUT_POINTS[2].some((p) => p.x === heart.x && p.y === heart.y) &&
+            gardenOrbitClockwiseTiles(run.startAt, heart) >= 6.5 && // 8-14 tiles round the ring (spot nudged)
+            gardenOrbitClockwiseTiles(run.startAt, heart) <= 15.5 &&
             fresh.length === phase2.length &&
             getNodeChildIds(heart).length === phase2.filter((s) => s.parent === null).length &&
             fresh.every((u) => !run.oldTree.includes(u))

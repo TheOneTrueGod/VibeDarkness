@@ -5,6 +5,9 @@
  * Knot or a Bud is a node's place in the tree, so every kind can sit anywhere.
  */
 
+import type { EllipseOrbitDef } from '../../game/geometry/ellipseOrbit';
+import type { RoundHopOptions } from '../../game/units/components/roundHop';
+import { ROUND_DURATION } from '../../game/gameConstants';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import type { UnitRenderOptions } from '../../game/units/unitRenderOptions';
@@ -242,3 +245,42 @@ export const GARDEN_PINWHEEL_ABILITY_BY_PRESET: Readonly<Partial<Record<Pinwheel
 /** Bloom Burst (phase 1's opening): one ring of thorns as the Heart is Bared. */
 export const BLOOM_BURST_COUNT = 10;
 export const BLOOM_BURST_SPEED = 100;
+
+// ---- The Heart circles the pond (plan: Heart movement around the ring path) ----
+/**
+ * The ring path around the central pond, as an elliptical band (arena-global world px): centre on the pond, radii to
+ * the middle of the dirt ring (about 11 tiles east-west, 8 north-south), 3.5 tiles thick so each move can land a
+ * little inside or outside the path. Estimated from the composed 2x2 arena, not traced from it.
+ */
+export const GARDEN_ORBIT: EllipseOrbitDef = {
+    cx: 21.5 * CELL_SIZE,
+    cy: 20.75 * CELL_SIZE,
+    rx: 11 * CELL_SIZE,
+    ry: 8 * CELL_SIZE,
+    thicknessPx: 3.5 * CELL_SIZE,
+};
+/** Once a round, in the second half, the Heart moves this many tiles clockwise around the ring (rolled each time). */
+export const GARDEN_ROUND_ORBIT_TILES = { min: 3, max: 6 } as const;
+/** Between phases the Heart resurfaces this many tiles clockwise around the ring (rolled each time). */
+export const GARDEN_PHASE_ORBIT_TILES = { min: 8, max: 14 } as const;
+/** Round-hop destination rule id: `GARDEN_ROUND_ORBIT_TILES` around `GARDEN_ORBIT`. */
+export const GARDEN_ROUND_ORBIT_RULE_ID = 'gardenRoundOrbit';
+/** Sprout point rule id for the phase burrow: `GARDEN_PHASE_ORBIT_TILES` around `GARDEN_ORBIT`. */
+export const GARDEN_PHASE_ORBIT_RULE_ID = 'gardenPhaseOrbit';
+/**
+ * The Heart's round move: rolled once to a moment in the second half of the round and kept for the fight. Its whole
+ * tree burrows with it by the same offset. A harmless surfacing (rock chips, no blast).
+ */
+export const GARDEN_HEART_ROUND_HOP: RoundHopOptions = {
+    window: { min: ROUND_DURATION / 2, max: ROUND_DURATION },
+    destinationRule: GARDEN_ROUND_ORBIT_RULE_ID,
+    carryNodeTree: true,
+    burrow: {
+        closeSeconds: 0.3,
+        sinkSeconds: 0.5,
+        travelSeconds: 1,
+        riseSeconds: 0.6,
+        eruption: { radiusUnitRadii: 1.5, damage: 0, reactable: false, rockShower: { count: 12 } },
+    },
+};
+
