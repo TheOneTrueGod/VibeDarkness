@@ -20,7 +20,7 @@ import { resolvePendingFrozenHits } from '../units/unitDamage';
 import { isSinglePieceStep, planStepPieces } from '../time/stepPieces';
 import { processUnitPassiveEvent, processUnitPassives } from '../../abilities/passiveRunner';
 import type { AIContext } from '../units/unitAI';
-import { createResourceFromId } from '../../resources/createResourceFromId';
+import { restoreSerializedUnit } from '../units/restoreSerializedUnit';
 import { countNinjutsuEnemyUnits } from '../ninjutsu/NinjutsuManager';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unitDef';
@@ -439,21 +439,7 @@ export class UnitManager {
     restoreFromJSON(unitDataArray: Record<string, unknown>[], eventBus: EventBus, currentGameTick: number = 0): void {
         this.units = [];
         for (const unitData of unitDataArray) {
-            const unit = Unit.fromJSON(unitData, eventBus, currentGameTick);
-            const resourceData = unitData.resources as Record<string, unknown>[] | undefined;
-            if (resourceData) {
-                for (const rd of resourceData) {
-                    const resource = createResourceFromId(rd.id as string);
-                    if (resource) {
-                        resource.restoreFromJSON(rd);
-                        unit.attachResource(resource, eventBus);
-                        // Fresh instances lose tile/proximity context that tooltips read;
-                        // prime immediately so gain rates show right after restore.
-                        resource.primeDisplayContext?.(unit, this.ctx);
-                    }
-                }
-            }
-            this.units.push(unit);
+            this.units.push(restoreSerializedUnit(unitData, eventBus, currentGameTick, this.ctx));
         }
     }
 }

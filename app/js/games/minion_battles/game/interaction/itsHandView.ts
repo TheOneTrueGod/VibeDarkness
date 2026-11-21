@@ -4,7 +4,8 @@ import { canUseAbilityNow } from '../../abilities/abilityUses';
 import { EventBus } from '../EventBus';
 import type { GameEngine } from '../GameEngine';
 import type { SerializedGameState } from '../types';
-import { Unit } from '../units/Unit';
+import type { Unit } from '../units/Unit';
+import { restoreSerializedUnit } from '../units/restoreSerializedUnit';
 import { getConditionalCancelDecisionCast } from './isITSPreviewComplete';
 
 /** The parts of the ITS session the rewind view reads. */
@@ -29,7 +30,7 @@ export function getMarkUnitView(mark: SerializedGameState, unitId: string): Unit
     if (cached) return cached;
     const data = mark.units.find((u) => u.id === unitId);
     if (!data) return null;
-    const unit = Unit.fromJSON(structuredClone(data), new EventBus(), mark.gameTick);
+    const unit = restoreSerializedUnit(structuredClone(data), new EventBus(), mark.gameTick);
     if (!perMark) {
         perMark = new Map();
         markUnitCache.set(mark, perMark);

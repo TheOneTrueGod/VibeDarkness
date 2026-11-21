@@ -175,6 +175,20 @@ describe('ITS rewind view during a preview', () => {
         expect(getDisabledReasonDisplay(reason!).title).toBe('Not Enough Health Before Throw Rock');
     });
 
+    it('the rewind target keeps its resources, so a cost it can pay stays enabled (Dodge during a combo)', async () => {
+        const { its, unitId, previewEngine } = await mountFixture(1);
+        const live = previewEngine.getUnit(unitId)!;
+        const liveMovement = live.getResource('movement_points');
+        expect(liveMovement?.current).toBeGreaterThanOrEqual(1);
+        const rewindUnit = getRewindTargetUnit(previewEngine, its, live)!;
+        expect(rewindUnit.getResource('movement_points')?.current).toBe(liveMovement!.current);
+        const movementCost = {
+            ...getAbility(PUNCH_ID)!,
+            resourceCost: { resourceId: 'movement_points', amount: 1 },
+        } as AbilityStatic;
+        expect(cardReason(live, rewindUnit, movementCost)).toBeNull();
+    });
+
     it('judges live at a reaction pause that froze the preview', async () => {
         const { its, unitId, previewEngine } = await mountFixture(0);
         const live = previewEngine.getUnit(unitId)!;
