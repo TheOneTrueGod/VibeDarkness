@@ -480,6 +480,13 @@ export function computeTickElapsed(
     return { prevElapsed, nextElapsed };
 }
 
+/**
+ * Float slack for "the cast's first tick": far below any real tick (1/60 s), far above `+= dt` rounding drift. A cast
+ * opened between ticks has `startTime = engine.gameTime` (a long sum of `+= dt`), so its first tick's
+ * `prevElapsed = (gameTime + dt) - startTime - dt` can come out ~3e-18 instead of 0.
+ */
+const FIRST_TICK_EPSILON = 1e-9;
+
 // If you need matching prevElapsed/nextElapsed for a fixed-tick boundary check, use
 // computeTickElapsed above rather than inlining gameTime - startTime arithmetic.
 export function enteredTimingIds(
@@ -502,7 +509,8 @@ export function enteredTimingIds(
     // Intervals with start=0 are already active at prevElapsed=0 (first cast tick after
     // order apply), so the crossing check above misses them. Treat the first positive
     // elapsed step as entry — matches doCardEffect's `if (prevTime > 0) return` gate.
-    if (prevElapsed <= 0 && nextElapsed > 0) {
+    // "0" allows FIRST_TICK_EPSILON of float drift (a cast opened between ticks).
+    if (prevElapsed <= FIRST_TICK_EPSILON && nextElapsed > FIRST_TICK_EPSILON) {
         for (const it of intervals) {
             if (it.start === 0 && next.has(it.id)) out.add(it.id);
         }

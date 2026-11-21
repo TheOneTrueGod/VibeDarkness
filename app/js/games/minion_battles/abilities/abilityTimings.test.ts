@@ -111,6 +111,38 @@ describe('enteredTimingIds / exitedTimingIds', () => {
     });
 });
 
+describe('enteredTimingIds for a cast opened mid-fight (startTime = accumulated gameTime)', () => {
+    const dt = 1 / 60;
+    const intervals = normalizeAbilityTimingsToIntervals([
+        { id: 'w', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
+        { id: 'a', start: 0.2, end: 0.2 + dt, abilityPhase: AbilityPhase.Active },
+        { id: 'c', start: 0.2 + dt, end: 1, abilityPhase: AbilityPhase.Cooldown },
+    ]);
+
+    // A cast opened between ticks takes `startTime = engine.gameTime`, where gameTime is a sum of many `+= dt`.
+    // `(gameTime + dt) - startTime - dt` is then a few ULPs off 0 (e.g. ~3e-18), and the start-0 interval must still
+    // enter, as it would for a cast starting at gameTime 0. (Later one-tick intervals are not checked: drift between
+    // one tick's nextElapsed and the next tick's recomputed prevElapsed can still skip them, rarely.)
+    it('enters the start-0 interval for any cast start tick', () => {
+        const misses: string[] = [];
+        let castStart = 0;
+        for (let startTick = 0; startTick < 1200; startTick++) {
+            const entries = new Map<string, number>();
+            let gameTime = castStart;
+            for (let step = 1; step <= 70; step++) {
+                gameTime += dt;
+                const { prevElapsed, nextElapsed } = computeTickElapsed(gameTime, dt, castStart);
+                for (const id of enteredTimingIds(prevElapsed, nextElapsed, intervals)) {
+                    entries.set(id, (entries.get(id) ?? 0) + 1);
+                }
+            }
+            if (!entries.has('w')) misses.push(`w@tick${startTick}`);
+            castStart += dt;
+        }
+        expect(misses).toEqual([]);
+    });
+});
+
 describe('computeTickElapsed (lookahead vs real-tick call-site parity)', () => {
     const dt = 1 / 60;
 
