@@ -22,6 +22,8 @@ import { Teleport, type TeleportConfig, type TeleportBehaviour } from './Telepor
 import { Beam, type BeamConfig, type BeamBehaviour } from './BeamBehaviour';
 import { SwapPlaces, type SwapPlacesConfig, type SwapPlacesBehaviour } from './SwapPlacesBehaviour';
 import { SpellCircleBehaviour, type SpellCircleBehaviourConfig } from './SpellCircleBehaviour';
+import { PinwheelBehaviour, type PinwheelConfig } from './PinwheelBehaviour';
+import { DrainLightBehaviour, type DrainLightConfig } from './DrainLightBehaviour';
 import type { CastBehaviourTickContext } from '../castBehaviourTypes';
 
 export const CastBehaviours = {
@@ -76,6 +78,10 @@ export const CastBehaviours = {
      * end and fizzling if the cast is cut. For medium windups on medium-scale effects; use sparingly.
      */
     SpellCircle: (config: SpellCircleBehaviourConfig): SpellCircleBehaviour => new SpellCircleBehaviour(config),
+    /** Rotating arms firing projectiles on world time (see `PinwheelBehaviour`; presets in `abilities/pinwheelPresets.ts`). */
+    Pinwheel: (config: PinwheelConfig): PinwheelBehaviour => new PinwheelBehaviour(config),
+    /** Picks the nearest lit light at cast start, streams it to the caster, drains it at the window's end (see `DrainLightBehaviour`). */
+    DrainLight: (config: DrainLightConfig): DrainLightBehaviour => new DrainLightBehaviour(config),
 };
 
 export { BaseAttackBehaviour } from './BaseAttackBehaviour';

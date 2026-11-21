@@ -113,6 +113,8 @@ export interface AIAbilityGateContext {
     gameTime: number;
     getUnits(): Unit[];
     getSpecialTiles(): import('../game/specialTiles/SpecialTile').SpecialTile[];
+    /** Free-standing light sources (present on the full AI context). */
+    getLightSources?(): readonly unknown[];
     /** True when `unitId` has an order queued for this tick or later (e.g. a commanded unit not yet acting). */
     hasPendingOrderForUnit?(unitId: string): boolean;
 }
@@ -139,6 +141,12 @@ export interface AbilityAISettings {
      *   pursuit target.
      */
     candidateScope?: 'lockedTarget' | 'anyNearby';
+    /**
+     * When true, an ability with an empty `targets` array is a valid AI choice even when no enemy is perceived
+     * (its work is not about the party: drinking light, tending the area). `canUse` still gates it. Only reached by
+     * trees that offer a no-enemy cast (see `gardenNode_idle`).
+     */
+    castWithoutEnemies?: boolean;
     /**
      * Restricts the AI to a window of each round, as fractions of ROUND_DURATION in [0, 1)
      * (e.g. `{ start: 0.75, end: 1 }` = last quarter). The ability is skipped outside the window.

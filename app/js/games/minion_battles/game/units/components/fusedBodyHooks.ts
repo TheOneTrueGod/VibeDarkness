@@ -8,12 +8,12 @@
  *   an outcome, so its own removal does not fizzle.
  *
  * Effects are named handlers in a registry (`registerFusedBodyEffect`), so a def never carries code. Built in:
- * `none` (nothing but the spec's visuals) and `areaDamage` (`params.damage` to every living enemy of the body within
- * `options.radiusPx` of it).
+ * `none` (nothing but the spec's visuals) and `areaDamage` (`params.damage` to every living unit the spec's `hitRule` allows
+ * (default: enemies of the body) within `options.radiusPx` of it).
  */
 
 import type { Unit } from '../Unit';
-import { areEnemies } from '../../teams';
+import { canHit } from '../../hitRule';
 import { applyVisualEffectDefs } from '../../effects/applyVisualEffectDefs';
 import type { UnitComponentContext, UnitComponentHooks } from './unitComponentHooks';
 import {
@@ -52,7 +52,7 @@ registerFusedBodyEffect(FUSED_BODY_EFFECT_AREA_DAMAGE, (unit, ctx, spec, options
     const damage = spec.params?.damage ?? 0;
     if (damage <= 0) return;
     for (const target of [...ctx.units]) {
-        if (!target.isAlive() || !areEnemies(unit.teamId, target.teamId)) continue;
+        if (target.id === unit.id || !target.isAlive() || !canHit(spec.hitRule, unit.teamId, target)) continue;
         if (Math.hypot(target.x - unit.x, target.y - unit.y) > options.radiusPx + target.radius) continue;
         target.takeDamage(damage, unit.id, ctx.eventBus);
     }

@@ -1,7 +1,8 @@
 import { Graphics } from 'pixi.js';
 import type { Container } from 'pixi.js';
 import type { Unit } from '../../units/Unit';
-import { resolvePlatedLook, type PlatedLook } from '../../units/unitRenderOptions';
+import { resolvePlatedLook, resolveTimerRing, type PlatedLook } from '../../units/unitRenderOptions';
+import { strokeClockwiseArc } from './castStateRingVisual';
 
 /**
  * Painters for `UnitDefEntry.renderOptions` that live INSIDE the unit visual, so they move, fade, scale and sink
@@ -107,4 +108,32 @@ export function syncPlatedLook(visual: Container, unit: Unit, timeSec: number): 
     g.visible = true;
     g.clear();
     drawPlatedLook(g, look, unit.radius, timeSec);
+}
+
+const TIMER_RING_LABEL = 'timerRing';
+
+/**
+ * Add, update or hide the timer ring child of a unit visual (`renderOptions.timerRing`): a thin arc just outside the
+ * body, draining clockwise from the top. `timeSec` is world time. Cheap when the def has no `timerRing` option.
+ */
+export function syncTimerRing(visual: Container, unit: Unit, timeSec: number): void {
+    const ring = unit.isAlive() ? resolveTimerRing(unit, timeSec) : null;
+    let g = visual.children.find((c) => c.label === TIMER_RING_LABEL) as Graphics | undefined;
+    if (!ring) {
+        if (g) g.visible = false;
+        return;
+    }
+    if (!g) {
+        g = new Graphics();
+        g.label = TIMER_RING_LABEL;
+        g.eventMode = 'none';
+        visual.addChild(g);
+    }
+    g.visible = true;
+    g.clear();
+    strokeClockwiseArc(g, unit.radius + ring.offsetPx + ring.width / 2, ring.fraction, {
+        color: ring.color,
+        width: ring.width,
+        alpha: ring.alpha,
+    });
 }

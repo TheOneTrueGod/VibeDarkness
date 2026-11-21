@@ -272,3 +272,13 @@ export const ENEMY_CREEPER: EnemySpawnDef = {
     aiSettings: { minRange: 0, maxRange: 360 },
     unitAITreeId: 'gardenNode',
 };
+
+export const ENEMY_GLOAM_LILY: EnemySpawnDef = {
+    characterId: 'gloam_lily',
+    name: 'Gloam Lily',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['1606'],
+    aiSettings: { minRange: 0, maxRange: 0 },
+    unitAITreeId: 'gardenNode',
+};

@@ -58,8 +58,8 @@ export const SEGMENT_62_47_QUEENS_GARDEN: CastleSegment = {
         { id: '62_47_hedges', label: 'Behind the Hedges', col: 4, row: 16, type: 'enemySpawn' },
         // Just inside the opening from the crossroads: where the garden-heart mission starts.
         { id: '62_47_entry_west', label: 'Entry: West', col: 2, row: 10, type: 'generic', tags: ['entry'] },
-        // On the loop path north of the pond, mid-way along the north half of the garden: the boss spot.
-        { id: '62_47_boss', label: 'Garden Heart', col: 19, row: 11, type: 'generic', tags: ['boss'] },
+        // Upper-left of the garden, beside the corrupted crystal where the loop paths cross (12, 12): the boss spot.
+        { id: '62_47_boss', label: 'Garden Heart', col: 14, row: 10, type: 'generic', tags: ['boss'] },
     ],
     network: {
         nodes: [{ id: '62_47_center', position: { kind: 'gridPoint', col: 13, row: 14 }, tags: ['castle'] }],

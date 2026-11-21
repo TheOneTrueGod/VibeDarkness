@@ -13,12 +13,14 @@ import type { TeamId } from '../teams';
 import { getEnemyHealthMultiplier } from '../../constants/enemyConstants';
 import { getDefaultHp, getUnitDefEntry } from '../units/unit_defs/unitDef';
 import { spawnNodeChild } from '../units/components/nodeTreeSpawn';
-import { getNodeChildIds } from '../units/components/nodeTree';
+import { getNodeChildIds, getNodeLayoutKey, markNodeDismissed, peekNodeTreeState, setNodeLayoutKey } from '../units/components/nodeTree';
 import type { SpawnDefinition } from '../units/spawning/spawnDefinition';
 import type { SpawnUnitContext } from '../units/spawning/spawnUnit';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { GARDEN_GROWTH_PHASE_VARIABLE, STEM_LEASH_PX } from '../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
 import { setBattleVariable } from '../battleVariables';
+import type { EngineContext } from '../EngineContext';
+import { startBurrowEmerge } from '../units/components/burrowEmergeHooks';
 import { gardenTreeLayout, type GardenNodeSpec } from './gardenTreeLayouts';
 
 /** What growing needs from the engine: spawning, the unit list, and the player count enemy health scales by. */
@@ -90,6 +92,47 @@ function buildNodeSpawn(
 export interface GrowGardenTreeOptions {
     /** Where the tree grows from. Default: the Heart's own position (it has already surfaced there). */
     at?: { x: number; y: number };
+    /**
+     * Turn the whole tree so the layout's 0 degrees (its front) points from the Heart at this spot, e.g. the party,
+     * so the first node stands between them. Default: the layout as authored.
+     */
+    faceToward?: { x: number; y: number };
+    /**
+     * Regrowth: grow only the layout keys that have no living node under the Heart (their living neighbours stay put and
+     * parent anything new). The returned map holds only the nodes grown by this call. Does not touch the growth-phase
+     * battle variable. A missing node whose parent is also missing waits until the parent is back.
+     */
+    onlyMissing?: boolean;
+    /** Grow at most this many nodes (table order, so parents come before their children). */
+    limit?: number;
+}
+
+/** Living nodes under `heart` by the layout key they fill. */
+function livingNodesByKey(engine: { getUnit(id: string): Unit | undefined }, heart: Unit): Map<string, Unit> {
+    const byKey = new Map<string, Unit>();
+    for (const unit of gardenTreeDescendants(engine, heart)) {
+        const key = getNodeLayoutKey(unit);
+        if (key !== null && unit.isAlive()) byKey.set(key, unit);
+    }
+    return byKey;
+}
+
+/** Layout keys of `phase`'s tree that have no living node under `heart`, in table order. */
+export function missingGardenNodeKeys(
+    engine: { getUnit(id: string): Unit | undefined },
+    heart: Unit,
+    phase: number,
+): string[] {
+    const layout = gardenTreeLayout(phase);
+    if (!layout) return [];
+    const living = livingNodesByKey(engine, heart);
+    return layout.filter((spec) => !living.has(spec.key)).map((spec) => spec.key);
+}
+
+/** Degrees to add to every layout angle so 0 degrees points from `origin` at `target` (0 when they coincide). */
+export function treeFacingTurnDeg(origin: { x: number; y: number }, target: { x: number; y: number } | undefined): number {
+    if (!target || (target.x === origin.x && target.y === origin.y)) return 0;
+    return (Math.atan2(target.y - origin.y, target.x - origin.x) * 180) / Math.PI;
 }
 
 /**
@@ -107,22 +150,91 @@ export function growGardenTree(
     const grown = new Map<string, Unit>();
     if (!layout) return grown;
     // The fight has moved on: escalating node behaviour (Thorn Fans waves) reads this.
-    setBattleVariable(ctx, GARDEN_GROWTH_PHASE_VARIABLE, phase);
+    if (!options.onlyMissing) setBattleVariable(ctx, GARDEN_GROWTH_PHASE_VARIABLE, phase);
+    // Every slot with a living node (regrowth) or, for a fresh tree, every node grown so far: parents are looked up here.
+    const byKey = options.onlyMissing ? livingNodesByKey({ getUnit: (id) => ctx.units.find((u) => u.id === id) }, heart) : grown;
     const origin = options.at ?? { x: heart.x, y: heart.y };
+    // Every angle is absolute, so turning them all by the same amount turns the tree rigidly.
+    const turnDeg = treeFacingTurnDeg(origin, options.faceToward);
     for (const spec of layout) {
-        const parent = spec.parent === null ? heart : grown.get(spec.parent);
+        if (options.onlyMissing) {
+            if (byKey.has(spec.key)) continue;
+            if (options.limit !== undefined && grown.size >= options.limit) break;
+        }
+        const parent = spec.parent === null ? heart : byKey.get(spec.parent);
         if (!parent) {
+            if (options.onlyMissing) continue; // its parent is missing too and was not grown (limit): wait for it
             throw new Error(`growGardenTree: node "${spec.key}" names parent "${spec.parent}" that is not earlier in the table`);
         }
         const anchor = spec.parent === null ? origin : { x: parent.x, y: parent.y };
-        const wanted = nodeWantedPoint(anchor, spec);
+        const wanted = nodeWantedPoint(anchor, { angleDeg: spec.angleDeg + turnDeg, distancePx: spec.distancePx });
         const at = nearestPassablePoint(ctx.terrainManager, wanted.x, wanted.y);
         const unit = spawnNodeChild(ctx, parent, buildNodeSpawn(spec, heart.teamId, ctx.enemyScalingPlayerCount, at), {
             tetherMaxLength: Math.max(STEM_LEASH_PX, Math.hypot(at.x - anchor.x, at.y - anchor.y) + CELL_SIZE),
         });
-        if (unit) grown.set(spec.key, unit);
+        if (unit) {
+            setNodeLayoutKey(unit, spec.key);
+            grown.set(spec.key, unit);
+            if (byKey !== grown) byKey.set(spec.key, unit);
+        }
     }
     return grown;
+}
+
+export interface GardenEmergeOptions {
+    /** Tick-time seconds before the first nodes set off (e.g. the rest of the Heart's own rise). */
+    delaySeconds: number;
+    /** Each node's travel underground and its rise (tick-time seconds). */
+    travelSeconds: number;
+    riseSeconds: number;
+}
+
+/**
+ * The tree's entry: every node in `grown` (as returned by `growGardenTree`) goes back underground and burrows out to its
+ * spot, from the Heart for nodes on the Heart and from its parent's spot for the rest. A node sets off once its parent
+ * has risen, so the tree spreads outward in waves. Uses the engine's `burrowEmerge` (untargetable until risen).
+ */
+export function emergeGardenTree(
+    engine: EngineContext,
+    heart: Unit,
+    phase: number,
+    grown: ReadonlyMap<string, Unit>,
+    options: GardenEmergeOptions,
+): void {
+    const layout = gardenTreeLayout(phase);
+    if (!layout) return;
+    const hop = options.travelSeconds + options.riseSeconds;
+    const startAt = new Map<string, number>();
+    const spotOf = new Map<string, { x: number; y: number }>();
+    for (const spec of layout) {
+        const unit = grown.get(spec.key);
+        if (!unit) continue;
+        spotOf.set(spec.key, { x: unit.x, y: unit.y });
+        const parentStart = spec.parent === null ? undefined : startAt.get(spec.parent);
+        const parentSpot = spec.parent === null ? undefined : spotOf.get(spec.parent);
+        // A node whose parent did not emerge with it (it was already standing) sets off at once from the parent.
+        const delay = parentStart === undefined ? options.delaySeconds : parentStart + hop;
+        const from = parentSpot ?? (spec.parent === null ? { x: heart.x, y: heart.y } : nodeParentPoint(grown, heart, spec, engine));
+        startAt.set(spec.key, delay);
+        startBurrowEmerge(unit, engine, { from, delaySeconds: delay, travelSeconds: options.travelSeconds, riseSeconds: options.riseSeconds });
+    }
+}
+
+function peekParentId(unit: Unit): string | null {
+    return peekNodeTreeState(unit)?.parentId ?? null;
+}
+
+/** Where a node's parent stands when the parent was not grown in the same call. */
+function nodeParentPoint(
+    grown: ReadonlyMap<string, Unit>,
+    heart: Unit,
+    spec: GardenNodeSpec,
+    engine: EngineContext,
+): { x: number; y: number } {
+    const unit = grown.get(spec.key);
+    const parentId = unit ? peekParentId(unit) : null;
+    const parent = parentId ? engine.getUnit(parentId) : undefined;
+    return parent ? { x: parent.x, y: parent.y } : { x: heart.x, y: heart.y };
 }
 
 /** All living descendants of `root` (children, grandchildren, ...), parents before their children. */
@@ -155,6 +267,8 @@ export function dismissGardenTree(
     const doomed = gardenTreeDescendants(engine, heart).reverse();
     for (const unit of doomed) {
         if (!unit.isAlive()) continue;
+        // A dismissal is a retreat, not a kill: no Severance, and the Stem always becomes Briar.
+        markNodeDismissed(unit);
         unit.hp = 0;
         unit.active = false;
         engine.eventBus.emit('unit_died', { unitId: unit.id, killerUnitId: null });

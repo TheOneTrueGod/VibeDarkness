@@ -9,6 +9,7 @@ import type { EventBus } from '../game/EventBus';
 import { tryDamageOrBlock } from './blockingHelpers';
 import type { TryDamageOrBlockParams } from './blockingHelpers';
 import { areEnemies } from '../game/teams';
+import type { HitRule } from '../game/hitRule';
 import { pointInCone as pointInConeGeom } from './coneGeometry';
 import { filterCombatHitTargets } from './combatTargetFilter';
 import { CircleHitbox } from '../hitboxes/CircleHitbox';
@@ -129,13 +130,22 @@ export function damageEnemiesInTiles(options: {
 }
 
 /**
- * Damage all enemy units within `radius` of `center` using `tryDamageOrBlock`.
- * Candidates come from `CircleHitbox.getUnitsInHitbox` (hostile to caster; combat iFrames filtered).
+ * Damage all enemy units within `radius` of `center` using `tryDamageOrBlock`. The hostile-only wrapper of
+ * {@link damageUnitsInCircle}.
+ */
+export function damageEnemiesInCircle(options: DamageUnitsInCircleOptions): Unit[] {
+    return damageUnitsInCircle(options);
+}
+
+/**
+ * Damage all units within `radius` of `center` that the `hitRule` allows (default `hostile`: enemies of the caster)
+ * using `tryDamageOrBlock`.
+ * Candidates come from `CircleHitbox.getUnitsInHitbox` (hit rule applied; combat iFrames filtered).
  * When `onHit` is provided it replaces the standard damage call, allowing custom
  * damage types (e.g. un-blockable `unit.takeDamage`) or per-unit side effects.
  * Returns the units that were targeted.
  */
-export function damageEnemiesInCircle(options: {
+export type DamageUnitsInCircleOptions = {
     engine: AoEEngine;
     caster: Unit;
     center: { x: number; y: number };
@@ -148,14 +158,19 @@ export function damageEnemiesInCircle(options: {
     /** When set, only enemies passing this check are candidates (applied before `maxTargets`). */
     filter?: (unit: Unit) => boolean;
     onHit?: (unit: Unit) => void;
-}): Unit[] {
-    const { engine: eng, caster, center, radius, damage, abilityId, attackType = 'melee', maxTargets, filter, onHit } = options;
+    /** Who may be hit. Default `hostile`; Wild attacks pass `allExceptKin`. */
+    hitRule?: HitRule;
+};
+
+export function damageUnitsInCircle(options: DamageUnitsInCircleOptions): Unit[] {
+    const { engine: eng, caster, center, radius, damage, abilityId, attackType = 'melee', maxTargets, filter, onHit, hitRule } = options;
     let candidates = CircleHitbox.getUnitsInHitbox(
         toHitboxEngine(eng),
         caster,
         center.x,
         center.y,
         radius,
+        hitRule,
     );
     if (filter) candidates = candidates.filter(filter);
     if (maxTargets != null && candidates.length > maxTargets) {

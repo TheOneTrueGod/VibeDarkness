@@ -20,6 +20,7 @@ import type { ProjectileModifierId } from '../../game/projectiles/ProjectileTrav
 import type { SpriteProjectileConfig } from '../../game/projectiles/projectile_defs';
 import type { ProjectileParticleTrailDef } from '../../game/effects/projectileParticleTrails';
 import type { Unit } from '../../game/units/Unit';
+import type { HitRule } from '../../game/hitRule';
 
 type DamageResolver = (ctx: CastBehaviourSetupContext) => number;
 type Point = { x: number; y: number };
@@ -81,6 +82,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private arcHeight?: number;
     private rotationSpeed?: number;
     private trailColor?: number;
+    private hitRule?: HitRule;
     private originFn: ((ctx: CastBehaviourSetupContext) => Point) | null = null;
     private directionFn: ((ctx: CastBehaviourSetupContext) => Point | null) | null = null;
     private emerge: {
@@ -166,6 +168,12 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     /** Trail colour for projectile types that draw one (e.g. the burrowing projectile's dirt). */
     withTrailColor(color: number): this {
         this.trailColor = color;
+        return this;
+    }
+
+    /** Who the projectile may hit (default `hostile`). Forwarded to the spawned Projectile; Wild attacks pass `allExceptKin`. */
+    withHitRule(rule: HitRule): this {
+        this.hitRule = rule;
         return this;
     }
 
@@ -369,6 +377,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             heldBy: flight.held ? { unitId: ctx.caster.id, abilityId: ctx.abilityId } : undefined,
             clearsTerrainEffects: this.terrainClear,
             ...(this.trailColor !== undefined ? { trailColor: this.trailColor } : {}),
+            ...(this.hitRule ? { hitRule: this.hitRule } : {}),
         });
         projectile.radius = this.radius;
         if (ctx.onProjectileHit?.length) {

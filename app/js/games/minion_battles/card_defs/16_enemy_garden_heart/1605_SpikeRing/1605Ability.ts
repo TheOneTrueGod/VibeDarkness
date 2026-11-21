@@ -3,8 +3,9 @@
  * answer is to step into a gap. Each ring is turned a random amount, so rings never line up into safe lanes.
  *
  * The Heart never chooses this itself (it is not on its ability list): its `cadenceCast` component fires it at the
- * rate of the `GARDEN_SPIKE_RING_RATE_RULE_ID` rule (`gardenSpikeRingRate`), which climbs as the party cuts the
- * current growth phase's tree down: about once a round in phase 2, up to 8 a round with the final tree gone.
+ * rate of the `GARDEN_SPIKE_RING_RATE_RULE_ID` rule (`gardenSpikeRingRate`): the phase's base rate (1, 1.5, 2 a round
+ * in phases 2-4) while the Heart is shelled, and none while it is Bared. The thorns are Wild: they hit everything that
+ * is not plant kin.
  */
 
 import type { AbilityStatic } from '../../../abilities/Ability';
@@ -14,18 +15,13 @@ import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
 import type { TargetDef } from '../../../abilities/targeting';
 import { deactivateProjectileOnBlock } from '../../../abilities/effectHelpers';
-import { fireProjectileRing } from '../../../abilities/projectileRing';
 import { Effect } from '../../../game/effects/Effect';
-import { Projectile } from '../../../game/projectiles/Projectile';
-import { TerrainType } from '../../../terrain/TerrainType';
-import { THORN_PROJECTILE_TYPE } from '../../../game/projectiles/projectile_defs/thornDef';
 import type { CardDef } from '../../types';
 import {
     NIGHTBLOOM_PRIMARY,
     NIGHTBLOOM_SECONDARY,
     SPIKE_RING_ABILITY_ID,
     SPIKE_RING_COUNT,
-    SPIKE_RING_CURVE,
     SPIKE_RING_DAMAGE,
     SPIKE_RING_RADIUS,
     SPIKE_RING_RANGE,
@@ -33,20 +29,15 @@ import {
     SPIKE_RING_SPEED,
     SPIKE_RING_WINDUP_SEC,
 } from '../gardenHeartConstants';
+import { fireGardenThornRing } from '../thornRing';
 import IMAGE from './spikeRing.svg?raw';
 
 const FIRE_END = SPIKE_RING_WINDUP_SEC + 1 / 60;
 const COOLDOWN_END = FIRE_END + 0.3;
 
-/**
- * Spike Rings per round for growth phase `phase` with `destroyedFraction` (0-1) of that phase's tree gone. 0 in a
- * phase with no entry (phase 1). See `SPIKE_RING_RATES` and `SPIKE_RING_CURVE`.
- */
-export function gardenSpikeRingRate(phase: number, destroyedFraction: number): number {
-    const r = SPIKE_RING_RATES[phase];
-    if (!r) return 0;
-    const f = Math.min(1, Math.max(0, destroyedFraction));
-    return r.base + (r.max - r.base) * f ** SPIKE_RING_CURVE;
+/** Spike Rings per round for growth phase `phase` while the Heart is shelled (0 in a phase with no entry: phase 1). See `SPIKE_RING_RATES`. */
+export function gardenSpikeRingRate(phase: number): number {
+    return SPIKE_RING_RATES[phase] ?? 0;
 }
 
 function swell(ctx: CastBehaviourTickContext): void {
@@ -62,26 +53,13 @@ function swell(ctx: CastBehaviourTickContext): void {
 }
 
 function fireRing(ctx: CastBehaviourTickContext): void {
-    const caster = ctx.caster;
-    // A random turn per ring (engine RNG: deterministic on every client), in whole degrees.
-    const rotation = (ctx.engine.generateRandomInteger(0, 359) * Math.PI) / 180;
-    fireProjectileRing({ count: SPIKE_RING_COUNT, rotation }, (dx, dy) => {
-        const thorn = new Projectile({
-            x: caster.x,
-            y: caster.y,
-            velocityX: dx * SPIKE_RING_SPEED,
-            velocityY: dy * SPIKE_RING_SPEED,
-            damage: SPIKE_RING_DAMAGE,
-            sourceTeamId: caster.teamId,
-            sourceUnitId: caster.id,
-            sourceAbilityId: SPIKE_RING_ABILITY_ID,
-            maxDistance: SPIKE_RING_RANGE,
-            projectileType: THORN_PROJECTILE_TYPE,
-            collidesWithTerrain: [TerrainType.Rock],
-        });
-        thorn.radius = SPIKE_RING_RADIUS;
-        ctx.engine.addProjectile(thorn);
-        return thorn;
+    fireGardenThornRing(ctx, {
+        abilityId: SPIKE_RING_ABILITY_ID,
+        count: SPIKE_RING_COUNT,
+        speed: SPIKE_RING_SPEED,
+        damage: SPIKE_RING_DAMAGE,
+        radius: SPIKE_RING_RADIUS,
+        range: SPIKE_RING_RANGE,
     });
 }
 
@@ -121,7 +99,8 @@ export const SpikeRingAbility_1605: AbilityStatic = defineAbility({
     getTooltipText(): string[] {
         return [
             `Fires a ring of ${SPIKE_RING_COUNT} slow thorns around itself, ${SPIKE_RING_DAMAGE} damage each`,
-            'Fires more often as its plant is cut down',
+            'Only while it has a node growing; it holds its fire when bared',
+            'The thorns hit everything that is not a plant',
         ];
     },
 });

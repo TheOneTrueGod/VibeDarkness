@@ -7,11 +7,12 @@ import { UnitTag } from '../units/unitTag';
 import type { EngineContext } from '../EngineContext';
 import type { VictoryCondition } from '../../storylines/types';
 import { isTileInNearPositionArea } from '../../storylines/nearPositionArea';
+import { getBattleVariable } from '../battleVariables';
 import type { TriggerCondition } from './triggerTypes';
 
 export type MissionConditionContext = Pick<
     EngineContext,
-    'units' | 'terrainManager' | 'roundNumber' | 'isObjectiveCompleted'
+    'units' | 'terrainManager' | 'roundNumber' | 'isObjectiveCompleted' | 'battleVariables'
 >;
 
 export function evaluateVictoryCondition(ctx: MissionConditionContext, cond: VictoryCondition): boolean {
@@ -66,6 +67,8 @@ export function evaluateTriggerCondition(
             return !evaluateTriggerCondition(ctx, cond.condition, hasTriggerFired);
         case 'triggerFired':
             return hasTriggerFired(cond.triggerId);
+        case 'battleVariableAtLeast':
+            return getBattleVariable(ctx, cond.variable) >= cond.value;
         default:
             return evaluateVictoryCondition(ctx, cond);
     }

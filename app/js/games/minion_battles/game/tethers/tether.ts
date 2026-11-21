@@ -189,6 +189,9 @@ export function tetherSwayPhase(childId: string): number {
     return ((h >>> 0) % 6283) / 1000;
 }
 
+/** Effect type of the render-only fade a Stem plays when its node withers instead of becoming Briar. */
+export const STEM_WITHER_EFFECT_TYPE = 'StemWither';
+
 /** Sway amplitude in px, and how many segments a vine is drawn with. */
 export const TETHER_SWAY_AMPLITUDE = 7;
 export const TETHER_SEGMENTS = 12;

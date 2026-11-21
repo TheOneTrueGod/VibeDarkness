@@ -48,7 +48,15 @@ export interface TriggerEventUnitEntersRegion {
     unit?: TriggerUnitFilter;
 }
 
-export type TriggerEvent = TriggerEventUnitEntersRegion;
+/**
+ * Fires once on every sim tick, with no triggering unit. Pair it with conditions (e.g. `battleVariableAtLeast`)
+ * and the default `fireOnce` to make a trigger that fires the first tick the conditions hold.
+ */
+export interface TriggerEventEveryTick {
+    type: 'everyTick';
+}
+
+export type TriggerEvent = TriggerEventUnitEntersRegion | TriggerEventEveryTick;
 
 // ---- Conditions -----------------------------------------------------------
 
@@ -61,7 +69,9 @@ export type TriggerCondition =
     | { type: 'and'; conditions: TriggerCondition[] }
     | { type: 'or'; conditions: TriggerCondition[] }
     | { type: 'not'; condition: TriggerCondition }
-    | { type: 'triggerFired'; triggerId: string };
+    | { type: 'triggerFired'; triggerId: string }
+    /** A battle variable (`game/battleVariables.ts`) has reached `value` (unset variables read 0). */
+    | { type: 'battleVariableAtLeast'; variable: string; value: number };
 
 // ---- Actions --------------------------------------------------------------
 

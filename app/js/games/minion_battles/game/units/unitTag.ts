@@ -43,6 +43,16 @@ export enum UnitTag {
     ShowHpBar = 'showHpBar',
     /** Cannot bleed: bleed stacks are never applied (`applyBleedStack`), e.g. the Garden Heart's plants. */
     BleedImmune = 'bleedImmune',
+    /**
+     * Ignores every hard CC (stun, stagger, lift), forced movement (knockback, pull) and CC interrupts,
+     * before armour is consulted: armour is never spent and `ExposedBuff` never applies. See {@link isCcImmune}.
+     */
+    CcImmune = 'ccImmune',
+    /**
+     * Kin of the Garden Heart (the Heart, its nodes, seeds and Hive spawn). Plain tag: the only meaning is the
+     * `allExceptKin` hit rule (Wild attacks), which spares units carrying it. See `game/hitRule.ts`.
+     */
+    GardenKin = 'gardenKin',
 }
 
 /** Bosses hide their world HP bar (they use the boss HUD) unless tagged {@link UnitTag.ShowHpBar}. */
@@ -74,6 +84,11 @@ export function hasUnitTag(unit: Unit, tag: UnitTag): boolean {
 /** Structures cannot be knockbacked, pulled, nudged, lifted, or otherwise forcibly displaced. */
 export function isImmuneToForcedMovement(unit: Unit): boolean {
     return hasUnitTag(unit, UnitTag.Structure);
+}
+
+/** Units that ignore all crowd control ({@link UnitTag.CcImmune}); checked at the top of every shared CC gate. */
+export function isCcImmune(unit: Unit): boolean {
+    return hasUnitTag(unit, UnitTag.CcImmune);
 }
 
 /** Units that never take bleed stacks ({@link UnitTag.BleedImmune}). */

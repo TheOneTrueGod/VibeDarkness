@@ -59,12 +59,14 @@ import {
     ENEMY_MENDER_BLOOM,
     ENEMY_HIVE_GOURD,
     ENEMY_CREEPER,
+    ENEMY_GLOAM_LILY,
 } from '../../../constants/enemyConstants';
 import { NODE_TREE_COMPONENT } from '../components/nodeTree';
+import { NODE_REGROWTH_COMPONENT } from '../components/nodeRegrowth';
 import { SPAWNER_COMPONENT } from '../components/spawnerComponent';
 import { BURROW_HOP_COMPONENT } from '../components/burrowHop';
 import { CADENCE_CAST_COMPONENT } from '../components/cadenceCast';
-import type { FlatDamageReduction } from '../flatDamageReduction';
+import type { DamageTakenMultiplier, FlatDamageReduction } from '../flatDamageReduction';
 import type { UnitRenderOptions } from '../unitRenderOptions';
 import {
     HIVE_GOURD_INTERVAL_SEC,
@@ -75,13 +77,29 @@ import {
     GARDEN_NODE_HOP,
     GARDEN_SPIKE_RING_RATE_RULE_ID,
     SPIKE_RING_ABILITY_ID,
+    PINWHEEL_ABILITY_ID,
+    PINWHEEL_DOUBLED_ABILITY_ID,
+    BLOOM_BURST_ABILITY_ID,
+    GARDEN_BARED_DAMAGE_MULTIPLIER,
+    GARDEN_BARED_OPENED_CALLBACK_ID,
+    GARDEN_BARED_SECONDS,
+    GARDEN_BARED_TIMER_RING,
+    GARDEN_REGROW_CALLBACK_ID,
+    GARDEN_REGROWN_CALLBACK_ID,
+    GARDEN_SEVERANCE_DAMAGE,
+    GARDEN_TRICKLE_REGROW_SEC,
     POD_SEED_REACTION_LEAD_SEC,
     SHELL_REDUCTION,
+    HEART_SHELL_REDUCTION,
+    GARDEN_TRICKLE_RULE_ID,
     GARDEN_NODE_RENDER_OPTIONS,
+    GARDEN_WILD_HIT_RULE,
+    DRINK_LIGHT_ABILITY_ID,
+    GLOAM_LILY_HP,
     NIGHTBLOOM_PRIMARY,
     NIGHTBLOOM_SECONDARY,
 } from '../../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
-import { GARDEN_HEART_PHASES } from '../../../card_defs/16_enemy_garden_heart/gardenHeartPhases';
+import { GARDEN_HEART_MAX_HP, GARDEN_HEART_PHASES } from '../../../card_defs/16_enemy_garden_heart/gardenHeartPhases';
 
 /**
  * Defines the spawn animation played when a unit of this type enters the field via darknessSpawn.
@@ -170,7 +188,8 @@ export type EnemyUnitId =
     | 'pod_mortar'
     | 'mender_bloom'
     | 'hive_gourd'
-    | 'creeper';
+    | 'creeper'
+    | 'gloam_lily';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
 /**
@@ -272,6 +291,12 @@ export interface UnitDefEntry {
      * Copied onto the unit at construction and serialized with it, so a restored unit keeps them.
      */
     flatDamageReductions?: readonly FlatDamageReduction[];
+    /**
+     * Conditional damage-taken multipliers every spawn of this character starts with (see
+     * `units/flatDamageReduction.ts`): e.g. `{ multiplier: 1.5, condition: 'noLivingChildren' }`. Copied onto the unit
+     * and serialized with it.
+     */
+    damageTakenMultipliers?: readonly DamageTakenMultiplier[];
     /**
      * Def-level render options (plated shell look, burrow colours; see `units/unitRenderOptions.ts`). Pure data the
      * renderer reads; the engine never does.
@@ -732,7 +757,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 0,
         creatureType: 'nature',
-        tags: [UnitTag.Structure, UnitTag.BleedImmune],
+        tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         // 5 s fuse, last 1.5 s telegraphed, reaction frame 0.2 s before the burst. Killing it first cancels the burst.
         components: [
             componentSpec(FUSED_BODY_COMPONENT, {
@@ -744,6 +769,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
                 onExpiry: {
                     effectId: 'areaDamage',
                     params: { damage: 12 },
+                    hitRule: GARDEN_WILD_HIT_RULE,
                     visuals: [{ type: 'particleRing', imageKey: 'darkBlob', count: 10 }],
                 },
                 onDeath: {
@@ -770,27 +796,47 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         bodyColor: 0x134e4a,
         displayName: 'The Garden Heart',
         sprite: UNIT_SPRITE_URLS.curling_vines,
-        bestiary: { abilityIds: [SPIKE_RING_ABILITY_ID] },
+        bestiary: {
+            abilityIds: [SPIKE_RING_ABILITY_ID, PINWHEEL_ABILITY_ID, PINWHEEL_DOUBLED_ABILITY_ID, BLOOM_BURST_ABILITY_ID],
+        },
         baseSpawn: ENEMY_GARDEN_HEART,
         characterSpriteKey: 'curling_vines',
-        hp: 300,
+        // The sum of the per-phase health pools (`GARDEN_HEART_HEALTH_POOLS`).
+        hp: GARDEN_HEART_MAX_HP,
         speed: 0,
         size: 'Colossal',
         stamina: 1,
         perceptionRange: 700,
         creatureType: 'nature',
-        tags: [UnitTag.Boss, UnitTag.Structure, UnitTag.BleedImmune],
-        flatDamageReductions: [SHELL_REDUCTION],
-        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        // CcImmune: stuns, staggers, lifts and knockbacks do nothing, so it is never Exposed. GardenKin: plant attacks (Wild) spare it.
+        tags: [UnitTag.Boss, UnitTag.Structure, UnitTag.BleedImmune, UnitTag.CcImmune, UnitTag.GardenKin],
+        // Its own Shell is far thicker than a node's: shelled, it shrugs off almost every hit (Severance still lands).
+        flatDamageReductions: [HEART_SHELL_REDUCTION],
+        // Bared: with no living node it takes more damage (the Shell is not up either, so this is the whole bonus).
+        damageTakenMultipliers: [{ multiplier: GARDEN_BARED_DAMAGE_MULTIPLIER, condition: 'noLivingChildren' }],
+        renderOptions: { ...GARDEN_NODE_RENDER_OPTIONS, timerRing: GARDEN_BARED_TIMER_RING },
         components: [
-            componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
-            // Spike Ring: from phase 2, faster as the current tree is cut down (`gardenSpikeRingRate`).
+            // Severance: each node killed costs the Heart health. While it can regrow, a killed node's Stem withers (no Briar).
+            componentSpec(NODE_TREE_COMPONENT, {
+                onLastChildDied: SHELL_OPEN_CALLBACK_ID,
+                severance: { damage: GARDEN_SEVERANCE_DAMAGE, scaleWithEnemyHealth: true },
+                stemDeath: 'witherWhileRegrowing',
+            }),
+            // Bared when the last node dies; the whole tree regrows after the window, one node trickles back while shelled.
+            componentSpec(NODE_REGROWTH_COMPONENT, {
+                openSeconds: GARDEN_BARED_SECONDS,
+                trickleSeconds: GARDEN_TRICKLE_REGROW_SEC,
+                trickleSecondsRule: GARDEN_TRICKLE_RULE_ID,
+                regrowCallback: GARDEN_REGROW_CALLBACK_ID,
+                callbacks: { opened: GARDEN_BARED_OPENED_CALLBACK_ID, regrown: GARDEN_REGROWN_CALLBACK_ID },
+            }),
+            // Spike Ring: from phase 2, at the phase's base rate while shelled, never while Bared (`gardenSpikeRingRate`).
             componentSpec(CADENCE_CAST_COMPONENT, { abilityId: SPIKE_RING_ABILITY_ID, rateRule: GARDEN_SPIKE_RING_RATE_RULE_ID }),
         ],
-        // Retreats at 75 / 50 / 25%: the old tree dies to Briar, the Heart resurfaces elsewhere with the next tree.
+        // Retreats when a phase's health pool is gone: the old tree dies to Briar, the Heart resurfaces elsewhere with the next tree.
         phases: GARDEN_HEART_PHASES,
         uiDescription:
-            'A plated seed pod rooted in the garden. While anything grows from it, its Shell turns the worst of every hit. Cut down the tips and it opens. When it has lost enough, it sinks into the ground and comes up elsewhere with a bigger plant.',
+            'A plated seed pod rooted in the garden. While anything grows from it, its Shell turns aside almost any hit, and every tip you cut costs it health. Cut the last tip and it is bared for five seconds: it spins thorns and takes extra damage, then the whole plant regrows. Stuns and knockbacks do nothing to it, and its thorns hurt everything but plants. When it has lost enough, it sinks into the ground and comes up elsewhere with a bigger plant.',
     },
     thornspitter: {
         bodyColor: 0x134e4a,
@@ -806,7 +852,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 520,
         creatureType: 'nature',
-        tags: [UnitTag.Structure, UnitTag.BleedImmune],
+        tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
@@ -830,7 +876,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 520,
         creatureType: 'nature',
-        tags: [UnitTag.Structure, UnitTag.BleedImmune],
+        tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
@@ -853,7 +899,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 520,
         creatureType: 'nature',
-        tags: [UnitTag.Structure, UnitTag.BleedImmune],
+        tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
@@ -861,6 +907,27 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         ],
         uiDescription:
             'A rooted flower that heals the garden nodes around it, the Heart included. It never moves.',
+    },
+    gloam_lily: {
+        bodyColor: 0x134e4a,
+        displayName: 'Gloam Lily',
+        sprite: UNIT_SPRITE_URLS.curling_vines,
+        bestiary: { abilityIds: [DRINK_LIGHT_ABILITY_ID] },
+        baseSpawn: ENEMY_GLOAM_LILY,
+        characterSpriteKey: 'curling_vines',
+        hp: GLOAM_LILY_HP,
+        // Rooted like the Mender Bloom: no burrow hop, it never moves.
+        speed: 0,
+        size: 'Medium',
+        stamina: 1,
+        perceptionRange: 520,
+        creatureType: 'nature',
+        tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
+        flatDamageReductions: [SHELL_REDUCTION],
+        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        components: [componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID })],
+        uiDescription:
+            'A rooted flower that drinks the garden\'s light, one point at a time, from any distance. A light it drinks dry stays out, even after the flower is cut down.',
     },
     hive_gourd: {
         bodyColor: 0x134e4a,
@@ -876,7 +943,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 520,
         creatureType: 'nature',
-        tags: [UnitTag.Structure, UnitTag.BleedImmune],
+        tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
@@ -887,6 +954,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
                 maxChildren: HIVE_GOURD_MAX_CHILDREN,
                 intervalSec: HIVE_GOURD_INTERVAL_SEC,
                 burstCount: HIVE_GOURD_BURST,
+                // Its swarmlings and slimes are plant kin: the garden's Wild attacks spare them.
+                childTags: [UnitTag.GardenKin],
             }),
         ],
         uiDescription:
@@ -906,7 +975,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 520,
         creatureType: 'nature',
-        tags: [UnitTag.Structure, UnitTag.BleedImmune],
+        tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
@@ -999,6 +1068,11 @@ export function getUnitComponentSpecs(characterId: string): readonly UnitCompone
 /** Flat damage reductions a character's def starts its units with (undefined when none). */
 export function getUnitFlatDamageReductions(characterId: string): readonly FlatDamageReduction[] | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.flatDamageReductions;
+}
+
+/** Conditional damage-taken multipliers a character's def starts its units with (undefined when none). */
+export function getUnitDamageTakenMultipliers(characterId: string): readonly DamageTakenMultiplier[] | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.damageTakenMultipliers;
 }
 
 /** Phases a character's def declares (undefined when none). */

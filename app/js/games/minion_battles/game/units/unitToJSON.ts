@@ -169,6 +169,9 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         ...(unit.flatDamageReductions.length > 0
             ? { flatDamageReductions: unit.flatDamageReductions.map((r) => ({ ...r })) }
             : {}),
+        ...(unit.damageTakenMultipliers.length > 0
+            ? { damageTakenMultipliers: unit.damageTakenMultipliers.map((m) => ({ ...m })) }
+            : {}),
         combatSettings: unit.combatSettings,
         ...(unit.passiveBonuses && Object.keys(unit.passiveBonuses).length > 0
             ? { passiveBonuses: unit.passiveBonuses }

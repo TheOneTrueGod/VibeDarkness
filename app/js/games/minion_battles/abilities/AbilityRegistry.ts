@@ -86,6 +86,12 @@ import { MendAbility_1603 } from '../card_defs/16_enemy_garden_heart/1603_Mend/1
 import '../card_defs/16_enemy_garden_heart/gardenHeartRegistrations';
 import { RunnerVineAbility_1604 } from '../card_defs/16_enemy_garden_heart/1604_RunnerVine/1604Ability';
 import { SpikeRingAbility_1605 } from '../card_defs/16_enemy_garden_heart/1605_SpikeRing/1605Ability';
+import {
+    PinwheelAbility_1607,
+    PinwheelDoubledAbility_1609,
+} from '../card_defs/16_enemy_garden_heart/1607_Pinwheel/1607Ability';
+import { BloomBurstAbility_1608 } from '../card_defs/16_enemy_garden_heart/1608_BloomBurst/1608Ability';
+import { DrinkLightAbility_1606 } from '../card_defs/16_enemy_garden_heart/1606_DrinkLight/1606Ability';
 import { DogBiteAbility } from '../card_defs/07_command_core/0701_DogBite/0701Ability';
 import { PounceAbility } from '../card_defs/07_command_core/0702_Pounce/0702Ability';
 import { SicEmAbility } from '../card_defs/07_command_core/0704_SicEm/0704Ability';
@@ -232,6 +238,10 @@ register(LobSeedAbility_1602);
 register(MendAbility_1603);
 register(RunnerVineAbility_1604);
 register(SpikeRingAbility_1605);
+register(PinwheelAbility_1607);
+register(BloomBurstAbility_1608);
+register(PinwheelDoubledAbility_1609);
+register(DrinkLightAbility_1606);
 register(DogBiteAbility);
 register(PounceAbility);
 register(SicEmAbility);

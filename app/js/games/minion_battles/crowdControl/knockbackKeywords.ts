@@ -1,5 +1,5 @@
 import type { Unit, KnockbackSource } from '../game/units/Unit';
-import { isImmuneToForcedMovement } from '../game/units/unitTag';
+import { isCcImmune, isImmuneToForcedMovement } from '../game/units/unitTag';
 import { ExposedBuff } from '../buffs/ExposedBuff';
 import { getDirectionFromTo } from '../abilities/targetHelpers';
 import { getEffectiveHardCcThreshold, onSuccessfulHardCcLand, recordHardCcArmourEvent } from './ccArmourState';
@@ -106,6 +106,11 @@ function _tryApplyTierForcedMovement(
     engine: KnockbackEngineCtx,
     launch: TierForcedMovementLaunch,
 ): KnockbackAttemptResult {
+    // CcImmune units never move and never spend armour.
+    if (isCcImmune(target)) {
+        return { outcome: 'fully_resisted' };
+    }
+
     // Units in a juggernaut window are immune to knockback — no armour consumed, no launch.
     if (target.isInJuggernautWindow(engine.gameTime)) {
         return { outcome: 'fully_resisted' };

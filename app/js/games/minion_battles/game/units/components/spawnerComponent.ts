@@ -11,6 +11,7 @@
  */
 
 import type { Unit } from '../Unit';
+import type { UnitTag } from '../unitTag';
 import { defineUnitComponent, findComponentState, getComponentOptions } from './unitComponent';
 
 export interface SpawnerComponentOptions {
@@ -22,6 +23,8 @@ export interface SpawnerComponentOptions {
     intervalSec: number;
     /** Children per burst. Default 1. */
     burstCount?: number;
+    /** Tags added to every unit this spawner births (e.g. kin tags that Wild attacks spare). */
+    childTags?: readonly UnitTag[];
 }
 
 export interface SpawnerComponentState {

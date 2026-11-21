@@ -10,7 +10,7 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { Effect } from '../../../game/effects/Effect';
 import type { TargetDef } from '../../../abilities/targeting';
-import { DARK_THORN_EFFECT_TYPE } from '../../../game/terrainEffects/terrainEffectDefs';
+import { GARDEN_THORN_EFFECT_TYPE } from '../../../game/terrainEffects/terrainEffectDefs';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import type { CardDef } from '../../types';
 import {
@@ -54,7 +54,7 @@ export const RunnerVineAbility_1604: AbilityStatic = defineAbility({
                     timingStart: 'start',
                     timingEnd: 'end',
                     behaviour: CastBehaviours.GroundTrail({
-                        effectType: DARK_THORN_EFFECT_TYPE,
+                        effectType: GARDEN_THORN_EFFECT_TYPE,
                         tiles: (ctx) => ctx.engine.generateRandomInteger(RUNNER_VINE_MIN_TILES, RUNNER_VINE_MAX_TILES),
                         lifetimeSec: RUNNER_VINE_THORN_LIFETIME_SEC,
                         params: { slowMult: THORN_SLOW_MULT },
@@ -84,7 +84,7 @@ export const RunnerVineAbility_1604: AbilityStatic = defineAbility({
     getTooltipText(): string[] {
         return [
             `A runner vine grows ${RUNNER_VINE_MIN_TILES} to ${RUNNER_VINE_MAX_TILES} tiles toward a target, laying dark thorns as it goes, then pulls back`,
-            'The thorns stay until they wear out',
+            'The thorns stay until they wear out, and hurt everything that is not a plant',
         ];
     },
 });

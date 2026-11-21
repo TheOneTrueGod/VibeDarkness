@@ -4,11 +4,13 @@
  * and `UnitGroundMarkRenderer.ts`) read these results, so the rules are unit-testable and the renderer holds no
  * knowledge of any one boss.
  *
- * Three options, each driven by state the unit already has:
+ * Four options, each driven by state the unit already has:
  * - `plated`: a closed plated look while any of the unit's flat damage reductions is active (the Garden Heart Shell,
  *   but any armoured unit can opt in), and an open core look once none is.
  * - `burrow`: colours for the ground mask, hole and trail drawn while the unit is mid `burrow` phase transition
  *   (`getBurrowVisual`). Any unit that burrows is drawn sinking; this only restyles it.
+ * - `timerRing`: a thin ring just outside the body draining over a status window (`resolveTimerRing`); `source` names a
+ *   registered status reader (`registerTimerRingSource`), e.g. `nodeRegrowth` for the Garden Heart's Bared window.
  * - fused bodies need no option: any unit with the `fusedBody` component gets a blast circle for its telegraph window
  *   (`resolveFusedBodyTelegraph`), coloured by `FusedBodyOptions.telegraphColor`.
  */
@@ -19,6 +21,8 @@ import { getUnitDefEntry } from './unit_defs/unitDef';
 import { peekPhaseState } from './components/phaseComponent';
 import { getBurrowVisual, type BurrowHolder, type BurrowVisual } from './components/phaseBurrow';
 import { peekBurrowHopState } from './components/burrowHop';
+import { peekBurrowEmergeState } from './components/burrowEmerge';
+import { getNodeRegrowthStatus } from './components/nodeRegrowth';
 import { fusedBodyOptionsOf, getFusedBodyStatus } from './components/fusedBodyComponent';
 
 export interface PlatedLookDef {
@@ -35,9 +39,24 @@ export interface BurrowLookDef {
     dirtColor: number;
 }
 
+/** What drives a timer ring. Add a name here and register its reader with `registerTimerRingSource`. */
+export type TimerRingSource = 'nodeRegrowth';
+
+export interface TimerRingDef {
+    /** Registered status reader that supplies the fraction. */
+    source: TimerRingSource;
+    color: number;
+    /** Stroke width in px. */
+    width: number;
+    alpha: number;
+    /** Gap in px between the body edge and the ring. */
+    offsetPx: number;
+}
+
 export interface UnitRenderOptions {
     plated?: PlatedLookDef;
     burrow?: BurrowLookDef;
+    timerRing?: TimerRingDef;
 }
 
 /** Red used for a blast telegraph when the fused body does not set its own. */
@@ -89,12 +108,14 @@ export interface BurrowRender {
     eruption: FusedBodyTelegraph | null;
 }
 
-/** The burrow this unit is in, from a phase transition or a hop (`burrowHop`); undefined when neither. */
+/** The burrow this unit is in, from a phase transition, a hop (`burrowHop`) or an emergence (`burrowEmerge`); undefined when none. */
 function burrowHolderOf(unit: Unit): BurrowHolder | undefined {
     const phase = peekPhaseState(unit);
     if (phase?.burrow) return phase;
     const hop = peekBurrowHopState(unit);
-    return hop?.burrow ? hop : undefined;
+    if (hop?.burrow) return hop;
+    const emerge = peekBurrowEmergeState(unit);
+    return emerge?.burrow ? emerge : undefined;
 }
 
 export function resolveBurrowRender(unit: Unit, tickTime: number): BurrowRender | null {
@@ -142,4 +163,40 @@ export function resolveFusedBodyTelegraph(unit: Unit): FusedBodyTelegraph | null
     const color = fusedBodyOptionsOf(unit)?.telegraphColor ?? DEFAULT_TELEGRAPH_COLOR;
     const fill = status.telegraphSeconds > 0 ? Math.min(1, status.elapsedInTelegraph / status.telegraphSeconds) : 1;
     return { x: status.area.x, y: status.area.y, radiusPx: status.area.radiusPx, fill, color };
+}
+
+// ---------------------------------------------------------------------------
+// Timer ring
+// ---------------------------------------------------------------------------
+
+/** Reads a timer's state at world time `time`: the draining fraction (1 to 0) while active, null when hidden. */
+export type TimerRingReader = (unit: Unit, time: number) => number | null;
+
+const timerRingSources = new Map<TimerRingSource, TimerRingReader>();
+
+export function registerTimerRingSource(source: TimerRingSource, reader: TimerRingReader): void {
+    timerRingSources.set(source, reader);
+}
+
+registerTimerRingSource('nodeRegrowth', (unit, time) => {
+    const status = getNodeRegrowthStatus(unit, time);
+    return status.open ? status.fraction : null;
+});
+
+export interface TimerRing {
+    /** 1 when the timer just started, draining to 0. */
+    fraction: number;
+    color: number;
+    width: number;
+    alpha: number;
+    offsetPx: number;
+}
+
+/** The ring to draw for `unit` at world time `time`, or null when it has no `timerRing` option or its timer is idle. */
+export function resolveTimerRing(unit: Unit, time: number): TimerRing | null {
+    const def = getUnitRenderOptions(unit.characterId)?.timerRing;
+    if (!def) return null;
+    const fraction = timerRingSources.get(def.source)?.(unit, time);
+    if (fraction == null) return null;
+    return { fraction, color: def.color, width: def.width, alpha: def.alpha, offsetPx: def.offsetPx };
 }

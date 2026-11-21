@@ -24,7 +24,10 @@ export const gardenNode_attack: AINode<'gardenNode', GardenNodeId> = {
                 return;
             }
             ctx.targetUnitId = target.id;
-            if (!isBurrowHopDue(unit, context.gameTime) && inSight.length > 0 && tryQueueAbilityOrder(unit, context, inSight, nearby)) return;
+            const hopDue = isBurrowHopDue(unit, context.gameTime);
+            if (!hopDue && inSight.length > 0 && tryQueueAbilityOrder(unit, context, inSight, nearby)) return;
+            // Enemies nearby but out of sight: abilities that need no enemy (Drink Light) still go.
+            if (!hopDue && inSight.length === 0 && tryQueueAbilityOrder(unit, context, [], [])) return;
             queueWaitAndEndTurn(unit, context);
         },
     },

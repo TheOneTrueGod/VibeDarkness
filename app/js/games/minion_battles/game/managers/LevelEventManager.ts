@@ -22,6 +22,10 @@ import { getEnemyHealthMultiplier } from '../../constants/enemyConstants';
 import { TriggerManager, type SerializedTriggerState, type TriggerActionHost } from '../triggers/TriggerManager';
 import type { TriggerDef } from '../triggers/triggerTypes';
 import { evaluateVictoryCondition } from '../triggers/missionConditions';
+import { darkShare, lerpByShare } from '../lighting/darkShare';
+
+/** Darkness-scaled spawns sample the arena's darkness at most once per this many ticks (deterministic, tick-based). */
+const DARKNESS_SPAWN_CHECK_TICKS = 10;
 
 /** Base spawn templates come from the unit defs (`UnitDefEntry.baseSpawn`). */
 const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = getBaseSpawnDefs();
@@ -298,8 +302,12 @@ export class LevelEventManager {
         const endRound = evt.trigger.endRound;
         if (endRound != null && this.ctx.roundNumber > endRound) return;
 
+        const scaling = evt.darknessScaling;
+        // Darkness-scaled spawns only look at the arena every few ticks; everything below is skipped between checks.
+        if (scaling && this.ctx.gameTick % DARKNESS_SPAWN_CHECK_TICKS !== 0) return;
+
         const intervalRounds = evt.trigger.intervalRounds;
-        const intervalSeconds = intervalRounds * ROUND_DURATION;
+        let intervalSeconds = intervalRounds * ROUND_DURATION;
 
         if (startRound !== undefined) {
             if (this.ctx.gameTime < continuousSpawnStartGameTime(startRound)) return;
@@ -321,9 +329,23 @@ export class LevelEventManager {
                 lastSpawned = 0;
             }
         }
+        let share = 0;
+        if (scaling) {
+            // Cheapest test first: nothing can be due before the shorter of the two intervals has passed.
+            const shortest = Math.min(scaling.intervalRounds.atMin, scaling.intervalRounds.atFull) * ROUND_DURATION;
+            if (this.ctx.gameTime - lastSpawned < shortest) return;
+            share = darkShare(this.ctx);
+            if (share < scaling.minShare) return;
+            intervalSeconds =
+                lerpByShare(scaling.intervalRounds.atMin, scaling.intervalRounds.atFull, share, scaling.minShare) *
+                ROUND_DURATION;
+        }
         if (this.ctx.gameTime - lastSpawned < intervalSeconds) return;
 
         this.continuousSpawnLastSpawnedAt[i] = this.ctx.gameTime;
+        const darknessCap = scaling
+            ? scaling.maxUnits.base + Math.floor(scaling.maxUnits.perShare * share)
+            : null;
 
         const enemyHealthMult = getEnemyHealthMultiplier(this.ctx.enemyScalingPlayerCount);
 
@@ -343,6 +365,12 @@ export class LevelEventManager {
             const base = BASE_SPAWN_DEFS[entry.characterId];
             if (!base) continue;
             if (isOverCap(base.teamId)) continue;
+            if (
+                darknessCap != null &&
+                this.ctx.units.filter((u) => u.isAlive() && u.characterId === entry.characterId).length >= darknessCap
+            ) {
+                continue;
+            }
 
             const def = spawnWaveEntryToSpawnDefinition(base, entry, 'ai');
             const stats = resolveEnemySpawnStats({ ...base, ...entry });

@@ -46,9 +46,13 @@ import { FUSED_BODY_COMPONENT } from './fusedBodyComponent';
 import { FUSED_BODY_HOOKS } from './fusedBodyHooks';
 import { NODE_TREE_COMPONENT } from './nodeTree';
 import { NODE_TREE_HOOKS } from './nodeTreeHooks';
+import { NODE_REGROWTH_COMPONENT } from './nodeRegrowth';
+import { NODE_REGROWTH_HOOKS } from './nodeRegrowthHooks';
 import { SPAWNER_COMPONENT } from './spawnerComponent';
 import { BURROW_HOP_COMPONENT } from './burrowHop';
 import { BURROW_HOP_HOOKS } from './burrowHopHooks';
+import { BURROW_EMERGE_COMPONENT } from './burrowEmerge';
+import { BURROW_EMERGE_HOOKS } from './burrowEmergeHooks';
 import { CADENCE_CAST_COMPONENT } from './cadenceCast';
 import { CADENCE_CAST_HOOKS } from './cadenceCastHooks';
 import { SPAWNER_HOOKS } from './spawnerHooks';
@@ -86,7 +90,7 @@ export interface UnitComponentHooks {
     /** Round start / round half. */
     onRoundMilestone?(milestone: UnitComponentMilestone, ctx: UnitComponentContext): void;
     /** A unit carrying this component died. `ctx.units` still contains it. */
-    onDeath?(unit: Unit, ctx: UnitComponentContext): void;
+    onDeath?(unit: Unit, ctx: UnitComponentContext, killerUnitId?: string | null): void;
 }
 
 interface HookEntry {
@@ -106,8 +110,13 @@ const HOOK_ENTRIES: HookEntry[] = [
     { type: FUSED_BODY_COMPONENT, hooks: FUSED_BODY_HOOKS },
     // Node trees: the leash clamp, and death handling (tether to Briar, parent's onLastChildDied).
     { type: NODE_TREE_COMPONENT, hooks: NODE_TREE_HOOKS },
+    // Regrowth: after node trees (a window opened by this tick's death hooks is already counted) and after phases
+    // (a retreat that began this tick cancels it before it can regrow).
+    { type: NODE_REGROWTH_COMPONENT, hooks: NODE_REGROWTH_HOOKS },
     // Burrow hops: after the leash clamp; a hop's destination already keeps every tether within its leash.
     { type: BURROW_HOP_COMPONENT, hooks: BURROW_HOP_HOOKS },
+    // Emergence (a unit arriving by burrowing, e.g. a grown node): beside hops, the same stage machine.
+    { type: BURROW_EMERGE_COMPONENT, hooks: BURROW_EMERGE_HOOKS },
     // Cadence casts: after phases and hops, so a unit that started burrowing this tick (controlled) does not cast.
     { type: CADENCE_CAST_COMPONENT, hooks: CADENCE_CAST_HOOKS },
     // Generic spawners (Hive Gourd): after node trees so a child spawned this tick is not leashed until next tick.
@@ -138,8 +147,8 @@ export function runUnitComponentRoundMilestone(milestone: UnitComponentMilestone
     for (const e of HOOK_ENTRIES) e.hooks.onRoundMilestone?.(milestone, ctx);
 }
 
-export function runUnitComponentDeath(unit: Unit, ctx: UnitComponentContext): void {
+export function runUnitComponentDeath(unit: Unit, ctx: UnitComponentContext, killerUnitId: string | null = null): void {
     for (const e of HOOK_ENTRIES) {
-        if (unit.components.has(e.type.id)) e.hooks.onDeath?.(unit, ctx);
+        if (unit.components.has(e.type.id)) e.hooks.onDeath?.(unit, ctx, killerUnitId);
     }
 }

@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { GameEngine } from '../GameEngine';
 import { resetGameObjectIdCounter } from '../GameObject';
 import { TerrainGrid, CELL_SIZE } from '../../terrain/TerrainGrid';
 import { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainType } from '../../terrain/TerrainType';
 import { continuousSpawnStartGameTime } from './LevelEventManager';
+import { darkShare } from '../lighting/darkShare';
 import { lanterniteStateOf } from '../units/components/lanterniteComponent';
 
 function setupEngine(): GameEngine {
@@ -114,5 +115,103 @@ describe('LevelEventManager continuousSpawn startRound', () => {
         engine.gameTime = 10;
         engine.state.levelEventManager.processLevelEvents();
         expect(wolfCount(engine)).toBe(1);
+    });
+});
+
+describe('LevelEventManager continuousSpawn darknessScaling', () => {
+    /** 10x10 grid: the first `darkTiles` cells (row-major) are fully dark, the rest lit. */
+    function darkenFirst(engine: GameEngine, darkTiles: number): void {
+        engine.lightLevelEnabled = true;
+        vi.spyOn(engine, 'getLightAt').mockImplementation((col, row) => (row * 10 + col < darkTiles ? 0 : 1));
+    }
+
+    function registerScaled(engine: GameEngine): void {
+        engine.registerLevelEvents([
+            {
+                type: 'continuousSpawn',
+                trigger: { intervalRounds: 1, startRound: 1 },
+                darknessScaling: {
+                    minShare: 0.15,
+                    intervalRounds: { atMin: 2, atFull: 1 },
+                    maxUnits: { base: 1, perShare: 2 },
+                },
+                spawns: [
+                    {
+                        characterId: 'dark_wolf',
+                        name: 'Wolf',
+                        spawnBehaviour: 'anywhere',
+                        spawnCount: 1,
+                        unitAITreeId: 'hunt',
+                    },
+                ],
+            },
+        ]);
+    }
+
+    function runAt(engine: GameEngine, time: number): void {
+        engine.gameTime = time;
+        engine.state.levelEventManager.processLevelEvents();
+    }
+
+    it('samples the share of passable tiles in full darkness', () => {
+        const engine = setupEngine();
+        darkenFirst(engine, 25);
+        expect(darkShare(engine)).toBeCloseTo(0.25);
+    });
+
+    it('spawns nothing below the minimum share', () => {
+        const engine = setupEngine();
+        darkenFirst(engine, 14);
+        registerScaled(engine);
+        runAt(engine, 0);
+        runAt(engine, 100);
+        expect(wolfCount(engine)).toBe(0);
+    });
+
+    it('waits the long interval at the gate and the short one when fully dark', () => {
+        const gate = setupEngine();
+        darkenFirst(gate, 15);
+        registerScaled(gate);
+        runAt(gate, 0);
+        expect(wolfCount(gate)).toBe(0); // 2 rounds at the gate: 20 s after the 10 s lead-in
+        runAt(gate, 10);
+        expect(wolfCount(gate)).toBe(1);
+        gate.units.length = 0;
+        runAt(gate, 20);
+        expect(wolfCount(gate)).toBe(0);
+        runAt(gate, 30);
+        expect(wolfCount(gate)).toBe(1);
+
+        const full = setupEngine();
+        darkenFirst(full, 100);
+        registerScaled(full);
+        runAt(full, 0);
+        full.units.length = 0;
+        runAt(full, 10);
+        expect(wolfCount(full)).toBe(1); // 1 round fully dark
+    });
+
+    it('caps living units at base + floor(perShare * share)', () => {
+        const low = setupEngine();
+        darkenFirst(low, 20); // cap 1 + floor(0.4) = 1
+        registerScaled(low);
+        for (let t = 0; t <= 100; t += 10) runAt(low, t);
+        expect(wolfCount(low)).toBe(1);
+
+        const full = setupEngine();
+        darkenFirst(full, 100); // cap 1 + 2 = 3
+        registerScaled(full);
+        for (let t = 0; t <= 100; t += 10) runAt(full, t);
+        expect(wolfCount(full)).toBe(3);
+    });
+
+    it('does not sample darkness between checks', () => {
+        const engine = setupEngine();
+        darkenFirst(engine, 100);
+        registerScaled(engine);
+        const spy = vi.mocked(engine.getLightAt);
+        engine.gameTick = 3;
+        runAt(engine, 0);
+        expect(spy).not.toHaveBeenCalled();
     });
 });

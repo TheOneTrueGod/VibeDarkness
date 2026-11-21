@@ -1,6 +1,7 @@
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
 import { getEffectiveHardCcThreshold } from './ccArmourState';
+import { isCcImmune } from '../game/units/unitTag';
 
 /**
  * Whether crowd control may interrupt `target`'s abilities. A unit with CC armour (e.g. a boss) is immune
@@ -8,6 +9,7 @@ import { getEffectiveHardCcThreshold } from './ccArmourState';
  * blocks interrupts outright.
  */
 export function canCcInterrupt(target: Unit, gameTime: number): boolean {
+    if (isCcImmune(target)) return false;
     if (target.isInJuggernautWindow(gameTime)) return false;
     if (target.hasBuff('exposed')) return true;
     return getEffectiveHardCcThreshold(target) <= 0;

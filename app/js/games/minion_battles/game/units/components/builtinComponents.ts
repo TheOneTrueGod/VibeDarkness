@@ -9,4 +9,5 @@ import './phaseComponent';
 import './hpStepComponent';
 import './fusedBodyComponent';
 import './nodeTree';
+import './nodeRegrowth';
 import './spawnerComponent';

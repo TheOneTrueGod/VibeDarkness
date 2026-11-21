@@ -16,7 +16,7 @@
 import type { ScenarioDefinition } from '../../types';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { Unit } from '../../../game/units/Unit';
-import type { EnemySpawnDef } from '../../../storylines/types';
+import type { EnemySpawnDef, LevelEvent, LevelEventContinuousSpawn } from '../../../storylines/types';
 import type { DamageTakenEvent } from '../../../game/EventBus';
 import { createUnitFromSpawnConfig } from '../../../game/units';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -24,28 +24,47 @@ import { TerrainManager } from '../../../terrain/TerrainManager';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { resetGameObjectIdCounter } from '../../../game/GameObject';
 import { GameEngine as GameEngineClass } from '../../../game/GameEngine';
-import { ENEMY_GARDEN_HEART, ENEMY_POD_MORTAR, ENEMY_THORNSPITTER } from '../../../constants/enemyConstants';
+import {
+    ENEMY_DARK_WOLF,
+    ENEMY_GARDEN_HEART,
+    ENEMY_GLOAM_LILY,
+    ENEMY_MENDER_BLOOM,
+    ENEMY_POD_MORTAR,
+    ENEMY_THORNSPITTER,
+} from '../../../constants/enemyConstants';
+import { getNodeRegrowthStatus } from '../../../game/units/components/nodeRegrowth';
+import { darkShare } from '../../../game/lighting/darkShare';
 import { getNodeChildIds, hasLivingChildren, linkNodeChild } from '../../../game/units/components/nodeTree';
 import { peekFusedBodyState } from '../../../game/units/components/fusedBodyComponent';
 import { spawnFusedBody } from '../../../game/units/components/fusedBodySpawn';
 import { peekPhaseState } from '../../../game/units/components/phaseComponent';
 import { gardenTreeLayout } from '../../../game/gardenHeart/gardenTreeLayouts';
-import { GARDEN_SPROUT_POINTS } from '../../../card_defs/16_enemy_garden_heart/gardenHeartPhases';
+import { gardenTreeDescendants, growGardenTree, type GardenGrowContext } from '../../../game/gardenHeart/growGardenTree';
+import { GARDEN_PHASE_SPROUT_POINTS } from '../../../card_defs/16_enemy_garden_heart/gardenHeartPhases';
 import { attachReflexIfKnown } from '../../../resources/Reflex';
 import { ResourceId } from '../../../resources/resourceIds';
 import { applyReactionClaim } from '../../../game/reactions/claimRule';
 import { KNOWLEDGE_REACTIONS } from '../../../../../accountKnowledge';
 import { registerWorldOfDarknessSegments } from '../../../storylines/WorldOfDarkness/registerSegments';
-import { GARDEN_HEART } from '../../../storylines/WorldOfDarkness/missions/020_garden_heart';
+import { GARDEN_DARKNESS_SPAWN, GARDEN_HEART } from '../../../storylines/WorldOfDarkness/missions/020_garden_heart';
 import { buildTinyBattleEngine, spawnTinyPlayerUnit, TINY_BATTLE_PLAYER_ID } from '../../harness/buildTinyBattleEngine';
 import { executeUnitAbility } from '../../../game/units/unitAbilityLifecycle';
 import { getAbility } from '../../../abilities/AbilityRegistry';
+import { grantAbilityUses } from '../../../abilities/abilityUses';
 import { BURROWING_PROJECTILE_TYPE } from '../../../game/projectiles/projectile_defs/burrowingDef';
-import { LOB_SEED_ABILITY_ID, SPIKE_RING_ABILITY_ID } from '../../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
+import {
+    GARDEN_HEART_HEALTH_POOLS,
+    LOB_SEED_ABILITY_ID,
+    PINWHEEL_ABILITY_ID,
+    SPIKE_RING_ABILITY_ID,
+} from '../../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
 import { ROUND_DURATION } from '../../../game/gameConstants';
 import '../../../abilities/AbilityRegistry';
 
 const SECTION = 'Garden Heart';
+/** Share of the Heart's max HP left when phase 2 is entered (the later phases' health pools). */
+const GARDEN_HEART_RETREAT_FRACTION_2 =
+    GARDEN_HEART_HEALTH_POOLS.slice(1).reduce((a, b) => a + b, 0) / GARDEN_HEART_HEALTH_POOLS.reduce((a, b) => a + b, 0);
 const P1 = TINY_BATTLE_PLAYER_ID;
 const P2 = 'tiny_p2';
 const TPS = 60;
@@ -167,33 +186,39 @@ function countBriar(engine: GameEngine): number {
     return n;
 }
 
+/** The real Garden Heart mission, one near-unkillable player: sprout points, Briar and tree layouts are the shipped ones. */
+function buildGardenMissionEngine(): { engine: GameEngine; heart: Unit; player: Unit } {
+    registerWorldOfDarknessSegments();
+    resetGameObjectIdCounter(1);
+    const mission = GARDEN_HEART;
+    const engine = new GameEngineClass();
+    const terrainManager = new TerrainManager(mission.createTerrain());
+    engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 7, terrainManager });
+    const composed = mission.composeMap();
+    mission.initializeGameState(engine, {
+        playerUnits: [{ playerId: 'p1', name: 'P1', portraitId: 'warrior' }],
+        localPlayerId: 'p1',
+        eventBus: engine.eventBus,
+        equippedItemsByPlayer: { p1: ['004'] },
+        terrainManager,
+        terrainSegmentPOIs: composed?.pois,
+        terrainSegmentZones: composed?.zones,
+    });
+    engine.registerBattleObjectives(mission.battleObjectives ?? []);
+    const heart = engine.units.find((u) => u.characterId === 'garden_heart')!;
+    const player = engine.getLocalPlayerUnit()!;
+    player.hp = player.maxHp = 100000; // the eruptions and thorns must not end the scenario
+    return { engine, heart, player };
+}
+
 export const gardenHeartPhaseRetreatScenario: ScenarioDefinition = {
     id: 'garden_heart_phase_retreat',
-    title: 'Garden Heart: a big hit at 75% retreats, old tree becomes Briar, Heart resurfaces with the phase-2 tree',
+    title: 'Garden Heart: a big hit that empties the first health pool retreats, old tree becomes Briar, Heart resurfaces with the phase-2 tree',
     category: 'general',
     generalSection: SECTION,
     maxDurationMs: 16000,
     buildEngine() {
-        registerWorldOfDarknessSegments();
-        resetGameObjectIdCounter(1);
-        const mission = GARDEN_HEART;
-        const engine = new GameEngineClass();
-        const terrainManager = new TerrainManager(mission.createTerrain());
-        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 7, terrainManager });
-        const composed = mission.composeMap();
-        mission.initializeGameState(engine, {
-            playerUnits: [{ playerId: 'p1', name: 'P1', portraitId: 'warrior' }],
-            localPlayerId: 'p1',
-            eventBus: engine.eventBus,
-            equippedItemsByPlayer: { p1: ['004'] },
-            terrainManager,
-            terrainSegmentPOIs: composed?.pois,
-            terrainSegmentZones: composed?.zones,
-        });
-        engine.registerBattleObjectives(mission.battleObjectives ?? []);
-        const heart = engine.units.find((u) => u.characterId === 'garden_heart')!;
-        const player = engine.getLocalPlayerUnit()!;
-        player.hp = player.maxHp = 100000; // the eruption must not end the scenario
+        const { engine, heart, player } = buildGardenMissionEngine();
         const run: RetreatRun = {
             heart,
             oldTree: engine.units.filter((u) => u.id !== heart.id && u.teamId === heart.teamId),
@@ -221,10 +246,10 @@ export const gardenHeartPhaseRetreatScenario: ScenarioDefinition = {
         const phase2 = gardenTreeLayout(2)!;
         const fresh = engine.units.filter((u) => u.isAlive() && u.teamId === heart.teamId && u.id !== heart.id);
         return (
-            heart.hp === run.maxHp * 0.75 && // damage past the threshold is lost
+            Math.abs(heart.hp - run.maxHp * GARDEN_HEART_RETREAT_FRACTION_2) < 1e-6 && // damage past the threshold is lost
             run.oldTree.every((u) => !u.isAlive()) &&
             countBriar(engine) > run.briarBefore &&
-            GARDEN_SPROUT_POINTS.some((p) => p.x === heart.x && p.y === heart.y) &&
+            GARDEN_PHASE_SPROUT_POINTS[2].some((p) => p.x === heart.x && p.y === heart.y) &&
             fresh.length === phase2.length &&
             getNodeChildIds(heart).length === phase2.filter((s) => s.parent === null).length &&
             fresh.every((u) => !run.oldTree.includes(u))
@@ -354,7 +379,7 @@ const ringRuns = new WeakMap<GameEngine, RingRun>();
 
 export const gardenHeartSpikeRingScenario: ScenarioDefinition = {
     id: 'garden_heart_spike_ring_final',
-    title: 'Garden Heart: with the final tree cut down, the Heart fires 8 Spike Rings a round',
+    title: 'Garden Heart: shelled in the final phase, the Heart fires 2 Spike Rings a round (no escalation)',
     category: 'general',
     generalSection: SECTION,
     maxDurationMs: 12000,
@@ -365,7 +390,8 @@ export const gardenHeartSpikeRingScenario: ScenarioDefinition = {
         player.maxHp = 9999;
         player.hp = 9999; // stands in the rings for the whole round
         const heart = addEnemy(engine, ENEMY_GARDEN_HEART, cell(15), cell(10));
-        peekPhaseState(heart)!.index = 3; // final growth phase, no tree left
+        peekPhaseState(heart)!.index = 3; // final growth phase
+        growGardenTree(engine as unknown as GardenGrowContext, heart, 4); // shelled: the ring fires at the phase's base rate
         const run: RingRun = { heart, rings: 0 };
         engine.eventBus.on('ability_used', (e) => {
             if (e.abilityId === SPIKE_RING_ABILITY_ID) run.rings++;
@@ -379,7 +405,7 @@ export const gardenHeartSpikeRingScenario: ScenarioDefinition = {
     },
     assertPass(engine) {
         const run = ringRuns.get(engine)!;
-        return engine.gameTime >= ROUND_DURATION + 0.1 && run.rings === 8;
+        return engine.gameTime >= ROUND_DURATION + 0.1 && run.rings === 2;
     },
     failureMessage(engine) {
         return `rings=${ringRuns.get(engine)?.rings} gameTime=${engine.gameTime.toFixed(2)}`;
@@ -536,7 +562,266 @@ export const gardenHeartCoopClaimScenario: ScenarioDefinition = {
     },
 };
 
+// ---------------------------------------------------------------------------------------------------------------
+// Bared windows, Severance, the Gloam Lily and Wild attacks
+// ---------------------------------------------------------------------------------------------------------------
+
+interface BaredRun {
+    heart: Unit;
+    layoutSize: number;
+    killed: boolean;
+    sawOpen: boolean;
+    sawPinwheel: boolean;
+}
+const baredRuns = new WeakMap<GameEngine, BaredRun>();
+const livingNodes = (engine: GameEngine, heart: Unit): Unit[] =>
+    gardenTreeDescendants(engine, heart).filter((u) => u.isAlive());
+
+/** Kill every living node under `heart`, deepest first, as a player would (Severance, and Bared at the last). */
+function killTree(engine: GameEngine, heart: Unit, killerId: string): void {
+    for (const node of gardenTreeDescendants(engine, heart).reverse()) {
+        if (node.isAlive()) node.takeDamage(node.maxHp * 10, killerId, engine.eventBus);
+    }
+}
+
+export const gardenHeartBaredRegrowthScenario: ScenarioDefinition = {
+    id: 'garden_heart_bared_regrowth',
+    title: 'Garden Heart: killing the phase-2 tree Bares the Heart, a Pinwheel fires, then the whole tree regrows',
+    category: 'general',
+    generalSection: SECTION,
+    maxDurationMs: 10000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 30, gridH: 20, localPlayerId: P1, grass: true });
+        engine.enemyScalingPlayerCount = 1;
+        const player = spawnTinyPlayerUnit(engine, { playerId: P1, x: cell(2), y: cell(2), abilities: [] });
+        player.maxHp = player.hp = 9999; // the Pinwheel's thorns must not end the scenario
+        const heart = addEnemy(engine, ENEMY_GARDEN_HEART, cell(15), cell(10));
+        peekPhaseState(heart)!.index = 1; // growth phase 2
+        growGardenTree(engine as unknown as GardenGrowContext, heart, 2);
+        baredRuns.set(engine, {
+            heart,
+            layoutSize: gardenTreeLayout(2)!.length,
+            killed: false,
+            sawOpen: false,
+            sawPinwheel: false,
+        });
+        holdOpen(engine, player, 9);
+        return engine;
+    },
+    getInitialOrders(engine) {
+        return [{ unitId: engine.getLocalPlayerUnit()!.id, abilityId: 'wait', targets: [] }];
+    },
+    assertPass(engine) {
+        const run = baredRuns.get(engine)!;
+        if (!run.killed && engine.gameTick >= 5) {
+            killTree(engine, run.heart, engine.getLocalPlayerUnit()!.id);
+            run.killed = true;
+        }
+        if (getNodeRegrowthStatus(run.heart, engine.gameTime).open) run.sawOpen = true;
+        if (engine.projectiles.some((p) => p.sourceAbilityId === PINWHEEL_ABILITY_ID)) run.sawPinwheel = true;
+        return (
+            run.killed &&
+            run.sawOpen &&
+            run.sawPinwheel &&
+            !getNodeRegrowthStatus(run.heart, engine.gameTime).open &&
+            livingNodes(engine, run.heart).length === run.layoutSize
+        );
+    },
+    failureMessage(engine) {
+        const run = baredRuns.get(engine);
+        return `killed=${run?.killed} sawOpen=${run?.sawOpen} sawPinwheel=${run?.sawPinwheel} livingNodes=${run ? livingNodes(engine, run.heart).length : '?'}/${run?.layoutSize}`;
+    },
+};
+
+interface SeveranceRun {
+    heart: Unit;
+    player: Unit;
+    maxHp: number;
+    killedTrees: number;
+    sawBurrow: boolean;
+}
+const severanceRuns = new WeakMap<GameEngine, SeveranceRun>();
+
+export const gardenHeartSeveranceScenario: ScenarioDefinition = {
+    id: 'garden_heart_severance',
+    title: 'Garden Heart: killing nodes alone (never hitting the Heart) takes the Heart through a phase retreat',
+    category: 'general',
+    generalSection: SECTION,
+    // Each Bared window is 5 s and the tree is cut again as it regrows; the retreat itself takes a few more seconds.
+    maxDurationMs: 40000,
+    buildEngine() {
+        const { engine, heart, player } = buildGardenMissionEngine();
+        severanceRuns.set(engine, { heart, player, maxHp: heart.maxHp, killedTrees: 0, sawBurrow: false });
+        holdOpen(engine, player, 38);
+        return engine;
+    },
+    getInitialOrders(engine) {
+        return [{ unitId: engine.getLocalPlayerUnit()!.id, abilityId: 'wait', targets: [] }];
+    },
+    assertPass(engine) {
+        const run = severanceRuns.get(engine)!;
+        const { heart } = run;
+        const phase = peekPhaseState(heart);
+        if (phase?.burrow) {
+            run.sawBurrow = true;
+            return false;
+        }
+        if (!run.sawBurrow && engine.gameTick >= 2 && livingNodes(engine, heart).length > 0) {
+            killTree(engine, heart, run.player.id); // only ever the nodes: the Heart itself is never hit
+            run.killedTrees++;
+        }
+        return (
+            run.sawBurrow &&
+            (phase?.index ?? 0) >= 1 &&
+            run.killedTrees >= 2 &&
+            Math.abs(heart.hp - run.maxHp * GARDEN_HEART_RETREAT_FRACTION_2) < 1e-6
+        );
+    },
+    failureMessage(engine) {
+        const run = severanceRuns.get(engine);
+        if (!run) return 'no run';
+        return `killedTrees=${run.killedTrees} sawBurrow=${run.sawBurrow} phaseIndex=${peekPhaseState(run.heart)?.index} heartHp=${run.heart.hp}/${run.maxHp}`;
+    },
+};
+
+interface LightRun {
+    lily: Unit;
+    lightId: string;
+    shareLit: number;
+    wolfWhileLit: boolean;
+}
+const lightRuns = new WeakMap<GameEngine, LightRun>();
+const wolvesIn = (engine: GameEngine): Unit[] =>
+    engine.units.filter((u) => u.characterId === 'dark_wolf' && u.isAlive());
+const lightStrength = (engine: GameEngine, id: string): number =>
+    engine.specialTiles.find((t) => t.id === id)?.emitsLight?.lightAmount ?? 0;
+
+export const gardenHeartLightAndDarknessScenario: ScenarioDefinition = {
+    id: 'garden_heart_light_and_darkness',
+    title: 'Garden Heart: a Gloam Lily left alone puts the light out, and the dark lets a dark wolf in',
+    category: 'general',
+    generalSection: SECTION,
+    maxDurationMs: 8000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 8, gridH: 5, localPlayerId: P1, grass: true });
+        engine.enemyScalingPlayerCount = 1;
+        const player = spawnTinyPlayerUnit(engine, { playerId: P1, x: cell(0), y: cell(4), abilities: [] });
+        player.maxHp = player.hp = 9999; // the wolf hunts the player
+        // One faint light that reaches the whole small arena, so none of it is dark until the Lily drinks it.
+        const lightId = 'garden_crystal';
+        engine.addSpecialTile({
+            id: lightId,
+            defId: 'Campfire',
+            col: 1,
+            row: 2,
+            hp: 5,
+            maxHp: 5,
+            emitsLight: { lightAmount: 1, radius: 9 },
+        });
+        engine.setMissionLightConfig(true, 0);
+        // The Lily keeps its real AI: left alone, it drinks.
+        const lily = createUnitFromSpawnConfig(
+            { ...ENEMY_GLOAM_LILY, x: cell(6), y: cell(2), ownerId: 'ai' },
+            engine.eventBus,
+            engine,
+        );
+        engine.addUnit(lily, 'initialGameSpawn');
+        // The mission's darkness spawn, started at once (the mission gates it on the second tree via a trigger, which is
+        // covered by gardenHeartMission.test.ts).
+        const darknessSpawn: LevelEvent = {
+            ...(GARDEN_DARKNESS_SPAWN as LevelEventContinuousSpawn),
+            afterTrigger: undefined,
+            trigger: { intervalRounds: 2, startRound: 1 },
+        };
+        engine.registerLevelEvents([darknessSpawn]);
+        lightRuns.set(engine, { lily, lightId, shareLit: darkShare(engine), wolfWhileLit: false });
+        holdOpen(engine, player, 7);
+        return engine;
+    },
+    getInitialOrders(engine) {
+        return [{ unitId: engine.getLocalPlayerUnit()!.id, abilityId: 'wait', targets: [] }];
+    },
+    assertPass(engine) {
+        const run = lightRuns.get(engine)!;
+        const out = lightStrength(engine, run.lightId) <= 0;
+        if (!out && wolvesIn(engine).length > 0) run.wolfWhileLit = true;
+        return (
+            run.shareLit < 0.15 &&
+            !run.wolfWhileLit &&
+            out &&
+            darkShare(engine) >= 0.15 &&
+            wolvesIn(engine).length > 0
+        );
+    },
+    failureMessage(engine) {
+        const run = lightRuns.get(engine);
+        return `litShare=${run?.shareLit} wolfWhileLit=${run?.wolfWhileLit} light=${run ? lightStrength(engine, run.lightId) : '?'} darkShare=${darkShare(engine).toFixed(2)} wolves=${wolvesIn(engine).length}`;
+    },
+};
+
+interface WildRun {
+    heart: Unit;
+    wolf: Unit;
+    bloom: Unit;
+    cast: boolean;
+    wolfHit: boolean;
+    bloomHit: boolean;
+    thornPassedBloom: boolean;
+}
+const wildRuns = new WeakMap<GameEngine, WildRun>();
+
+export const gardenHeartWildScenario: ScenarioDefinition = {
+    id: 'garden_heart_wild',
+    title: 'Garden Heart: a Pinwheel thorn hits a dark wolf in its path and passes through a plant',
+    category: 'general',
+    generalSection: SECTION,
+    maxDurationMs: 9000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 16, gridH: 10, localPlayerId: P1, grass: true });
+        engine.enemyScalingPlayerCount = 1;
+        const player = spawnTinyPlayerUnit(engine, { playerId: P1, x: cell(1), y: cell(1), abilities: [] });
+        player.maxHp = player.hp = 9999;
+        const heart = addEnemy(engine, ENEMY_GARDEN_HEART, cell(8), cell(5));
+        // Close enough that the arm's thorns are less than a unit width apart where they pass; the arm sweeps every
+        // direction once in the window, so each of them is crossed.
+        const wolf = addEnemy(engine, ENEMY_DARK_WOLF, heart.x + 100, heart.y);
+        const bloom = addEnemy(engine, ENEMY_MENDER_BLOOM, heart.x - 100, heart.y);
+        wolf.maxHp = wolf.hp = 100000; // survives the thorns so the hit can be seen
+        // A forced cast, as the Bared callback does.
+        grantAbilityUses(heart, PINWHEEL_ABILITY_ID, 1);
+        executeUnitAbility(heart, getAbility(PINWHEEL_ABILITY_ID)!, [], engine);
+        const run: WildRun = { heart, wolf, bloom, cast: true, wolfHit: false, bloomHit: false, thornPassedBloom: false };
+        engine.eventBus.on('damage_taken', (e: DamageTakenEvent) => {
+            if (e.unitId === wolf.id) run.wolfHit = true;
+            if (e.unitId === bloom.id) run.bloomHit = true;
+        });
+        wildRuns.set(engine, run);
+        holdOpen(engine, player, 8);
+        return engine;
+    },
+    getInitialOrders(engine) {
+        return [{ unitId: engine.getLocalPlayerUnit()!.id, abilityId: 'wait', targets: [] }];
+    },
+    assertPass(engine) {
+        const run = wildRuns.get(engine)!;
+        for (const p of engine.projectiles) {
+            if (p.sourceAbilityId === PINWHEEL_ABILITY_ID && Math.hypot(p.x - run.bloom.x, p.y - run.bloom.y) < 14) {
+                run.thornPassedBloom = true;
+            }
+        }
+        return run.wolfHit && run.thornPassedBloom && !run.bloomHit && run.bloom.hp === run.bloom.maxHp;
+    },
+    failureMessage(engine) {
+        const run = wildRuns.get(engine);
+        return `cast=${run?.cast} wolfHit=${run?.wolfHit} thornPassedBloom=${run?.thornPassedBloom} bloomHit=${run?.bloomHit}`;
+    },
+};
+
 export const GARDEN_HEART_SCENARIOS: ScenarioDefinition[] = [
+    gardenHeartBaredRegrowthScenario,
+    gardenHeartSeveranceScenario,
+    gardenHeartLightAndDarknessScenario,
+    gardenHeartWildScenario,
     gardenHeartShellScenario,
     gardenHeartPhaseRetreatScenario,
     gardenHeartSeedDestroyedScenario,

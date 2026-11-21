@@ -313,7 +313,7 @@ function summarizeTrigger(
     waveUnits: (spawns: SpawnWaveEntry[], extra: EnemySpawnDef[] | undefined) => SpawnSummaryUnit[],
 ): void {
     const when = trigger.events
-        .map((e) => `a unit enters the ${describeRegion(e.region)}`)
+        .map((e) => (e.type === 'everyTick' ? 'its conditions hold' : `a unit enters the ${describeRegion(e.region)}`))
         .join(' or ');
     const flags = [
         trigger.enabled === false ? 'starts disabled' : undefined,

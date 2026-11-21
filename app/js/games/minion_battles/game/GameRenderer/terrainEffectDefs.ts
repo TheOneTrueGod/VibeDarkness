@@ -129,6 +129,11 @@ export const TERRAIN_EFFECT_VISUAL_DEFS: Record<string, TerrainEffectVisualDef> 
         svgString: thornVineSvg(DARK_THORN_COLOURS, 0),
         wornSvgStrings: thornVineWornSvgs(DARK_THORN_COLOURS),
     },
+    garden_thorn: {
+        layer: 'ground',
+        svgString: thornVineSvg(DARK_THORN_COLOURS, 0),
+        wornSvgStrings: thornVineWornSvgs(DARK_THORN_COLOURS),
+    },
     bramble_slow: {
         layer: 'ground',
         svgString: thornVineSvg(BRAMBLE_COLOURS, 0),

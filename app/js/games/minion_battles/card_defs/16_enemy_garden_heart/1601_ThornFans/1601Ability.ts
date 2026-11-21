@@ -23,6 +23,7 @@ import type { CardDef } from '../../types';
 import { getBattleVariable } from '../../../game/battleVariables';
 import {
     GARDEN_GROWTH_PHASE_VARIABLE,
+    GARDEN_WILD_HIT_RULE,
     THORN_FAN_WAVES_BY_PHASE,
     THORN_AI_RANGE,
     THORN_AIM_SEC,
@@ -94,7 +95,8 @@ function buildTimings(fanCount: number): AbilityTimingInterval[] {
                     .withRadius(THORN_RADIUS)
                     .withProjectileType(THORN_PROJECTILE_TYPE)
                     .withAimOffset(deg + thornWaveTurn(fan, fanCount))
-                    .withCollidesWithTerrain([TerrainType.Rock]),
+                    .withCollidesWithTerrain([TerrainType.Rock])
+                    .withHitRule(GARDEN_WILD_HIT_RULE),
             })),
         });
         t = end + (fan < fanCount - 1 ? THORN_FAN_GAP_SEC : 0);

@@ -3,7 +3,11 @@
  * condition, linking by spawn, and a serialization round-trip.
  */
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
+import { getUnitDefEntry } from './units/unit_defs/unitDef';
+import { dismissGardenTree } from './gardenHeart/growGardenTree';
+import { STEM_WITHER_EFFECT_TYPE } from './tethers/tether';
 import { buildTinyBattleEngine, placeTargetDummy, TINY_BATTLE_PLAYER_ID } from '../testing/harness/buildTinyBattleEngine';
 import type { GameEngine } from './GameEngine';
 import type { Unit } from './units/Unit';
@@ -13,8 +17,10 @@ import { applySerializedUnitState } from './units/unitFromJSON';
 import { createUnitFromSpawnConfig } from './units/index';
 import { componentSpec, attachComponent } from './units/components/unitComponent';
 import {
+    NODE_REGROWTH_COMPONENT_ID,
     NODE_TREE_COMPONENT,
     NODE_TREE_HAS_LIVING_CHILDREN,
+    type NodeTreeOptions,
     getNodeChildIds,
     getNodeParentId,
     hasLivingChildren,
@@ -40,7 +46,7 @@ function makeEngine(): GameEngine {
     return engine;
 }
 
-function node(id: string, col: number, row: number, options?: { onLastChildDied?: string; onDeath?: string }): Unit {
+function node(id: string, col: number, row: number, options?: NodeTreeOptions): Unit {
     const unit = placeTargetDummy(engine, { x: cell(col), y: cell(row) }, id);
     if (options) attachComponent(unit, componentSpec(NODE_TREE_COMPONENT, options));
     return unit;
@@ -141,6 +147,112 @@ describe('node tree', () => {
         expect(child?.id).toBe('bud');
         expect(getNodeParentId(child!)).toBe('parent');
         expect(getNodeChildIds(parent)).toEqual(['bud']);
+    });
+
+    describe('Severance and withering Stems', () => {
+        /** A stub standing in for the regrowth component (Step 4): `rootHasRegrowth` only checks the id. */
+        const REGROWTH_STUB = {
+            type: { id: NODE_REGROWTH_COMPONENT_ID, create: () => ({}), toJSON: () => ({}), fromJSON: () => {} },
+        };
+
+        function treeRoot(options: NodeTreeOptions): Unit {
+            const root = node('root', 5, 5, options);
+            root.hp = root.maxHp = 100;
+            return root;
+        }
+
+        function tetheredChild(root: Unit, id: string, col: number, row: number): Unit {
+            const child = node(id, col, row);
+            linkNodeChild(root, child, { tetherMaxLength: 400 });
+            return child;
+        }
+
+        it('killing a node damages the root by the severance amount, credited to the killer', () => {
+            makeEngine();
+            const root = treeRoot({ severance: { damage: 10 } });
+            const bud = tetheredChild(root, 'bud', 7, 5);
+            const sources: Array<string | null> = [];
+            engine.eventBus.on('damage_taken', (e) => {
+                if (e.unitId === 'root') sources.push(e.sourceUnitId);
+            });
+            bud.takeDamage(bud.maxHp * 10, 'player', engine.eventBus);
+            expect(root.hp).toBe(90);
+            expect(sources).toEqual(['player']);
+        });
+
+        it('severance ignores the root\'s Shell (flat reduction) and damage-taken multipliers', () => {
+            makeEngine();
+            const root = treeRoot({ severance: { damage: 10 } });
+            root.flatDamageReductions = [{ amount: 8, floor: 1, condition: NODE_TREE_HAS_LIVING_CHILDREN }];
+            root.damageTakenMultipliers = [{ multiplier: 2 }];
+            const a = tetheredChild(root, 'a', 7, 5);
+            tetheredChild(root, 'b', 7, 7);
+            kill(a);
+            expect(root.hp).toBe(90);
+        });
+
+        it('scaleWithEnemyHealth multiplies by the enemy health multiplier', () => {
+            makeEngine();
+            const root = treeRoot({ severance: { damage: 10, scaleWithEnemyHealth: true } });
+            const bud = tetheredChild(root, 'bud', 7, 5);
+            kill(bud);
+            const expected = Math.round(10 * getEnemyHealthMultiplier(engine.enemyScalingPlayerCount));
+            expect(root.hp).toBe(100 - expected);
+        });
+
+        it('severance does not skip a phase: the hit is clamped at the threshold', () => {
+            makeEngine();
+            const def = getUnitDefEntry('target_dummy')!;
+            const bud = node('bud', 7, 5); // before the phase is installed, so only the root is clamped
+            def.phases = [{ id: 'p2', enterWhen: { kind: 'health_below_percent', threshold: 0.95 }, clampHitAtThreshold: true }];
+            try {
+                const root = treeRoot({ severance: { damage: 40 } });
+                linkNodeChild(root, bud, { tetherMaxLength: 400 });
+                kill(bud);
+                expect(bud.isAlive()).toBe(false);
+                expect(root.hp).toBeCloseTo(95, 3);
+            } finally {
+                def.phases = undefined;
+            }
+        });
+
+        it('dismissing a tree deals no Severance and lays Briar', () => {
+            makeEngine();
+            const root = treeRoot({ severance: { damage: 10 }, stemDeath: 'witherWhileRegrowing' });
+            attachComponent(root, REGROWTH_STUB);
+            tetheredChild(root, 'a', 7, 5);
+            tetheredChild(root, 'b', 7, 7);
+            const briar = vi.spyOn(engine.terrainManager!, 'placeBriar');
+            expect(dismissGardenTree(engine, root)).toBe(2);
+            expect(root.hp).toBe(100);
+            expect(briar).toHaveBeenCalledTimes(2);
+        });
+
+        it('a wither kill lays no Briar and plays a Stem fade; the default lays Briar', () => {
+            makeEngine();
+            const withering = treeRoot({ stemDeath: 'witherWhileRegrowing' });
+            attachComponent(withering, REGROWTH_STUB);
+            const plain = node('plain', 5, 10, {});
+            const briar = vi.spyOn(engine.terrainManager!, 'placeBriar');
+
+            kill(tetheredChild(withering, 'w', 7, 5));
+            expect(briar).not.toHaveBeenCalled();
+            expect(engine.effects.some((e) => e.effectType === STEM_WITHER_EFFECT_TYPE)).toBe(true);
+
+            const c = node('c', 7, 10);
+            linkNodeChild(plain, c, { tetherMaxLength: 400 });
+            kill(c);
+            expect(briar).toHaveBeenCalledTimes(1);
+        });
+
+        it('a wither root without regrowth still lays Briar, and no severance without the option', () => {
+            makeEngine();
+            const root = treeRoot({ stemDeath: 'witherWhileRegrowing' });
+            const briar = vi.spyOn(engine.terrainManager!, 'placeBriar');
+            kill(tetheredChild(root, 'a', 7, 5));
+            expect(briar).toHaveBeenCalledTimes(1);
+            expect(root.hp).toBe(100);
+        });
     });
 
     it('round-trips links and the leash through serialization', () => {

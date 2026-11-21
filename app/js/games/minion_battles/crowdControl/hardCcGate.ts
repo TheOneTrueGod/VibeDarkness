@@ -2,6 +2,7 @@ import { ExposedBuff, EXPOSED_BUFF_TYPE } from '../buffs/ExposedBuff';
 import type { Buff } from '../buffs/Buff';
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
+import { isCcImmune } from '../game/units/unitTag';
 import { CC_MIN_POTENCY_SEC } from './ccConstants';
 import { resolveCcDuration } from './resolveCcDuration';
 import type { CcType } from './ccTypes';
@@ -45,6 +46,11 @@ export interface CcArmourGateOptions {
  */
 export function applyCcThroughArmourGate(target: Unit, o: CcArmourGateOptions): HardCcStunAttemptResult {
     const weak = o.armourCharges <= 0;
+
+    // CcImmune units ignore the CC entirely: no armour spent, never Exposed.
+    if (isCcImmune(target)) {
+        return { outcome: 'absorbed' };
+    }
 
     // Units in a juggernaut window are immune to CC interruption: no armour consumed, no CC.
     if (target.isInJuggernautWindow(o.gameTime)) {

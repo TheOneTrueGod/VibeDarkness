@@ -316,6 +316,11 @@ export function pickBestAbility(
         const enemyPool = ai?.candidateScope === 'anyNearby' ? nearbyEnemies : candidateEnemies;
 
         if (ability.targets.length === 0) {
+            // No enemy needed: the caster stands in as the placeholder target (an untargeted cast never reads it).
+            if (ai?.castWithoutEnemies && enemyPool.length === 0) {
+                candidates.push({ ability, target: unit, priority: ai?.priority ?? 0, grantRank });
+                continue;
+            }
             if (ai?.enforceRangeWhenUntargeted) {
                 const validTarget = findAIAbilityTarget(unit, ability, enemyPool, randomInt);
                 if (validTarget && aiSelectPlanIsUsable(unit, ability, validTarget, context)) {

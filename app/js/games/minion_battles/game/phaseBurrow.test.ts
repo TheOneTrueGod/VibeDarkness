@@ -16,8 +16,11 @@ import { getUnitDefEntry } from './units/unit_defs/unitDef';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { burrowPreset, type BurrowTransitionDef, type UnitPhaseDef } from './units/components/phaseDef';
 import { peekPhaseState } from './units/components/phaseComponent';
+import { TerrainType } from '../terrain/TerrainType';
 import {
     getBurrowVisual,
+    NEAREST_TO_PARTY_RULE,
+    terraformTiles,
     registerBurrowCallback,
     registerSproutExclusionSource,
     registerSproutPointRule,
@@ -204,6 +207,68 @@ describe('burrow transition', () => {
         step(engine, 2.2);
         expect([unit.x, unit.y]).toEqual([FAR.x, FAR.y]);
         engine.destroy();
+    });
+
+    it('nearestToParty picks the candidate closest to the party, but no closer than minDistanceFromParty', () => {
+        const engine = makeEngine(); // the party stands at cell (0, 0)
+        const unit = spawnPhased(engine, [burrowPhase({ ...BURROW, pointRule: NEAREST_TO_PARTY_RULE })]);
+        hit(engine, unit, 60);
+        expect([peekPhaseState(unit)!.burrow!.toX, peekPhaseState(unit)!.burrow!.toY]).toEqual([NEAR.x, NEAR.y]);
+        engine.destroy();
+
+        const e2 = makeEngine();
+        const u2 = spawnPhased(e2, [
+            burrowPhase({ ...BURROW, pointRule: NEAREST_TO_PARTY_RULE, minDistanceFromParty: 5 * CELL_SIZE }),
+        ]);
+        hit(e2, u2, 60);
+        expect([peekPhaseState(u2)!.burrow!.toX, peekPhaseState(u2)!.burrow!.toY]).toEqual([MID.x, MID.y]);
+        e2.destroy();
+    });
+
+    it('terraform: rises out of deep water onto a grass disc, and a strip fords only the water', () => {
+        const engine = makeEngine();
+        const tm = engine.terrainManager!;
+        // A pond round FAR (20, 14), with one dry tile on the strip's line that must stay dry.
+        const pond: { col: number; row: number }[] = [];
+        for (let row = 9; row < 16; row++) for (let col = 14; col < 24; col++) pond.push({ col, row });
+        tm.reshapeTerrain(TerrainType.DeepWater, pond);
+        tm.reshapeTerrain(TerrainType.Dirt, [{ col: 16, row: 14 }]);
+        const unit = spawnPhased(engine, [
+            burrowPhase({
+                ...BURROW,
+                sproutPoints: [FAR],
+                terraform: [
+                    { stage: 'rise', shape: { kind: 'disc', radiusTiles: 1 }, terrain: TerrainType.Grass },
+                    {
+                        stage: 'rise',
+                        shape: { kind: 'strip', angleDeg: 180, lengthTiles: 6, widthTiles: 3 },
+                        terrain: TerrainType.ShallowWater,
+                        onlyOn: [TerrainType.DeepWater],
+                    },
+                ],
+            }),
+        ]);
+        hit(engine, unit, 60);
+        expect([peekPhaseState(unit)!.burrow!.toX, peekPhaseState(unit)!.burrow!.toY]).toEqual([FAR.x, FAR.y]);
+        expect(tm.getEffectiveTerrainType(20, 14)).toBe(TerrainType.DeepWater); // nothing changes before the rise
+        step(engine, 2.2);
+        expect([unit.x, unit.y]).toEqual([FAR.x, FAR.y]);
+        expect(tm.getEffectiveTerrainType(20, 14)).toBe(TerrainType.Grass);
+        expect(tm.getEffectiveTerrainType(20, 13)).toBe(TerrainType.Grass);
+        for (const row of [13, 14, 15]) expect(tm.getEffectiveTerrainType(17, row)).toBe(TerrainType.ShallowWater);
+        expect(tm.getEffectiveTerrainType(17, 12)).toBe(TerrainType.DeepWater); // 3 wide, no wider
+        expect(tm.getEffectiveTerrainType(16, 14)).toBe(TerrainType.Dirt); // onlyOn: dry ground untouched
+        expect(tm.getEffectiveTerrainType(22, 14)).toBe(TerrainType.DeepWater); // the strip runs west only
+        engine.destroy();
+    });
+
+    it('terraformTiles: a disc by tile centres, a strip of the given width and length', () => {
+        const disc = terraformTiles({ kind: 'disc', radiusTiles: 1 }, cell(5), cell(5), CELL_SIZE);
+        expect(disc).toHaveLength(5);
+        const strip = terraformTiles({ kind: 'strip', angleDeg: -90, lengthTiles: 4, widthTiles: 3 }, cell(5), cell(5), CELL_SIZE);
+        expect(new Set(strip.map((t) => t.col))).toEqual(new Set([4, 5, 6]));
+        expect(Math.min(...strip.map((t) => t.row))).toBe(1);
+        expect(Math.max(...strip.map((t) => t.row))).toBe(5);
     });
 
     it('the point rule is pluggable by id', () => {

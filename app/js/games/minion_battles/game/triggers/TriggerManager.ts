@@ -138,6 +138,8 @@ export class TriggerManager {
                 this.insideUnitIds[key] = current;
                 return firings;
             }
+            case 'everyTick':
+                return [{ triggeringUnit: null }];
         }
     }
 

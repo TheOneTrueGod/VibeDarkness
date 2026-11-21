@@ -651,6 +651,31 @@ export class TerrainManager {
     }
 
     /**
+     * Turn each tile into plain `type` ground (no health, no wear), e.g. a burrowing boss raising dry land in a pond or
+     * laying a shallow ford. With `onlyOn`, tiles whose current effective terrain is not listed are left alone.
+     * Skips off-grid tiles and tiles already `type`; tells pathfinding (and so lighting and the terrain repaint) once
+     * per changed tile. Returns the tiles that changed.
+     */
+    reshapeTerrain(
+        type: TerrainType,
+        tiles: Iterable<{ col: number; row: number }>,
+        options: { onlyOn?: readonly TerrainType[] } = {},
+    ): { col: number; row: number }[] {
+        const changed: { col: number; row: number }[] = [];
+        if (!this.terrainLayers) return changed;
+        for (const { col, row } of tiles) {
+            if (!this.isInBounds(col, row)) continue;
+            const current = this.getEffectiveTerrainType(col, row);
+            if (current === type) continue;
+            if (options.onlyOn && !options.onlyOn.includes(current)) continue;
+            this.writeFloorTile(col, row, { terrainType: type });
+            this.notifyNavChanged(col, row);
+            changed.push({ col, row });
+        }
+        return changed;
+    }
+
+    /**
      * Place Briar on these tiles (the entry point for "this vine died, leave Briar along its tiles").
      * Returns the tiles that actually became Briar.
      */

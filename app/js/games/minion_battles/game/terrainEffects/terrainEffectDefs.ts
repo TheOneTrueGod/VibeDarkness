@@ -15,6 +15,8 @@ import { terrainListIncludes, TerrainType } from '../../terrain/TerrainType';
 // `tileTransitions.ts` re-exports these.
 export const BRAMBLE_SLOW_EFFECT_TYPE = 'bramble_slow';
 export const DARK_THORN_EFFECT_TYPE = 'dark_thorn';
+/** The Garden Heart's Creeper thorns: Wild, they hurt every grounded creature except plants (dark creatures included). */
+export const GARDEN_THORN_EFFECT_TYPE = 'garden_thorn';
 export const MIASMA_EFFECT_TYPE = 'miasma';
 export const FROZEN_FIELD_EFFECT_TYPE = 'frozen_field';
 
@@ -167,6 +169,17 @@ export const TERRAIN_EFFECT_DEFS: Readonly<Record<string, TerrainEffectDef>> = {
         layer: 'ground',
         thorns: {
             hurts: { except: ['dark_creature'] },
+            enterDamage: DARK_THORN_ENTER_DAMAGE,
+            landDamage: DARK_THORN_LAND_DAMAGE,
+            uses: 1,
+        },
+        blockedOn: ROCK_AND_WATER_TERRAIN,
+    },
+    [GARDEN_THORN_EFFECT_TYPE]: {
+        effectType: GARDEN_THORN_EFFECT_TYPE,
+        layer: 'ground',
+        thorns: {
+            hurts: { except: ['nature'] },
             enterDamage: DARK_THORN_ENTER_DAMAGE,
             landDamage: DARK_THORN_LAND_DAMAGE,
             uses: 1,

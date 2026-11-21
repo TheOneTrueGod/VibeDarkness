@@ -16,7 +16,7 @@ import { applyCcArmourStateFromJSON } from '../../crowdControl/ccArmourState';
 import { hoverFlightFromJSON } from './hoverFlight';
 import { deserializeCastBehaviourPayloads, deserializeSetupFiredBehaviourKeys } from './castBehaviourStateSerialization';
 import type { PendingFrozenHit } from './unitDamage';
-import type { FlatDamageReduction } from './flatDamageReduction';
+import type { DamageTakenMultiplier, FlatDamageReduction } from './flatDamageReduction';
 import type { HeldConjuredWeaponState } from '../conjuredWeapons/registry';
 import { readActorAnimation } from '../animation/actorAnimation';
 import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
@@ -220,6 +220,9 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         : [];
     unit.flatDamageReductions = Array.isArray(data.flatDamageReductions)
         ? (data.flatDamageReductions as FlatDamageReduction[]).map((r) => ({ ...r }))
+        : [];
+    unit.damageTakenMultipliers = Array.isArray(data.damageTakenMultipliers)
+        ? (data.damageTakenMultipliers as DamageTakenMultiplier[]).map((m) => ({ ...m }))
         : [];
     unit.tags = parseUnitTagsFromJSON(data.tags);
     unit.lockedAbilityModes = parseLockedAbilityModes(data.lockedAbilityModes);

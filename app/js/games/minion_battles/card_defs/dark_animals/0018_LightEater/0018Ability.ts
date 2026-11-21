@@ -21,7 +21,15 @@ import type { LightSource } from '../../../game/lightSources/LightSource';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { applyHeal } from '../../../game/units/unitHeal';
 import type { Unit } from '../../../game/units/Unit';
-import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import {
+    anyDevourableLight,
+    devourLight as drainTile,
+    devourLightSource as drainSource,
+    findNearestLightTile,
+    isDevourableLight,
+    isDevourableLightSource,
+    lightTileCenter,
+} from '../../../abilities/lightDrain';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { spawnDisplacerBoltProjectile } from '../0017_DisplacerBolt/0017Ability';
@@ -102,80 +110,20 @@ interface LightEaterEngine {
     addProjectile(projectile: import('../../../game/projectiles/Projectile').Projectile): void;
 }
 
-/** True for tiles the spirit can devour: still burning, emitting visible (non-dark) light. */
-function isDevourableLight(tile: SpecialTile): boolean {
-    return (
-        tile.hp > 0 &&
-        tile.emitsLight != null &&
-        tile.emitsLight.lightAmount > 0 &&
-        tile.emitsLight.lightType !== 'DarkLight'
-    );
-}
+/** Light-eating helpers live in `abilities/lightDrain.ts`; the Light Eater uses them with its own amount. */
+export { lightTileCenter, findNearestLightTile, anyDevourableLight };
 
-export function lightTileCenter(tile: Pick<SpecialTile, 'col' | 'row'>): { x: number; y: number } {
-    return { x: tile.col * CELL_SIZE + CELL_SIZE / 2, y: tile.row * CELL_SIZE + CELL_SIZE / 2 };
-}
-
-/** Nearest devourable light-emitting special tile to a point, or null when none remain. */
-export function findNearestLightTile(
-    tiles: readonly SpecialTile[],
-    from: { x: number; y: number },
-): SpecialTile | null {
-    let best: SpecialTile | null = null;
-    let bestDistSq = Infinity;
-    for (const tile of tiles) {
-        if (!isDevourableLight(tile)) continue;
-        const c = lightTileCenter(tile);
-        const d = (c.x - from.x) ** 2 + (c.y - from.y) ** 2;
-        if (d < bestDistSq) {
-            best = tile;
-            bestDistSq = d;
-        }
-    }
-    return best;
-}
-
-/** AI gate: the ability is pointless with no light left to eat. */
-export function anyDevourableLight(tiles: readonly SpecialTile[]): boolean {
-    return tiles.some(isDevourableLight);
-}
-
-/**
- * Eat `LIGHT_EATER_LIGHT_REDUCTION` strength from a light tile. A source whose strength is already
- * at or below the reduction is eliminated outright. Returns what happened.
- */
+/** Eat `LIGHT_EATER_LIGHT_REDUCTION` strength from a light tile; a weaker one is eliminated outright. */
 export function devourLight(
     engine: Pick<LightEaterEngine, 'damageSpecialTile'>,
     tile: SpecialTile,
 ): 'reduced' | 'eliminated' {
-    const light = tile.emitsLight;
-    if (!light || light.lightAmount <= LIGHT_EATER_LIGHT_REDUCTION) {
-        engine.damageSpecialTile(tile.id, tile.hp);
-        return 'eliminated';
-    }
-    light.lightAmount -= LIGHT_EATER_LIGHT_REDUCTION;
-    return 'reduced';
+    return drainTile(engine, tile, LIGHT_EATER_LIGHT_REDUCTION);
 }
 
-/** True for free-standing light sources (torches, deployables, ...) that still emit visible light. */
-function isDevourableLightSource(ls: LightSource): boolean {
-    return ls.active && ls.lightAmount > 0 && ls.lightType !== 'DarkLight';
-}
-
-/**
- * Damage a free-standing LightSource by `LIGHT_EATER_LIGHT_REDUCTION`; one already at or below that is
- * put out. The source's decay baseline is lowered too, otherwise round-end decay would recompute its
- * strength from the original value and quietly undo the damage.
- */
+/** Damage a free-standing LightSource by `LIGHT_EATER_LIGHT_REDUCTION` (see `devourLightSource`). */
 export function devourLightSource(ls: LightSource): 'reduced' | 'eliminated' {
-    if (ls.lightAmount <= LIGHT_EATER_LIGHT_REDUCTION) {
-        ls.lightAmount = 0;
-        ls.active = false;
-        return 'eliminated';
-    }
-    ls.lightAmount -= LIGHT_EATER_LIGHT_REDUCTION;
-    ls.decay.initialLightAmount = Math.max(0, ls.decay.initialLightAmount - LIGHT_EATER_LIGHT_REDUCTION);
-    return 'reduced';
+    return drainSource(ls, LIGHT_EATER_LIGHT_REDUCTION);
 }
 
 /**

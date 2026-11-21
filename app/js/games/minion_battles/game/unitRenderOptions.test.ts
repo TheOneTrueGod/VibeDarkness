@@ -15,7 +15,11 @@ import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { createUnitFromSpawnConfig } from './units/index';
 import { getUnitDefEntry } from './units/unit_defs/unitDef';
 import { ENEMY_GARDEN_HEART, ENEMY_THORNSPITTER } from '../constants/enemyConstants';
-import { linkNodeChild } from './units/components/nodeTree';
+import { NODE_TREE_COMPONENT, linkNodeChild } from './units/components/nodeTree';
+import { NODE_REGROWTH_COMPONENT } from './units/components/nodeRegrowth';
+import { registerNodeRegrowthCallback } from './units/components/nodeRegrowthHooks';
+import { attachComponent, componentSpec } from './units/components/unitComponent';
+import { getActiveUnitBanner, showUnitBanner } from './unitBanner';
 import { spawnFusedBody } from './units/components/fusedBodySpawn';
 import { burrowPreset, type UnitPhaseDef } from './units/components/phaseDef';
 import {
@@ -26,6 +30,7 @@ import {
     resolveBurrowRender,
     resolveFusedBodyTelegraph,
     resolvePlatedLook,
+    resolveTimerRing,
 } from './units/unitRenderOptions';
 import { GARDEN_NODE_RENDER_OPTIONS } from '../card_defs/16_enemy_garden_heart/gardenHeartConstants';
 import { halfEllipsePoints } from './GameRenderer/renderers/unitRenderOptionsVisual';
@@ -196,6 +201,74 @@ describe('burrow render', () => {
         expect(early.eruption).toMatchObject({ x: to.x, y: to.y, radiusPx: 90, color: DEFAULT_TELEGRAPH_COLOR });
         step(engine, 0.4);
         expect(resolveBurrowRender(unit, engine.tickTime)!.eruption!.fill).toBeGreaterThan(early.eruption!.fill);
+        engine.destroy();
+    });
+});
+
+describe('timer ring', () => {
+    const DUMMY_DEF = getUnitDefEntry('target_dummy')!;
+    const RING = { source: 'nodeRegrowth', color: 0xc4b5fd, width: 2, alpha: 0.6, offsetPx: 1 } as const;
+    let off: (() => void) | undefined;
+    beforeEach(() => {
+        DUMMY_DEF.renderOptions = { timerRing: RING };
+        off = registerNodeRegrowthCallback('ring_regrow', () => 0);
+    });
+    afterEach(() => {
+        DUMMY_DEF.renderOptions = undefined;
+        off?.();
+    });
+
+    function makeRoot(engine: GameEngine): { root: Unit; child: Unit } {
+        const root = createTargetDummyAtWorld(engine, cell(12), cell(8), { id: 'root', hp: 100 });
+        engine.addUnit(root, 'initialGameSpawn');
+        attachComponent(root, componentSpec(NODE_TREE_COMPONENT, {}));
+        attachComponent(root, componentSpec(NODE_REGROWTH_COMPONENT, { openSeconds: 5, regrowCallback: 'ring_regrow' }));
+        const child = createTargetDummyAtWorld(engine, cell(14), cell(8), { id: 'child', hp: 10 });
+        engine.addUnit(child, 'initialGameSpawn');
+        linkNodeChild(root, child, { tetherMaxLength: 400 });
+        return { root, child };
+    }
+
+    it('is hidden until the window opens, then drains 1 to 0 with the def style, and hides again', () => {
+        const engine = makeEngine();
+        const { root, child } = makeRoot(engine);
+        expect(resolveTimerRing(root, engine.gameTime)).toBeNull();
+        child.takeDamage(999, null, engine.eventBus);
+        engine.stepSimulationFixedTicks(1);
+        const start = resolveTimerRing(root, engine.gameTime)!;
+        expect(start.fraction).toBeGreaterThan(0.95);
+        expect(start).toMatchObject({ color: RING.color, width: RING.width, alpha: RING.alpha, offsetPx: RING.offsetPx });
+        step(engine, 2.5);
+        expect(resolveTimerRing(root, engine.gameTime)!.fraction).toBeCloseTo(0.5, 1);
+        step(engine, 3);
+        expect(resolveTimerRing(root, engine.gameTime)).toBeNull();
+        engine.destroy();
+    });
+
+    it('is null for a unit whose def has no timerRing option', () => {
+        const engine = makeEngine();
+        const { root } = makeRoot(engine);
+        DUMMY_DEF.renderOptions = undefined;
+        expect(resolveTimerRing(root, engine.gameTime)).toBeNull();
+        engine.destroy();
+    });
+});
+
+describe('unit banner', () => {
+    it('emits unit_banner with text and duration, is active until its time is up, and replaces an earlier one', () => {
+        const engine = makeEngine();
+        const seen: Array<{ unitId: string; text: string; durationSec: number }> = [];
+        engine.eventBus.on('unit_banner', (e) => seen.push(e));
+        expect(getActiveUnitBanner(engine, 'boss')).toBeNull();
+        showUnitBanner(engine, 'boss', 'The Heart is bared!', 1.5);
+        expect(seen).toEqual([{ unitId: 'boss', text: 'The Heart is bared!', durationSec: 1.5 }]);
+        expect(getActiveUnitBanner(engine, 'boss')).toBe('The Heart is bared!');
+        step(engine, 1);
+        showUnitBanner(engine, 'boss', 'The Heart regrows...', 1.5);
+        step(engine, 1);
+        expect(getActiveUnitBanner(engine, 'boss')).toBe('The Heart regrows...');
+        step(engine, 1);
+        expect(getActiveUnitBanner(engine, 'boss')).toBeNull();
         engine.destroy();
     });
 });

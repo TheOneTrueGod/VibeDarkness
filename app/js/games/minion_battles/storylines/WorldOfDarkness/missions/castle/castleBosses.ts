@@ -112,7 +112,15 @@ export function gardenHeartBossSetup(centre: GridCell, objectiveLabel: string): 
         ],
         onMissionStart(engine) {
             const heart = engine.units.find((u) => u.characterId === ENEMY_GARDEN_HEART.characterId);
-            if (heart) growGardenTree(engine as unknown as GardenGrowContext, heart, 1);
+            // The first tree faces the party where it spawned, so its first node stands between them and the Heart.
+            const party = engine.units.filter((u) => u.teamId === 'player' && u.isAlive());
+            const faceToward = party.length > 0
+                ? {
+                    x: party.reduce((sum, u) => sum + u.x, 0) / party.length,
+                    y: party.reduce((sum, u) => sum + u.y, 0) / party.length,
+                }
+                : undefined;
+            if (heart) growGardenTree(engine as unknown as GardenGrowContext, heart, 1, { faceToward });
         },
     };
 }

@@ -32,6 +32,7 @@ import type {
     SpecialTilePlacement,
 } from '../../../types';
 import type { PostMissionStoryDef, PreMissionStoryDef } from '../../../storyTypes';
+import type { TriggerDef } from '../../../../game/triggers/triggerTypes';
 import type { MapSegmentPOI } from '../../../../terrain/segmentSchema';
 import { CELL_SIZE, type TerrainGrid } from '../../../../terrain/TerrainGrid';
 import { DarknessLevel } from '../../../../game/darknessLevels';
@@ -104,6 +105,10 @@ export interface CastleMissionConfig {
     startRewards?: { knowledgeKeys?: string[] };
     /** Special tiles (lights, crystals) on mission-global cells, e.g. from `mirrorFourWays`. */
     specialTiles?: readonly SpecialTilePlacement[];
+    /** Level events added after the preset's waves and before the victory check (e.g. a trigger-gated continuous spawn). */
+    levelEvents?: readonly LevelEvent[];
+    /** Mission triggers (see `game/triggers/`); level events can gate on them with `afterTrigger`. */
+    triggers?: readonly TriggerDef[];
 }
 
 export const CASTLE_EXIT_OBJECTIVE_ID = 'reach_exit';
@@ -215,6 +220,7 @@ export class CastleMission extends BaseMissionDef {
     enemies: EnemySpawnDef[] = [];
     battleObjectives: BattleObjectiveDef[];
     levelEvents: LevelEvent[];
+    triggers?: TriggerDef[];
     playerSpawnPoints?: PlayerSpawnPoint[];
     preMissionStory?: PreMissionStoryDef;
     postMissionStory?: PostMissionStoryDef;
@@ -274,11 +280,13 @@ export class CastleMission extends BaseMissionDef {
         if (objectives.length === 0) throw new Error(`defineCastleMission ${config.id}: needs an exit, a boss or an objective`);
         this.battleObjectives = objectives;
 
+        if (config.triggers?.length) this.triggers = [...config.triggers];
         this.spawnPreset = CASTLE_SPAWN_PRESETS[config.spawnPreset];
         this.levelEvents = [
             ...castlePresetLevelEvents(this.spawnPreset, {
                 untilObjective: this.exitCell ? CASTLE_EXIT_OBJECTIVE_ID : undefined,
             }),
+            ...(config.levelEvents ?? []),
             {
                 type: 'victoryCheck',
                 trigger: { afterRound: 0 },

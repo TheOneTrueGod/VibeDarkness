@@ -10,6 +10,7 @@
  */
 
 import type { Unit } from '../Unit';
+import { addUnitTag } from '../unitTag';
 import type { UnitComponentContext, UnitComponentHooks } from './unitComponentHooks';
 import {
     buildNestSpawnContext,
@@ -63,7 +64,10 @@ export function tickSpawnerUnit(unit: Unit, ctx: UnitComponentContext): void {
         spawnCtx: buildNestSpawnContext({
             units: ctx.units,
             eventBus: ctx.eventBus,
-            addUnit: (u, source) => ctx.addUnit(u, source),
+            addUnit: (u, source) => {
+                for (const tag of options.childTags ?? []) addUnitTag(u, tag);
+                ctx.addUnit(u, source);
+            },
             idSource: ctx.engine,
             mapPOIs: ctx.mapPOIs,
             generateRandomInteger: (min, max) => ctx.generateRandomInteger(min, max),

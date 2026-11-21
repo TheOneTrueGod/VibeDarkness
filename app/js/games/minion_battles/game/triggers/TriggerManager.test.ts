@@ -163,4 +163,38 @@ describe('TriggerManager', () => {
         restored.process(host); // hero still inside: no re-fire after restore
         expect(host.emitMessage).toHaveBeenCalledTimes(1);
     });
+
+    describe('battleVariableAtLeast', () => {
+        function gated(): TriggerDef {
+            return {
+                id: 'growth_2',
+                events: [{ type: 'everyTick' }],
+                conditions: [{ type: 'battleVariableAtLeast', variable: 'gardenGrowthPhase', value: 2 }],
+                actions: [{ type: 'message', text: 'grown' }],
+            };
+        }
+
+        it('fires the first tick the variable reaches the value, and not before', () => {
+            const { manager, host, ctx } = setup([gated()], []);
+            const vars: Record<string, number> = {};
+            (ctx as { battleVariables?: Record<string, number> }).battleVariables = vars;
+
+            manager.process(host);
+            expect(manager.hasFired('growth_2')).toBe(false);
+            vars.gardenGrowthPhase = 1;
+            manager.process(host);
+            expect(manager.hasFired('growth_2')).toBe(false);
+            vars.gardenGrowthPhase = 2;
+            manager.process(host);
+            expect(manager.hasFired('growth_2')).toBe(true);
+            manager.process(host);
+            expect(host.emitMessage).toHaveBeenCalledTimes(1);
+        });
+
+        it('treats a variable that was never set as 0', () => {
+            const { manager, host } = setup([gated()], []);
+            manager.process(host);
+            expect(manager.hasFired('growth_2')).toBe(false);
+        });
+    });
 });

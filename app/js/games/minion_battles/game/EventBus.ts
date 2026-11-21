@@ -22,6 +22,7 @@ export type GameEventType =
     | 'unit_enraged'
     | 'action_title'
     | 'unit_phase_entered'
+    | 'unit_banner'
     | 'ability_used'
     | 'unit_fade_in'
     | 'projectile_hit'
@@ -65,6 +66,12 @@ export interface DamageApplyOptions {
     shieldShare?: number;
     /** When true, damage links (`DamageLinkBuff`) on the target do not redirect this hit. Set on redirected hits so links never chain. */
     skipDamageLinks?: boolean;
+    /**
+     * When true, the target's own damage-taken modifiers (conditional multipliers and flat per-hit reductions, see
+     * `units/flatDamageReduction.ts`) do not apply to this hit. Used by hits that are not an attack on the body,
+     * such as node-tree Severance.
+     */
+    ignoreTargetModifiers?: boolean;
 }
 
 /**
@@ -103,6 +110,8 @@ export interface DamageTakenEvent {
     shieldAbsorbed?: number;
     /** Damage a flat per-hit reduction (`flatDamageReduction.ts`) took off this hit before shields/armour. Omitted when 0. */
     resisted?: number;
+    /** Extra damage a conditional damage-taken multiplier (`flatDamageReduction.ts`) added to this hit. Omitted when 0. */
+    amplified?: number;
     /** Renderer-only hint (e.g. DayLight gold numbers). */
     visualKind?: DamageVisualKind;
 }
@@ -173,6 +182,14 @@ export interface UnitPhaseEnteredEvent {
     label: string | null;
     /** Tags the phase newly added (empty when it added none). */
     tagsAdded: string[];
+}
+
+/** A unit's boss HUD banner was shown on demand (`game/unitBanner.ts`). Display only. */
+export interface UnitBannerEvent {
+    unitId: string;
+    text: string;
+    /** World seconds the banner stays up. */
+    durationSec: number;
 }
 
 export interface AbilityUsedEvent {
@@ -376,6 +393,7 @@ export type GameEventDataMap = {
     unit_enraged: UnitEnragedEvent;
     action_title: ActionTitleEvent;
     unit_phase_entered: UnitPhaseEnteredEvent;
+    unit_banner: UnitBannerEvent;
     ability_used: AbilityUsedEvent;
     unit_fade_in: UnitFadeInEvent;
     projectile_hit: ProjectileHitEvent;

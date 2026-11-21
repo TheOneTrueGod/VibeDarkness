@@ -1,7 +1,7 @@
 import { LiftedBuff } from '../buffs/LiftedBuff';
 import { ExposedBuff, EXPOSED_BUFF_TYPE } from '../buffs/ExposedBuff';
 import type { Unit } from '../game/units/Unit';
-import { isImmuneToForcedMovement } from '../game/units/unitTag';
+import { isCcImmune, isImmuneToForcedMovement } from '../game/units/unitTag';
 import type { KnockbackSource } from '../game/units/unitTypes';
 import type { EventBus } from '../game/EventBus';
 import { CC_MIN_POTENCY_SEC } from './ccConstants';
@@ -32,6 +32,10 @@ export function tryApplyLift(
     engine: KnockbackEngineCtx,
     ccCharges = 1,
 ): LiftAttemptResult {
+    if (isCcImmune(target)) {
+        return { outcome: 'absorbed' };
+    }
+
     if (target.isInJuggernautWindow(engine.gameTime)) {
         return { outcome: 'absorbed' };
     }

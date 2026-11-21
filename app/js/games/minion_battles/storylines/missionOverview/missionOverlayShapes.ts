@@ -84,6 +84,7 @@ export function collectMissionOverlayShapes(
 
     for (const trigger of mission.triggers ?? []) {
         for (const event of trigger.events) {
+            if (event.type !== 'unitEntersRegion') continue;
             shapes.push({ layer: 'triggerZones', label: `Trigger "${trigger.id}"`, geometry: regionGeometry(event.region) });
         }
         for (const action of trigger.actions) {

@@ -356,6 +356,17 @@ export interface LevelEventContinuousSpawn extends LevelEventBase {
      * the spawn entry is skipped for that tick.
      */
     maxUnits?: number;
+    /**
+     * Scale the spawn with how dark the arena is (`darkShare`: share of passable tiles in full darkness, sampled
+     * only when a spawn check runs). Below `minShare` nothing spawns. Otherwise the interval runs from `atMin`
+     * rounds (at `minShare`) to `atFull` rounds (fully dark), replacing `trigger.intervalRounds`, and each entry's
+     * character is capped at `base + floor(perShare * share)` living units. Absent = fixed interval.
+     */
+    darknessScaling?: {
+        minShare: number;
+        intervalRounds: { atMin: number; atFull: number };
+        maxUnits: { base: number; perShare: number };
+    };
     spawns: SpawnWaveEntry[];
 }
 

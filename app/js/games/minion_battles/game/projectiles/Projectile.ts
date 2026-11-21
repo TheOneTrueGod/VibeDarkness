@@ -8,7 +8,7 @@
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { Effect } from '../effects/Effect';
 import type { TeamId } from '../teams';
-import { areEnemies } from '../teams';
+import { canHit, cloneHitRule, parseHitRuleFromJSON, type HitRule } from '../hitRule';
 import type { Unit } from '../units/Unit';
 import type { EventBus } from '../EventBus';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
@@ -298,6 +298,9 @@ export class Projectile extends GameObject {
     /** Tile keys (`col,row`) already swept for terrain clearing this flight. Serialized as an array. */
     readonly clearedTerrainCells: Set<string> = new Set();
 
+    /** Who this projectile may hit. Absent = `hostile` (units on a team hostile to the source). Serialized when set. */
+    hitRule?: HitRule;
+
     constructor(config: {
         id?: string;
         x: number;
@@ -350,6 +353,8 @@ export class Projectile extends GameObject {
         trailTaper?: boolean;
         /** See {@link Projectile.trailColor}. */
         trailColor?: number;
+        /** See {@link Projectile.hitRule}. */
+        hitRule?: HitRule;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -381,6 +386,7 @@ export class Projectile extends GameObject {
         this.frameStartX = config.x;
         this.frameStartY = config.y;
         if (config.expireData) this.expireData = { ...config.expireData };
+        if (config.hitRule && config.hitRule.kind !== 'hostile') this.hitRule = cloneHitRule(config.hitRule);
         if (config.bounceRange != null) this.bounceRange = config.bounceRange;
         if (config.trailRadius != null) this.trailRadius = config.trailRadius;
         if (config.trailTaper) this.trailTaper = true;
@@ -777,7 +783,7 @@ export class Projectile extends GameObject {
             const halfWidth = (startWidth + (endWidth - startWidth) * progress) / 2;
             for (const unit of units) {
                 if (!unit.isAlive() || unit.isUntargetable()) continue;
-                if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
+                if (!canHit(this.hitRule, this.sourceTeamId, unit)) continue;
                 if (this.hitUnitIds.has(unit.id) || this.knockbackOnlyUnitIds.has(unit.id)) continue;
                 const relX = unit.x - this.frameStartX;
                 const relY = unit.y - this.frameStartY;
@@ -791,7 +797,7 @@ export class Projectile extends GameObject {
         } else {
             for (const unit of units) {
                 if (!unit.isAlive() || unit.isUntargetable()) continue;
-                if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
+                if (!canHit(this.hitRule, this.sourceTeamId, unit)) continue;
                 if (this.hitUnitIds.has(unit.id) || this.knockbackOnlyUnitIds.has(unit.id)) continue;
                 const dx = unit.x - this.x;
                 const dy = unit.y - this.y;
@@ -915,7 +921,7 @@ export class Projectile extends GameObject {
         let nearestDist = range;
         for (const unit of units) {
             if (!unit.isAlive() || unit.isUntargetable()) continue;
-            if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
+            if (!canHit(this.hitRule, this.sourceTeamId, unit)) continue;
             if (this.hitUnitIds.has(unit.id)) continue;
             const dist = Math.hypot(unit.x - lastHit.x, unit.y - lastHit.y);
             if (dist > range) continue;
@@ -1057,6 +1063,7 @@ export class Projectile extends GameObject {
             ...(this.trailRadius != null ? { trailRadius: this.trailRadius } : {}),
             ...(this.trailTaper ? { trailTaper: true } : {}),
             ...(this.trailColor != null ? { trailColor: this.trailColor } : {}),
+            ...(this.hitRule ? { hitRule: cloneHitRule(this.hitRule) } : {}),
         };
     }
 
@@ -1116,6 +1123,8 @@ export class Projectile extends GameObject {
         if (typeof data.trailRadius === 'number') proj.trailRadius = data.trailRadius;
         if (data.trailTaper === true) proj.trailTaper = true;
         if (typeof data.trailColor === 'number') proj.trailColor = data.trailColor;
+        const hitRule = parseHitRuleFromJSON(data.hitRule);
+        if (hitRule) proj.hitRule = hitRule;
         return proj;
     }
 

@@ -25,6 +25,7 @@
  */
 
 import type { VisualEffectDef } from '../../effects/visualEffectDef';
+import type { HitRule } from '../../hitRule';
 import type { Unit } from '../Unit';
 import { defineUnitComponent, findComponentState, getComponentOptions } from './unitComponent';
 
@@ -40,6 +41,8 @@ export interface FusedBodyEffectSpec {
     effectId: string;
     /** Numeric parameters for the handler (for `areaDamage`: `damage`). */
     params?: Readonly<Record<string, number>>;
+    /** Who `areaDamage` may hit. Default `hostile` (enemies of the body); Wild bursts pass `allExceptKin`. */
+    hitRule?: HitRule;
     /** Render-only visuals played at the body when the effect fires. */
     visuals?: readonly VisualEffectDef[];
 }

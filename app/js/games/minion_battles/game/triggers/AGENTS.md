@@ -20,6 +20,8 @@ Mission triggers in the Warcraft III style: a mission lists `TriggerDef`s (plain
 - `fireOnce` defaults to true, and `enabled` defaults to true.
 - The triggering unit is passed to actions. `spawnWave.nearTriggeringUnit` uses it.
 
+- `everyTick` fires once per tick with no triggering unit; with conditions such as `battleVariableAtLeast` (a battle variable has reached a value) and the default `fireOnce`, the trigger fires the first tick they hold. Level events then gate on it with `afterTrigger`.
+
 ## Adding to the system
 
 - **Event:** add a member to `TriggerEvent` and a `case` in `TriggerManager.collectEventFirings`. Any per-event memory goes in serialized state, keyed `${triggerId}#${eventIndex}`.

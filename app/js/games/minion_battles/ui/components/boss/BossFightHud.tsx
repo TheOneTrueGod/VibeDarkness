@@ -29,6 +29,8 @@ export type BossHudSlice = {
     exposedTotalDuration: number | null;
     isEnraged: boolean;
     characterId: string;
+    /** On-demand banner text (`showUnitBanner`); a running phase-transition banner wins over it. */
+    banner: string | null;
     /** Phase progress for a unit with `phases` (null otherwise). Thresholds are HP fractions for bar tick marks. */
     phase: {
         /** Label of the current (latest entered) phase; null before the first phase or when it has no label. */
@@ -77,12 +79,12 @@ export default function BossFightHud({ boss, onRegisterCcStatusTarget }: BossFig
             role="region"
             aria-label="Boss fight"
         >
-            {boss.phase?.banner ? (
+            {boss.phase?.banner ?? boss.banner ? (
                 <div
                     className="absolute left-1/2 top-14 z-40 -translate-x-1/2 whitespace-nowrap rounded-sm border border-red-900 bg-black/80 px-4 py-1 text-sm font-bold uppercase tracking-[0.25em] text-red-200 shadow-lg"
                     role="status"
                 >
-                    {boss.phase.banner}
+                    {boss.phase?.banner ?? boss.banner}
                 </div>
             ) : null}
             <div className="px-2 pt-1 pb-4">

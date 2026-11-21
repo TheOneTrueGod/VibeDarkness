@@ -37,6 +37,7 @@ import {
     getUnitCombatCcDef,
     getUnitComponentSpecs,
     getUnitFlatDamageReductions,
+    getUnitDamageTakenMultipliers,
     getUnitTerrainCrushDamage,
     getUnitCrowdMassOverride,
     getUnitSensesDef,
@@ -84,7 +85,7 @@ import { applyKnockbackToUnit } from './unitKnockback';
 import { applyNudgeToUnit } from './unitNudge';
 import { getUnitEffectiveSpeed, unitHasIFrames, isUnitInJuggernautWindow, getUnitLungeDistance } from './unitAbilityQueries';
 import { updateUnit, tickUnitMovement, type UnitMovementTickOptions, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath, setUnitWalkGoal } from './unitMovementTick';
-import type { FlatDamageReduction } from './flatDamageReduction';
+import type { DamageTakenMultiplier, FlatDamageReduction } from './flatDamageReduction';
 import { applyDamageToUnit, applyDamageToUnitDetailed, tickUnitDarknessCorruption, type DamageBreakdown, type PendingFrozenHit } from './unitDamage';
 import type { FrozenHitPolicy } from '../time/timeConstants';
 import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
@@ -389,6 +390,8 @@ export class Unit extends GameObject {
     pendingFrozenHits: PendingFrozenHit[] = [];
     /** Flat per-hit damage reductions (see `flatDamageReduction.ts`). Serialized when non-empty. */
     flatDamageReductions: FlatDamageReduction[] = [];
+    /** Conditional damage-taken multipliers (see `flatDamageReduction.ts`). Serialized when non-empty. */
+    damageTakenMultipliers: DamageTakenMultiplier[] = [];
     /** Per-unit combat tuning values (optional, serialized). */
     combatSettings: UnitCombatSettings | undefined;
     /** Aggregated passive research bonuses (computed at mission start). Serialized. */
@@ -444,6 +447,8 @@ export class Unit extends GameObject {
         attachDefComponents(this, getUnitComponentSpecs(config.characterId));
         const defReductions = getUnitFlatDamageReductions(config.characterId);
         if (defReductions) this.flatDamageReductions = defReductions.map((r) => ({ ...r }));
+        const defMultipliers = getUnitDamageTakenMultipliers(config.characterId);
+        if (defMultipliers) this.damageTakenMultipliers = defMultipliers.map((m) => ({ ...m }));
     }
 
     /** Attach a resource and subscribe its event listeners. */

@@ -6,7 +6,11 @@
  * tick from the phase tick hook. State is serialized (`ActiveBurrow`), all clocks are tick time, nothing is random.
  *
  * Pluggable pieces are NAMED in registries so defs stay plain data:
- *  - point rules (`registerSproutPointRule`): pick the resurfacing point from the candidates. Ships `farthestFromParty`.
+ *  - point rules (`registerSproutPointRule`): pick the resurfacing point from the candidates. Ships `farthestFromParty`
+ *    and `nearestToParty`.
+ *
+ * `terraform` (plain data on the def) reshapes the ground around the sprout point as stages begin: see
+ * `terraformTiles` and `TerrainManager.reshapeTerrain`.
  *  - exclusion sources (`registerSproutExclusionSource`): zones to keep away from, computed when choosing (old Briar).
  *  - stage callbacks (`registerBurrowCallback`): run when a stage begins (close the Shell, spawn trail effects).
  *
@@ -16,16 +20,20 @@
 import type { EngineContext } from '../../EngineContext';
 import type { Unit } from '../Unit';
 import { areEnemies } from '../../teams';
+import { canHit } from '../../hitRule';
 import { requestReactionFrame } from '../../reactions/reactionFrame';
 import { Effect } from '../../effects/Effect';
 import { interruptUnitAbilities } from '../unitAbilityLifecycle';
 import {
     BURROW_STAGES,
+    NEAREST_TO_PARTY_RULE,
     type BurrowEruptionDef,
     type BurrowStage,
+    type BurrowTerraformShape,
     type BurrowTransitionDef,
     type SproutExclusionZone,
 } from './phaseDef';
+import { TERRAIN_PROPERTIES } from '../../../terrain/TerrainType';
 import { phasesOf, type ActiveBurrow, type UnitPhaseState } from './phaseComponent';
 
 // ---------------------------------------------------------------------------
@@ -39,6 +47,10 @@ export interface SproutPointContext {
     party: readonly Unit[];
     exclusionZones: readonly SproutExclusionZone[];
     minDistanceFromExclusions: number;
+    /** Minimum distance to keep from every party member (world px). 0 = none. */
+    minDistanceFromParty: number;
+    /** Whether the unit can rise at `p`: passable now, or made passable by the burrow's own terraform. */
+    canRiseAt(p: { x: number; y: number }): boolean;
 }
 
 export type SproutPointRule = (
@@ -54,6 +66,7 @@ const EXCLUSION_SOURCES = new Map<string, SproutExclusionSource>();
 const CALLBACKS = new Map<string, BurrowCallback>();
 
 export const FARTHEST_FROM_PARTY_RULE = 'farthestFromParty';
+export { NEAREST_TO_PARTY_RULE };
 
 export function registerSproutPointRule(id: string, rule: SproutPointRule): void {
     POINT_RULES.set(id, rule);
@@ -82,11 +95,18 @@ function nearestPartyDistance(p: { x: number; y: number }, party: readonly Unit[
  * member is farthest away (first in list wins a tie). If the zones rule out every candidate they are relaxed (the unit
  * must still resurface somewhere); impassable candidates are never used. Null only when nothing is passable.
  */
-const farthestFromParty: SproutPointRule = (candidates, ctx) => {
-    const tm = ctx.engine.terrainManager;
-    const passable = candidates.filter((c) => !tm || tm.isPassable(c.x, c.y));
+/** Candidates the unit can rise at, narrowed to those clear of the exclusion zones when any are. */
+function usableCandidates(
+    candidates: readonly { x: number; y: number }[],
+    ctx: SproutPointContext,
+): { x: number; y: number }[] {
+    const passable = candidates.filter((c) => ctx.canRiseAt(c));
     const clear = passable.filter((c) => clearOfZones(c, ctx.exclusionZones, ctx.minDistanceFromExclusions));
-    const pool = clear.length > 0 ? clear : passable;
+    return clear.length > 0 ? clear : passable;
+}
+
+const farthestFromParty: SproutPointRule = (candidates, ctx) => {
+    const pool = usableCandidates(candidates, ctx);
     let best: { x: number; y: number } | null = null;
     let bestDist = -1;
     for (const c of pool) {
@@ -99,6 +119,82 @@ const farthestFromParty: SproutPointRule = (candidates, ctx) => {
     return best;
 };
 registerSproutPointRule(FARTHEST_FROM_PARTY_RULE, farthestFromParty);
+
+/**
+ * Keep the move short and the fight on the party: of the usable candidates (as `farthestFromParty`), the one whose
+ * nearest party member is closest, but no closer than `minDistanceFromParty`. If every candidate is too close, the
+ * one with the most room. First in list wins a tie.
+ */
+const nearestToParty: SproutPointRule = (candidates, ctx) => {
+    const pool = usableCandidates(candidates, ctx);
+    let best: { x: number; y: number } | null = null;
+    let bestDist = Infinity;
+    for (const c of pool) {
+        const d = nearestPartyDistance(c, ctx.party);
+        if (d >= ctx.minDistanceFromParty && d < bestDist) {
+            best = c;
+            bestDist = d;
+        }
+    }
+    return best ?? farthestFromParty(pool, ctx);
+};
+registerSproutPointRule(NEAREST_TO_PARTY_RULE, nearestToParty);
+
+/** Tiles a terraform `shape` covers around world point (x, y), on a grid of `cellSize` px tiles. */
+export function terraformTiles(
+    shape: BurrowTerraformShape,
+    x: number,
+    y: number,
+    cellSize: number,
+): { col: number; row: number }[] {
+    const reach = shape.kind === 'disc' ? shape.radiusTiles : Math.hypot(shape.lengthTiles, shape.widthTiles);
+    const c0 = Math.floor(x / cellSize);
+    const r0 = Math.floor(y / cellSize);
+    const span = Math.ceil(reach) + 1;
+    const a = shape.kind === 'strip' ? (shape.angleDeg * Math.PI) / 180 : 0;
+    const dirX = Math.cos(a);
+    const dirY = Math.sin(a);
+    const out: { col: number; row: number }[] = [];
+    for (let row = r0 - span; row <= r0 + span; row++) {
+        for (let col = c0 - span; col <= c0 + span; col++) {
+            // Offsets in tiles from the point to this tile's centre.
+            const dx = col + 0.5 - x / cellSize;
+            const dy = row + 0.5 - y / cellSize;
+            if (shape.kind === 'disc') {
+                if (Math.hypot(dx, dy) <= shape.radiusTiles + 1e-9) out.push({ col, row });
+                continue;
+            }
+            const along = dx * dirX + dy * dirY;
+            const across = Math.abs(-dx * dirY + dy * dirX);
+            if (along >= -0.5 && along <= shape.lengthTiles && across < shape.widthTiles / 2 - 1e-9) out.push({ col, row });
+        }
+    }
+    return out;
+}
+
+/** True when the def's own terraform lays passable ground over `p` (a plain disc, at or before the rise). */
+function terraformMakesPassable(def: BurrowTransitionDef, p: { x: number; y: number }, cellSize: number): boolean {
+    const col = Math.floor(p.x / cellSize);
+    const row = Math.floor(p.y / cellSize);
+    return (def.terraform ?? []).some(
+        (t) =>
+            t.shape.kind === 'disc' &&
+            !t.onlyOn &&
+            TERRAIN_PROPERTIES[t.terrain].passable &&
+            terraformTiles(t.shape, p.x, p.y, cellSize).some((tile) => tile.col === col && tile.row === row),
+    );
+}
+
+/** Lay every terraform piece the def has for `stage` around the sprout point. */
+function applyTerraform(def: BurrowTransitionDef, stage: BurrowStage, b: ActiveBurrow, engine: EngineContext): void {
+    const tm = engine.terrainManager;
+    if (!tm || !def.terraform) return;
+    const cellSize = tm.grid.cellSize;
+    for (const t of def.terraform) {
+        if (t.stage !== stage) continue;
+        tm.reshapeTerrain(t.terrain, terraformTiles(t.shape, b.toX, b.toY, cellSize), t.onlyOn ? { onlyOn: t.onlyOn } : {});
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -124,12 +220,15 @@ function chooseSproutPoint(unit: Unit, def: BurrowTransitionDef, engine: EngineC
     const party = engine.units.filter((u) => u.id !== unit.id && u.isAlive() && areEnemies(unit.teamId, u.teamId));
     const rule = POINT_RULES.get(def.pointRule ?? FARTHEST_FROM_PARTY_RULE);
     if (!rule) console.warn(`[phases] burrow: unknown point rule "${def.pointRule}"`);
+    const tm = engine.terrainManager;
     const point = rule?.(def.sproutPoints, {
         unit,
         engine,
         party,
         exclusionZones: zones,
         minDistanceFromExclusions: def.minDistanceFromExclusions ?? 0,
+        minDistanceFromParty: def.minDistanceFromParty ?? 0,
+        canRiseAt: (p) => !tm || tm.isPassable(p.x, p.y) || terraformMakesPassable(def, p, tm.grid.cellSize),
     });
     return point ?? { x: unit.x, y: unit.y }; // nowhere valid: resurface where it sank
 }
@@ -178,11 +277,56 @@ export function beginBurrow(
         fromY: unit.y,
         toX: to.x,
         toY: to.y,
-        ...(def.eruption ? { eruptionRadiusPx: eruptionRadiusPx(def.eruption, unit) } : {}),
-        ...(def.eruption?.telegraphFrom === 'travel' ? { eruptionTelegraphFromTravel: true } : {}),
+        ...eruptionTelegraphFields(def, unit),
     };
     claimUnit(unit, state.burrow, def, engine);
+    applyTerraform(def, 'close', state.burrow, engine);
     runCallback(def, 'close', unit, engine);
+    advanceStages(unit, state, def, engine); // zero-length stages
+}
+
+/** The telegraph fields an eruption puts on the burrow. A harmless eruption (no damage) shows no blast circle. */
+function eruptionTelegraphFields(def: BurrowTransitionDef, unit: Unit): Partial<ActiveBurrow> {
+    const eruption = def.eruption;
+    if (!eruption || !(eruption.damage > 0)) return {};
+    return {
+        eruptionRadiusPx: eruptionRadiusPx(eruption, unit),
+        ...(eruption.telegraphFrom === 'travel' ? { eruptionTelegraphFromTravel: true } : {}),
+    };
+}
+
+/**
+ * Begin a burrow that starts UNDERGROUND: the unit is put at `from` already under, waits `delaySeconds` (tick time),
+ * then travels to `to` and rises. There is no close or sink stage and no stage callback. For a unit that arrives by
+ * burrowing, e.g. a node grown out of its parent (`burrowEmerge`). Drive it with `advanceBurrow` like any burrow.
+ */
+export function beginBurrowUnderground(
+    unit: Unit,
+    state: BurrowHolder,
+    sourceId: string,
+    def: BurrowTransitionDef,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    engine: EngineContext,
+    delaySeconds = 0,
+): void {
+    interruptUnitAbilities(unit, engine);
+    unit.clearMovement();
+    unit.x = from.x;
+    unit.y = from.y;
+    const start = engine.tickTime + Math.max(0, delaySeconds);
+    state.burrow = {
+        phaseId: sourceId,
+        stage: 'travel',
+        stageStartsAtTickTime: start,
+        stageEndsAtTickTime: start + stageSeconds(def, 'travel'),
+        fromX: from.x,
+        fromY: from.y,
+        toX: to.x,
+        toY: to.y,
+        ...eruptionTelegraphFields(def, unit),
+    };
+    claimUnit(unit, state.burrow, def, engine);
     advanceStages(unit, state, def, engine); // zero-length stages
 }
 
@@ -236,6 +380,7 @@ function advanceStages(unit: Unit, state: BurrowHolder, def: BurrowTransitionDef
             unit.x = b.fromX;
             unit.y = b.fromY;
         }
+        applyTerraform(def, next, b, engine);
         runCallback(def, next, unit, engine);
         if (next === 'rise') openEruption(unit, b, def, engine);
     }
@@ -264,8 +409,8 @@ function landEruption(unit: Unit, b: ActiveBurrow, def: BurrowTransitionDef, eng
     const eruption = def.eruption;
     if (!eruption) return;
     const radius = b.eruptionRadiusPx ?? eruptionRadiusPx(eruption, unit);
-    for (const target of [...engine.units]) {
-        if (!target.isAlive() || !areEnemies(unit.teamId, target.teamId)) continue;
+    for (const target of eruption.damage > 0 ? [...engine.units] : []) {
+        if (target.id === unit.id || !target.isAlive() || !canHit(eruption.hitRule, unit.teamId, target)) continue;
         if (Math.hypot(target.x - unit.x, target.y - unit.y) > radius + target.radius) continue;
         target.takeDamage(eruption.damage, unit.id, engine.eventBus);
     }

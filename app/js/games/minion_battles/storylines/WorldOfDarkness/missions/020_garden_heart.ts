@@ -1,7 +1,8 @@
 /**
  * The Garden Heart - Chapter 3 boss. The whole garden, four segments stitched round the pond (queen's garden 62_47,
- * conservatory 63_47, herb garden 62_48, orchard 63_48), entered from the crossroads' east road. The Heart starts on
- * the loop path north of the pond with its phase-1 tree; at 75 / 50 / 25% it retreats to one of the authored sprout
+ * conservatory 63_47, herb garden 62_48, orchard 63_48), entered from the crossroads' east road. The Heart starts in
+ * the upper-left quarter beside its corrupted crystal, its phase-1 tree facing the party (its first node stands between
+ * them); each time a phase's health pool is gone it retreats to one of the authored sprout
  * points (`card_defs/16_enemy_garden_heart/gardenHeartPhases.ts`). No escort: the fight is the plant. Grants the
  * Reactions knowledge when the battle starts.
  */
@@ -16,7 +17,11 @@ import { gardenHeartBossSetup } from './castle/castleBosses';
 import { castlePoi, defineCastleMission } from './castle/castleMission';
 import { CRYSTAL_TILE_DEFAULTS, DARK_CRYSTAL_TILE_DEFAULTS } from '../MapSegments/50_50_crystal_cave';
 import { mirrorFourWays } from '../../placementSymmetry';
-import type { SpecialTilePlacement } from '../../types';
+import type { LevelEvent, SpecialTilePlacement } from '../../types';
+import type { TriggerDef } from '../../../game/triggers/triggerTypes';
+import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
+import { GARDEN_GROWTH_PHASE_VARIABLE } from '../../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
+import { darknessSpawn } from './castle/castleSpawnPresets';
 
 export const GARDEN_HEART_MISSION_ID = 'garden_heart';
 
@@ -72,6 +77,36 @@ function boostLight(p: SpecialTilePlacement): SpecialTilePlacement {
 
 const GARDEN_LIGHTS = [...CORRUPTED_CRYSTALS, ...ENTRANCE_CRYSTALS].map(boostLight);
 
+/** Fires the first tick the Heart has regrown into its second tree (`gardenGrowthPhase` >= 2); the darkness spawns wait on it. */
+export const GARDEN_DARKNESS_TRIGGER_ID = 'garden_darkness_begins';
+
+export const GARDEN_HEART_TRIGGERS: TriggerDef[] = [
+    {
+        id: GARDEN_DARKNESS_TRIGGER_ID,
+        events: [{ type: 'everyTick' }],
+        conditions: [{ type: 'battleVariableAtLeast', variable: GARDEN_GROWTH_PHASE_VARIABLE, value: 2 }],
+        actions: [],
+    },
+];
+
+/**
+ * Darkness lets a light trickle of wolves in, from phase 2 on: one wolf on a fully dark tile every 2 rounds once 15% of
+ * the arena is dark, up to every round when it is all dark, with 1 to 3 alive at a time (`darknessScaling`). The bright
+ * garden of phase 2 spawns almost nothing; the wolves matter once the Gloam Lily has put lights out. The garden's Wild
+ * attacks hit them too (they are not plant kin).
+ */
+export const GARDEN_DARKNESS_SPAWN: LevelEvent = {
+    type: 'continuousSpawn',
+    afterTrigger: GARDEN_DARKNESS_TRIGGER_ID,
+    trigger: { intervalRounds: 2 },
+    darknessScaling: {
+        minShare: 0.15,
+        intervalRounds: { atMin: 2, atFull: 1 },
+        maxUnits: { base: 1, perShare: 2 },
+    },
+    spawns: [darknessSpawn(ENEMY_DARK_WOLF, 1)],
+};
+
 export const GARDEN_HEART = defineCastleMission({
     id: GARDEN_HEART_MISSION_ID,
     name: SCRIPT.name,
@@ -89,6 +124,8 @@ export const GARDEN_HEART = defineCastleMission({
     mapNode: { col: 62.5, row: 47 },
     startRewards: { knowledgeKeys: [KNOWLEDGE_REACTIONS] },
     specialTiles: GARDEN_LIGHTS,
+    triggers: GARDEN_HEART_TRIGGERS,
+    levelEvents: [GARDEN_DARKNESS_SPAWN],
     boss: {
         kind: 'custom',
         poi: castlePoi(SEGMENT_62_47_QUEENS_GARDEN, '62_47_boss'),

@@ -58,7 +58,7 @@ export function wireCoreEventListeners(engine: GameEngine): void {
         if (def?.deathSequence) applyDeathSequence(def.deathSequence, unit, engine);
         else if (def?.onDeathVisualEffects?.length) applyVisualEffectDefs(def.onDeathVisualEffects, unit, engine);
         // Component death hooks (e.g. lanternite torch removal and Spore Rebirth) run after the visual death.
-        runUnitComponentDeath(unit, engine.buildUnitComponentContext(0));
+        runUnitComponentDeath(unit, engine.buildUnitComponentContext(0), data.killerUnitId ?? null);
     });
 
     // Map-network hygiene: unregister immediately rather than waiting for the next

@@ -12,6 +12,8 @@
  */
 
 import type { TeamId } from '../../teams';
+import type { HitRule } from '../../hitRule';
+import type { TerrainType } from '../../../terrain/TerrainType';
 import { UnitTag } from '../unitTag';
 import type { WorldEffect } from '../../../worldModifiers/WorldEffect';
 
@@ -53,6 +55,9 @@ export interface PhaseTransitionDef {
     burrow?: BurrowTransitionDef;
 }
 
+/** Point rule id: the candidate closest to the party, no closer than `minDistanceFromParty` (see `phaseBurrow.ts`). */
+export const NEAREST_TO_PARTY_RULE = 'nearestToParty';
+
 /** Stages of a burrow transition, in order. */
 export const BURROW_STAGES = ['close', 'sink', 'travel', 'rise'] as const;
 export type BurrowStage = (typeof BURROW_STAGES)[number];
@@ -78,8 +83,16 @@ export interface BurrowTransitionDef {
     riseSeconds: number;
     /** Authored world-pixel positions the unit may resurface at (usually one or more per arena segment). */
     sproutPoints: { x: number; y: number }[];
-    /** Registered point rule id. Default `'farthestFromParty'`. */
+    /** Registered point rule id. Default `'farthestFromParty'`; `'nearestToParty'` keeps the move short. */
     pointRule?: string;
+    /** `nearestToParty`: never resurface closer than this to a party member (world px), when any candidate allows. Default 0. */
+    minDistanceFromParty?: number;
+    /**
+     * Ground the burrow reshapes around its sprout point, each when its `stage` begins (before that stage's callback,
+     * so a tree grown at the rise stands on the new ground). A sprout point that a passable `disc` at or before the
+     * rise will cover counts as passable when choosing, so a unit may rise out of water it turns into land.
+     */
+    terraform?: BurrowTerraformDef[];
     /** Candidates closer than this to any exclusion zone edge are dropped (world px). Default 0. */
     minDistanceFromExclusions?: number;
     /** Static zones to keep away from. */
@@ -90,6 +103,24 @@ export interface BurrowTransitionDef {
     callbacks?: Partial<Record<BurrowStage, string>>;
     /** Optional eruption where the unit rises. See `BurrowEruptionDef`. */
     eruption?: BurrowEruptionDef;
+}
+
+/** A shape around the sprout point, in tiles. */
+export type BurrowTerraformShape =
+    /** Every tile whose centre is within `radiusTiles` of the sprout point. */
+    | { kind: 'disc'; radiusTiles: number }
+    /**
+     * A straight strip starting at the sprout point: `angleDeg` (0 = +x, 90 = +y on screen), `lengthTiles` long and
+     * `widthTiles` wide (tile centres strictly inside half the width, so 3 means the centre row plus one each side).
+     */
+    | { kind: 'strip'; angleDeg: number; lengthTiles: number; widthTiles: number };
+
+/** One piece of reshaped ground: `terrain` laid over `shape` when `stage` begins (only on `onlyOn` terrain, if given). */
+export interface BurrowTerraformDef {
+    stage: BurrowStage;
+    shape: BurrowTerraformShape;
+    terrain: TerrainType;
+    onlyOn?: TerrainType[];
 }
 
 /**
@@ -104,6 +135,8 @@ export interface BurrowEruptionDef {
     /** Blast radius as a multiple of the burrowing unit's own radius (so one def fits every size). */
     radiusUnitRadii?: number;
     damage: number;
+    /** Who the blast may hit. Default `hostile` (enemies of the unit); Wild blasts pass `allExceptKin`. */
+    hitRule?: HitRule;
     /**
      * When the blast circle starts showing: `'rise'` (default) for the rise only, or `'travel'` to mark the
      * resurfacing point from the moment the unit starts moving underground (the fill still grows over the rise).
@@ -175,6 +208,27 @@ export function enragePreset(threshold: number, tag: UnitTag = UnitTag.Enraged, 
         enterWhen: { kind: 'health_below_percent', threshold },
         tags: { add: [tag] },
     };
+}
+
+/**
+ * Phases defined by per-phase health pools instead of hand-written percentages. `pools[0]` is the first phase's
+ * pool, `pools[1]` the second's, and so on; the unit's max HP is their sum. Phase `i` (1-based, from 2) is entered
+ * when only the pools from `i` on remain, i.e. at `health_below_percent` `remaining / maxHp`, so each pool is exactly
+ * that phase's share of health. `makePhase(index, threshold)` builds the def (set `clampHitAtThreshold` there).
+ * Pure data; no runtime change.
+ */
+export function phasesFromHealthPools(
+    pools: readonly number[],
+    makePhase: (index: number, threshold: number) => UnitPhaseDef,
+): { maxHp: number; phases: UnitPhaseDef[] } {
+    const maxHp = pools.reduce((sum, p) => sum + p, 0);
+    const phases: UnitPhaseDef[] = [];
+    let remaining = maxHp;
+    for (let i = 2; i <= pools.length; i++) {
+        remaining -= pools[i - 2]!;
+        phases.push(makePhase(i, remaining / maxHp));
+    }
+    return { maxHp, phases };
 }
 
 /**

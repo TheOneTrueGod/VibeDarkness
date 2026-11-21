@@ -20,7 +20,7 @@ import { ENEMY_ALPHA_WOLF, ENEMY_DISPLACER_SPIRIT } from '../../../constants/ene
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { getCurrentNodeId, getUnitAITree } from '../unitAI';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { enragePreset, getPhaseHpThresholds, type UnitPhaseDef } from './phaseDef';
+import { enragePreset, getPhaseHpThresholds, phasesFromHealthPools, type UnitPhaseDef } from './phaseDef';
 import { peekPhaseState } from './phaseComponent';
 import { evaluateUnitPhases } from './phaseRuntime';
 import { getActorTempo } from '../../time/actorClock';
@@ -121,6 +121,35 @@ describe('enragePreset and defs', () => {
             { id: 'c', enterWhen: { kind: 'any', conditions: [{ kind: 'health_below_percent', threshold: 0.3 }] } },
         ];
         expect(getPhaseHpThresholds(phases)).toEqual([0.7, 0.3]);
+    });
+
+    it('phasesFromHealthPools sums the pools and derives thresholds from what remains', () => {
+        const { maxHp, phases } = phasesFromHealthPools([35, 60, 160, 240], (index, threshold) => ({
+            id: `p${index}`,
+            enterWhen: { kind: 'health_below_percent', threshold },
+            clampHitAtThreshold: true,
+        }));
+        expect(maxHp).toBe(495);
+        expect(phases.map((p) => p.id)).toEqual(['p2', 'p3', 'p4']);
+        const thresholds = phases.map((p) => (p.enterWhen.kind === 'health_below_percent' ? p.enterWhen.threshold : -1));
+        expect(thresholds[0]).toBeCloseTo(460 / 495, 10);
+        expect(thresholds[1]).toBeCloseTo(400 / 495, 10);
+        expect(thresholds[2]).toBeCloseTo(240 / 495, 10);
+    });
+
+    it('phasesFromHealthPools with the clamp stops a big hit at full health at the first threshold', () => {
+        const engine = makeEngine();
+        const { maxHp, phases } = phasesFromHealthPools([35, 60, 160, 240], (index, threshold) => ({
+            id: `p${index}`,
+            enterWhen: { kind: 'health_below_percent', threshold },
+            clampHitAtThreshold: true,
+        }));
+        const unit = spawnPhased(engine, phases, { hp: maxHp });
+        hit(engine, unit, 9999);
+        expect(unit.isAlive()).toBe(true);
+        expect(unit.hp).toBeCloseTo(460, 5);
+        expect(peekPhaseState(unit)!.index).toBe(1);
+        engine.destroy();
     });
 
     it('phases are not gated on UnitTag.Boss', () => {
