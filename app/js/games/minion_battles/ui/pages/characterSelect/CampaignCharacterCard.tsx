@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { PlayerState } from '../../../../../types';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
+import { getItemDef, getSlotContents, ITEM_ICON_URLS } from '../../../character_defs/items';
 import { getPortrait } from '../../../character_defs/portraits';
 import CharacterPortrait from '../../components/CharacterPortrait';
 
@@ -37,6 +38,11 @@ export function CampaignCharacterCard({
     const displayName = character.name || (portrait?.name ?? 'Character');
     const canUse = isLocked || character.canBeUsedOnMission(campaignId, missionId, missionTraitFilter);
     const disallowReason = isLocked ? null : character.getDisallowReason(campaignId, missionId, missionTraitFilter);
+
+    const equippedItemIds = useMemo(() => {
+        const { core, weapon, utility } = getSlotContents(character.equipment ?? []);
+        return [core, ...weapon, ...utility].filter((id): id is string => id != null);
+    }, [character.equipment]);
 
     const selectingPlayers = useMemo(() => {
         return Object.entries(playerSelections)
@@ -77,8 +83,22 @@ export function CampaignCharacterCard({
                 sizePx={PORTRAIT_SIZE_PX}
                 className={canUse && !isMySelection ? 'hover:border-primary' : ''}
                 footerTrailing={
-                    selectingPlayers.length > 0 ? (
+                    equippedItemIds.length > 0 || selectingPlayers.length > 0 ? (
                         <>
+                            {equippedItemIds.map((itemId) => {
+                                const iconUrl = ITEM_ICON_URLS[itemId];
+                                if (!iconUrl) return null;
+                                const itemName = getItemDef(itemId)?.name ?? itemId;
+                                return (
+                                    <img
+                                        key={itemId}
+                                        src={iconUrl}
+                                        alt={itemName}
+                                        title={itemName}
+                                        className="w-5 h-5 object-contain"
+                                    />
+                                );
+                            })}
                             {selectingPlayers.map((p) => (
                                 <div
                                     key={p.id}
