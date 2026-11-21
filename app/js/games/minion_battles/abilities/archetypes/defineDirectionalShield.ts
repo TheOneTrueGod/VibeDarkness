@@ -295,7 +295,7 @@ export function defineDirectionalShield(config: DirectionalShieldConfig): Abilit
         label: config.aimLabel ?? DEFAULT_AIM_LABEL,
         hitbox: nullHitbox,
         filter: 'any' as const,
-        allowMiss: true,
+        allowMiss: true as const,
     };
     const abilityTimings = buildShieldBlockTimings({
         duration,

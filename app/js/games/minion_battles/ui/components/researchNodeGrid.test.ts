@@ -103,15 +103,17 @@ describe('formatResearchLevelPill', () => {
 });
 
 describe('compareResearchNodesByTier', () => {
-    it('orders Core Training before Healthy and Mighty', () => {
+    it('orders by tier, then by order: Healthy before Mighty (both tier 11), Mighty before Core Training (tier 12)', () => {
         const core = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_CORE);
         const healthy = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_HEALTHY);
         const mighty = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_MIGHTY);
         expect(core).toBeDefined();
         expect(healthy).toBeDefined();
         expect(mighty).toBeDefined();
-        expect(compareResearchNodesByTier(core!, healthy!)).toBeLessThan(0);
+        expect(healthy!.tier).toBe(mighty!.tier);
+        expect(core!.tier!).toBeGreaterThan(mighty!.tier!);
         expect(compareResearchNodesByTier(healthy!, mighty!)).toBeLessThan(0);
+        expect(compareResearchNodesByTier(mighty!, core!)).toBeLessThan(0);
     });
 });
 
@@ -275,9 +277,9 @@ describe('collectResearchGridEntries', () => {
             true,
         );
         expect(possessed.map((e) => e.node.id)).toEqual([
-            TRAINING_NODE_CORE,
             TRAINING_NODE_HEALTHY,
             TRAINING_NODE_MIGHTY,
+            TRAINING_NODE_CORE,
         ]);
     });
 

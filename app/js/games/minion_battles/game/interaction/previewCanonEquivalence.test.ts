@@ -46,6 +46,7 @@ import { Light } from '../../resources/Light';
 import { LIGHT_BLAST_LIGHT_COST } from '../../card_defs/08_light_core/0801_LightBlast/0801Ability';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { isITSPreviewComplete } from './isITSPreviewComplete';
+import { stubNetAdapter } from '../testNetAdapter';
 
 /** PunchNEW — single melee strike, implicated in the 5E0F6B incident (plan Context). */
 const PUNCH_ABILITY_ID = '0120';
@@ -202,13 +203,13 @@ async function runPreviewCanonEquivalence(setup: EquivalenceCaseSetup): Promise<
     // the mark and resubmits — this mock netAdapter delivers that resubmit the way a real non-host
     // BattleNet.submitOrder does (optimistic local apply via `session.applyRemoteOrders`, see
     // BattleNet.ts submitOrder ~line 548-554), so the finalized order actually lands on the engine.
-    session.setNetAdapter({
+    session.setNetAdapter(stubNetAdapter({
         isOrderSubmitPathAvailable: () => true,
         submitOrder: vi.fn(async (order: BattleOrder, atTick: number) => {
             const idHash = hashOrderId(session.getLocalPlayerId(), atTick, order);
             session.applyRemoteOrders([{ atTick, order, idHash, playerId: session.getLocalPlayerId() }]);
         }),
-    } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+    }));
 
     const its = session.interactiveTargeting;
     const began = its.begin(baseOrder, session);
@@ -378,12 +379,12 @@ describe('preview/canon equivalence — host in-place commit after natural compl
 
         // --- Engine B: ITS preview with its pick, played to natural completion, committed in place. ---
         const persistCommittedOrder = vi.fn().mockResolvedValue(true);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
             saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
             queueFingerprint: vi.fn(),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         const its = session.interactiveTargeting;
         expect(its.begin(baseOrder, session)).toBe(true);
         expect(stepUntil(engine, () => engine.waitingForTargetInput?.label === 'Target', 300)).toBe(true);
@@ -460,13 +461,13 @@ describe('preview/canon equivalence — ended-early (interrupted) preview cast',
 
         // --- Engine B: ITS preview, interrupted before the pick, committed in place. ---
         const persistCommittedOrder = vi.fn().mockResolvedValue(true);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
             // The host checkpoints and fingerprints at the next order pause after the commit.
             saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
             queueFingerprint: vi.fn(),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         const its = session.interactiveTargeting;
         expect(its.begin(baseOrder, session)).toBe(true);
         engine.stepSimulationFixedTicks(1);
@@ -551,13 +552,13 @@ describe('preview/canon equivalence — missing-pick resume (updateTargets order
 
         // --- Engine B: resume ITS at the pause, pick, commit in place. ---
         const persistCommittedOrder = vi.fn().mockResolvedValue(true);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
             // The host checkpoints and fingerprints at the next order pause after the commit.
             saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
             queueFingerprint: vi.fn(),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         const its = session.interactiveTargeting;
         expect(its.beginResume(casterId, session)).toBe(true);
         its.resolveTarget('Target', { type: 'pixel', position: blastPixel }, session);
@@ -672,12 +673,12 @@ describe('preview/canon equivalence — host in-place commit of a t=0 dash (play
         mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
 
         const persistCommittedOrder = vi.fn().mockResolvedValue(true);
-        session.setNetAdapter({
+        session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
             saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
             queueFingerprint: vi.fn(),
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        }));
         const its = session.interactiveTargeting;
         expect(its.begin(baseOrder, session)).toBe(true);
         expect(stepUntil(engine, () => engine.waitingForTargetInput?.label === 'Dodge direction', 300)).toBe(true);

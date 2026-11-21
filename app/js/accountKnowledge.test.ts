@@ -16,6 +16,11 @@ import {
     KNOWLEDGE_TUTORIAL_CRYSTALS,
     KNOWLEDGE_TUTORIAL_LIGHT,
     KNOWLEDGE_TUTORIAL_STACKED_UNITS,
+    KNOWLEDGE_TUTORIAL_CC_RESISTANCE,
+    KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES,
+    KNOWLEDGE_TUTORIAL_REACTIONS,
+    KNOWLEDGE_REACTIONS,
+    KNOWLEDGE_COMBOS,
 } from './accountKnowledge';
 
 describe('account knowledge registry', () => {
@@ -32,7 +37,7 @@ describe('account knowledge registry', () => {
         }
     });
 
-    it('puts the Chapter 1 knowledge in tier 1 and everything else in tier 2', () => {
+    it('puts Chapter 1 knowledge in tier 1, Chapter 3 knowledge in tier 3 and everything else in tier 2', () => {
         const tierOne = [
             KNOWLEDGE_RESEARCH,
             KNOWLEDGE_RESOURCE_ATTUNEMENT,
@@ -42,9 +47,13 @@ describe('account knowledge registry', () => {
             KNOWLEDGE_TUTORIAL_LIGHT,
             KNOWLEDGE_TUTORIAL_STACKED_UNITS,
             KNOWLEDGE_TUTORIAL_CRYSTALS,
+            KNOWLEDGE_TUTORIAL_CC_RESISTANCE,
+            KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES,
         ];
+        const tierThree = [KNOWLEDGE_REACTIONS, KNOWLEDGE_COMBOS, KNOWLEDGE_TUTORIAL_REACTIONS];
         for (const k of ACCOUNT_KNOWLEDGE) {
-            expect(k.tier, k.key).toBe(tierOne.includes(k.key) ? 1 : 2);
+            const expected = tierOne.includes(k.key) ? 1 : tierThree.includes(k.key) ? 3 : 2;
+            expect(k.tier, k.key).toBe(expected);
         }
     });
 

@@ -6,17 +6,9 @@ import { tickUnitActiveAbilities } from './unitAbilityTick';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import { AbilityEventType, type AbilityInterruptPolicy, type AbilityStatic } from '../../abilities/Ability';
 import { triggerAbilityEvent } from '../../abilities/events';
+import { registerAbilityForTest } from '../../abilities/AbilityRegistry';
 import type { EngineContext } from '../EngineContext';
 import type { ActiveAbility } from '../types';
-
-// Test-only ability registry: `getAbility` resolves ids from this map so the lifecycle code runs
-// against hand-built abilities (the real registry is populated by card defs at import time).
-const registry = vi.hoisted(() => ({ abilities: new Map<string, unknown>() }));
-
-vi.mock('../../abilities/AbilityRegistry', async (importOriginal) => ({
-    ...(await importOriginal<Record<string, unknown>>()),
-    getAbility: (id: string) => registry.abilities.get(id),
-}));
 
 // Capture ON_CAST_END (and other) ability events without running real event rules.
 vi.mock('../../abilities/events', async (importOriginal) => ({
@@ -47,7 +39,10 @@ function makeAbility(
         abilityTimings: opts.timings ?? CAST_TIMINGS,
         interruptPolicy: opts.interruptPolicy,
     } as unknown as AbilityStatic;
-    registry.abilities.set(id, ability);
+    // Hand-built abilities go into the real registry (ids are unique to this file), so every module that
+    // looks them up sees them. A module mock of the registry is not reliable: the registry's own import graph
+    // can load the lifecycle code before the mock takes effect.
+    registerAbilityForTest(ability);
     return { ability };
 }
 
@@ -113,7 +108,6 @@ function castEndCount(): number {
 
 beforeEach(() => {
     vi.clearAllMocks();
-    registry.abilities.clear();
 });
 
 describe('interrupt pipeline runs the same steps on every path', () => {

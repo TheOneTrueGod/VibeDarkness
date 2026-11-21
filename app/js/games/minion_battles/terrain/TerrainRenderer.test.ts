@@ -260,7 +260,9 @@ describe('Brick rendering', () => {
         const draw = vi.spyOn(HardEdgeLayerRenderer.prototype, 'drawLayer');
         new TerrainRenderer().buildSprite(tm);
         const drawnTypes = draw.mock.contexts.map((r) => (r as unknown as { terrainType: TerrainType }).terrainType);
-        expect(drawnTypes).toEqual([TerrainType.Gravel, TerrainType.Rock, TerrainType.Brick]);
+        // Every hard-edge layer draws (Briar too); Brick must come after Gravel and Rock so it sits on top.
+        const relevant = [TerrainType.Gravel, TerrainType.Rock, TerrainType.Brick];
+        expect(drawnTypes.filter((t) => relevant.includes(t))).toEqual(relevant);
         draw.mockRestore();
     });
 });

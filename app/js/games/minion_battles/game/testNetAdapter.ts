@@ -13,6 +13,8 @@ export function stubNetAdapter(overrides: Record<string, unknown> = {}): StubNet
     return {
         // Reaction claims never block a parallel-plane resume unless a test opts in.
         isReactionClaimUndecidedFor: () => false,
+        // Plane-close notifications (Reaction claimants giving up) are a no-op unless a test spies on them.
+        handleParallelPlaneClosed: () => {},
         ...overrides,
     } as unknown as StubNetAdapter;
 }

@@ -16,7 +16,7 @@ import { updateHoverFlight } from './hoverFlight';
 import { updateUnitNudge } from './unitNudge';
 import { tickWallUnstick } from './unitWallUnstick';
 import { localNow } from '../time/actorClock';
-import { slideAlongTethers } from '../tethers/tether';
+import { slideAlongTethers, type TetherUnitLookup } from '../tethers/tether';
 
 function clearWaitLockout(unit: Unit): void {
     unit.waitMinEndTime = null;
@@ -352,9 +352,11 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown, opts?: UnitM
         nextY = slid.y;
     }
 
-    // A living Stem tether blocks walking along its length: slide along the vine, or hold (path kept).
-    if (nextX !== unit.x || nextY !== unit.y) {
-        const slidTether = slideAlongTethers(engine as EngineContext, unit, unit.x, unit.y, nextX, nextY);
+    // A living Stem tether blocks walking along its length: slide along the vine, or hold (path kept). Like the
+    // terrain check, skipped for a caller whose engine has no unit list (a bare movement tick).
+    const tetherLookup = engine as Partial<TetherUnitLookup>;
+    if ((nextX !== unit.x || nextY !== unit.y) && tetherLookup.units && tetherLookup.getUnit) {
+        const slidTether = slideAlongTethers(tetherLookup as TetherUnitLookup, unit, unit.x, unit.y, nextX, nextY);
         if (!slidTether) return;
         nextX = slidTether.x;
         nextY = slidTether.y;

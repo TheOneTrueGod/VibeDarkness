@@ -164,6 +164,7 @@
     "revealedIds": []
   },
   "worldModifiers": [],
+  "pausePlaneCounter": 3,
   "lightSources": [],
   "terrainEffects": [],
   "floorTiles": [],
