@@ -5,6 +5,8 @@
  * around it ({@link WATER_SIPHON}, the generic `terrainSiphon`): each drawn tile loses 1/8 of a level
  * per second and the unit gains 0.5 Water per second. A tile that runs out drops a level
  * (deep -> water -> shallow -> dirt).
+ *
+ * The max and starting amount belong to the equipped core (`ItemDef.resourceGrants`), not to Water.
  */
 
 import { Resource, type ResourceBarStyle } from './Resource';
@@ -16,11 +18,8 @@ import { getThemeById } from '../themes/abilityTheme';
 import { WATER_TERRAIN_TYPES } from '../terrain/TerrainType';
 import { tickTerrainSiphon, terrainSiphonGainPerSec, type TerrainSiphonConfig } from './terrainSiphon';
 
-/** Most Water the unit can hold. */
-export const WATER_MAX = 8;
-
-/** Water a unit starts a battle with when it is attached because an ability costs it. */
-export const WATER_STARTING_AMOUNT = 5;
+/** Max of a bare Water resource (display metadata and tests); a core's `resourceGrants` overrides it. */
+export const WATER_DEFAULT_MAX = 10;
 
 /** Water is the tree's "event" colour: the theme secondary (seafoam). */
 export const WATER_RESOURCE_COLOR = getThemeById('water').secondary;
@@ -43,7 +42,7 @@ export const WATER_BAR_STYLE: ResourceBarStyle = 'liquid';
 /** Tooltip lines under the name, as in the studio mock (`Ideas/fxArt/waterArt.tsx`). */
 export const WATER_TOOLTIP_LINES: readonly string[] = [
     `+${WATER_SIPHON.gainPerSec}/s in or beside water`,
-    `Drains up to ${WATER_SIPHON.maxTiles} nearby tiles · max ${WATER_MAX}`,
+    `Drains up to ${WATER_SIPHON.maxTiles} nearby tiles`,
 ];
 
 export class Water extends Resource {
@@ -54,14 +53,12 @@ export class Water extends Resource {
     readonly barStyle = WATER_BAR_STYLE;
     readonly barDeepColor = WATER_BAR_DEEP_COLOR;
     readonly tooltipLines = WATER_TOOLTIP_LINES;
-    override readonly attachForAbilityCosts = true;
-    override readonly startingAmount = WATER_STARTING_AMOUNT;
 
     private _unit: Unit | null = null;
     private _engine: EngineContext | null = null;
 
     constructor() {
-        super(0, WATER_MAX);
+        super(0, WATER_DEFAULT_MAX);
     }
 
     /** Live per-second gain from the unit's surroundings. Used by the tooltip. */

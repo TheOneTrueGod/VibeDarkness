@@ -24,14 +24,12 @@ import { createTargetDummyAtWorld } from '../fixtures/targetDummies';
 import { computeAbilityModifiersFromResearch } from '../../../../researchTrees/evaluator';
 import { getAbilityTagsForId } from '../../abilities/Ability';
 import { expandAbilityIdsForResearchModifiers } from '../../abilities/abilityModifierHelpers';
-import { getItemDef } from '../../character_defs/items';
-import { applyLockedAbilityModes, attachResourcesForAbilityCosts, collectRoundStartRecoveryCharges } from '../../storylines/BaseMissionDef';
+import { applyLockedAbilityModes, attachResourcesFromEquipment, collectRoundStartRecoveryCharges } from '../../storylines/BaseMissionDef';
 import {
     activeResearchByPlayer,
     activeResearchNodeLevelsByPlayer,
     resolveCharacterLoadout,
 } from '../../character_defs/characterLoadout';
-import { createResourceFromId } from '../../resources/createResourceFromId';
 import { getMissionStartResourcesFromResearch } from '../../../../researchTrees/evaluator';
 
 /** Ability id that does not resolve in the registry: movement-only orders still apply `movePath`. */
@@ -247,15 +245,7 @@ export function placePlayerFromLoadout(
     });
     // Item passives (e.g. Charged Rocks' Light Charge), as BaseMissionDef copies them onto the unit.
     player.roundStartRecoveryCharges = collectRoundStartRecoveryCharges(loadout.battleEquipmentIds);
-    // Mirrors BaseMissionDef.attachResourcesFromEquipment.
-    for (const itemId of loadout.battleEquipmentIds) {
-        for (const rid of getItemDef(itemId)?.resourcesToAdd ?? []) {
-            if (player.getResource(rid)) continue;
-            const resource = createResourceFromId(rid);
-            if (resource) player.attachResource(resource, engine.eventBus);
-        }
-    }
-    attachResourcesForAbilityCosts(player, engine.eventBus);
+    attachResourcesFromEquipment(loadout.battleEquipmentIds, player, engine.eventBus);
     player.weaponAbilityIds = loadout.weaponAbilityIds.filter((id) => player.abilities.includes(id));
     applyLockedAbilityModes(player, loadout);
     const grants = getMissionStartResourcesFromResearch(activeByPlayer[playerId]);

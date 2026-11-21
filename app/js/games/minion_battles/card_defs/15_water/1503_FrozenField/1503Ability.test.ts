@@ -25,7 +25,8 @@ import { FIXED_DT } from '../../../game/gameConstants';
 import type { EngineContext } from '../../../game/EngineContext';
 import type { ResolvedTarget } from '../../../game/types';
 import { Water } from '../../../resources/Water';
-import { applyLockedAbilityModes, attachResourcesForAbilityCosts } from '../../../storylines/BaseMissionDef';
+import { coreBloodMageItem } from '../../../character_defs/items/core/022_core_blood_mage';
+import { applyLockedAbilityModes, attachResourcesFromEquipment } from '../../../storylines/BaseMissionDef';
 import type { Unit } from '../../../game/units/Unit';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
@@ -72,7 +73,7 @@ function buildFieldEngine(water = FROZEN_FIELD_WATER_COST) {
     const engine = buildTinyBattleEngine({ gridW: 10, gridH: 10, localPlayerId: P, grass: true });
     const player = spawnTinyPlayerUnit(engine, { playerId: P, x: 100, y: 200, abilities: [BURST_ID, FIELD_ID] });
     // The spawn path (BaseMissionDef) attaches Water from the ability costs and locks unowned modes.
-    attachResourcesForAbilityCosts(player, engine.eventBus);
+    attachResourcesFromEquipment([coreBloodMageItem.id], player, engine.eventBus);
     applyLockedAbilityModes(player, { abilityIds: [BURST_ID, FIELD_ID], replacedCardIds: [] });
     const res = player.getResource('water') as Water;
     res.current = water;
@@ -250,7 +251,7 @@ describe('Frozen Field modes and card', () => {
     it('keeps casting only the field when the Blood mode is locked (no Blood Burst owned)', () => {
         const engine = buildTinyBattleEngine({ gridW: 10, gridH: 10, localPlayerId: P, grass: true });
         const player = spawnTinyPlayerUnit(engine, { playerId: P, x: 100, y: 200, abilities: [FIELD_ID] });
-        attachResourcesForAbilityCosts(player, engine.eventBus);
+        attachResourcesFromEquipment([coreBloodMageItem.id], player, engine.eventBus);
         applyLockedAbilityModes(player, { abilityIds: [FIELD_ID], replacedCardIds: [] });
         const water = player.getResource('water') as Water;
         water.current = 5;

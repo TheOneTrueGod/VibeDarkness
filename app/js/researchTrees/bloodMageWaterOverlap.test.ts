@@ -16,12 +16,11 @@ import { ResourceId } from '../games/minion_battles/resources/resourceIds';
 import { defineAbility } from '../games/minion_battles/abilities/defineAbility';
 import { registerAbilityForTest } from '../games/minion_battles/abilities/AbilityRegistry';
 import { Unit } from '../games/minion_battles/game/units/Unit';
-import { applyLockedAbilityModes, attachResourcesForAbilityCosts } from '../games/minion_battles/storylines/BaseMissionDef';
+import { applyLockedAbilityModes } from '../games/minion_battles/storylines/BaseMissionDef';
 import {
     filterSelectableQuestPrepAbilityIds,
     mapPrepPicksThroughReplacements,
 } from '../games/minion_battles/storylines/questPrepLoadout';
-import { EventBus } from '../games/minion_battles/game/EventBus';
 import { GameEngine } from '../games/minion_battles/game/GameEngine';
 import { resetGameObjectIdCounter } from '../games/minion_battles/game/GameObject';
 import { PLAYER_CHARACTER_ID } from '../games/minion_battles/game/units/unit_defs/unitDef';
@@ -218,89 +217,24 @@ describe('Blood Mage tree: Water overlap nodes', () => {
         }
     });
 
-    describe('Water attached from ability costs', () => {
-        const WATER_MODE_SLOT = 'tstWaterModeSlot';
-        const WATER_MODE_CARD = 'tstWaterModeCard';
-        const baseAbility = {
-            image: '',
-            rechargeTurns: 0,
-            prefireTime: 0,
-            targets: [],
-            abilityTimings: [],
-            getTooltipText: () => ['x'],
-            getRange: () => ({ minRange: 0, maxRange: 100 }),
-        };
-        beforeAll(() => {
-            registerAbilityForTest(
-                defineAbility({
-                    ...baseAbility,
-                    id: WATER_MODE_CARD,
-                    name: 'Water Mode Card',
-                    resourceCost: { resourceId: ResourceId.Water, amount: 3 },
-                }),
-            );
-            registerAbilityForTest(
-                defineAbility({
-                    ...baseAbility,
-                    id: WATER_MODE_SLOT,
-                    name: 'Water Mode Slot',
-                    resourceCost: null,
-                    abilityModes: {
-                        modes: ['plain', 'wet'],
-                        defaultMode: 'plain',
-                        modeAbilityIds: { wet: WATER_MODE_CARD },
-                    },
-                }),
-            );
-        });
-        function unitWith(abilities: string[]): Unit {
-            return new Unit({
-                id: 'w', x: 0, y: 0, hp: 10, maxHp: 10, speed: 100,
-                teamId: 'player', ownerId: 'p1', characterId: 'player', name: 'W', abilities,
-            });
-        }
-
-        it('a unit whose mode ability costs Water gets Water at 5/8', () => {
-            const u = unitWith([WATER_MODE_SLOT]);
-            attachResourcesForAbilityCosts(u, new EventBus());
-            const water = u.getResource(ResourceId.Water);
-            expect(water?.current).toBe(5);
-            expect(water?.max).toBe(8);
-        });
-
-        it('Water is never attached twice', () => {
-            const u = unitWith([WATER_MODE_SLOT, WATER_MODE_CARD]);
-            const bus = new EventBus();
-            attachResourcesForAbilityCosts(u, bus);
-            attachResourcesForAbilityCosts(u, bus);
-            expect(u.resources.filter((r) => r.id === ResourceId.Water)).toHaveLength(1);
-        });
-
-        it('a unit with no Water-costing ability has no Water', () => {
-            const u = unitWith(['0306']);
-            attachResourcesForAbilityCosts(u, new EventBus());
-            expect(u.getResource(ResourceId.Water)).toBeUndefined();
-        });
-    });
-
-    it.each(ICE_NODES)('a mission player with $nodeId starts with $cardId and Water at 5/8', ({ nodeId, prereq, cardId }) => {
+    it.each(ICE_NODES)('a mission player with $nodeId starts with $cardId and Water at 6/10 from the Blood Mage core', ({ nodeId, prereq, cardId }) => {
         const { engine, player } = spawnMissionPlayer(researchWith(nodeId, prereq));
         expect(player.abilities).toContain(cardId);
         const water = player.getResource(ResourceId.Water);
         expect(water).toBeDefined();
-        expect(water!.current).toBe(5);
-        expect(water!.max).toBe(8);
+        expect(water!.current).toBe(6);
+        expect(water!.max).toBe(10);
         expect(player.resources.filter((r) => r.id === ResourceId.Water)).toHaveLength(1);
         engine.destroy();
     });
 
-    it('a Blood Mage without the ice nodes has no Water resource', () => {
+    it("a Blood Mage without the ice nodes still gets the core's Water bar", () => {
         const { engine, player } = spawnMissionPlayer(researchWith(BLOOD_MAGE_NODE_BURST, BLOOD_MAGE_NODE_CLAWS));
-        expect(player.getResource(ResourceId.Water)).toBeUndefined();
+        expect(player.getResource(ResourceId.Water)?.max).toBe(10);
         engine.destroy();
     });
 
-    it('the tiny-battle loadout harness attaches Water the same way', () => {
+    it("the tiny-battle loadout harness attaches the core's Water the same way", () => {
         const engine = buildTinyBattleEngine({ gridW: 8, gridH: 8, localPlayerId: TINY_BATTLE_PLAYER_ID });
         const { player, abilityIds } = placePlayerFromLoadout(engine, {
             playerId: TINY_BATTLE_PLAYER_ID,
@@ -309,7 +243,7 @@ describe('Blood Mage tree: Water overlap nodes', () => {
             researchTrees: researchWith(BLOOD_MAGE_NODE_ICE_CLAWS, BLOOD_MAGE_NODE_CLAWS),
         });
         expect(abilityIds).toContain('1501');
-        expect(player.getResource(ResourceId.Water)?.current).toBe(5);
+        expect(player.getResource(ResourceId.Water)?.current).toBe(6);
         engine.destroy();
     });
 

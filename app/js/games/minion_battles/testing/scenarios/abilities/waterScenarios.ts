@@ -4,7 +4,7 @@
  * - `water_siphon_e2e` — a caster beside deep water gains Water and the tile drops a level.
  * - `ice_claws_swap_e2e` — with both cards, Ice Claws casts for its Water cost, then the same slot casts Bloody Claws.
  * - `ice_claws_ice_only_e2e` — with the Blood mode locked (no owned blood card), the slot stays Ice.
- * - `water_starting_amount_e2e` — a Water-card unit starts at 5 Water; a plain Blood Mage has no Water bar.
+ * - `water_starting_amount_e2e` — the Blood Mage core sets the Water bar (starting amount and max).
  * - `ice_shards_pierce_e2e` — two shards each pass one enemy and stop on the next.
  * - `frozen_field_e2e` — enemies in the field stay stunned and take damage until the field ends.
  *
@@ -27,13 +27,14 @@ import {
     spawnTinyPlayerUnit,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
-import { applyLockedAbilityModes, attachResourcesForAbilityCosts } from '../../../storylines/BaseMissionDef';
+import { applyLockedAbilityModes, attachResourcesFromEquipment } from '../../../storylines/BaseMissionDef';
 import { getAvailableModes } from '../../../abilities/resolveAbilityMode';
 import { CORE_ITEM_IDS } from '../../../character_defs/items';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { ResourceId } from '../../../resources/resourceIds';
-import { Water, WATER_SIPHON, WATER_STARTING_AMOUNT } from '../../../resources/Water';
+import { Water, WATER_SIPHON } from '../../../resources/Water';
+import { coreBloodMageItem, BLOOD_CORE_WATER_MAX, BLOOD_CORE_WATER_START } from '../../../character_defs/items/core/022_core_blood_mage';
 import {
     BLOOD_MAGE_NODE_BURST,
     BLOOD_MAGE_NODE_CLAWS,
@@ -203,7 +204,8 @@ export const iceClawsSwapScenario: ScenarioDefinition = {
     buildEngine() {
         const engine = buildMageEngine(12, 8, CLAW_CASTER, BLOOD_MAGE_NODE_ICE_CLAWS, BLOOD_MAGE_NODE_CLAWS);
         const player = engine.getLocalPlayerUnit()!;
-        // Starts at 5 Water: one Ice cast (3) leaves 2, below the cost, so the second order falls back to Blood.
+        // Set to 5 Water: one Ice cast (3) leaves 2, below the cost, so the second order falls back to Blood.
+        player.getResource(ResourceId.Water)!.current = FALLBACK_START_WATER;
         queueSecondClawCast(engine, player);
         keepSimRunning(engine, CLAW_WATCH_SEC);
         return engine;
@@ -219,7 +221,7 @@ export const iceClawsSwapScenario: ScenarioDefinition = {
         if (!player) return false;
         const water = player.getResource(ResourceId.Water)?.current;
         return engine.gameTick > CLAW_SECOND_CAST_TICK
-            && water === WATER_STARTING_AMOUNT - ICE_CLAWS_WATER_COST
+            && water === FALLBACK_START_WATER - ICE_CLAWS_WATER_COST
             && player.abilityRuntime[BLOODY_ID]?.currentUses === BLOODY_CLAWS_MAX_USES - 1
             && player.hp < player.maxHp
             && player.activeAbilities.length === 0;
@@ -228,7 +230,7 @@ export const iceClawsSwapScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const player = engine.getLocalPlayerUnit();
         const water = player?.getResource(ResourceId.Water)?.current;
-        return `water=${water} (want ${WATER_STARTING_AMOUNT - ICE_CLAWS_WATER_COST}); hp=${player?.hp}/${player?.maxHp} (want < max: Blood paid HP) bloody uses=${player?.abilityRuntime[BLOODY_ID]?.currentUses}; casting=${player?.activeAbilities.map((a) => a.abilityId).join(',') || 'none'}; tick=${engine.gameTick}`;
+        return `water=${water} (want ${FALLBACK_START_WATER - ICE_CLAWS_WATER_COST}); hp=${player?.hp}/${player?.maxHp} (want < max: Blood paid HP) bloody uses=${player?.abilityRuntime[BLOODY_ID]?.currentUses}; casting=${player?.activeAbilities.map((a) => a.abilityId).join(',') || 'none'}; tick=${engine.gameTick}`;
     },
 };
 
@@ -249,7 +251,8 @@ export const iceClawsIceOnlyScenario: ScenarioDefinition = {
             abilities: [ICE_ID],
         });
         // The tiny-battle spawn skips these two spawn steps (placePlayerFromLoadout does them).
-        attachResourcesForAbilityCosts(player, engine.eventBus);
+        attachResourcesFromEquipment([coreBloodMageItem.id], player, engine.eventBus);
+        player.getResource(ResourceId.Water)!.current = FALLBACK_START_WATER;
         applyLockedAbilityModes(player, { abilityIds: [ICE_ID], replacedCardIds: [] });
         queueSecondClawCast(engine, player);
         keepSimRunning(engine, CLAW_WATCH_SEC);
@@ -267,14 +270,14 @@ export const iceClawsIceOnlyScenario: ScenarioDefinition = {
         const water = player.getResource(ResourceId.Water)?.current;
         return engine.gameTick > CLAW_SECOND_CAST_TICK
             && getAvailableModes(player, IceClawsAbility_1501).join() === 'ice'
-            && water === WATER_STARTING_AMOUNT - ICE_CLAWS_WATER_COST
+            && water === FALLBACK_START_WATER - ICE_CLAWS_WATER_COST
             && player.hp === player.maxHp
             && player.activeAbilities.length === 0;
     },
 
     failureMessage(engine) {
         const player = engine.getLocalPlayerUnit();
-        return `modes=${player ? getAvailableModes(player, IceClawsAbility_1501).join() : 'none'} (want ice); water=${player?.getResource(ResourceId.Water)?.current} (want ${WATER_STARTING_AMOUNT - ICE_CLAWS_WATER_COST}); hp=${player?.hp}/${player?.maxHp} (want full); tick=${engine.gameTick}`;
+        return `modes=${player ? getAvailableModes(player, IceClawsAbility_1501).join() : 'none'} (want ice); water=${player?.getResource(ResourceId.Water)?.current} (want ${FALLBACK_START_WATER - ICE_CLAWS_WATER_COST}); hp=${player?.hp}/${player?.maxHp} (want full); tick=${engine.gameTick}`;
     },
 };
 
@@ -282,23 +285,17 @@ export const iceClawsIceOnlyScenario: ScenarioDefinition = {
 // Starting Water
 // ---------------------------------------------------------------------------
 
-const PLAIN_MAGE_ID = 'p_plain_mage';
+/** Water the fallback scenarios start at, so one Ice Claws cast (3) leaves less than the cost. */
+const FALLBACK_START_WATER = 5;
 
 export const waterStartingAmountScenario: ScenarioDefinition = {
     id: 'water_starting_amount_e2e',
-    title: 'Water: a unit with a Water card starts at 5, a plain Blood Mage has no Water bar',
+    title: 'Water: the Blood Mage core sets the Water bar (starts at its starting amount, max from the core)',
     category: 'ability',
     maxDurationMs: 1000,
 
     buildEngine() {
         const engine = buildMageEngine(12, 8, CLAW_CASTER, BLOOD_MAGE_NODE_ICE_CLAWS, BLOOD_MAGE_NODE_CLAWS);
-        // Blood Mage core + Claws only (no Water node): Bloody Claws costs HP, so no Water is attached.
-        placePlayerFromLoadout(engine, {
-            playerId: PLAIN_MAGE_ID,
-            world: { x: CLAW_CASTER.x, y: CLAW_CASTER.y + CELL_SIZE * 2 },
-            equipment: [...EQUIPMENT],
-            researchTrees: { [BLOOD_MAGE_TREE_ID]: [BLOOD_MAGE_NODE_CORE, BLOOD_MAGE_NODE_CLAWS] },
-        });
         keepSimRunning(engine, 1);
         return engine;
     },
@@ -307,17 +304,12 @@ export const waterStartingAmountScenario: ScenarioDefinition = {
 
     assertPass(engine) {
         const water = engine.getLocalPlayerUnit()?.getResource(ResourceId.Water);
-        const plain = engine.units.find((u) => u.ownerId === PLAIN_MAGE_ID);
-        return water?.current === WATER_STARTING_AMOUNT
-            && water.max > WATER_STARTING_AMOUNT
-            && !!plain
-            && plain.getResource(ResourceId.Water) == null;
+        return water?.current === BLOOD_CORE_WATER_START && water.max === BLOOD_CORE_WATER_MAX;
     },
 
     failureMessage(engine) {
         const water = engine.getLocalPlayerUnit()?.getResource(ResourceId.Water);
-        const plain = engine.units.find((u) => u.ownerId === PLAIN_MAGE_ID);
-        return `water=${water?.current}/${water?.max} (want ${WATER_STARTING_AMOUNT}); plain mage found=${!!plain} water=${plain?.getResource(ResourceId.Water)?.current}`;
+        return `water=${water?.current}/${water?.max} (want ${BLOOD_CORE_WATER_START}/${BLOOD_CORE_WATER_MAX})`;
     },
 };
 

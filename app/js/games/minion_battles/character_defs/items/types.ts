@@ -23,6 +23,18 @@ export interface ItemRoundStartRecoveryCharge {
     amount: number;
 }
 
+/**
+ * A resource an item attaches with its own max and starting amount. The item, not the resource, owns these
+ * numbers (e.g. the Blood Mage core sets Water's bar), so another core can give the same resource a different bar.
+ */
+export interface ItemResourceGrant {
+    resourceId: string;
+    /** Max the resource is attached with. */
+    max: number;
+    /** Amount it starts a battle with, capped at `max`. */
+    startingAmount: number;
+}
+
 export interface ItemDef {
     id: string;
     name: string;
@@ -36,6 +48,8 @@ export interface ItemDef {
     cardsToAdd: string[];
     /** Resource IDs to attach to the unit when this item is equipped. */
     resourcesToAdd?: string[];
+    /** Resources to attach when this item is equipped, with the item's own max and starting amount. */
+    resourceGrants?: ItemResourceGrant[];
     /**
      * Item passive: recovery charges granted to the wielder at the start of every round (e.g. Charged Rocks'
      * +1 Light Charge). Copied onto the unit at mission start, so it is serialized with the unit.

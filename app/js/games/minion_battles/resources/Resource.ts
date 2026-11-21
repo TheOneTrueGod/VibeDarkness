@@ -60,13 +60,6 @@ export abstract class Resource {
     /** See `ResourceDisplay.tooltipLines`. */
     readonly tooltipLines?: readonly string[];
 
-    /**
-     * When true, the resource is attached at spawn to any unit that has an ability (or a mode's ability)
-     * costing it, even if no item brought it (`attachResourcesForAbilityCosts`). Default false.
-     */
-    readonly attachForAbilityCosts: boolean = false;
-    /** Amount an ability-cost-attached resource starts with, capped at max. Default 0. */
-    readonly startingAmount: number = 0;
 
     /**
      * Render-only: the terrain tiles a `terrainSiphon` drew on during the unit's last tick (empty when it

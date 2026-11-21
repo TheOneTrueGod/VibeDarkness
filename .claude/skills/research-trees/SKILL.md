@@ -107,7 +107,7 @@ Research effects are applied to player units in `storylines/BaseMissionDef.ts`, 
 - Stat bonuses (health, damage, stamina recovery) via research callback helpers
 - Ability runtime modifiers via `applyXxxResearchToAbilityRuntime(unit, getResearchNodes)`
 
-- Battle resources: items bring resources (`resourcesToAdd`); a resource with `attachForAbilityCosts` (Water) is also attached when any of the unit's abilities, or their mode abilities, costs it, starting at `startingAmount` (`attachResourcesForAbilityCosts`). Then `grantMissionStartResource` adds to resources the unit has; a grant alone never attaches a resource. The tiny-battle harness (`placePlayerFromLoadout`) mirrors both.
+- Battle resources: items bring resources (`resourcesToAdd`); items can also bring a resource with their own `max` and `startingAmount` (`ItemDef.resourceGrants`, e.g. the Blood Mage core's Water 6/10), all through `attachResourcesFromEquipment`. Then `grantMissionStartResource` adds to resources the unit has; a grant alone never attaches a resource. The tiny-battle harness (`placePlayerFromLoadout`) mirrors both.
 
 When adding new research effects that affect battle, wire them here — not via in-battle lookups.
 

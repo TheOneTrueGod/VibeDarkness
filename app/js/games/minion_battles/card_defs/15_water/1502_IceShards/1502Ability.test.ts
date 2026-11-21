@@ -10,7 +10,8 @@ import { getTotalAbilityDuration } from '../../../abilities/abilityTimings';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { applyBleedStack } from '../../../buffs/bleedRuntime';
 import { Water } from '../../../resources/Water';
-import { applyLockedAbilityModes, attachResourcesForAbilityCosts } from '../../../storylines/BaseMissionDef';
+import { coreBloodMageItem } from '../../../character_defs/items/core/022_core_blood_mage';
+import { applyLockedAbilityModes, attachResourcesFromEquipment } from '../../../storylines/BaseMissionDef';
 import { getAvailableModes, resolveEffectiveMode, resolveModeAbilityId } from '../../../abilities/resolveAbilityMode';
 import { GameEngine } from '../../../game/GameEngine';
 import { FIXED_DT } from '../../../game/gameConstants';
@@ -251,7 +252,7 @@ function buildModeEngine(startWater: number, abilities: string[] = [ICE_ID, SHAR
         abilities,
     });
     // The spawn path (BaseMissionDef) attaches Water from the ability costs and locks unowned modes.
-    attachResourcesForAbilityCosts(player, engine.eventBus);
+    attachResourcesFromEquipment([coreBloodMageItem.id], player, engine.eventBus);
     applyLockedAbilityModes(player, { abilityIds: abilities, replacedCardIds: [] });
     const water = player.getResource('water') as Water;
     water.current = startWater;

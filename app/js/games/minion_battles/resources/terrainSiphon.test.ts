@@ -9,7 +9,7 @@ import { CELL_SIZE, TerrainGrid } from '../terrain/TerrainGrid';
 import { TerrainType, WATER_TERRAIN_TYPES } from '../terrain/TerrainType';
 import { WATER_TILE_HEALTH } from '../terrain/FloorTile';
 import { pickSiphonTiles, tickTerrainSiphon, type TerrainSiphonConfig } from './terrainSiphon';
-import { Water, WATER_MAX, WATER_SIPHON } from './Water';
+import { Water, WATER_DEFAULT_MAX, WATER_SIPHON } from './Water';
 import { createResourceFromId } from './createResourceFromId';
 import { ALL_RESOURCE_DISPLAY_DEFS } from './resourceDisplayDefs';
 
@@ -143,18 +143,18 @@ describe('terrain siphon (Water)', () => {
 
     it('stops at max: no gain and no drain', () => {
         const { terrain, engine, unit, resource } = setup([[CENTER, CENTER, TerrainType.DeepWater]]);
-        resource.current = WATER_MAX;
+        resource.current = WATER_DEFAULT_MAX;
         tickFor(1, resource, unit, engine);
-        expect(resource.current).toBe(WATER_MAX);
+        expect(resource.current).toBe(WATER_DEFAULT_MAX);
         expect(resource.perSecondGain).toBe(0);
         expect(terrain.getFloorTile(CENTER, CENTER)).toBeNull();
     });
 
     it('clamps the gain to max', () => {
         const { engine, unit, resource } = setup([[CENTER, CENTER, TerrainType.DeepWater]]);
-        resource.current = WATER_MAX - 0.1;
+        resource.current = WATER_DEFAULT_MAX - 0.1;
         tickFor(1, resource, unit, engine);
-        expect(resource.current).toBe(WATER_MAX);
+        expect(resource.current).toBe(WATER_DEFAULT_MAX);
     });
 
     it('drops a tile a level after 8 s of draining', () => {
@@ -195,7 +195,7 @@ describe('terrain siphon (Water)', () => {
         // A paused tick (dt 0) keeps the last tiles so the visual holds still.
         resource.onTick(unit, engine, 0);
         expect(resource.siphonTiles).toHaveLength(2);
-        resource.current = WATER_MAX;
+        resource.current = WATER_DEFAULT_MAX;
         tickFor(FIXED_DT, resource, unit, engine);
         expect(resource.siphonTiles).toEqual([]);
     });
@@ -219,11 +219,11 @@ describe('Water resource display', () => {
     it('restores from its id with the liquid bar and tooltip lines', () => {
         const water = createResourceFromId('water');
         expect(water).toBeInstanceOf(Water);
-        expect(water!.max).toBe(WATER_MAX);
+        expect(water!.max).toBe(WATER_DEFAULT_MAX);
         expect(water!.barStyle).toBe('liquid');
         expect(water!.tooltipLines).toEqual([
             '+0.5/s in or beside water',
-            'Drains up to 4 nearby tiles · max 8',
+            'Drains up to 4 nearby tiles',
         ]);
     });
 
@@ -234,7 +234,7 @@ describe('Water resource display', () => {
             name: water.name,
             color: water.color,
             iconName: 'Droplet',
-            max: WATER_MAX,
+            max: WATER_DEFAULT_MAX,
             barStyle: 'liquid',
             tooltipLines: water.tooltipLines,
         });

@@ -80,7 +80,7 @@ import { PassiveStatKey } from '../../../researchTrees/types';
 import { getPetDef } from '../game/units/pet_defs/petDef';
 import { inheritOwnerAbilityModifiers } from '../game/units/petHelpers';
 import { AbilityGroupId, formatGroupId } from '../card_defs/AbilityGroupId';
-import { getAbilityTagsForId, getAbilityResourceCosts } from '../abilities/Ability';
+import { getAbilityTagsForId } from '../abilities/Ability';
 import { expandAbilityIdsForResearchModifiers } from '../abilities/abilityModifierHelpers';
 import { Ammo } from '../resources/Ammo';
 import { Movement } from '../resources/Movement';
@@ -101,15 +101,27 @@ import { peekSwarmState } from '../game/units/components/swarmComponent';
 /** Gun abilities that require an ammo resource at mission start (not melee swords). */
 const AMMO_ABILITIES = new Set(['0203', '0204', '0205']);
 
-function attachResourcesFromEquipment(equippedIds: string[], unit: Unit, eventBus: EventBus): void {
-    const seen = new Set<string>();
+/**
+ * Attaches the resources the equipped items bring: `resourcesToAdd` as bare resources, and `resourceGrants`
+ * with the item's own max and starting amount (so the core decides how big e.g. the Water bar is).
+ * A resource the unit already has is left alone.
+ */
+export function attachResourcesFromEquipment(equippedIds: string[], unit: Unit, eventBus: EventBus): void {
     for (const itemId of equippedIds) {
-        for (const rid of getItemDef(itemId)?.resourcesToAdd ?? []) {
-            if (seen.has(rid) || unit.getResource(rid)) continue;
-            seen.add(rid);
+        const def = getItemDef(itemId);
+        for (const rid of def?.resourcesToAdd ?? []) {
+            if (unit.getResource(rid)) continue;
             // Every serializable resource id has a factory, so new resource-granting items need no edit here.
             const resource = createResourceFromId(rid);
             if (resource) unit.attachResource(resource, eventBus);
+        }
+        for (const grant of def?.resourceGrants ?? []) {
+            if (unit.getResource(grant.resourceId)) continue;
+            const resource = createResourceFromId(grant.resourceId);
+            if (!resource) continue;
+            resource.max = grant.max;
+            resource.current = Math.min(grant.max, grant.startingAmount);
+            unit.attachResource(resource, eventBus);
         }
     }
 }
@@ -153,33 +165,6 @@ export function applyLockedAbilityModes(
         if (lockedModes.length > 0) locked[abilityId] = lockedModes;
     }
     unit.lockedAbilityModes = locked;
-}
-
-/**
- * Attaches every resource flagged `attachForAbilityCosts` that any of the unit's abilities, or the abilities
- * of their modes (`modeAbilityIds`), costs. Each starts at its `startingAmount` (capped at max) and is
- * skipped when the unit already has it. Call after the unit's abilities are final.
- */
-export function attachResourcesForAbilityCosts(unit: Unit, eventBus: EventBus): void {
-    const costed = new Set<string>();
-    const visit = (abilityId: string): void => {
-        const ability = getAbility(abilityId);
-        if (!ability) return;
-        for (const cost of getAbilityResourceCosts(ability)) costed.add(cost.resourceId);
-    };
-    for (const abilityId of unit.abilities) {
-        visit(abilityId);
-        for (const modeAbilityId of Object.values(getAbility(abilityId)?.abilityModes?.modeAbilityIds ?? {})) {
-            visit(modeAbilityId);
-        }
-    }
-    for (const rid of costed) {
-        if (unit.getResource(rid)) continue;
-        const resource = createResourceFromId(rid);
-        if (!resource?.attachForAbilityCosts) continue;
-        resource.current = Math.min(resource.max, resource.startingAmount);
-        unit.attachResource(resource, eventBus);
-    }
 }
 
 function applyMissionStartResourcesFromResearch(
@@ -551,7 +536,6 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
             attachResourcesFromEquipment(equippedIds, unit, engine.eventBus);
-            attachResourcesForAbilityCosts(unit, engine.eventBus);
             attachReflexIfKnown(unit, engine.eventBus, playerKnowsReactions(engine, pu.playerId));
             applyMissionStartResourcesFromResearch(unit, researchByPlayer[pu.playerId]);
             applySenseGrantsFromResearch(unit, researchByPlayer[pu.playerId]);
