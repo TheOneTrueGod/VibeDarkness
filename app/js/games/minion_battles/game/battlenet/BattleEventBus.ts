@@ -16,6 +16,7 @@ export class BattleEventBus {
         'orders-applied': new Set(),
         'host-catchup-wait': new Set(),
         'host-persist-backlog': new Set(),
+        'host-persist-queue': new Set(),
         'waiting-for-host-poll-streak': new Set(),
         'reaction-claims-changed': new Set(),
     };

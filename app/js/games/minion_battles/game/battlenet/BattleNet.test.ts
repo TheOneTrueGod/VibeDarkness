@@ -2606,6 +2606,124 @@ describe('BattleNet', () => {
         });
     });
 
+    describe('host persist queue (single serial save pipe)', () => {
+        const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+        const queueToken = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+
+        function queueHostNet(apiOverrides: Record<string, unknown>): BattleNet {
+            const api = makeApi({
+                getBattleHeartbeat: vi.fn(async () => lobby97305CHeartbeat()),
+                ...apiOverrides,
+            });
+            return new BattleNet({
+                api,
+                session: makeSession({
+                    getEngineTick: () => LOBBY_97305C.hostTick,
+                    isPausedForOrderSync: () => true,
+                    applyRemoteOrders: vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] }),
+                }),
+                isHost: true,
+                lobbyId: 'l1',
+                gameId: 'g1',
+                playerId: 'host',
+            });
+        }
+
+        it('three submits of the same Wait produce one appendBattleOrder', async () => {
+            const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
+                accepted: true,
+                idHash: body.idHash ?? 'h',
+                hostTick: LOBBY_97305C.hostTick,
+            }));
+            const persistHostCycles = vi.fn();
+            const net = queueHostNet({ appendBattleOrder, persistHostCycles });
+            await net.pollOnce();
+            const order = makeOrder('wait');
+            await Promise.all([
+                net.submitOrder(order, LOBBY_97305C.orderBatchAtTick, { skipLocalApply: true }),
+                net.submitOrder(order, LOBBY_97305C.orderBatchAtTick, { skipLocalApply: true }),
+                net.submitOrder(order, LOBBY_97305C.orderBatchAtTick, { skipLocalApply: true }),
+            ]);
+            expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+            expect(persistHostCycles).not.toHaveBeenCalled();
+        });
+
+        it('five submits at one tick while a save is held: one call in flight, then one envelope', async () => {
+            let releaseFirst: () => void = () => {};
+            const appendBattleOrder = vi.fn(
+                (_l: string, _g: string, body: { idHash?: string }) =>
+                    new Promise<{ accepted: boolean; idHash: string; hostTick: number }>((resolve) => {
+                        releaseFirst = () =>
+                            resolve({ accepted: true, idHash: body.idHash ?? 'h', hostTick: LOBBY_97305C.hostTick });
+                    }),
+            );
+            const persistHostCycles = vi.fn(async (
+                _l: string,
+                _g: string,
+                body: { orders: Array<{ idHash?: string }> },
+            ) => ({
+                accepted: true,
+                acceptedIdHashes: body.orders.map((row) => row.idHash ?? ''),
+                hostTick: LOBBY_97305C.hostTick,
+            }));
+            const net = queueHostNet({ appendBattleOrder, persistHostCycles });
+            const depths: number[] = [];
+            net.on('host-persist-queue', (payload) => depths.push(payload.depth));
+            await net.pollOnce();
+
+            const submits: Array<Promise<void>> = [];
+            submits.push(net.submitOrder(makeOrder('a'), LOBBY_97305C.orderBatchAtTick, { skipLocalApply: true }));
+            await settle();
+            expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+            for (const id of ['b', 'c', 'd', 'e']) {
+                submits.push(net.submitOrder(makeOrder(id), LOBBY_97305C.orderBatchAtTick, { skipLocalApply: true }));
+            }
+            await settle();
+            expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+            expect(persistHostCycles).not.toHaveBeenCalled();
+            expect(Math.max(...depths)).toBe(5);
+
+            releaseFirst();
+            await Promise.all(submits);
+            expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+            expect(persistHostCycles).toHaveBeenCalledTimes(1);
+            const body = persistHostCycles.mock.calls[0]?.[2] as { orders: unknown[] };
+            expect(body.orders).toHaveLength(4);
+            expect(depths[depths.length - 1]).toBe(0);
+        });
+
+        it('a pause snapshot queued behind an in-flight order is POSTed only after that order', async () => {
+            const calls: string[] = [];
+            let releaseOrder: () => void = () => {};
+            const appendBattleOrder = vi.fn(
+                (_l: string, _g: string, body: { idHash?: string }) =>
+                    new Promise<{ accepted: boolean; idHash: string; hostTick: number }>((resolve) => {
+                        calls.push('order');
+                        releaseOrder = () =>
+                            resolve({ accepted: true, idHash: body.idHash ?? 'h', hostTick: LOBBY_97305C.hostTick });
+                    }),
+            );
+            const saveBattleSnapshot = vi.fn(async () => {
+                calls.push('snapshot');
+                return { success: true, tick: 400 };
+            });
+            const net = queueHostNet({ appendBattleOrder, saveBattleSnapshot });
+            await net.pollOnce();
+
+            const submit = net.submitOrder(makeOrder('w'), LOBBY_97305C.orderBatchAtTick, { skipLocalApply: true });
+            await settle();
+            const snapshotSave = net.saveSnapshotOnPause(400, { gameTick: 400 } as SerializedGameState, queueToken);
+            await settle();
+            expect(calls).toEqual(['order']);
+            expect(saveBattleSnapshot).not.toHaveBeenCalled();
+
+            releaseOrder();
+            await submit;
+            await snapshotSave;
+            expect(calls).toEqual(['order', 'snapshot']);
+        });
+    });
+
     it('97305C: in-place skipLocalApply at mark batch still POSTs inside the append window', async () => {
         const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({

@@ -378,7 +378,7 @@ describe('preview/canon equivalence — host in-place commit after natural compl
         mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
 
         // --- Engine B: ITS preview with its pick, played to natural completion, committed in place. ---
-        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        const persistCommittedOrder = vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) }));
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
@@ -460,7 +460,7 @@ describe('preview/canon equivalence — ended-early (interrupted) preview cast',
         mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
 
         // --- Engine B: ITS preview, interrupted before the pick, committed in place. ---
-        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        const persistCommittedOrder = vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) }));
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
@@ -551,7 +551,7 @@ describe('preview/canon equivalence — missing-pick resume (updateTargets order
         mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
 
         // --- Engine B: resume ITS at the pause, pick, commit in place. ---
-        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        const persistCommittedOrder = vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) }));
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
@@ -672,7 +672,7 @@ describe('preview/canon equivalence — host in-place commit of a t=0 dash (play
         const mark = engine.toJSON();
         mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
 
-        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        const persistCommittedOrder = vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) }));
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,

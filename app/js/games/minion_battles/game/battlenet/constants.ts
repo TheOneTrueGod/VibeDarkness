@@ -110,3 +110,12 @@ export const ITS_REFRESH_SKIP_MAX_POLL_AGE_MS = 2000;
 export const HOST_PLAYAHEAD_CAP_SEC = 10;
 /** Tick count for {@link HOST_PLAYAHEAD_CAP_SEC} at the engine's fixed timestep. */
 export const HOST_PLAYAHEAD_CAP_TICKS = Math.round(HOST_PLAYAHEAD_CAP_SEC / FIXED_DT);
+
+/** Host save queue depth (unacked items) at which the "Waiting on server" alert becomes a warning. */
+export const HOST_PERSIST_QUEUE_WARNING_DEPTH = 3;
+/** Host save queue depth at which the "Waiting on server" alert becomes danger. */
+export const HOST_PERSIST_QUEUE_DANGER_DEPTH = 6;
+/** The host save queue alert shows only once the oldest unacked item has waited this long. */
+export const HOST_PERSIST_QUEUE_SHOW_AFTER_MS = 750;
+/** While the host save queue is non-empty, `host-persist-queue` re-emits this often so age-based UI updates. */
+export const HOST_PERSIST_QUEUE_REEMIT_MS = 250;

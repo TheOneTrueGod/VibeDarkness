@@ -608,10 +608,11 @@ export class InteractiveTargetingSession {
 
     /**
      * Rollback: restore to mark, apply held remote orders, submit via BattleNet (re-applies locally).
+     * Neither mode waits for the host's POST: the host enqueues the save and settles the turn at once.
      * In-place: keep preview engine state, persist the finalized order without re-applying it,
      * clear preview flags, unpause, and re-emit any terminal outcome suppressed during preview.
      *
-     * Re-entrant calls while a commit is awaiting network are dropped (terminal-outcome
+     * Re-entrant calls while a commit is in flight (a guest awaits its POST) are dropped (terminal-outcome
      * auto-commit can race the UI's AUTO_END_TURN poll).
      */
     async commit(session: BattleSession, actionSource?: ItsActionSource): Promise<void> {

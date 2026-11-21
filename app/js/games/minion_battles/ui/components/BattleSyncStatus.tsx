@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import SyncStatusCard, { type SyncStatusTone } from './SyncStatusCard';
+import { hostPersistQueueAlertModel } from './hostPersistQueueAlert';
 import {
     BATTLE_NET_WAITING_HOST_UI_FORCE_RESYNC_POLLS,
     BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
@@ -44,6 +45,10 @@ export interface BattleSyncStatusProps {
     hostPersistBacklogBlocking?: boolean;
     hostPersistBacklogAcknowledgedTick?: number;
     hostPersistBacklogEngineTick?: number;
+    /** Host: unacked save items (queued + in flight) from `host-persist-queue`. */
+    hostPersistQueueDepth?: number;
+    /** Host: age of the oldest unacked save item. */
+    hostPersistQueueOldestAgeMs?: number;
 }
 
 type CardModel = {
@@ -149,6 +154,29 @@ function pickSyncCardModel(p: BattleSyncStatusProps): CardModel {
                 'State matches the server again. Tap Okay or wait — this notice closes automatically.',
             details: detailsBattleOrDebug(p, tail),
         };
+    }
+
+    // Host save-queue alert: below resync / failed / pending-ack cards, above the quiet "nothing to show" returns.
+    if (
+        isHost &&
+        syncStatus !== 'resyncing' &&
+        syncStatus !== 'failed' &&
+        syncStatus !== 'synced_pending_ack'
+    ) {
+        const queueAlert = hostPersistQueueAlertModel({
+            depth: p.hostPersistQueueDepth ?? 0,
+            oldestAgeMs: p.hostPersistQueueOldestAgeMs ?? 0,
+            capBlocking: p.hostPersistBacklogBlocking === true,
+        });
+        if (queueAlert != null) {
+            return {
+                title: queueAlert.title,
+                tone: queueAlert.tone,
+                summary: queueAlert.summary,
+                details: detailsBattleOrDebug(p, queueAlert.detail ?? detail),
+                busy: queueAlert.busy,
+            };
+        }
     }
 
     if (variant === 'battle' && syncStatus === 'synced' && !p.hostPersistBacklogBlocking) {

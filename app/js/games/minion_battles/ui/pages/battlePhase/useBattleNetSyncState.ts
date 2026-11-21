@@ -32,6 +32,8 @@ export function useBattleNetSyncState({ isHost, onBattleNetResyncingChange }: Us
     const [hostPersistBacklogBlocking, setHostPersistBacklogBlocking] = useState(false);
     const [hostPersistBacklogAcknowledgedTick, setHostPersistBacklogAcknowledgedTick] = useState(0);
     const [hostPersistBacklogEngineTick, setHostPersistBacklogEngineTick] = useState(0);
+    const [hostPersistQueueDepth, setHostPersistQueueDepth] = useState(0);
+    const [hostPersistQueueOldestAgeMs, setHostPersistQueueOldestAgeMs] = useState(0);
     const [orderPipeline, setOrderPipeline] = useState<{ queued: number; sending: number }>({
         queued: 0,
         sending: 0,
@@ -107,6 +109,12 @@ export function useBattleNetSyncState({ isHost, onBattleNetResyncingChange }: Us
                 setHostPersistBacklogEngineTick(payload.engineTick);
             }),
         );
+        unsubs.push(
+            net.on('host-persist-queue', (payload) => {
+                setHostPersistQueueDepth(payload.depth);
+                setHostPersistQueueOldestAgeMs(payload.oldestUnackedAgeMs);
+            }),
+        );
         unsubs.push(net.on('heartbeat', bumpOrderPipeline));
         unsubs.push(
             net.on('heartbeat', () => {
@@ -154,6 +162,8 @@ export function useBattleNetSyncState({ isHost, onBattleNetResyncingChange }: Us
         hostPersistBacklogBlocking,
         hostPersistBacklogAcknowledgedTick,
         hostPersistBacklogEngineTick,
+        hostPersistQueueDepth,
+        hostPersistQueueOldestAgeMs,
         orderPipeline,
         hasReceivedInitialHeartbeat,
         wireNetEvents,

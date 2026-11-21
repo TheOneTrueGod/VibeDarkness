@@ -32,7 +32,7 @@ import type { SimTimeline } from './interaction/simTimeline';
 import { bumpEpoch, enterPreview, toCanonical } from './interaction/simTimeline';
 import { PreviewEmissionBuffer } from './interaction/PreviewEmissionBuffer';
 import { mintCanonicalToken, type CanonicalToken } from './battlenet/canonicalToken';
-import type { ReactionClaimVerdict } from './battlenet/types';
+import type { CommittedOrderPersist, ReactionClaimVerdict } from './battlenet/types';
 import { evaluateReactionClaimRequest } from './reactions/claimRule';
 import { bindEngineCallbacks } from './sessionEngineBinding';
 import {
@@ -774,12 +774,12 @@ export class BattleSession implements BattleSessionHandle {
 
     /**
      * In-place interactive commit: persist the finalized order without re-applying it locally.
-     * Host: append + merge via {@link BattleNet.persistCommittedOrder}.
+     * Host: synchronous enqueue via {@link BattleNet.persistCommittedOrder} (does not wait for the POST).
      * Non-host: POST via {@link BattleNet.submitOrder} with `skipLocalApply` (deferral gates unchanged).
-     * Registers the wire dedupe key in {@link appliedRemoteOrderKeys} on success.
+     * Registers the wire dedupe key in {@link appliedRemoteOrderKeys} once queued (host) or accepted (guest).
      * @param token Optional commit token (minted by caller during preview for in-place commit path).
      */
-    async persistInPlaceCommittedTargetingOrder(order: BattleOrder, atTick: number, token?: CanonicalToken | null): Promise<boolean> {
+    async persistInPlaceCommittedTargetingOrder(order: BattleOrder, atTick: number, token?: CanonicalToken | null): Promise<CommittedOrderPersist> {
         return persistInPlaceCommittedTargetingOrderFor(this, order, atTick, token);
     }
 

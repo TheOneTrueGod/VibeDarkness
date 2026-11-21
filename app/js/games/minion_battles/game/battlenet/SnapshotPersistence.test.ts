@@ -562,3 +562,55 @@ describe('SnapshotPersistence.logDetectedDesyncDiagnostic', () => {
         expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
     });
 });
+
+describe('SnapshotPersistence host save queue mode', () => {
+    it('enqueues the pause snapshot instead of POSTing; the queue send handler does the POST', async () => {
+        let release: (ok: boolean) => void = () => {};
+        const enqueueSnapshot = vi.fn(
+            () =>
+                new Promise<boolean>((resolve) => {
+                    release = resolve;
+                }),
+        );
+        const api = makeApi();
+        const ctrl = new SnapshotPersistence({
+            api,
+            session: makeSession(),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+            requestResync: vi.fn(),
+            enqueueSnapshot,
+        });
+        const state = { gameTick: 477, waitingForOrders: { atTick: 478, waiters: [] } } as unknown as SerializedGameState;
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+        const saving = ctrl.saveSnapshotOnPause(477, state, token);
+
+        expect(enqueueSnapshot).toHaveBeenCalledWith(
+            expect.objectContaining({ tick: 477, orderBatchAtTick: 478, token }),
+        );
+        expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
+        // Pending payload gates rows behind the checkpoint; the accepted window is still unknown.
+        expect(ctrl.getPendingPauseSnapshotForEnvelope()?.tick).toBe(477);
+        expect(ctrl.getAcceptedCheckpointAppendWindow()).toBeNull();
+
+        const pending = ctrl.getPendingPauseSnapshotForEnvelope()!;
+        await expect(ctrl.postQueuedSnapshot(pending, token)).resolves.toBe(true);
+        expect(api.saveBattleSnapshot).toHaveBeenCalledTimes(1);
+        expect(ctrl.getAcceptedCheckpointAppendWindow()).toEqual({ hostTick: 477, orderBatchAtTick: 478 });
+
+        release(true);
+        await saving;
+        expect(ctrl.getPendingPauseSnapshotForEnvelope()).toBeNull();
+    });
+
+    it('postQueuedSnapshot resolves false without POSTing for a stale token', async () => {
+        const { ctrl, api } = make({ session: { getTimeline: () => ({ kind: 'canonical', engineEpoch: 3 }) } });
+        const pending = { tick: 10, state: { gameTick: 10 } as SerializedGameState };
+        await expect(
+            ctrl.postQueuedSnapshot(pending, { engineEpoch: 1, __brand: 'CanonicalToken' as const }),
+        ).resolves.toBe(false);
+        expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
+    });
+});

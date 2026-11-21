@@ -186,6 +186,8 @@ export default function BattlePhase({
         hostPersistBacklogBlocking,
         hostPersistBacklogAcknowledgedTick,
         hostPersistBacklogEngineTick,
+        hostPersistQueueDepth,
+        hostPersistQueueOldestAgeMs,
         orderPipeline,
         hasReceivedInitialHeartbeat,
         wireNetEvents,
@@ -661,6 +663,8 @@ export default function BattlePhase({
                                 hostPersistBacklogBlocking={hostPersistBacklogBlocking}
                                 hostPersistBacklogAcknowledgedTick={hostPersistBacklogAcknowledgedTick}
                                 hostPersistBacklogEngineTick={hostPersistBacklogEngineTick}
+                                hostPersistQueueDepth={hostPersistQueueDepth}
+                                hostPersistQueueOldestAgeMs={hostPersistQueueOldestAgeMs}
                                 hostAnchorWaitElapsedMs={hostAnchorWaitElapsedMs}
                                 onRequestBattleReload={() =>
                                     netRef.current?.requestResync('user-reload-from-sync-box')

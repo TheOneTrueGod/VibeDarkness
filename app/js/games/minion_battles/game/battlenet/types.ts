@@ -139,6 +139,16 @@ export interface BattleSessionHandle {
 }
 
 /** Outcome of judging a Reaction claim request against the engine (`evaluateReactionClaimRequest`). */
+/**
+ * Result of {@link BattleNet.persistCommittedOrder}: a synchronous enqueue. `queued` is false only for the
+ * synchronous refusals (recovering, awaiting user ack, preview without a commit token); `landed` settles when the
+ * save is acked (true) or finally rejected (false), and never blocks the caller.
+ */
+export interface CommittedOrderPersist {
+	queued: boolean;
+	landed: Promise<boolean>;
+}
+
 export type ReactionClaimVerdict = 'ok' | 'already_claimed' | 'rejected';
 
 /**
@@ -231,6 +241,14 @@ export type BattleNetEventMap = {
         blocking: boolean;
         acknowledgedCompletedTick: number;
         engineTick: number;
+    };
+    /**
+     * Host: save queue state (unacked order rows + pending pause snapshots, queued and in flight).
+     * Re-emitted every `HOST_PERSIST_QUEUE_REEMIT_MS` while `depth > 0` so age-based UI can update.
+     */
+    'host-persist-queue': {
+        depth: number;
+        oldestUnackedAgeMs: number;
     };
     /** Non-host: polls while paused for orders and `waiting_for_host` (battle UI gating + stall resync). */
     'waiting-for-host-poll-streak': { streak: number };

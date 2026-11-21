@@ -86,7 +86,7 @@ describe('Combo auto-continue', () => {
         // In-place commits (a Combo follow-up commits the previous preview where it stands) need the order path.
         session.setNetAdapter({
             isOrderSubmitPathAvailable: () => true,
-            persistCommittedOrder: vi.fn(async () => true),
+            persistCommittedOrder: vi.fn(() => ({ queued: true, landed: Promise.resolve(true) })),
             saveSnapshotOnPause: vi.fn(async () => {}),
             submitOrder: vi.fn(async () => {}),
             hasDeferredOrderFor: () => false,

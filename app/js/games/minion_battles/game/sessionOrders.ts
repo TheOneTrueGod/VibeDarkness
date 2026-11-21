@@ -16,6 +16,7 @@ import { isAtConditionalCancelDecision } from './interaction/isITSPreviewComplet
 import { toCanonical } from './interaction/simTimeline';
 import { type CanonicalToken } from './battlenet/canonicalToken';
 import type { BattleSession } from './BattleSession';
+import type { CommittedOrderPersist } from './battlenet/types';
 import { reactionClaimOf } from './reactions/claimOrder';
 
 export function applyHeldRemoteOrdersFor(
@@ -282,31 +283,36 @@ export async function submitCommittedTargetingOrderFor(
     return false;
 }
 
+/**
+ * Host: synchronous enqueue (never waits for the POST); `landed` reports the ack in the background.
+ * Guest: awaits {@link BattleNet.submitOrder} as before, so `landed` is already settled.
+ */
 export async function persistInPlaceCommittedTargetingOrderFor(
     session: BattleSession,
     order: BattleOrder, atTick: number, token?: CanonicalToken | null,
-): Promise<boolean> {
-    if (!session.netAdapter) return false;
+): Promise<CommittedOrderPersist> {
+    const refused: CommittedOrderPersist = { queued: false, landed: Promise.resolve(false) };
+    if (!session.netAdapter) return refused;
     const pathAvailable = session.netAdapter.isOrderSubmitPathAvailable();
-    if (!pathAvailable) return false;
+    if (!pathAvailable) return refused;
 
     const idHash = hashOrderId(session.config.playerId, atTick, order);
 
     if (session.config.isHost) {
-        const ok = await session.netAdapter.persistCommittedOrder(order, atTick, token);
-        if (ok) {
+        const result = session.netAdapter.persistCommittedOrder(order, atTick, token);
+        if (result.queued) {
             session.appliedRemoteOrderKeys.add(idHash);
         }
-        return ok;
+        return result;
     }
 
     await session.netAdapter.submitOrder(order, atTick, { skipLocalApply: true, token });
     const deferred = session.netAdapter.hasDeferredOrderFor(order.unitId, atTick);
     if (deferred) {
-        return false;
+        return refused;
     }
     session.appliedRemoteOrderKeys.add(idHash);
-    return true;
+    return { queued: true, landed: Promise.resolve(true) };
 }
 
 export function promotePreviewFor(

@@ -20,6 +20,7 @@ interface QueueBucket {
     entries: string[];
     bytes: number;
     debounceTimer: ReturnType<typeof setTimeout> | null;
+    inFlight: boolean;
 }
 
 const FLUSH_SIZE = 20;
@@ -37,6 +38,36 @@ function bucketKey(lobbyId: string, userId: string): string {
     return `${lobbyId}::${userId}`;
 }
 
+let uploadHold: (() => boolean) | null = null;
+
+/**
+ * While `isHeld()` is true, debug user-state uploads do not POST (game saves have priority).
+ * Pass null to clear. Returns an unregister function that only clears this hold if it is still current.
+ */
+export function setUserStateUploadHold(isHeld: (() => boolean) | null): () => void {
+    uploadHold = isHeld;
+    return () => {
+        if (uploadHold === isHeld) {
+            uploadHold = null;
+        }
+    };
+}
+
+function isUploadHeld(): boolean {
+    return uploadHold !== null && uploadHold();
+}
+
+/** Test helper: drop all buckets, timers and the hold. */
+export function resetUserStateQueueForTests(): void {
+    for (const bucket of buckets.values()) {
+        if (bucket.debounceTimer !== null) {
+            clearTimeout(bucket.debounceTimer);
+        }
+    }
+    buckets.clear();
+    uploadHold = null;
+}
+
 async function flush(bucket: QueueBucket): Promise<void> {
     if (bucket.debounceTimer !== null) {
         clearTimeout(bucket.debounceTimer);
@@ -45,9 +76,18 @@ async function flush(bucket: QueueBucket): Promise<void> {
     if (bucket.entries.length === 0) {
         return;
     }
+    // One user-state POST in flight per bucket: the batch waits and is re-flushed when it finishes.
+    if (bucket.inFlight) {
+        return;
+    }
+    if (isUploadHeld()) {
+        scheduleDebounce(bucket);
+        return;
+    }
     const { key, entries } = bucket;
     bucket.entries = [];
     bucket.bytes = 0;
+    bucket.inFlight = true;
 
     const url = `${key.baseUrl}/api/lobbies/${key.lobbyId}/user-state/${key.userId}`;
     try {
@@ -59,6 +99,15 @@ async function flush(bucket: QueueBucket): Promise<void> {
         });
     } catch {
         // Silently swallow — user state logs are best-effort debug data.
+    } finally {
+        bucket.inFlight = false;
+    }
+    if (bucket.entries.length > 0) {
+        if (bucket.bytes >= FLUSH_BYTES || bucket.entries.length >= FLUSH_SIZE) {
+            void flush(bucket);
+        } else {
+            scheduleDebounce(bucket);
+        }
     }
 }
 
@@ -82,12 +131,22 @@ export function enqueueUserState(
     const k = bucketKey(lobbyId, userId);
     let bucket = buckets.get(k);
     if (!bucket) {
-        bucket = { key: { lobbyId, userId, playerId, baseUrl }, entries: [], bytes: 0, debounceTimer: null };
+        bucket = { key: { lobbyId, userId, playerId, baseUrl }, entries: [], bytes: 0, debounceTimer: null, inFlight: false };
         buckets.set(k, bucket);
     }
     const encoded = JSON.stringify(entry);
     if (bucket.entries.length > 0 && bucket.bytes + encoded.length > FLUSH_BYTES) {
-        void flush(bucket);
+        if (bucket.inFlight || isUploadHeld()) {
+            // Cannot send now: keep at most one pending batch and drop the oldest entries (best-effort debug data).
+            let dropped = 0;
+            while (bucket.entries.length > 0 && bucket.bytes + encoded.length > FLUSH_BYTES) {
+                bucket.bytes -= bucket.entries.shift()!.length;
+                dropped++;
+            }
+            console.warn(`[userStateBatchQueue] dropped ${dropped} oldest user-state entries while uploads are held`);
+        } else {
+            void flush(bucket);
+        }
     }
     bucket.entries.push(encoded);
     bucket.bytes += encoded.length;

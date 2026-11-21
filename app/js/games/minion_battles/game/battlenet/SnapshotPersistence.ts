@@ -26,6 +26,17 @@ export interface SnapshotPersistenceConfig {
         hostFingerprint?: string | null;
         orderBatchAtTick?: number | null;
     }) => void;
+    /**
+     * Host: route pause snapshots through the single host save queue instead of POSTing here.
+     * Resolves true once the checkpoint was saved. The queue's send handler calls back into
+     * {@link SnapshotPersistence.postQueuedSnapshot}.
+     */
+    enqueueSnapshot?: (item: {
+        tick: number;
+        payload: PersistHostCyclesSnapshot;
+        token: CanonicalToken | null | undefined;
+        orderBatchAtTick: number;
+    }) => Promise<boolean>;
 }
 
 /** Host append window implied by a pause checkpoint: tail at `hostTick`, parallel orders at `orderBatchAtTick`. */
@@ -95,6 +106,11 @@ export class SnapshotPersistence {
         if (pending != null) {
             return checkpointAppendWindow(pending.tick, pending.state);
         }
+        return this.lastSnapshotWindow;
+    }
+
+    /** Append window of the last checkpoint the server accepted (excludes a queued / in-flight one). */
+    getAcceptedCheckpointAppendWindow(): CheckpointAppendWindow | null {
         return this.lastSnapshotWindow;
     }
 
@@ -179,7 +195,16 @@ export class SnapshotPersistence {
                 its: this.config.session.getItsDiagState?.() ?? null,
             },
         });
-        const run = this.performSaveSnapshotOnPause(pending, token);
+        const enqueue = this.config.enqueueSnapshot;
+        const run: Promise<void> =
+            enqueue != null
+                ? enqueue({
+                      tick,
+                      payload: pending,
+                      token,
+                      orderBatchAtTick: checkpointAppendWindow(tick, state).orderBatchAtTick,
+                  }).then(() => undefined)
+                : this.performSaveSnapshotOnPause(pending, token);
         this.pendingPauseSnapshotPayload = pending;
         this.pendingPauseSnapshotToken = token;
         this.inFlightPauseSnapshot = { tick, promise: run };
@@ -210,6 +235,15 @@ export class SnapshotPersistence {
                   checkpointFingerprintPaused: this.config.session.getFingerprintTailPaused(),
               }
             : {};
+    }
+
+    /**
+     * Queue send handler for a snapshot-only envelope: the actual `saveBattleSnapshot` POST.
+     * Resolves false when skipped for a stale / missing token; rejects on network failure.
+     */
+    async postQueuedSnapshot(pending: PersistHostCyclesSnapshot, token: CanonicalToken | null | undefined): Promise<boolean> {
+        await this.performSaveSnapshotOnPause(pending, token);
+        return this.lastSnapshotTick === pending.tick;
     }
 
     private async performSaveSnapshotOnPause(pending: PersistHostCyclesSnapshot, token: CanonicalToken | null | undefined): Promise<void> {

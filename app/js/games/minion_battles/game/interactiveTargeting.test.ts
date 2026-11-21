@@ -64,6 +64,7 @@ import { Light } from '../resources/Light';
 import type { MinionBattlesApi } from '../api/minionBattlesApi';
 import type { PlayerState } from '../../../types';
 import { BattleSession } from './BattleSession';
+import { persistInPlaceCommittedTargetingOrderFor } from './sessionOrders';
 import { BattleNet } from './battlenet/BattleNet';
 import type { LobbyClient } from '../../../LobbyClient';
 import { OrderManager } from './managers/OrderManager';
@@ -1930,7 +1931,7 @@ describe('commit-time in-place decision (Step 1)', () => {
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
-            persistCommittedOrder: vi.fn().mockResolvedValue(true),
+            persistCommittedOrder: vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) })),
         }));
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
@@ -2920,7 +2921,7 @@ describe('terminal outcome during ITS preview (auto-commit before surfacing UI)'
         // Other waiter confirmed before begin → no assumed waits → in-place commit allowed.
         engine.state.orderMgr.applyOrder(makePurePassOrder(remoteUnitId));
 
-        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        const persistCommittedOrder = vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) }));
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
@@ -3153,7 +3154,7 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         const { session, engine, player, its } = await mountDiggingClawsConditionalCancelPreview();
         const markBatchAtTick = its.getDiagState().markBatchAtTick;
 
-        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        const persistCommittedOrder = vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) }));
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
@@ -3185,7 +3186,7 @@ describe('interactive sequential targeting — conditional cancel stop point', (
 
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
-            persistCommittedOrder: vi.fn().mockResolvedValue(true),
+            persistCommittedOrder: vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) })),
         }));
         await its.commit(session);
 
@@ -3530,7 +3531,7 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         initializeAbilityRuntimeForUnit(player);
         const aimPixel = { x: player.x + 160, y: player.y };
 
-        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        const persistCommittedOrder = vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) }));
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
@@ -3904,7 +3905,7 @@ describe('ITS preview cast ended early before targets collected (lobbies 0AD6EA 
         // Other waiter confirmed before begin with a wait that outlasts the preview: no assumed waits and no
         // teammate pause during the playahead, so the commit stays in place.
         engine.state.orderMgr.applyOrder(makeLongPassOrder(remoteUnitId));
-        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        const persistCommittedOrder = vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) }));
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
@@ -3939,6 +3940,69 @@ describe('ITS preview cast ended early before targets collected (lobbies 0AD6EA 
         expect(engine.waitingForOrders?.atTick).toBe(engine.gameTick + 1);
         expect(engine.waitingForOrders?.waiters.some((w) => w.unitId === casterUnitId)).toBe(true);
         session.destroy();
+    });
+
+    it('host in-place commit does not wait for the save: unpaused and promoted while persist is pending', async () => {
+        const { session, engine, casterUnitId, remoteUnitId } = await mountLightBlastSessionFixture();
+        engine.state.orderMgr.applyOrder(makeLongPassOrder(remoteUnitId));
+        // The save never lands: `landed` stays pending forever.
+        const persistCommittedOrder = vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({
+            queued: true,
+            landed: new Promise<boolean>(() => {}),
+        }));
+        session.setNetAdapter(stubNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder,
+            saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
+            queueFingerprint: vi.fn(),
+        }));
+        const promoteSpy = vi.spyOn(session, 'promotePreview');
+        beginAndKnockCaster(session, casterUnitId);
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), 200)).toBe(true);
+        const its = session.interactiveTargeting;
+        expect(its.wouldCommitInPlace(session)).toBe(true);
+
+        await its.commit(session, 'ui_done');
+
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        expect(promoteSpy).toHaveBeenCalledTimes(1);
+        expect(its.isCommitInFlight).toBe(false);
+        expect(its.isActive).toBe(false);
+        expect(engine.isSequentialTargetingPreview).toBe(false);
+        session.destroy();
+    });
+
+    it('guest in-place commit still awaits submitOrder', async () => {
+        let releaseSubmit: () => void = () => {};
+        const submitOrder = vi.fn(() => new Promise<void>((resolve) => {
+            releaseSubmit = resolve;
+        }));
+        const netAdapter = {
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder,
+            hasDeferredOrderFor: () => false,
+        };
+        const fakeSession = {
+            netAdapter,
+            config: { isHost: false, playerId: 'p2' },
+            appliedRemoteOrderKeys: new Set<string>(),
+        } as unknown as BattleSession;
+        const order = { unitId: 'u1', abilityId: 'wait' } as unknown as BattleOrder;
+
+        let settled = false;
+        const pending = persistInPlaceCommittedTargetingOrderFor(fakeSession, order, 10).then((r) => {
+            settled = true;
+            return r;
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(submitOrder).toHaveBeenCalledTimes(1);
+        expect(settled).toBe(false);
+
+        releaseSubmit();
+        const result = await pending;
+        expect(result.queued).toBe(true);
+        expect(await result.landed).toBe(true);
     });
 
     it('a long stun stops at the 100-tick playahead cap', async () => {
@@ -4116,7 +4180,7 @@ describe('ITS missing-pick resume (beginResume at a missing-pick pause)', () => 
     }
 
     function installPersistAdapter(session: BattleSession) {
-        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        const persistCommittedOrder = vi.fn((_order: BattleOrder, _atTick: number, _token?: unknown) => ({ queued: true, landed: Promise.resolve(true) }));
         session.setNetAdapter(stubNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,

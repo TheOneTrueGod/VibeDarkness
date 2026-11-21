@@ -194,7 +194,8 @@ export async function itsCommitImpl(
 
     // BattleNet.submitOrder applies the order locally (optimistic / host apply-first) before its
     // first await, so the turn is settled here. Server confirmation finishes in the background:
-    // the commit (and the turn spinner) does not wait for the POST or the host's merge.
+    // the commit (and the turn spinner) does not wait for the POST or the host's merge. The in-place
+    // commit behaves the same way for the host: it does not wait for the POST either.
     const submitted = session.submitCommittedTargetingOrder(realOrder, atTick);
     void submitted.then(
         (landed) => reportRollbackSubmit(session, landed, { unitId, abilityId, atTick, actionSource }, inputs.logSnapshot),
@@ -292,8 +293,10 @@ async function itsCommitInPlace(
     const engineBeforePersist = session.getEngine();
     const tickBeforePersist = engineBeforePersist?.gameTick ?? null;
     const pausedBeforePersist = engineBeforePersist?.isPaused ?? null;
-    const persisted = await session.persistInPlaceCommittedTargetingOrder(realOrder, atTick, commitToken);
-    if (!persisted) {
+    // Host: synchronous enqueue, so this does not wait for the POST. The checkpoint the promotion below flushes
+    // is enqueued behind the order row, which keeps the causal send order.
+    const persist = await session.persistInPlaceCommittedTargetingOrder(realOrder, atTick, commitToken);
+    if (!persist.queued) {
         session.emitOrderSubmitFailed(unitId, abilityId);
         logItsPreviewEnded(session, logSnapshot, 'rejected', 'persist_failed', {
             atTick,
@@ -302,6 +305,23 @@ async function itsCommitInPlace(
         });
         return;
     }
+
+    // Report the save in the background. A rejected row is already handled by BattleNet (soft-align / resync),
+    // so no emitOrderSubmitFailed here.
+    void persist.landed.then(
+        (landed) => {
+            if (landed) return;
+            logItsPreviewEnded(session, logSnapshot, 'rejected', 'persist_failed', {
+                atTick,
+                commitMode: 'in_place',
+                actionSource: actionSource ?? null,
+                background: true,
+            });
+        },
+        (err: unknown) => {
+            console.error('[ITS] in-place commit persist failed', err);
+        },
+    );
 
     const engine = session.getEngine();
     if (!engine) return;
