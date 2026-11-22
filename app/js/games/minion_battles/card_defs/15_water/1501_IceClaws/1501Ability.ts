@@ -36,7 +36,7 @@ import iceClawsSvg from './iceClaws.svg?raw';
 const CARD_ID = `${formatGroupId(AbilityGroupId.Water)}01`;
 
 export const ICE_CLAWS_DAMAGE = 6;
-export const ICE_CLAWS_WATER_COST = 3;
+export const ICE_CLAWS_WATER_COST = 2;
 /** Mode ids on the card's Ice / Blood strip. */
 export const ICE_CLAWS_ICE_MODE = 'ice';
 export const ICE_CLAWS_BLOOD_MODE = 'blood';

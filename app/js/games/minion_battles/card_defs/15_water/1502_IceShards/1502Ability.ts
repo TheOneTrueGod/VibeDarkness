@@ -43,7 +43,7 @@ import iceShardsSvg from './iceShards.svg?raw';
 const CARD_ID = `${formatGroupId(AbilityGroupId.Water)}02`;
 
 export const ICE_SHARDS_DAMAGE = 12;
-export const ICE_SHARDS_WATER_COST = 4;
+export const ICE_SHARDS_WATER_COST = 2;
 /** Mode ids on the card's Ice / Blood strip. */
 export const ICE_SHARDS_ICE_MODE = 'ice';
 export const ICE_SHARDS_BLOOD_MODE = 'blood';

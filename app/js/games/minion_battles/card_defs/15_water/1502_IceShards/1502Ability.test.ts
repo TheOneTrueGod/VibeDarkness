@@ -151,7 +151,7 @@ describe('IceShardsAbility_1502', () => {
         expect(third.hp).toBe(100);
     });
 
-    it('spends 4 Water once per cast and no HP', () => {
+    it('spends 2 Water once per cast and no HP', () => {
         const ctx = setup([], { water: 10 });
         executeUnitAbility(ctx.caster, IceShardsAbility_1502, [px(100, 0)], ctx.engine);
         expect(ctx.water.current).toBe(10 - ICE_SHARDS_WATER_COST);
@@ -273,12 +273,12 @@ describe('Ice Shards Ice / Blood modes', () => {
         expect(getAvailableModes(player, IceShardsAbility_1502)).toEqual(['blood', 'ice']);
     });
 
-    it('casts Ice with 4+ Water and Blood Shard (HP, no Water) through the effective mode at 3 Water', () => {
-        const { engine, player, water } = buildModeEngine(7);
+    it('casts Ice with 2+ Water and Blood Shard (HP, no Water) through the effective mode at 1 Water', () => {
+        const { engine, player, water } = buildModeEngine(3);
         expect(resolveEffectiveMode(player, IceShardsAbility_1502, 'ice')).toBe('ice');
 
         castSlot(player, engine, 'ice');
-        expect(water.current).toBe(3);
+        expect(water.current).toBe(1);
         expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([ICE_ID]);
         stepTicks(engine, SHARD_CAST_TICKS);
         expect(player.activeAbilities).toHaveLength(0);
@@ -287,7 +287,7 @@ describe('Ice Shards Ice / Blood modes', () => {
         const hpBefore = player.hp;
         castSlot(player, engine, 'ice');
         expect(player.activeAbilities.map((a) => a.abilityId)).toEqual([SHARD_ID]);
-        expect(water.current).toBe(3);
+        expect(water.current).toBe(1);
         // Blood Shard pays its HP on release.
         stepTicks(engine, SHARD_CAST_TICKS);
         expect(player.hp).toBeLessThan(hpBefore);
@@ -308,13 +308,13 @@ describe('Ice Shards Ice / Blood modes', () => {
     });
 
     it('keeps casting only Ice when the Blood mode is locked (no Blood Shard owned)', () => {
-        const { engine, player, water } = buildModeEngine(3, [ICE_ID]);
+        const { engine, player, water } = buildModeEngine(1, [ICE_ID]);
         expect(player.lockedAbilityModes[ICE_ID]).toEqual(['blood']);
         expect(getAvailableModes(player, IceShardsAbility_1502)).toEqual(['ice']);
         expect(resolveEffectiveMode(player, IceShardsAbility_1502, 'ice')).toBe('ice');
         expect(resolveEffectiveMode(player, IceShardsAbility_1502, 'blood')).toBe('ice');
         castSlot(player, engine, 'ice');
         expect(player.activeAbilities).toHaveLength(0);
-        expect(water.current).toBe(3);
+        expect(water.current).toBe(1);
     });
 });

@@ -43,8 +43,8 @@ import frozenFieldSvg from './frozenField.svg?raw';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Water)}03`;
 
-/** A flat 10 Water, whatever the caster's max. */
-export const FROZEN_FIELD_WATER_COST = 10;
+/** A flat 6 Water, whatever the caster's max. */
+export const FROZEN_FIELD_WATER_COST = 6;
 /** Same uses (and round refill) as Blood Burst; the Frozen mode also needs a use left. */
 export const FROZEN_FIELD_MAX_USES = BURST_MAX_USES;
 /** Extent along caster -> target (px). */
