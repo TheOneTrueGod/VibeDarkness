@@ -9,19 +9,53 @@ Use **`[Canon]` / `[Draft]` / `[Open]`** on section headings per `narrative-hub`
 
 ## Descriptions (cards / tooltips) [Canon]
 
-Card text says what the card does, mechanically. It is short, to the point, and has no flavour.
+Card text is **card-game text**, as in Slay the Spire or Hearthstone: rules printed on a card, not prose that explains them. Write the fewest words that let someone play the card. A pill, a number or a keyword alone is a complete description.
 
-- Lead with the verb and the numbers: what it deals, to how many, how often. Cut anything a player does not need to play the card.
-- Numbers are `{dynamic stat}` tokens.
-- Use a keyword whenever one names the mechanic, and make sure it is registered so its explanation shows on the card's hover. Explain a rule in prose only when no keyword exists for it, and consider whether it should become one.
+- **Length:** one line, about 8 words or fewer (pills and keywords do not count). Longer than that, something belongs on a reminder card or in flavour text.
+- Lead with the verb and the numbers: what it deals, to how many, how often.
+- Numbers are `{dynamic stat}` tokens; stats and resources are pills (`statPillToken`, resource pills), never spelled out beside the pill.
 - No feelings, imagery or lore. That belongs in flavour text (below).
 
 Good:
 
 - `Deal {2} damage to {4} Enemies`
 - `Create a turret that shoots {4} times dealing {3} damage`
+- `{attack +2}` (Mighty: the whole description)
 
 Avoid: `Hurl the conjured sword. It spins into the first enemy along its path...` (imagery, and longer than the mechanic needs).
+
+### Cut list [Canon]
+
+Delete these on sight:
+
+- **"per level" / "per rank"**: the level counter (`0/5`) already says it.
+- **"Each X adds Y", "which means", "so that"**: that explains a rule, so it belongs on a reminder card (next section).
+- **Restating a pill in words**: "+20 Max Health" next to a heart pill.
+- **Saying what is already true**: "this ability", "when you use it", "during battle", "you gain the ability to".
+- **Connective filler and full stops on a single clause.**
+
+### Reminder card or card text? [Canon]
+
+A **reminder card** is the small card beside a tooltip that explains a mechanic, like a keyword card beside an ability tooltip or the Attack card beside a research tooltip. Explain a rule on a reminder card when **any** of these is true:
+
+- It appears, or could appear, on more than one card or node.
+- It is a rule about how a stat, status or resource works, not about what this one card does.
+- Explaining it would more than double the card's text.
+
+Keep it on the card only when it is specific to this card and fits in a few words. When unsure, use a reminder card: turning a repeated sentence into a reminder later means editing every card that has it. A sentence that appears on two cards is a missing keyword; flag it.
+
+**Build the engine, not the sentence.** Before writing an explaining sentence, check for a keyword, stat or resource whose reminder already covers it. If none does, create one rather than writing the sentence:
+
+- Keywords and glossary terms: `abilities/keywords/keywordRegistry.ts` (reminders show beside ability tooltips).
+- Character stats: `reminder` on the entry in `app/js/characterStats.ts` (shown beside research tooltips whenever the stat's pill is in the text).
+
+### Before / after [Canon]
+
+Real trims. Add a pair here whenever a description gets cut down in review.
+
+| Before | After |
+|--------|-------|
+| `{attack +2} per level. Each Attack adds {10%} damage.` | `{attack +2}`, with the Attack reminder card `{attack +1} = {+10%} damage` |
 
 ### Card flavour text [Canon]
 
@@ -70,7 +104,10 @@ Mechanical keywords in `getTooltipText()` use a **standalone-line** format — s
 
 ## Research nodes [Canon]
 
-`description` roughly says what the player learns to do, in the tree's voice, without numbers or card-by-card detail: "You learn to use energy to shape weapons out of the ground." The cards' own tooltips, shown on the node's hover, give the details. Keep a number only for an effect no tooltip shows (for example, starting Charge).
+`description` follows the same card-game rules as card text (above): pills, keywords and numbers, one short line, the cut list applies. The tree's voice goes only in `flavorText`.
+
+- A node that adds or changes a card names the card; the card's own tooltip on the node's hover gives the details, so do not repeat them.
+- A node that changes a stat or resource is just the pill: `{health +20}`, `{attack +2}`.
 
 `flavorText` leans into what the research tree is doing: the fantasy of that tree, told through this node.
 
