@@ -41,9 +41,6 @@ export {
 export const CAMPSITE_MISSION_ID = 'campsite';
 /** Campsite between Surface Quests 3 and Displacer. */
 export const CAMPSITE_2_MISSION_ID = 'campsite_2';
-/** Campsite at the start of Chapter 3, before the Lonely Castle. */
-/** Not `campsite_3`: that id was a removed chapter 2 campsite and may sit in old saves. */
-export const CAMPSITE_3_MISSION_ID = 'campsite_ch3';
 /** Chapter 3 campsite on the 61_47 crossroads, after The Crossroads. */
 export const CAMPSITE_CH3_CROSSROADS_MISSION_ID = 'campsite_ch3_crossroads';
 /** Chapter 3 training-ring campsites, side by side on the 59_47 campfires, after Kennels and Range. */
@@ -141,13 +138,6 @@ export const CAMPSITE_2 = new CampsiteMission(CAMPSITE_2_MISSION_ID, {
     x: WOD_CH2_MAP_X_COL1,
     y: WOD_CH2_MAP_Y_ROW1,
 });
-
-/** Chapter 3's first node, on the 59_50 east cave: grants rank 11 or 12 research. */
-export const CAMPSITE_3 = new CampsiteMission(
-    CAMPSITE_3_MISSION_ID,
-    castleMapPosition(59, 50),
-    campsiteResearchSlots(CAMPSITE_CH3_RESEARCH_MIN_TIER, CAMPSITE_CH3_RESEARCH_MAX_TIER),
-);
 
 /**
  * Above the 61_47 crossroads, after The Crossroads: up and to the right of its node, on the

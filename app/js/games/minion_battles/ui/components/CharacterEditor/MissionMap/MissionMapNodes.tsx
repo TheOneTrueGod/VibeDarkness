@@ -1,5 +1,5 @@
 import React from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideProps } from 'lucide-react';
 import { Route, Scroll, Skull, Swords, Tent } from 'lucide-react';
 import type { MissionResult } from '../../../../../../types';
 import type { MissionType } from '../../../../storylines/types';
@@ -29,12 +29,14 @@ import {
     type QuestBankTooltipData,
     type TooltipData,
 } from './missionMapHelpers';
+import { TrainingStationIcon } from './TrainingStationIcon';
 
-const MISSION_TYPE_ICONS: Record<MissionType, LucideIcon> = {
+const MISSION_TYPE_ICONS: Record<MissionType, React.ComponentType<LucideProps>> = {
     battle: Swords,
     story: Scroll,
     boss: Skull,
     campsite: Tent,
+    training: TrainingStationIcon,
 };
 
 export interface MissionNodeProps {
@@ -76,7 +78,7 @@ export function MissionNode({
                     const missionType = def?.missionType ?? DEFAULT_MISSION_TYPE;
                     // Only a win finishes a mission; a defeat alone leaves it open.
                     const finished = hasVictoryResult(id, missionResults);
-                    // Every completed main-path node (battle, boss, story, campsite) gets the green outline.
+                    // Every completed main-path node (battle, boss, story, campsite, training) gets the green outline.
                     const completedNode = !isSide && finished;
                     const completedCombat = completedNode && missionType === 'battle';
                     const color = getMissionNodeFill(id, missionType, missionResults, isDisabled);

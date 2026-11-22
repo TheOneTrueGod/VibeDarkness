@@ -5,12 +5,13 @@
 
 import { RESEARCH_TREES } from './list';
 import { DARKNESS_UPGRADES_TREE_ID } from './trees/darkness_upgrades';
-import type {
-    PassiveBonusEntry,
-    PassiveBonuses,
+import {
+    ATTACK_DAMAGE_MULT_PER_POINT,
     PassiveStatKey,
-    ResearchNodeDef,
-    ResearchNodeLevels,
+    type PassiveBonusEntry,
+    type PassiveBonuses,
+    type ResearchNodeDef,
+    type ResearchNodeLevels,
 } from './types';
 
 /** Default maximum levels when `node.levels` is omitted (binary unlock). */
@@ -155,6 +156,19 @@ export function applyPassiveBonusToBase(
 ): number {
     if (!entry) return Math.floor(base);
     return Math.floor((base + entry.add) * entry.mult);
+}
+
+export { ATTACK_DAMAGE_MULT_PER_POINT };
+
+/**
+ * Outgoing damage multiplier from a passive bag: the `all_damage` mult plus
+ * {@link ATTACK_DAMAGE_MULT_PER_POINT} per point of Attack (stacked additively, like mult bonuses).
+ * The single place damage code turns passives into a multiplier.
+ */
+export function getOutgoingDamageMultiplier(bonuses: PassiveBonuses | undefined): number {
+    const allDamageMult = bonuses?.[PassiveStatKey.AllDamage]?.mult ?? DEFAULT_PASSIVE_MULT;
+    const attack = bonuses?.[PassiveStatKey.Attack]?.add ?? 0;
+    return Math.max(0, allDamageMult + attack * ATTACK_DAMAGE_MULT_PER_POINT);
 }
 
 /**

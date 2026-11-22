@@ -4,7 +4,7 @@
  */
 import React, { useRef } from 'react';
 import type { ResearchNodeDef, ResearchTreeDef } from '../researchTrees/types';
-import { getResearchTreeContainingNode } from '../researchTrees/list';
+import { getResearchNodeChromeTree, getResearchTreeContainingNode } from '../researchTrees/list';
 import { researchChromeSurfaceStyle, resolveResearchTreeChrome } from '../researchTrees/researchTreeChrome';
 import {
     ResearchNodePreviewPortal,
@@ -23,7 +23,7 @@ export default function ResearchRewardTinyChip({
     tree?: ResearchTreeDef;
 }) {
     const owningTree = tree ?? getResearchTreeContainingNode(node.id);
-    const treeChrome = resolveResearchTreeChrome(owningTree);
+    const treeChrome = resolveResearchTreeChrome(getResearchNodeChromeTree(node, owningTree));
     const anchorRef = useRef<HTMLSpanElement>(null);
     const hover = useResearchNodePreviewHover();
 

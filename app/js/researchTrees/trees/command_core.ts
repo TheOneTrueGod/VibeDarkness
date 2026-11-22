@@ -1,5 +1,5 @@
 import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
-import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
+import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_ICON_COMMAND } from '../researchTreeChrome';
 
@@ -8,6 +8,7 @@ export const COMMAND_CORE_NODE_LOYAL_COMPANION = 'loyal_companion';
 export const COMMAND_CORE_NODE_SIC_EM = 'sic_em';
 export const COMMAND_CORE_NODE_MIMIC_THORN = 'mimic_thorn';
 export const COMMAND_CORE_NODE_MIMIC_BRAMBLES = 'mimic_brambles';
+/** Lives in the Training tree (`trainingTree`) since the Training stations; stored under `training`. */
 export const COMMAND_CORE_NODE_EMPOWER_PET = 'empower_pet';
 export const COMMAND_CORE_NODE_SPIRIT_STORM = 'spirit_storm';
 export const COMMAND_CORE_NODE_STORM_SURGE = 'storm_surge';
@@ -180,31 +181,6 @@ export const commandCoreTree: ResearchTreeDef = {
                 metal: COMMAND_SIC_METAL_COST,
             },
             effects: [{ type: 'addCard', cardId: '0713' }],
-        },
-        {
-            id: COMMAND_CORE_NODE_EMPOWER_PET,
-            title: 'Empower Pet',
-            description: `+{${EMPOWER_PET_MAX_HEALTH_ADD / EMPOWER_PET_LEVELS}} pet max HP and +{${EMPOWER_PET_MAX_BITE_DAMAGE_ADD / EMPOWER_PET_LEVELS}} Dog Bite damage per level.`,
-            flavorText: 'Stronger paws. Sharper teeth.',
-            order: 30,
-            tier: 11,
-            position: { x: 370, y: 290 },
-            prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
-            exclusiveWithNodeIds: [],
-            requirements: [
-                { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
-            ],
-            cost: {
-                attunement: COMMAND_EMPOWER_ATTUNEMENT_COST,
-                vigor: COMMAND_EMPOWER_VIGOR_COST,
-                metal: COMMAND_EMPOWER_METAL_COST,
-            },
-            effects: [],
-            levels: EMPOWER_PET_LEVELS,
-            passiveBonus: {
-                [PassiveStatKey.PetMaxHealth]: { add: EMPOWER_PET_MAX_HEALTH_ADD },
-                [PassiveStatKey.Ability0701Damage]: { add: EMPOWER_PET_MAX_BITE_DAMAGE_ADD },
-            },
         },
         {
             id: COMMAND_CORE_NODE_FRENZIED_FLURRY,

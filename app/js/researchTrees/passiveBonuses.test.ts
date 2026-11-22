@@ -6,12 +6,13 @@ import {
     getAddAtLevel,
     getNodeLevel,
     getNonZeroPassiveBonusRows,
+    getOutgoingDamageMultiplier,
     getPerLevelAdd,
 } from './passiveBonuses';
 import {
     TRAINING_HEALTHY_LEVELS,
     TRAINING_HEALTHY_MAX_HEALTH_ADD,
-    TRAINING_MIGHTY_ALL_DAMAGE_MULT,
+    TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX,
     TRAINING_MIGHTY_VIGOR_COST,
     TRAINING_MIGHTY_LEVELS,
     TRAINING_MIGHTY_METAL_COST,
@@ -27,25 +28,40 @@ import type { ResearchNodeDef } from './types';
 
 describe('passiveBonuses helpers', () => {
     it('spreads add across levels with floor', () => {
-        expect(getPerLevelAdd(TRAINING_HEALTHY_MAX_HEALTH_ADD, TRAINING_HEALTHY_LEVELS)).toBe(10);
-        expect(getAddAtLevel(TRAINING_HEALTHY_MAX_HEALTH_ADD, 1, TRAINING_HEALTHY_LEVELS)).toBe(10);
-        expect(getAddAtLevel(TRAINING_HEALTHY_MAX_HEALTH_ADD, 5, TRAINING_HEALTHY_LEVELS)).toBe(50);
+        expect(getPerLevelAdd(TRAINING_HEALTHY_MAX_HEALTH_ADD, TRAINING_HEALTHY_LEVELS)).toBe(20);
+        expect(getAddAtLevel(TRAINING_HEALTHY_MAX_HEALTH_ADD, 1, TRAINING_HEALTHY_LEVELS)).toBe(20);
+        expect(getAddAtLevel(TRAINING_HEALTHY_MAX_HEALTH_ADD, 5, TRAINING_HEALTHY_LEVELS)).toBe(100);
     });
 
     it('aggregates Healthy maxHealth by level', () => {
         const trees = { [TRAINING_TREE_ID]: [TRAINING_NODE_HEALTHY] };
         const levels = { [TRAINING_TREE_ID]: { [TRAINING_NODE_HEALTHY]: 3 } };
         const bonuses = computePassiveBonuses(trees, levels);
-        expect(bonuses.maxHealth?.add).toBe(30);
+        expect(bonuses.maxHealth?.add).toBe(60);
         expect(bonuses.maxHealth?.mult).toBe(DEFAULT_PASSIVE_MULT);
     });
 
-    it('aggregates Mighty all_damage mult additively across levels', () => {
+    it('aggregates Mighty as +2 Attack per level', () => {
+        const trees = { [TRAINING_TREE_ID]: [TRAINING_NODE_MIGHTY] };
+        const levels = { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: 2 } };
+        const bonuses = computePassiveBonuses(trees, levels);
+        expect(bonuses.attack?.add).toBe(4);
+        expect(bonuses.all_damage).toBeUndefined();
+        // Each Attack point is +10% damage dealt.
+        expect(getOutgoingDamageMultiplier(bonuses)).toBeCloseTo(1.4);
+    });
+
+    it('turns max-level Mighty into a x2 damage multiplier', () => {
         const trees = { [TRAINING_TREE_ID]: [TRAINING_NODE_MIGHTY] };
         const levels = { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: TRAINING_MIGHTY_LEVELS } };
-        const bonuses = computePassiveBonuses(trees, levels);
-        expect(bonuses.all_damage?.mult).toBe(TRAINING_MIGHTY_ALL_DAMAGE_MULT);
-        expect(bonuses.all_damage?.add).toBe(0);
+        expect(getOutgoingDamageMultiplier(computePassiveBonuses(trees, levels))).toBeCloseTo(
+            TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX,
+        );
+    });
+
+    it('stacks Attack additively with all_damage mult', () => {
+        expect(getOutgoingDamageMultiplier({ all_damage: { add: 0, mult: 1.2 }, attack: { add: 3, mult: 1 } })).toBeCloseTo(1.5);
+        expect(getOutgoingDamageMultiplier(undefined)).toBe(DEFAULT_PASSIVE_MULT);
     });
 
     it('prices Mighty in metal and Vigor per level', () => {
@@ -67,10 +83,10 @@ describe('passiveBonuses helpers', () => {
             },
         };
         const bonuses = computePassiveBonuses(trees, levels);
-        expect(bonuses.maxHealth?.add).toBe(50);
-        expect(bonuses.all_damage?.mult).toBe(TRAINING_MIGHTY_ALL_DAMAGE_MULT);
+        expect(bonuses.maxHealth?.add).toBe(100);
+        expect(bonuses.attack?.add).toBe(10);
         const rows = getNonZeroPassiveBonusRows(bonuses);
-        expect(rows.map((r) => r.key).sort()).toEqual(['all_damage', 'maxHealth']);
+        expect(rows.map((r) => r.key).sort()).toEqual(['attack', 'maxHealth']);
     });
 
     it('reads level from researchTrees presence when levels map missing', () => {

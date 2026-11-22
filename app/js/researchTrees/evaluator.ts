@@ -606,12 +606,13 @@ export function getPetAbilitiesFromResearch(
     return byPet;
 }
 
-/**
- * Returns battle-resource starting amounts from `grantMissionStartResource` effects.
- * Amounts for the same resourceId are summed across all researched nodes.
- */
-export function getMissionStartResourcesFromResearch(
+/** Research effects that carry a per-resource amount, summed by {@link sumResourceEffectsFromResearch}. */
+type ResourceAmountEffectType = 'grantMissionStartResource' | 'increaseResourceMax';
+
+/** Sums `amount` per resourceId over every researched node's effects of the given type. */
+function sumResourceEffectsFromResearch(
     researchTrees: Record<string, string[]> | undefined,
+    effectType: ResourceAmountEffectType,
 ): Map<string, number> {
     const trees = researchTrees ?? {};
     const amounts = new Map<string, number>();
@@ -620,16 +621,29 @@ export function getMissionStartResourcesFromResearch(
         const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
         for (const node of researchedNodes) {
             for (const eff of node.effects) {
-                if (eff.type === 'grantMissionStartResource') {
-                    amounts.set(
-                        eff.resourceId,
-                        (amounts.get(eff.resourceId) ?? 0) + eff.amount,
-                    );
-                }
+                if (eff.type !== effectType) continue;
+                amounts.set(eff.resourceId, (amounts.get(eff.resourceId) ?? 0) + eff.amount);
             }
         }
     }
     return amounts;
+}
+
+/**
+ * Returns battle-resource starting amounts from `grantMissionStartResource` effects.
+ * Amounts for the same resourceId are summed across all researched nodes.
+ */
+export function getMissionStartResourcesFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+): Map<string, number> {
+    return sumResourceEffectsFromResearch(researchTrees, 'grantMissionStartResource');
+}
+
+/** Returns battle-resource max increases from `increaseResourceMax` effects, summed per resourceId. */
+export function getResourceMaxIncreasesFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+): Map<string, number> {
+    return sumResourceEffectsFromResearch(researchTrees, 'increaseResourceMax');
 }
 
 /**

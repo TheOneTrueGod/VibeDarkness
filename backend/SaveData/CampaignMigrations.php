@@ -13,6 +13,7 @@ namespace App\SaveData;
  *     upgrade item the owner's (migrated) characters have equipped.
  * v4: One Weapons tree. Mission-result `researchRewards` rows from legacy weapon trees point at `weapons`.
  * v5: Resource rename. `food` -> `vigor`, `crystals` -> `attunement` in `resources` and every `resourceDelta`.
+ * v6: Training stations. Mission-result `researchRewards` rows for Empower Pet point at `training`.
  *
  * Lookups are injected as closures so the migration stays testable:
  *  - $ownerCharacterIds(string $campaignId): list<string>  character ids of the campaign owner
@@ -20,7 +21,7 @@ namespace App\SaveData;
  */
 final class CampaignMigrations
 {
-    public const CURRENT_VERSION = 5;
+    public const CURRENT_VERSION = 6;
 
     /**
      * Frozen (v3): tier unlocks of the completed chapter-1 missions: missionId => item ids.
@@ -52,6 +53,7 @@ final class CampaignMigrations
             2 => static fn (array $d): array => self::v2ToV3($d, $ownerCharacterIds, $loadCharacter),
             3 => [self::class, 'v3ToV4'],
             4 => [self::class, 'v4ToV5'],
+            5 => [self::class, 'v5ToV6'],
         ];
     }
 
@@ -172,6 +174,17 @@ final class CampaignMigrations
     {
         if (array_key_exists('missionResults', $data)) {
             $data['missionResults'] = CharacterMigrations::remapResearchRewardTrees($data['missionResults']);
+        }
+        return $data;
+    }
+
+    public static function v5ToV6(array $data): array
+    {
+        if (array_key_exists('missionResults', $data)) {
+            $data['missionResults'] = CharacterMigrations::remapMovedResearchRewards(
+                $data['missionResults'],
+                CharacterMigrations::V7_MOVED_NODES,
+            );
         }
         return $data;
     }

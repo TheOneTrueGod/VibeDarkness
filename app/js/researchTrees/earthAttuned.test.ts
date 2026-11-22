@@ -6,7 +6,6 @@ import { PassiveStatKey, type AbilityModifier } from './types';
 import {
     EARTH_ATTUNED_CLAW_USES_PER_RANK,
     EARTH_ATTUNED_LEVELS,
-    EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK,
     EARTH_NODE_EARTH_ATTUNED,
     EARTH_NODE_EARTH_CORE,
     EARTH_TREE_ID,
@@ -43,23 +42,12 @@ describe('Earth Attuned research', () => {
         expect(node?.prereqNodeIds).toEqual([EARTH_NODE_EARTH_CORE]);
     });
 
-    it('grants 1 max movement and 1 regen per rank', () => {
-        const trees = { [EARTH_TREE_ID]: [EARTH_NODE_EARTH_ATTUNED] };
-        const rank1 = computePassiveBonuses(trees, {
-            [EARTH_TREE_ID]: { [EARTH_NODE_EARTH_ATTUNED]: 1 },
-        });
-        expect(rank1[PassiveStatKey.MaxMovementPoints]?.add).toBe(EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK);
-        expect(rank1[PassiveStatKey.MovementRegenPerRound]?.add).toBe(EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK);
-
-        const rankMax = computePassiveBonuses(trees, {
+    it('no longer grants movement (Earthen Stride in Training does)', () => {
+        const rankMax = computePassiveBonuses({ [EARTH_TREE_ID]: [EARTH_NODE_EARTH_ATTUNED] }, {
             [EARTH_TREE_ID]: { [EARTH_NODE_EARTH_ATTUNED]: EARTH_ATTUNED_LEVELS },
         });
-        expect(rankMax[PassiveStatKey.MaxMovementPoints]?.add).toBe(
-            EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS,
-        );
-        expect(rankMax[PassiveStatKey.MovementRegenPerRound]?.add).toBe(
-            EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS,
-        );
+        expect(rankMax[PassiveStatKey.MaxMovementPoints]).toBeUndefined();
+        expect(rankMax[PassiveStatKey.MovementRegenPerRound]).toBeUndefined();
     });
 
     it('gives Bone Claws and Digging Claws +1 max use and +1 use per round, per rank', () => {
@@ -75,9 +63,9 @@ describe('Earth Attuned research', () => {
         }
     });
 
-    it('describes the movement and claw bonuses', () => {
+    it('describes the claw bonus', () => {
         const node = earthTree.nodes.find((n) => n.id === EARTH_NODE_EARTH_ATTUNED)!;
-        expect(node.description).toBe('+{1} movement point per round, and +{1} uses to bone claws');
+        expect(node.description).toBe('+{1} uses to bone claws per rank.');
     });
 });
 

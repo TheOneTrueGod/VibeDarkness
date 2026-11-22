@@ -19,12 +19,12 @@ import {
 import {
     CAMPSITE_MISSION_ID,
     CAMPSITE_2_MISSION_ID,
-    CAMPSITE_3_MISSION_ID,
     CAMPSITE_CH3_CROSSROADS_MISSION_ID,
     CAMPSITE_CH3_TRAINING_A_MISSION_ID,
     CAMPSITE_CH3_TRAINING_B_MISSION_ID,
     CAMPSITE_CH3_WALLS_MISSION_ID,
 } from './questMissions/campsite';
+import { TRAINING_CH3_MISSION_ID } from './questMissions/trainingStation';
 import { castleMapPosition, WOD_CH3_MAP_BACKGROUND } from './chapter3Map';
 import { THE_LONELY_CASTLE_MISSION_ID } from './missions/011_the_lonely_castle';
 import { THE_CASTLE_COURTYARD_MISSION_ID } from './missions/012_the_castle_courtyard';
@@ -295,9 +295,9 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         },
         { fromMissionId: CAMPSITE_2_MISSION_ID, result: 'victory', toMissionId: 'displacer' },
         // Chapter 3
-        // Campsite opens the chapter (grants rank 11 or 12 research).
-        { fromMissionId: 'displacer', result: 'victory', toMissionId: CAMPSITE_3_MISSION_ID },
-        { fromMissionId: CAMPSITE_3_MISSION_ID, result: 'victory', toMissionId: THE_LONELY_CASTLE_MISSION_ID },
+        // A Training station opens the chapter (two rank 11 Training picks).
+        { fromMissionId: 'displacer', result: 'victory', toMissionId: TRAINING_CH3_MISSION_ID },
+        { fromMissionId: TRAINING_CH3_MISSION_ID, result: 'victory', toMissionId: THE_LONELY_CASTLE_MISSION_ID },
         { fromMissionId: THE_LONELY_CASTLE_MISSION_ID, result: 'victory', toMissionId: THE_CASTLE_COURTYARD_MISSION_ID },
         // Castle main path: crossroads -> great hall -> the king (no gate on it yet).
         { fromMissionId: THE_CASTLE_COURTYARD_MISSION_ID, result: 'victory', toMissionId: CASTLE_CROSSROADS_MISSION_ID },
@@ -389,7 +389,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             unlockAfterMissionId: 'displacer',
             questBankIds: [WOD_RAID_THE_LARDER_BANK_ID, WOD_FORAGE_THE_GARDEN_BANK_ID],
             missionIds: [
-                CAMPSITE_3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID,
+                TRAINING_CH3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID,
                 CASTLE_CROSSROADS_MISSION_ID, CAMPSITE_CH3_CROSSROADS_MISSION_ID,
                 GREAT_HALL_MISSION_ID, THE_KINGS_COURT_MISSION_ID,
                 TRAINING_GROUNDS_MISSION_ID, KENNELS_AND_RANGE_MISSION_ID,

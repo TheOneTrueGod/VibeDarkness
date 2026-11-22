@@ -75,6 +75,14 @@ A node's `tier` is its **rank** in trees tagged `core`:
 
 Each character has a **tree level** per core tree (`CampaignCharacter.researchTreeLevels`, PHP `Character::researchTreeLevels`). Rank `N` needs tree level `N - 10`; `canResearchNode` returns `tree_level_too_low` otherwise (`researchTrees/treeLevels.ts`). A missing stored level counts as 2 when the tree's core is researched (legacy saves), else 0. Core Awakening's options carry `setTreeLevel: 2`, sent in the `STORY_CHOICE` message and applied by `LobbyManager::grantQuestResearchToCharacter` (chapter skip applies it client-side). Admins see and set the level beside **Reset research** in the tree view. Mission and quest rewards bypass the gate. Chapter 2 campsites use `minTier: 11, maxTier: 11` filter slots. Costs follow `researchCostPolicy.ts` by rank.
 
+### Training stations, stats and core-specific Training nodes
+- **Training station** (`missionType: 'training'`, `TrainingStationMission` in `storylines/WorldOfDarkness/questMissions/trainingStation.ts`): a battle-less node like a campsite, with one choice phrase per pick (default 2), each offering random Training-tree slots at rank 11. Chapter 3's first node (`campsite_ch3`, id kept for saves) is one. `PostMissionStoryPhase` overlays grants picked earlier in the story (`overlayPendingResearchGrants`) so a later pick never re-offers an unechoed one.
+- **Attack** (`PassiveStatKey.Attack`): each point adds `ATTACK_DAMAGE_MULT_PER_POINT` (10%) to damage dealt. Read damage multipliers only through `getOutgoingDamageMultiplier(passiveBonuses)` (all_damage mult + Attack). Mighty grants +2 Attack per level; Healthy +20 Max Health per level.
+- **Stat pills**: `characterStats.ts` (`CHARACTER_STAT_DEFS`, kind `resource` | `stat`) + `components/StatPill.tsx`. In node descriptions, `statPillToken('health', '+20')` renders as a pill on `ResearchNodeCard`. A stat's optional `reminder` (e.g. Attack: `{stat:attack:+1} = {+10%} damage`) shows as a reminder card beside the node's hover tooltip, so the description itself stays just the pill.
+- **`chromeTreeId`** on a node draws it in another tree's colour and icon (`getResearchNodeChromeTree`); the node still lives in its own tree. Core-specific Training nodes (Earthen Stride, Empower Pet, Bright Reserves, Spare Charge, Stored Static) use it.
+- **`increaseResourceMax`** effect raises a battle resource's max at mission start (before `grantMissionStartResource`); `applyResearchResourceEffects` in `BaseMissionDef` is the one entry point (battle and tiny harness).
+- Empower Pet moved from `command_core` to `training` (character save v7 / campaign v6, `M0007TrainingResearchMoves`). Earth Attuned no longer grants movement.
+
 ## Querying available nodes
 
 `getAvailableResearchNodes(researchedTrees, { treeId?, tier? })` in `evaluator.ts` returns nodes the character hasn't researched yet and can structurally unlock:
@@ -135,6 +143,10 @@ Comfortable **ResearchNodeCard**s share one height: title, a reserved 3-line des
 
 ### Eligibility gating
 `eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. Inactive weapon nodes (weapon not equipped) are dropped from the active research the Upgrades tab reads, so players never see or buy them; the Weapons tree itself is hidden while only roots are active (admins see it dimmed). Players then only see trees they have abilities in (or already researched). Admins always see every tree, with ability-matching trees sorted first; trees the player would not see are dimmed. Tree **cores** (tier-10 nodes with no prereqs) use `{ type: 'missionReward' }` so players cannot buy them — they only come from mission/quest rewards.
+
+### Checking a card visually
+
+Open the Storybook's Research Cards entry with the node in the URL: `/campaign/ideas/storybook/research-cards?node=<title, id or text>&pin=1` shows just the matching cards, each with its hover tooltip (flavour, before/after, stat reminder cards) pinned open beside it; add `&level=2` for a leveled node. No login needed. Do not build a preview page. See "Checking UI visually" in `CLAUDE.md`.
 
 ### Text formatting
 Node `description` and `flavorText` copy follows **Research nodes [Canon]** in `.claude/skills/narrative/writing-style-abilities/STYLE.md`: the description is mechanical, the flavour text tells the tree's fantasy.

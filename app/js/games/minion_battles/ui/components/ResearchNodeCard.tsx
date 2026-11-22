@@ -2,17 +2,19 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isDisabledResearchNode, type ResearchNodeDef, type ResearchNodeLevels, type ResearchTreeDef } from '../../../../researchTrees/types';
 import { getResearchNodePurchaseCost } from '../../../../researchTrees/evaluator';
 import { getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
-import { getResearchTreeContainingNode } from '../../../../researchTrees/list';
+import { getResearchNodeChromeTree, getResearchTreeContainingNode } from '../../../../researchTrees/list';
 import { researchChromeSurfaceStyle, resolveResearchTreeChrome } from '../../../../researchTrees/researchTreeChrome';
 import ResourcePill, {
     campaignResourceGains,
     RESOURCE_PILL_SIZE_MEDIUM,
     RESOURCE_PILL_SIZE_SMALL,
 } from '../../../../components/ResourcePill';
+import StatPill from '../../../../components/StatPill';
+import { formatStatPillText, parseStatPillToken, statRemindersInText, type CharacterStatKey } from '../../../../characterStats';
 import { TestIds } from '../../../../testing/testIds';
 import ResearchAbilityPreview from './ResearchAbilityPreview';
 import { buildResearchNodePreview, researchPreviewIsEmpty } from '../../research/researchNodePreview';
-import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
+import { AnchoredPortalTooltip, PORTAL_TOOLTIP_SURFACE_CLASS } from './AnchoredPortalTooltip';
 import { useCurrentUser } from '../../../../user/useCurrentUser';
 import {
     formatMissingRequirementsLine,
@@ -98,6 +100,11 @@ export interface ResearchNodeCardProps {
      */
     onAdminRemove?: () => void;
     className?: string;
+    /**
+     * `hover` (default): the tooltip (flavour, before/after preview, stat reminder cards) opens on hover.
+     * `pinned`: it is drawn open beside the card, not in a portal (Storybook: see every tooltip at once).
+     */
+    tooltipMode?: 'hover' | 'pinned';
 }
 
 function resolveVariant(
@@ -171,8 +178,16 @@ function ResearchRequirementsRow({
     );
 }
 
-function parseHighlightedSegments(text: string): Array<{ text: string; highlighted: boolean }> {
-    const segments: Array<{ text: string; highlighted: boolean }> = [];
+interface DescriptionSegment {
+    /** Plain text of the segment (a stat pill's is e.g. "+20 Max Health"). */
+    text: string;
+    highlighted: boolean;
+    /** Set for `{stat:<key>:<amount>}` tokens, drawn as a `StatPill`. */
+    statPill?: { key: CharacterStatKey; amount: string };
+}
+
+function parseHighlightedSegments(text: string): DescriptionSegment[] {
+    const segments: DescriptionSegment[] = [];
     const re = /\{([^}]*)\}/g;
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -180,7 +195,10 @@ function parseHighlightedSegments(text: string): Array<{ text: string; highlight
         if (match.index > lastIndex) {
             segments.push({ text: text.slice(lastIndex, match.index), highlighted: false });
         }
-        segments.push({ text: match[1], highlighted: true });
+        const statPill = parseStatPillToken(match[1]);
+        segments.push(statPill
+            ? { text: formatStatPillText(statPill.key, statPill.amount), highlighted: false, statPill }
+            : { text: match[1], highlighted: true });
         lastIndex = match.index + match[0].length;
     }
     if (lastIndex < text.length) {
@@ -188,6 +206,29 @@ function parseHighlightedSegments(text: string): Array<{ text: string; highlight
     }
     return segments;
 }
+
+/** Description text with `{highlights}` in amber and `{stat:...}` tokens as stat pills. */
+function DescriptionText({ text, keyPrefix, textClass }: { text: string; keyPrefix: string; textClass: string }) {
+    return (
+        <>
+            {parseHighlightedSegments(text).map((segment, idx) => segment.statPill ? (
+                <StatPill
+                    key={`${keyPrefix}-${idx}`}
+                    stat={segment.statPill.key}
+                    amount={segment.statPill.amount}
+                    size={RESOURCE_PILL_SIZE_SMALL}
+                />
+            ) : (
+                <span key={`${keyPrefix}-${idx}`} className={segment.highlighted ? 'text-amber-300' : textClass}>
+                    {segment.text}
+                </span>
+            ))}
+        </>
+    );
+}
+
+/** Width of a stat reminder card, matching the keyword cards beside ability tooltips. */
+const STAT_REMINDER_CARD_WIDTH = 150;
 
 export default function ResearchNodeCard({
     node,
@@ -214,6 +255,7 @@ export default function ResearchNodeCard({
     equipment,
     onAdminRemove,
     className = '',
+    tooltipMode = 'hover',
 }: ResearchNodeCardProps) {
     const { isAdmin } = useCurrentUser();
 
@@ -240,7 +282,10 @@ export default function ResearchNodeCard({
         [owningTreeForPreview, node, researchTrees, researchNodeLevels, currentLevel, equipment],
     );
     const hasHoverPreview = hoverPreview != null && !researchPreviewIsEmpty(hoverPreview);
-    const hasTooltipContent = Boolean(node.flavorText || selectionReason || hasHoverPreview);
+    // What each stat in the description means (e.g. Attack), shown beside the tooltip like ability keyword cards.
+    const statReminders = useMemo(() => statRemindersInText(node.description), [node.description]);
+    const hasMainTooltipContent = Boolean(node.flavorText || selectionReason || hasHoverPreview);
+    const hasTooltipContent = hasMainTooltipContent || statReminders.length > 0;
 
     const anchorRef = useRef<HTMLDivElement>(null);
     const [flavorHover, setFlavorHover] = useState(false);
@@ -293,7 +338,8 @@ export default function ResearchNodeCard({
     }, [scheduleTooltipClose]);
 
     const owningTree = owningTreeForPreview;
-    const treeChrome = resolveResearchTreeChrome(owningTree);
+    const chromeTree = getResearchNodeChromeTree(node, owningTree);
+    const treeChrome = resolveResearchTreeChrome(chromeTree);
     const usesThemeFill = Boolean(treeChrome.secondaryColour);
     const usesThemeText = Boolean(treeChrome.fontColour || treeChrome.secondaryColour);
     const bodyTextClass = usesThemeText ? '' : 'text-gray-300';
@@ -381,7 +427,7 @@ export default function ResearchNodeCard({
                     src={treeChrome.icon}
                     alt=""
                     data-testid={TestIds.researchNodeTreeIcon}
-                    title={owningTree?.title}
+                    title={chromeTree?.title}
                     className={`${layout === 'comfortable' ? 'h-4 w-4' : 'h-3.5 w-3.5'} shrink-0 rounded-sm object-cover`}
                 />
                 <span className={`${titleClass} min-w-0 truncate`}>{node.title}</span>
@@ -409,14 +455,7 @@ export default function ResearchNodeCard({
                         : { minHeight: 0 }),
                 }}
             >
-                {parseHighlightedSegments(node.description).map((segment, idx) => (
-                    <span
-                        key={`${node.id}-desc-${idx}`}
-                        className={segment.highlighted ? 'text-amber-300' : bodyTextClass}
-                    >
-                        {segment.text}
-                    </span>
-                ))}
+                <DescriptionText text={node.description} keyPrefix={`${node.id}-desc`} textClass={bodyTextClass} />
             </div>
             {showCost && (
                 <div className={`${RESEARCH_NODE_COST_ROW_MIN_HEIGHT_CLASS} shrink-0 text-[10px] text-muted flex flex-wrap items-center gap-1`}>
@@ -466,35 +505,65 @@ export default function ResearchNodeCard({
         </div>
     );
 
-    const flavorPortal = (
+    // Tooltip content: the main box (flavour, selection reason, before/after) and stat reminder cards to its right.
+    const tooltipGroup = (
+        <>
+            {hasMainTooltipContent && (
+                <div className={`${PORTAL_TOOLTIP_SURFACE_CLASS} w-max min-w-0 px-3 py-2 text-xs text-gray-200`}>
+                    {node.flavorText && <p className="mt-0.5 italic text-gray-200">{node.flavorText}</p>}
+                    {selectionReason && (
+                        <p className={`${node.flavorText ? 'mt-2' : 'mt-0.5'} text-rose-200`}>{selectionReason}</p>
+                    )}
+                    {owningTree && hasHoverPreview && (
+                        <ResearchAbilityPreview
+                            treeId={owningTree.id}
+                            node={node}
+                            researchTrees={researchTrees}
+                            researchNodeLevels={researchNodeLevels}
+                            currentLevel={currentLevel}
+                            equipment={equipment}
+                            divided={Boolean(node.flavorText || selectionReason)}
+                        />
+                    )}
+                </div>
+            )}
+            {statReminders.length > 0 && (
+                // Reminder cards for the stats in the description, like keyword cards beside ability tooltips.
+                <div className="flex shrink-0 flex-col gap-2" style={{ width: STAT_REMINDER_CARD_WIDTH }}>
+                    {statReminders.map((entry) => (
+                        <div
+                            key={entry.key}
+                            data-testid={`research-stat-reminder-${entry.key}`}
+                            className="rounded-lg border border-white bg-black p-2 text-xs shadow-lg"
+                        >
+                            <h4 className="mb-1 font-bold text-amber-300">{entry.title}</h4>
+                            <div className="leading-snug">
+                                <DescriptionText text={entry.reminder} keyPrefix={`${node.id}-${entry.key}-reminder`} textClass="text-gray-200" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </>
+    );
+
+    const pinned = tooltipMode === 'pinned';
+    const flavorPortal = pinned ? null : (
         <AnchoredPortalTooltip
             anchorRef={anchorRef}
             open={(flavorHover || portalHover) && !reqHover && hasTooltipContent}
             placement="top"
             interactive
+            bare
             onPointerEnter={handlePortalEnter}
             onPointerLeave={handlePortalLeave}
-            className="w-max max-w-[min(92vw,780px)] px-3 py-2 text-xs text-gray-200"
+            className="flex max-w-[min(92vw,780px)] items-start gap-2"
         >
-            {node.flavorText && <p className="mt-0.5 italic text-gray-200">{node.flavorText}</p>}
-            {selectionReason && (
-                <p className={`${node.flavorText ? 'mt-2' : 'mt-0.5'} text-rose-200`}>{selectionReason}</p>
-            )}
-            {owningTree && hasHoverPreview && (
-                <ResearchAbilityPreview
-                    treeId={owningTree.id}
-                    node={node}
-                    researchTrees={researchTrees}
-                    researchNodeLevels={researchNodeLevels}
-                    currentLevel={currentLevel}
-                    equipment={equipment}
-                    divided={Boolean(node.flavorText || selectionReason)}
-                />
-            )}
+            {tooltipGroup}
         </AnchoredPortalTooltip>
     );
 
-    return (
+    const cardElement = (
         <div
             data-className="ResearchNodeCard"
             ref={anchorRef}
@@ -560,6 +629,14 @@ export default function ResearchNodeCard({
                 </button>
             )}
             {flavorPortal}
+        </div>
+    );
+
+    if (!pinned || !hasTooltipContent) return cardElement;
+    return (
+        <div className="flex items-start gap-2" data-testid={`research-node-pinned-${node.id}`}>
+            {cardElement}
+            {tooltipGroup}
         </div>
     );
 }

@@ -24,7 +24,11 @@ import type {
 import type { LocationCardModification } from '../../storylines/locationCards';
 import { applyLocationModificationsToOptions } from '../../storylines/locationCards';
 import { MISSION_MAP } from '../../storylines';
-import { resolveResearchRewardSlots } from '../../storylines/researchRewardSlots';
+import {
+    overlayPendingResearchGrants,
+    resolveResearchRewardSlots,
+    type ResearchSnapshot,
+} from '../../storylines/researchRewardSlots';
 import { getItemDef } from '../../character_defs/items';
 import { SPECTATOR_ID, isControlEnemy } from '../../state';
 import { getResearchNode } from '../../../../researchTrees/list';
@@ -191,7 +195,14 @@ export default function PostMissionStoryPhase({
     /** Phrase indices whose Hunger change was already recorded (guards effect re-runs). */
     const appliedHungerPhraseIndicesRef = useRef<Set<number>>(new Set());
 
+    /**
+     * Research when this story started. A later choice overlays the grants picked earlier in the story on it
+     * (`overlayPendingResearchGrants`), so a second pick never re-offers the first before the server echoes it.
+     */
+    const storyStartResearchRef = useRef<ResearchSnapshot | null>(null);
+
     useEffect(() => {
+        storyStartResearchRef.current = null;
         accumulatedResearchIdsRef.current = [];
         accumulatedResearchEntriesRef.current = [];
         firstEquipItemRef.current = undefined;
@@ -225,13 +236,23 @@ export default function PostMissionStoryPhase({
         if (!currentPhrase || currentPhrase.type !== 'choice') return [];
 
         if (currentPhrase.researchRewardSlots) {
+            const stored: ResearchSnapshot = {
+                researchTrees: myResearchTrees ?? {},
+                researchNodeLevels: myResearchNodeLevels ?? {},
+            };
+            storyStartResearchRef.current ??= stored;
+            const research = overlayPendingResearchGrants(
+                stored,
+                storyStartResearchRef.current,
+                accumulatedResearchEntriesRef.current,
+            );
             return resolveResearchRewardSlots(
                 currentPhrase.researchRewardSlots,
-                myResearchTrees,
+                research.researchTrees,
                 myEquipment,
                 // Stable until the player researches something, so the offer does not reshuffle on re-render.
-                `${missionId}:${playerId}:${Object.values(myResearchTrees ?? {}).reduce((n, ids) => n + ids.length, 0)}`,
-                { accountKnowledge, researchNodeLevels: myResearchNodeLevels },
+                `${missionId}:${playerId}:${Object.values(research.researchTrees).reduce((n, ids) => n + ids.length, 0)}`,
+                { accountKnowledge, researchNodeLevels: research.researchNodeLevels },
             );
         }
 

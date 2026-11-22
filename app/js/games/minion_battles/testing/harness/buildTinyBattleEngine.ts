@@ -13,6 +13,7 @@ import {
     applyPassiveBonusToBase,
     computePassiveBonuses,
     DEFAULT_PASSIVE_MULT,
+    getOutgoingDamageMultiplier,
 } from '../../../../researchTrees/passiveBonuses';
 import {
     applyAbilityResearchModifiersToRuntime,
@@ -24,13 +25,17 @@ import { createTargetDummyAtWorld } from '../fixtures/targetDummies';
 import { computeAbilityModifiersFromResearch } from '../../../../researchTrees/evaluator';
 import { getAbilityTagsForId } from '../../abilities/Ability';
 import { expandAbilityIdsForResearchModifiers } from '../../abilities/abilityModifierHelpers';
-import { applyLockedAbilityModes, attachResourcesFromEquipment, collectRoundStartRecoveryCharges } from '../../storylines/BaseMissionDef';
+import {
+    applyLockedAbilityModes,
+    applyResearchResourceEffects,
+    attachResourcesFromEquipment,
+    collectRoundStartRecoveryCharges,
+} from '../../storylines/BaseMissionDef';
 import {
     activeResearchByPlayer,
     activeResearchNodeLevelsByPlayer,
     resolveCharacterLoadout,
 } from '../../character_defs/characterLoadout';
-import { getMissionStartResourcesFromResearch } from '../../../../researchTrees/evaluator';
 
 /** Ability id that does not resolve in the registry: movement-only orders still apply `movePath`. */
 export const MOVE_ONLY_ABILITY_ID = '__move_only__';
@@ -125,7 +130,7 @@ export function spawnTinyPlayerUnit(
     const healthBonus = getHealthBonusFromResearch(getResearchNodes);
     const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);
     const maxHp = applyPassiveBonusToBase(baseHp + healthBonus, passiveBonuses.maxHealth);
-    const damageMultiplier = passiveBonuses.all_damage?.mult ?? DEFAULT_PASSIVE_MULT;
+    const damageMultiplier = getOutgoingDamageMultiplier(passiveBonuses);
     const unit = createPlayerUnit(
         {
             x: params.x,
@@ -248,10 +253,7 @@ export function placePlayerFromLoadout(
     attachResourcesFromEquipment(loadout.battleEquipmentIds, player, engine.eventBus);
     player.weaponAbilityIds = loadout.weaponAbilityIds.filter((id) => player.abilities.includes(id));
     applyLockedAbilityModes(player, loadout);
-    const grants = getMissionStartResourcesFromResearch(activeByPlayer[playerId]);
-    for (const [resourceId, amount] of grants) {
-        player.getResource(resourceId)?.add(amount);
-    }
+    applyResearchResourceEffects(player, activeByPlayer[playerId]);
     return { player, abilityIds: loadout.abilityIds, activeResearchTrees: activeByPlayer[playerId] ?? {} };
 }
 

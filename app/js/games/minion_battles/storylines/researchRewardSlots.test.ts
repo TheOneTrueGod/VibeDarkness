@@ -17,6 +17,7 @@ import {
     TRAINING_HEALTHY_LEVELS,
     TRAINING_MIGHTY_LEVELS,
     TRAINING_NODE_CORE,
+    TRAINING_NODE_EARTHEN_STRIDE,
     TRAINING_NODE_HEALTHY,
     TRAINING_NODE_MIGHTY,
     TRAINING_TREE_ID,
@@ -208,9 +209,10 @@ describe('resolveResearchRewardSlots - stat (Training) slots', () => {
         expect(seen.has(EARTH_NODE_ROCK_SYNERGY_DAMAGE)).toBe(false);
     });
 
-    it('offers Earth Attuned as a stat upgrade to an Earth Core character', () => {
+    it('offers Earthen Stride (not Earth Attuned) as a stat upgrade to an Earth Core character', () => {
         const seen = offeredStatNodeIds(CHIP_RESEARCH, CHIP_EQUIPMENT, { accountKnowledge: KNOWS_RESEARCH });
-        expect(seen.has(EARTH_NODE_EARTH_ATTUNED)).toBe(true);
+        expect(seen.has(TRAINING_NODE_EARTHEN_STRIDE)).toBe(true);
+        expect(seen.has(EARTH_NODE_EARTH_ATTUNED)).toBe(false);
     });
 
     it('never offers a single-level node that is already researched', () => {

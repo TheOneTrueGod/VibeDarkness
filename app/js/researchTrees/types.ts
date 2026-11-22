@@ -44,6 +44,11 @@ export type ResearchEffect =
      */
     | { type: 'grantMissionStartResource'; resourceId: string; amount: number }
     /**
+     * Raises the max of a battle resource the unit already has at mission start (applied before
+     * `grantMissionStartResource`, so a matching start grant fills the new room). Never attaches it.
+     */
+    | { type: 'increaseResourceMax'; resourceId: string; amount: number }
+    /**
      * Adds a sense grant (darkvision, tremorsense, ...) to the player unit at mission start
      * (`Unit.addSenseGrant`). Merge rules live in `game/visibility/senses.ts`.
      */
@@ -115,6 +120,8 @@ export enum PassiveStatKey {
     /** Maximum Hunger a campaign character can store. */
     MaxHunger = 'maxHunger',
     AllDamage = 'all_damage',
+    /** Attack stat: each point adds `ATTACK_DAMAGE_MULT_PER_POINT` (10%) to all damage dealt. */
+    Attack = 'attack',
     EarthDamage = 'earth_damage',
     PetMaxHealth = 'pet_maxHealth',
     Ability0701Damage = 'ability_0701_damage',
@@ -129,6 +136,9 @@ export enum PassiveStatKey {
     /** Darkness upgrade: extra wedge projectiles fired by enemy slimes. */
     EnemyUnitSlimeExtraProjectiles = 'enemy_unit_slime_extra_projectiles',
 }
+
+/** Damage dealt multiplier added per point of the Attack stat (+10% per point). */
+export const ATTACK_DAMAGE_MULT_PER_POINT = 0.1;
 
 /** Per-stat add/mult contribution from a passive node (totals at max level). */
 export interface PassiveBonusEntry {
@@ -187,6 +197,11 @@ export interface ResearchNodeDef {
     disabled?: boolean;
     /** Extra tags for this node, added to its tree's tags (see {@link ResearchTag}). */
     tags?: ResearchTag[];
+    /**
+     * Draw this node with another tree's colour and icon (e.g. a core-specific Training node in its
+     * core's chrome). The node still lives in, and is stored under, its own tree.
+     */
+    chromeTreeId?: string;
     /**
      * Free "virtual" root of a weapon: counts as researched automatically while any of these
      * items is equipped, and is never persisted. Nodes that depend on it (through `prereqNodeIds`

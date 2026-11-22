@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
     CAMPSITE,
-    CAMPSITE_3,
-    CAMPSITE_3_MISSION_ID,
+    CAMPSITE_CH3_CROSSROADS,
+    CAMPSITE_CH3_CROSSROADS_MISSION_ID,
     CAMPSITE_CHOICE_ID,
     CAMPSITE_CORE_PICKS,
     CAMPSITE_HUNGER_RECOVERY,
@@ -94,13 +94,13 @@ describe('campsite mission', () => {
         }
     });
 
-    it('the chapter 3 campsite opens the chapter and only grants rank 11 or 12 research', () => {
-        expect(MISSION_MAP[CAMPSITE_3_MISSION_ID]).toBe(CAMPSITE_3);
-        for (const slot of CAMPSITE_3.postMissionStory!.phrases.flatMap((p) => (p.type === 'choice' ? p.researchRewardSlots ?? [] : []))) {
+    it('chapter 3 campsites only grant rank 11 or 12 research', () => {
+        expect(MISSION_MAP[CAMPSITE_CH3_CROSSROADS_MISSION_ID]).toBe(CAMPSITE_CH3_CROSSROADS);
+        for (const slot of CAMPSITE_CH3_CROSSROADS.postMissionStory!.phrases.flatMap((p) => (p.type === 'choice' ? p.researchRewardSlots ?? [] : []))) {
             expect(slot).toMatchObject({ tag: 'core', minTier: 11, maxTier: 12 });
         }
         const researched = { [LIGHT_TREE_ID]: [LIGHT_NODE_CORE] };
-        const slots = CAMPSITE_3.postMissionStory!.phrases.flatMap((p) => (p.type === 'choice' ? p.researchRewardSlots ?? [] : []));
+        const slots = CAMPSITE_CH3_CROSSROADS.postMissionStory!.phrases.flatMap((p) => (p.type === 'choice' ? p.researchRewardSlots ?? [] : []));
         for (let i = 0; i < 25; i++) {
             for (const row of resolveResearchRewardSlots(slots, researched, EQUIPMENT, `p${i}`)) {
                 const a = row.action as { treeId: string; nodeId: string };

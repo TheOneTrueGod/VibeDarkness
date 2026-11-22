@@ -13,6 +13,21 @@ import { chapter2Scripts } from './chapter2.script';
 /** Every campsite shares one script (`CampsiteMission` reads chapter 2's). */
 const campsiteScript = chapter2Scripts.campsite;
 
+/** Upgrades picked, one after another, at a Training station (`TrainingStationMission`). */
+export const TRAINING_STATION_PICKS = 2;
+/** Offers shown per pick, at most (a slot with nothing left is dropped). */
+export const TRAINING_STATION_OFFERS_PER_PICK = 4;
+export const TRAINING_STATION_INTRO_TEXT = 'You have found an old training ground';
+/** Choice id of the n-th pick (1-based): each pick is its own choice phrase. */
+export function trainingStationChoiceId(pick: number): string {
+    return `training_station_choice_${pick}`;
+}
+
+const trainingStationScript: MissionScript = {
+    name: 'Training',
+    description: `A place to drill. Pick ${TRAINING_STATION_PICKS} free Training upgrades, one after the other.`,
+};
+
 /** One narrator line before the battle. */
 function preMissionLine(text: string): PreMissionStoryDef {
     return {
@@ -29,7 +44,7 @@ function preMissionLine(text: string): PreMissionStoryDef {
 }
 
 export const chapter3Scripts = {
-    campsite_ch3: campsiteScript,
+    campsite_ch3: trainingStationScript,
     the_lonely_castle: {
         name: 'The Lonely Castle',
         description:

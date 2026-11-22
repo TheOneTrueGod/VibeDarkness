@@ -18,7 +18,7 @@ import {
     getActiveResearchTrees,
     getInactiveResearchNodeIds,
 } from '../../../researchTrees/activeResearch';
-import { canLevelUpNode, getNodeLevel } from '../../../researchTrees/passiveBonuses';
+import { canLevelUpNode, getNodeLevel, getNodeMaxLevels } from '../../../researchTrees/passiveBonuses';
 import { getNodeRankForLevel } from '../../../researchTrees/treeLevels';
 
 /** Player data the strict (random-slot) checks need beyond research and equipment. */
@@ -311,4 +311,46 @@ function buildRow(
         loreDescription: loreDescription ?? node.flavorText ?? node.description,
         action: { type: 'grant_research_to_player', treeId, nodeId: node.id },
     };
+}
+
+/** Research a player holds: node ids per tree plus levels of multi-level nodes. */
+export interface ResearchSnapshot {
+    researchTrees: Record<string, string[]>;
+    researchNodeLevels: ResearchNodeLevels;
+}
+
+/**
+ * Research as it will be once the grants picked earlier in this story land, for offering a later choice
+ * before the server echoes them back. `baseline` is the research when the story started; each grant adds
+ * the node and one level on top of it (capped at the node's max). Idempotent against `stored`: a grant the
+ * server already applied is not counted twice.
+ */
+export function overlayPendingResearchGrants(
+    stored: ResearchSnapshot,
+    baseline: ResearchSnapshot,
+    grants: readonly { treeId: string; nodeId: string }[],
+): ResearchSnapshot {
+    if (grants.length === 0) return stored;
+    const researchTrees: Record<string, string[]> = { ...stored.researchTrees };
+    const researchNodeLevels: ResearchNodeLevels = { ...stored.researchNodeLevels };
+    const counts = new Map<string, { treeId: string; nodeId: string; n: number }>();
+    for (const { treeId, nodeId } of grants) {
+        const key = `${treeId}:${nodeId}`;
+        const entry = counts.get(key) ?? { treeId, nodeId, n: 0 };
+        entry.n += 1;
+        counts.set(key, entry);
+    }
+    for (const { treeId, nodeId, n } of counts.values()) {
+        const ids = researchTrees[treeId] ?? [];
+        if (!ids.includes(nodeId)) researchTrees[treeId] = [...ids, nodeId];
+        const node = RESEARCH_TREES.find((t) => t.id === treeId)?.nodes.find((nd) => nd.id === nodeId);
+        if (!node || getNodeMaxLevels(node) <= 1) continue;
+        const target = Math.min(
+            getNodeMaxLevels(node),
+            getNodeLevel(treeId, nodeId, baseline.researchTrees, baseline.researchNodeLevels) + n,
+        );
+        const current = getNodeLevel(treeId, nodeId, stored.researchTrees, stored.researchNodeLevels);
+        researchNodeLevels[treeId] = { ...(researchNodeLevels[treeId] ?? {}), [nodeId]: Math.max(current, target) };
+    }
+    return { researchTrees, researchNodeLevels };
 }

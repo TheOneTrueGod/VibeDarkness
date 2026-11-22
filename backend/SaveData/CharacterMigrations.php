@@ -17,10 +17,12 @@ namespace App\SaveData;
  * v5: Resource rename. `food` -> `vigor`, `crystals` -> `attunement` in every `resourceDelta`; knowledge key
  *     `Crystals` -> `ResourceAttunement`.
  * v6: Multiple active quest runs. Singular `activeQuestRun` moves into `activeQuestRuns[runId]`; empty stays `{}`.
+ * v7: Training stations. Empower Pet moves from `command_core` to `training` (node id, levels and sources kept),
+ *     on the character and every active quest snapshot; mission/quest `researchRewards` rows are re-pointed.
  */
 final class CharacterMigrations
 {
-    public const CURRENT_VERSION = 6;
+    public const CURRENT_VERSION = 7;
 
     /**
      * Frozen (v3): swap research node => [old tree, upgrade item, base item it replaces]. Within a base item
@@ -63,6 +65,14 @@ final class CharacterMigrations
     /** Frozen (v4): virtual roots of the retired family trees (no node in the Weapons tree). */
     public const RETIRED_WEAPON_NODE_IDS = ['thrown_weapons_root', 'melee_weapons_root'];
 
+    /**
+     * Frozen (v7): nodes that keep their id but move to another tree: node id => [old tree, new tree].
+     * Tree ids mirror COMMAND_CORE_TREE_ID / TRAINING_TREE_ID in app/js/researchTrees/trees.
+     */
+    public const V7_MOVED_NODES = [
+        'empower_pet' => ['command_core', 'training'],
+    ];
+
     /** Frozen: retired upgrade item -> base weapon. */
     public const LEGACY_ITEM_TO_BASE = [
         '013' => '001', '016' => '001',
@@ -93,6 +103,7 @@ final class CharacterMigrations
             3 => [self::class, 'v3ToV4'],
             4 => [self::class, 'v4ToV5'],
             5 => [self::class, 'v5ToV6'],
+            6 => [self::class, 'v6ToV7'],
         ];
     }
 
@@ -451,6 +462,95 @@ final class CharacterMigrations
         if (isset($data['activeQuestRun']['questCharacter']['knowledge'])) {
             $data['activeQuestRun']['questCharacter']['knowledge'] =
                 ResourceRenames::renameKnowledgeMap($data['activeQuestRun']['questCharacter']['knowledge']);
+        }
+        return $data;
+    }
+
+    /**
+     * Move nodes between trees on one character-shaped array, keeping levels (max wins) and sources (union).
+     * Idempotent; empty per-tree level / source maps are dropped.
+     *
+     * @param array<string, mixed> $c
+     * @param array<string, array{0: string, 1: string}> $moves node id => [old tree, new tree]
+     * @return array<string, mixed>
+     */
+    public static function moveResearchNodes(array $c, array $moves): array
+    {
+        if (is_array($c['researchTrees'] ?? null)) {
+            $trees = $c['researchTrees'];
+            foreach ($moves as $nodeId => [$from, $to]) {
+                if (is_array($trees[$from] ?? null) && in_array($nodeId, $trees[$from], true)) {
+                    $trees[$from] = array_values(array_diff($trees[$from], [$nodeId]));
+                    $existing = is_array($trees[$to] ?? null) ? $trees[$to] : [];
+                    $trees[$to] = array_values(array_unique(array_merge($existing, [$nodeId])));
+                }
+            }
+            $c['researchTrees'] = $trees;
+        }
+        foreach (['researchNodeLevels', 'researchSources'] as $key) {
+            if (!is_array($c[$key] ?? null)) {
+                continue;
+            }
+            $byTree = $c[$key];
+            foreach ($moves as $nodeId => [$from, $to]) {
+                if (!isset($byTree[$from][$nodeId])) {
+                    continue;
+                }
+                $value = $byTree[$from][$nodeId];
+                $byTree[$to][$nodeId] = $key === 'researchNodeLevels'
+                    ? max((int) ($byTree[$to][$nodeId] ?? 0), (int) $value)
+                    : array_values(array_unique(array_merge((array) ($byTree[$to][$nodeId] ?? []), (array) $value)));
+                unset($byTree[$from][$nodeId]);
+                if ($byTree[$from] === []) {
+                    unset($byTree[$from]);
+                }
+            }
+            $c[$key] = $byTree;
+        }
+        return $c;
+    }
+
+    /**
+     * Re-point `researchRewards: [{treeId, nodeId}]` rows anywhere inside $value for moved nodes.
+     *
+     * @param array<string, array{0: string, 1: string}> $moves node id => [old tree, new tree]
+     */
+    public static function remapMovedResearchRewards(mixed $value, array $moves): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+        foreach ($value as $k => $v) {
+            if ($k === 'researchRewards' && is_array($v)) {
+                foreach ($v as $i => $row) {
+                    $nodeId = is_array($row) ? ($row['nodeId'] ?? null) : null;
+                    if (is_string($nodeId) && isset($moves[$nodeId]) && ($row['treeId'] ?? null) === $moves[$nodeId][0]) {
+                        $value[$k][$i]['treeId'] = $moves[$nodeId][1];
+                    }
+                }
+            } elseif (is_array($v)) {
+                $value[$k] = self::remapMovedResearchRewards($v, $moves);
+            }
+        }
+        return $value;
+    }
+
+    public static function v6ToV7(array $data): array
+    {
+        $moves = self::V7_MOVED_NODES;
+        $data = self::moveResearchNodes($data, $moves);
+        if (is_array($data['activeQuestRuns'] ?? null)) {
+            foreach ($data['activeQuestRuns'] as $runId => $run) {
+                if (is_array($run) && is_array($run['questCharacter'] ?? null)) {
+                    $data['activeQuestRuns'][$runId]['questCharacter'] =
+                        self::moveResearchNodes($run['questCharacter'], $moves);
+                }
+            }
+        }
+        foreach (['missionResults', 'questResults'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $data[$key] = self::remapMovedResearchRewards($data[$key], $moves);
+            }
         }
         return $data;
     }

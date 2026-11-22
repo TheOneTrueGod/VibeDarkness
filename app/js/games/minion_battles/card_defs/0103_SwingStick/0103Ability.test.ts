@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 // before ThrowRock's module body calls CastBehaviours.ProjectileLaunch().
 import { getAbility } from '../../abilities/AbilityRegistry';
 import {
-    TRAINING_MIGHTY_ALL_DAMAGE_MULT,
+    TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX,
     TRAINING_MIGHTY_LEVELS,
     TRAINING_NODE_MIGHTY,
     TRAINING_TREE_ID,
@@ -12,9 +12,9 @@ import { SWING_STICK_DAMAGE, SwingStickAbility_0103 } from './0103Ability';
 
 void getAbility;
 
-const MIGHTY_TWO_LEVELS = 2;
-const MIGHTY_TWO_LEVEL_MULT =
-    1 + ((TRAINING_MIGHTY_ALL_DAMAGE_MULT - 1) * MIGHTY_TWO_LEVELS) / TRAINING_MIGHTY_LEVELS;
+const MIGHTY_ONE_LEVEL = 1;
+const MIGHTY_ONE_LEVEL_MULT =
+    1 + ((TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX - 1) * MIGHTY_ONE_LEVEL) / TRAINING_MIGHTY_LEVELS;
 
 describe('Swing Stick getTooltipText (damage tokens)', () => {
     it('without context shows base damage', () => {
@@ -27,7 +27,7 @@ describe('Swing Stick getTooltipText (damage tokens)', () => {
     it('Mighty mult 1.2 on base 10 shows dynamic {12}', () => {
         const gameState = {
             getLocalPlayerUnit: () => ({
-                getDamageModifier: () => ({ flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT }),
+                getDamageModifier: () => ({ flatAmt: 0, multiplier: MIGHTY_ONE_LEVEL_MULT }),
                 stackSize: 1,
             }),
         };
@@ -39,7 +39,7 @@ describe('Swing Stick getTooltipText (damage tokens)', () => {
     it('research bag (character select) resolves Mighty via resolveTooltipContext', () => {
         const lines = SwingStickAbility_0103.getTooltipText({
             researchTrees: { [TRAINING_TREE_ID]: [TRAINING_NODE_MIGHTY] },
-            researchNodeLevels: { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_TWO_LEVELS } },
+            researchNodeLevels: { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_ONE_LEVEL } },
         });
         expect(lines.some((l) => l.includes('{12}'))).toBe(true);
         expect(lines.some((l) => l.includes(`{${SWING_STICK_DAMAGE}}`))).toBe(false);

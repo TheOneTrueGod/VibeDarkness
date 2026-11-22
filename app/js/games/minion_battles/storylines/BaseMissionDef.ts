@@ -64,6 +64,7 @@ import {
     applyPassiveBonusToBase,
     computePassiveBonuses,
     DEFAULT_PASSIVE_MULT,
+    getOutgoingDamageMultiplier,
 } from '../../../researchTrees/passiveBonuses';
 import { compileStatBags, mergePassiveBonuses } from '../../../darknessStrength/compile';
 import {
@@ -72,7 +73,7 @@ import {
     applyAbilityResearchModifiersToRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbilitiesFromResearch, getMissionStartResourcesFromResearch, getSenseGrantsFromResearch } from '../../../researchTrees/evaluator';
+import { computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbilitiesFromResearch, getMissionStartResourcesFromResearch, getResourceMaxIncreasesFromResearch, getSenseGrantsFromResearch } from '../../../researchTrees/evaluator';
 import { expandAttachedAbilityIds, mapPrepPicksThroughReplacements } from './questPrepLoadout';
 import { getAbility } from '../abilities/AbilityRegistry';
 import type { CharacterLoadout } from '../character_defs/characterLoadout';
@@ -167,14 +168,21 @@ export function applyLockedAbilityModes(
     unit.lockedAbilityModes = locked;
 }
 
-function applyMissionStartResourcesFromResearch(
+/**
+ * Research resource effects on a freshly spawned player unit, after its resources are attached:
+ * `increaseResourceMax` first, then `grantMissionStartResource` (so a start grant can fill the new room).
+ * Neither attaches a resource the unit lacks. Shared by the battle spawn and the tiny-battle harness.
+ */
+export function applyResearchResourceEffects(
     unit: Unit,
     researchTrees: Record<string, string[]> | undefined,
 ): void {
-    const grants = getMissionStartResourcesFromResearch(researchTrees);
-    for (const [resourceId, amount] of grants) {
+    for (const [resourceId, amount] of getResourceMaxIncreasesFromResearch(researchTrees)) {
         const resource = unit.getResource(resourceId);
-        if (resource) resource.add(amount);
+        if (resource) resource.max = Math.max(0, resource.max + amount);
+    }
+    for (const [resourceId, amount] of getMissionStartResourcesFromResearch(researchTrees)) {
+        unit.getResource(resourceId)?.add(amount);
     }
 }
 
@@ -480,7 +488,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             const healthBonus = getHealthBonusFromResearch(getResearchNodes);
             const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);
             const maxHp = applyPassiveBonusToBase(baseHp + healthBonus, passiveBonuses.maxHealth);
-            const damageMultiplier = passiveBonuses.all_damage?.mult ?? DEFAULT_PASSIVE_MULT;
+            const damageMultiplier = getOutgoingDamageMultiplier(passiveBonuses);
             const combatSettings =
                 flatDamageBonus > 0 || damageMultiplier !== DEFAULT_PASSIVE_MULT
                     ? {
@@ -537,7 +545,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             attachAmmoIfNeeded(engine, unit);
             attachResourcesFromEquipment(equippedIds, unit, engine.eventBus);
             attachReflexIfKnown(unit, engine.eventBus, playerKnowsReactions(engine, pu.playerId));
-            applyMissionStartResourcesFromResearch(unit, researchByPlayer[pu.playerId]);
+            applyResearchResourceEffects(unit, researchByPlayer[pu.playerId]);
             applySenseGrantsFromResearch(unit, researchByPlayer[pu.playerId]);
             for (const resource of unit.resources) {
                 resource.primeDisplayContext?.(unit, engine);

@@ -9,11 +9,10 @@ import { DodgeAbility } from '../card_defs/0101_Dodge/0101Ability';
 import { ClawAbility } from '../card_defs/0111_Claw/0111Ability';
 import { computePassiveBonuses } from '../../../researchTrees/passiveBonuses';
 import {
-    EARTH_ATTUNED_LEVELS,
-    EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK,
-    EARTH_NODE_EARTH_ATTUNED,
-    EARTH_TREE_ID,
-} from '../../../researchTrees/trees/earth';
+    EARTHEN_STRIDE_MOVEMENT_ADD,
+    TRAINING_NODE_EARTHEN_STRIDE,
+    TRAINING_TREE_ID,
+} from '../../../researchTrees/trees/training';
 
 function makeUnit(id: string): Unit {
     return new Unit({
@@ -160,21 +159,17 @@ describe('Movement recovery at round start', () => {
     });
 });
 
-describe('Earth Attuned movement passives', () => {
-    const attunedMax = MOVEMENT_BASE_MAX + EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS;
-    const attunedRegen =
-        MOVEMENT_BASE_RECOVERY_PER_ROUND + EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS;
+describe('Earthen Stride movement passives', () => {
+    const attunedMax = MOVEMENT_BASE_MAX + EARTHEN_STRIDE_MOVEMENT_ADD;
+    const attunedRegen = MOVEMENT_BASE_RECOVERY_PER_ROUND + EARTHEN_STRIDE_MOVEMENT_ADD;
 
     function makeAttunedUnit(): Unit {
         const unit = makeUnit('attuned');
-        unit.passiveBonuses = computePassiveBonuses(
-            { [EARTH_TREE_ID]: [EARTH_NODE_EARTH_ATTUNED] },
-            { [EARTH_TREE_ID]: { [EARTH_NODE_EARTH_ATTUNED]: EARTH_ATTUNED_LEVELS } },
-        );
+        unit.passiveBonuses = computePassiveBonuses({ [TRAINING_TREE_ID]: [TRAINING_NODE_EARTHEN_STRIDE] });
         return unit;
     }
 
-    it('raises max and starting current by both ranks on attach', () => {
+    it('raises max and starting current on attach', () => {
         const unit = makeAttunedUnit();
         const movement = new Movement();
         unit.attachResource(movement, new EventBus());
@@ -183,7 +178,7 @@ describe('Earth Attuned movement passives', () => {
         expect(movement.current).toBe(attunedMax);
     });
 
-    it('recovers the attuned amount per round', () => {
+    it('recovers the extra movement each round', () => {
         const unit = makeAttunedUnit();
         const movement = new Movement();
         unit.attachResource(movement, new EventBus());

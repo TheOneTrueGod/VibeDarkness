@@ -2,7 +2,7 @@ import type { Unit } from '../game/units/Unit';
 import type { DamageModifier } from '../game/units/unitTypes';
 import {
     DEFAULT_PASSIVE_MULT,
-    applyPassiveBonusToBase,
+    getOutgoingDamageMultiplier,
     computePassiveBonuses,
 } from '../../../researchTrees/passiveBonuses';
 import type { ResearchNodeLevels } from '../../../researchTrees/types';
@@ -105,7 +105,7 @@ export function buildDamageModifierFromResearch(
     const getResearchNodes = (treeId: string) => researchTrees?.[treeId] ?? [];
     const passiveBonuses = computePassiveBonuses(researchTrees, levels);
     const flatAmt = getDamageBonusFromResearch(getResearchNodes);
-    const multiplier = passiveBonuses.all_damage?.mult ?? DEFAULT_PASSIVE_MULT;
+    const multiplier = getOutgoingDamageMultiplier(passiveBonuses);
     return { flatAmt, multiplier };
 }
 
@@ -117,10 +117,10 @@ export function buildDamageModifierFromResearch(
  */
 export function applyPassiveDamageBonuses(baseDamage: number, caster?: Unit): number {
     if (!caster) return Math.max(0, Math.floor(baseDamage));
-    return Math.max(0, applyPassiveBonusToBase(baseDamage, caster.passiveBonuses?.all_damage));
+    return Math.max(0, Math.floor(baseDamage * getOutgoingDamageMultiplier(caster.passiveBonuses)));
 }
 
 /** Read the caster's all_damage mult, defaulting to 1 when absent / no caster. */
 export function getAllDamagePassiveMult(caster?: Unit): number {
-    return caster?.passiveBonuses?.all_damage?.mult ?? DEFAULT_PASSIVE_MULT;
+    return caster ? getOutgoingDamageMultiplier(caster.passiveBonuses) : DEFAULT_PASSIVE_MULT;
 }

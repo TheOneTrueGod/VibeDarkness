@@ -10,13 +10,13 @@ import {
     type TooltipResolveContext,
     type TooltipTokenBindings,
 } from './tooltipTokens';
-import { TRAINING_MIGHTY_ALL_DAMAGE_MULT, TRAINING_MIGHTY_LEVELS } from '../../../researchTrees/trees/training';
+import { TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX, TRAINING_MIGHTY_LEVELS } from '../../../researchTrees/trees/training';
 
 const EMPTY_CTX: TooltipResolveContext = {};
 
-/** Mighty ×2 levels → mult 1.2 (same as damageModifiers.test). */
-const MIGHTY_TWO_LEVEL_MULT =
-    1 + ((TRAINING_MIGHTY_ALL_DAMAGE_MULT - 1) * 2) / TRAINING_MIGHTY_LEVELS;
+/** Mighty at one level (+2 Attack) → mult 1.2 (same as damageModifiers.test). */
+const MIGHTY_ONE_LEVEL_MULT =
+    1 + ((TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX - 1) * 1) / TRAINING_MIGHTY_LEVELS;
 
 describe('formatTooltipNumber', () => {
     it('abs ≥ 10 rounds to integer (14.4 → "14")', () => {
@@ -94,7 +94,7 @@ describe('resolveTooltipLine / formatTooltipLines', () => {
         const segs = resolveTooltipLine(
             'Hit {{DAMAGE}}.',
             { DAMAGE: { kind: 'damage', base: 10 } },
-            { damageModifier: { flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT } },
+            { damageModifier: { flatAmt: 0, multiplier: MIGHTY_ONE_LEVEL_MULT } },
         );
         expect(segs).toEqual([
             { text: 'Hit ', role: 'static' },
@@ -156,7 +156,7 @@ describe('resolveTooltipLine / formatTooltipLines', () => {
         const lines = formatTooltipLegacyLines(
             ['Deals {{DAMAGE}} damage'],
             { DAMAGE: { kind: 'damage', base: 10 } },
-            { damageModifier: { flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT } },
+            { damageModifier: { flatAmt: 0, multiplier: MIGHTY_ONE_LEVEL_MULT } },
         );
         expect(lines).toEqual(['Deals {12} damage']);
     });

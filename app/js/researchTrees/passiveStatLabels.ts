@@ -5,6 +5,7 @@ export const PASSIVE_STAT_LABELS: Record<PassiveStatKey, string> = {
     [PassiveStatKey.MaxHealth]: 'Max Health',
     [PassiveStatKey.MaxHunger]: 'Max Hunger',
     [PassiveStatKey.AllDamage]: 'All Damage',
+    [PassiveStatKey.Attack]: 'Attack',
     [PassiveStatKey.EarthDamage]: 'Earth Damage',
     [PassiveStatKey.PetMaxHealth]: 'Pet Max Health',
     [PassiveStatKey.Ability0701Damage]: 'Dog Bite Damage',

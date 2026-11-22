@@ -26,6 +26,7 @@ export const MISSION_NODE_FILL = {
     battle: '#ef4444', // red-500
     story: '#3b82f6', // blue-500
     campsite: '#f59e0b', // amber-500
+    training: '#0d9488', // teal-600
 } as const;
 
 /** Lighter red halo on battle nodes — same role as quest-bank violet-400 on violet-600. */
@@ -56,6 +57,7 @@ export function getMissionNodeFill(
     if (missionType === 'boss') return `url(#${BOSS_GRADIENT_ID})`;
     if (missionType === 'story') return MISSION_NODE_FILL.story;
     if (missionType === 'campsite') return MISSION_NODE_FILL.campsite;
+    if (missionType === 'training') return MISSION_NODE_FILL.training;
     return MISSION_NODE_FILL.battle;
 }
 
@@ -70,6 +72,7 @@ export function getMissionGlowColor(
     if (missionType === 'boss') return BOSS_GLOW_COLOR;
     if (missionType === 'story') return MISSION_NODE_FILL.story;
     if (missionType === 'campsite') return MISSION_NODE_FILL.campsite;
+    if (missionType === 'training') return MISSION_NODE_FILL.training;
     return MISSION_NODE_FILL.battle;
 }
 

@@ -41,6 +41,18 @@ export function getResearchTreeContainingNode(nodeId: string): ResearchTreeDef |
     return RESEARCH_TREES.find((tree) => tree.nodes.some((node) => node.id === nodeId));
 }
 
+/**
+ * Tree whose colour and icon a node is drawn with: its `chromeTreeId` tree when set (e.g. a core-specific
+ * Training node in its core's chrome), else its owning tree.
+ */
+export function getResearchNodeChromeTree(
+    node: Pick<ResearchNodeDef, 'id' | 'chromeTreeId'>,
+    owningTree?: ResearchTreeDef,
+): ResearchTreeDef | undefined {
+    const chromeTree = node.chromeTreeId ? getResearchTree(node.chromeTreeId) : undefined;
+    return chromeTree ?? owningTree ?? getResearchTreeContainingNode(node.id);
+}
+
 export interface ResolvedResearchReward {
     rewardId: string;
     treeId: string;

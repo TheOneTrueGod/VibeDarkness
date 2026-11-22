@@ -14,7 +14,7 @@ import { getDefaultHp, PLAYER_CHARACTER_ID } from '../game/units/unit_defs/unitD
 import { getAddAtLevel, getMultBonusAtLevel } from '../../../researchTrees/passiveBonuses';
 import { PASSIVE_STAT_LABELS } from '../../../researchTrees/passiveStatLabels';
 import { PassiveStatKey, type ResearchNodeDef, type ResearchTreeDef } from '../../../researchTrees/types';
-import { earthTree, EARTH_ATTUNED_CLAW_ABILITY_IDS, EARTH_ATTUNED_LEVELS, EARTH_ATTUNED_MAX_MOVEMENT_ADD, EARTH_NODE_EARTH_ATTUNED, EARTH_NODE_ROCK_SYNERGY_DAMAGE, EARTH_TREE_ID } from '../../../researchTrees/trees/earth';
+import { earthTree, EARTH_ATTUNED_CLAW_ABILITY_IDS, EARTH_NODE_EARTH_ATTUNED, EARTH_NODE_ROCK_SYNERGY_DAMAGE, EARTH_TREE_ID } from '../../../researchTrees/trees/earth';
 import {
     GRAVITY_NODE_COLLAPSE,
     GRAVITY_NODE_CORE,
@@ -23,13 +23,15 @@ import {
     gravityTree,
 } from '../../../researchTrees/trees/gravity';
 import {
+    EARTHEN_STRIDE_MOVEMENT_ADD,
     TRAINING_HEALTHY_LEVELS,
     TRAINING_HEALTHY_MAX_HEALTH_ADD,
-    TRAINING_MIGHTY_ALL_DAMAGE_MULT,
+    TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX,
     TRAINING_MIGHTY_LEVELS,
     TRAINING_NODE_CORE,
     TRAINING_NODE_DARKVISION,
     TRAINING_NODE_DOUBLE_PUNCH,
+    TRAINING_NODE_EARTHEN_STRIDE,
     TRAINING_NODE_HEALTHY,
     TRAINING_NODE_MIGHTY,
     TRAINING_NODE_TREMORSENSE,
@@ -60,7 +62,7 @@ function stat(preview: ResearchNodePreview, id: string) {
 
 const ALL_DAMAGE = PASSIVE_STAT_LABELS[PassiveStatKey.AllDamage];
 const MIGHTY_ONE_LEVEL_MULT = 1 + getMultBonusAtLevel(
-    TRAINING_MIGHTY_ALL_DAMAGE_MULT,
+    TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX,
     1,
     TRAINING_MIGHTY_LEVELS,
 );
@@ -252,20 +254,27 @@ describe('buildResearchNodePreview', () => {
         expect(afterText).toContain(`Throws {${MORE_ROCK_HIT_COUNT}} rocks dealing`);
     });
 
-    it('lists each ability a stat node modifies, plus the player stat', () => {
+    it('lists each ability a node modifies', () => {
         const preview = buildResearchNodePreview({
             treeId: EARTH_TREE_ID,
             node: nodeById(earthTree, EARTH_NODE_EARTH_ATTUNED),
         });
-        const movementAdd = getAddAtLevel(EARTH_ATTUNED_MAX_MOVEMENT_ADD, 1, EARTH_ATTUNED_LEVELS);
+        expect(stat(preview, 'maxMovement')).toBeUndefined();
+        expect(preview.upgrades.map((pair) => pair.afterAbilityId).sort()).toEqual(
+            [...EARTH_ATTUNED_CLAW_ABILITY_IDS].sort(),
+        );
+    });
+
+    it('shows the movement a Training stat node adds', () => {
+        const preview = buildResearchNodePreview({
+            treeId: TRAINING_TREE_ID,
+            node: nodeById(trainingTree, TRAINING_NODE_EARTHEN_STRIDE),
+        });
         expect(stat(preview, 'maxMovement')).toMatchObject({
             kind: 'battle',
             resourceId: 'movement_points',
             before: String(MOVEMENT_BASE_MAX),
-            after: String(MOVEMENT_BASE_MAX + movementAdd),
+            after: String(MOVEMENT_BASE_MAX + EARTHEN_STRIDE_MOVEMENT_ADD),
         });
-        expect(preview.upgrades.map((pair) => pair.afterAbilityId).sort()).toEqual(
-            [...EARTH_ATTUNED_CLAW_ABILITY_IDS].sort(),
-        );
     });
 });

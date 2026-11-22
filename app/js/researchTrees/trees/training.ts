@@ -1,8 +1,26 @@
 import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
-import { PassiveStatKey, type ResearchTreeDef } from '../types';
+import { ATTACK_DAMAGE_MULT_PER_POINT, PassiveStatKey, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
 import { WEAPON_ITEM_CHARGED_ROCKS } from './weaponTreeIds';
+import { statPillToken } from '../../characterStats';
+import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
+import { GATHER_LIGHT_ABILITY_ID } from '../../games/minion_battles/card_defs/08_light_core/0804_GatherLight/0804Constants';
+import { EARTH_TREE_ID } from './earth';
+import { LIGHT_TREE_ID } from './light';
+import { ARMORY_TREE_ID } from './armory';
+import { STORM_TREE_ID } from './storm';
+import {
+    COMMAND_CORE_NODE_EMPOWER_PET,
+    COMMAND_CORE_NODE_LOYAL_COMPANION,
+    COMMAND_CORE_TREE_ID,
+    COMMAND_EMPOWER_ATTUNEMENT_COST,
+    COMMAND_EMPOWER_METAL_COST,
+    COMMAND_EMPOWER_VIGOR_COST,
+    EMPOWER_PET_LEVELS,
+    EMPOWER_PET_MAX_BITE_DAMAGE_ADD,
+    EMPOWER_PET_MAX_HEALTH_ADD,
+} from './command_core';
 // Plain data: `senses.ts` only imports `darknessLevels.ts` at runtime, so no engine code comes along.
 import { DARKVISION_GRANT, TREMORSENSE_GRANT } from '../../games/minion_battles/game/visibility/senses';
 
@@ -21,6 +39,31 @@ export const TRAINING_PLAYTEST_VITALITY_REGEN_PER_ROUND = 100;
 /** Disabled admin-only sense nodes (see `game/visibility/senses.ts`). */
 export const TRAINING_NODE_DARKVISION = 'darkvision';
 export const TRAINING_NODE_TREMORSENSE = 'tremorsense';
+/**
+ * Core-specific Training nodes: each needs its core (or core research) and is drawn in that core's
+ * chrome (`chromeTreeId`). Empower Pet keeps its old id; it moved here from Command Core (save v6 migration).
+ */
+export const TRAINING_NODE_EARTHEN_STRIDE = 'earthen_stride';
+export const TRAINING_NODE_EMPOWER_PET = COMMAND_CORE_NODE_EMPOWER_PET;
+export const TRAINING_NODE_BRIGHT_RESERVES = 'bright_reserves';
+export const TRAINING_NODE_SPARE_CHARGE = 'spare_charge';
+export const TRAINING_NODE_STORED_STATIC = 'stored_static';
+
+/** Rank Training stations offer. */
+export const TRAINING_STATION_TIER = 11;
+
+/** Earthen Stride: extra max movement points and movement recovered per round. */
+export const EARTHEN_STRIDE_MOVEMENT_ADD = 1;
+/** Bright Reserves: extra max Light, and extra Light per Gather Light. */
+export const BRIGHT_RESERVES_LIGHT_MAX_ADD = 2;
+export const BRIGHT_RESERVES_GATHER_LIGHT_ADD = 1;
+/** Spare Charge: extra max Charge. */
+export const SPARE_CHARGE_MAX_ADD = 1;
+/** Stored Static: extra max Static and extra Static at mission start. */
+export const STORED_STATIC_ADD = 2;
+
+/** Campaign cost of the single-rank core-specific Training nodes. */
+export const TRAINING_CORE_NODE_COST = { vigor: 10, attunement: 5 };
 
 /** Max levels / max bonus for Healthy passive (maxHealth add). */
 /** Rank of each level of a multi-level node: first rank at `first`, one higher per further rank. */
@@ -29,11 +72,14 @@ function rankTiers(first: number, levels: number): number[] {
 }
 
 export const TRAINING_HEALTHY_LEVELS = 5;
-export const TRAINING_HEALTHY_MAX_HEALTH_ADD = 50;
+/** +20 Max Health per level. */
+export const TRAINING_HEALTHY_MAX_HEALTH_ADD = 100;
 
-/** Max levels / max mult for Mighty passive (all_damage). mult 1.5 = +50% (+10% per level). */
+/** Max levels / max Attack for Mighty: +2 Attack per level (each Attack point is +10% damage). */
 export const TRAINING_MIGHTY_LEVELS = 5;
-export const TRAINING_MIGHTY_ALL_DAMAGE_MULT = 1.5;
+export const TRAINING_MIGHTY_ATTACK_ADD = 10;
+/** Outgoing damage multiplier from Mighty alone at max level (Attack 10 = x2). */
+export const TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX = 1 + TRAINING_MIGHTY_ATTACK_ADD * ATTACK_DAMAGE_MULT_PER_POINT;
 
 /** Vigor cost per level for Healthy. */
 export const TRAINING_PASSIVE_NODE_VIGOR_COST = 15;
@@ -151,7 +197,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: TRAINING_NODE_HEALTHY,
             title: 'Healthy',
-            description: `+{${Math.floor(TRAINING_HEALTHY_MAX_HEALTH_ADD / TRAINING_HEALTHY_LEVELS)}} Max Health per level.`,
+            description: `${statPillToken('health', `+${Math.floor(TRAINING_HEALTHY_MAX_HEALTH_ADD / TRAINING_HEALTHY_LEVELS)}`)} per level.`,
             flavorText: 'Endure a little longer each outing.',
             order: 60,
             tier: 11,
@@ -172,7 +218,8 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: TRAINING_NODE_MIGHTY,
             title: 'Mighty',
-            description: `+{${Math.floor(((TRAINING_MIGHTY_ALL_DAMAGE_MULT - 1) * 100) / TRAINING_MIGHTY_LEVELS)}}% all damage per level.`,
+            // Just the pill: what a point of Attack does is on the stat's reminder card beside the tooltip.
+            description: statPillToken('attack', `+${Math.floor(TRAINING_MIGHTY_ATTACK_ADD / TRAINING_MIGHTY_LEVELS)}`),
             flavorText: 'Every blow hits a little harder.',
             order: 70,
             tier: 11,
@@ -187,8 +234,107 @@ export const trainingTree: ResearchTreeDef = {
             effects: [],
             levels: TRAINING_MIGHTY_LEVELS,
             passiveBonus: {
-                [PassiveStatKey.AllDamage]: { mult: TRAINING_MIGHTY_ALL_DAMAGE_MULT },
+                [PassiveStatKey.Attack]: { add: TRAINING_MIGHTY_ATTACK_ADD },
             },
+        },
+        {
+            id: TRAINING_NODE_EARTHEN_STRIDE,
+            title: 'Earthen Stride',
+            description: `+{${EARTHEN_STRIDE_MOVEMENT_ADD}} movement point per round.`,
+            flavorText: 'Let the ground carry you a step further each turn.',
+            order: 80,
+            tier: TRAINING_STATION_TIER,
+            position: { x: 40, y: 320 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: [],
+            chromeTreeId: EARTH_TREE_ID,
+            requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.EarthCore }],
+            cost: TRAINING_CORE_NODE_COST,
+            effects: [],
+            passiveBonus: {
+                [PassiveStatKey.MaxMovementPoints]: { add: EARTHEN_STRIDE_MOVEMENT_ADD },
+                [PassiveStatKey.MovementRegenPerRound]: { add: EARTHEN_STRIDE_MOVEMENT_ADD },
+            },
+        },
+        {
+            id: TRAINING_NODE_EMPOWER_PET,
+            title: 'Empower Pet',
+            description: `+{${EMPOWER_PET_MAX_HEALTH_ADD / EMPOWER_PET_LEVELS}} pet max HP and +{${EMPOWER_PET_MAX_BITE_DAMAGE_ADD / EMPOWER_PET_LEVELS}} Dog Bite damage per level.`,
+            flavorText: 'Stronger paws. Sharper teeth.',
+            order: 81,
+            tier: TRAINING_STATION_TIER,
+            position: { x: 40, y: 430 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: [],
+            chromeTreeId: COMMAND_CORE_TREE_ID,
+            requirements: [
+                { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
+            ],
+            cost: {
+                attunement: COMMAND_EMPOWER_ATTUNEMENT_COST,
+                vigor: COMMAND_EMPOWER_VIGOR_COST,
+                metal: COMMAND_EMPOWER_METAL_COST,
+            },
+            effects: [],
+            levels: EMPOWER_PET_LEVELS,
+            passiveBonus: {
+                [PassiveStatKey.PetMaxHealth]: { add: EMPOWER_PET_MAX_HEALTH_ADD },
+                [PassiveStatKey.Ability0701Damage]: { add: EMPOWER_PET_MAX_BITE_DAMAGE_ADD },
+            },
+        },
+        {
+            id: TRAINING_NODE_BRIGHT_RESERVES,
+            title: 'Bright Reserves',
+            description: `+{${BRIGHT_RESERVES_LIGHT_MAX_ADD}} max Light, and Gather Light yields +{${BRIGHT_RESERVES_GATHER_LIGHT_ADD}} more.`,
+            flavorText: 'Hold a little more of the day inside you.',
+            order: 82,
+            tier: TRAINING_STATION_TIER,
+            position: { x: 40, y: 540 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: [],
+            chromeTreeId: LIGHT_TREE_ID,
+            requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.LightCore }],
+            cost: TRAINING_CORE_NODE_COST,
+            effects: [{ type: 'increaseResourceMax', resourceId: 'light', amount: BRIGHT_RESERVES_LIGHT_MAX_ADD }],
+            abilityResearchModifiers: [
+                {
+                    abilitySpecification: { type: 'abilityId', abilityId: GATHER_LIGHT_ABILITY_ID },
+                    resourceGainFlat: BRIGHT_RESERVES_GATHER_LIGHT_ADD,
+                },
+            ],
+        },
+        {
+            id: TRAINING_NODE_SPARE_CHARGE,
+            title: 'Spare Charge',
+            description: `+{${SPARE_CHARGE_MAX_ADD}} max Charge.`,
+            flavorText: "Keep one more weapon's worth of power in reserve.",
+            order: 83,
+            tier: TRAINING_STATION_TIER,
+            position: { x: 40, y: 650 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: [],
+            chromeTreeId: ARMORY_TREE_ID,
+            requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.ArmoryCore }],
+            cost: TRAINING_CORE_NODE_COST,
+            effects: [{ type: 'increaseResourceMax', resourceId: 'charge', amount: SPARE_CHARGE_MAX_ADD }],
+        },
+        {
+            id: TRAINING_NODE_STORED_STATIC,
+            title: 'Stored Static',
+            description: `+{${STORED_STATIC_ADD}} max Static, and start each mission with {${STORED_STATIC_ADD}} more.`,
+            flavorText: 'The hum never quite leaves you between storms.',
+            order: 84,
+            tier: TRAINING_STATION_TIER,
+            position: { x: 40, y: 760 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: [],
+            chromeTreeId: STORM_TREE_ID,
+            requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.StormCore }],
+            cost: TRAINING_CORE_NODE_COST,
+            effects: [
+                { type: 'increaseResourceMax', resourceId: 'static', amount: STORED_STATIC_ADD },
+                { type: 'grantMissionStartResource', resourceId: 'static', amount: STORED_STATIC_ADD },
+            ],
         },
         {
             // Playtest tool: lets the autoplay driver survive long co-op runs while testing sync.

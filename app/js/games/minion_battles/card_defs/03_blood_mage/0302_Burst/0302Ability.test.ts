@@ -21,7 +21,7 @@ import {
     BurstAbility_0302,
 } from './0302Ability';
 import {
-    TRAINING_MIGHTY_ALL_DAMAGE_MULT,
+    TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX,
     TRAINING_MIGHTY_LEVELS,
     TRAINING_NODE_MIGHTY,
     TRAINING_TREE_ID,
@@ -29,9 +29,9 @@ import {
 
 const CARD_ID = BurstAbility_0302.id;
 const TICK_DT = 0.01;
-const MIGHTY_TWO_LEVELS = 2;
-const MIGHTY_TWO_LEVEL_MULT =
-    1 + ((TRAINING_MIGHTY_ALL_DAMAGE_MULT - 1) * MIGHTY_TWO_LEVELS) / TRAINING_MIGHTY_LEVELS;
+const MIGHTY_ONE_LEVEL = 1;
+const MIGHTY_ONE_LEVEL_MULT =
+    1 + ((TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX - 1) * MIGHTY_ONE_LEVEL) / TRAINING_MIGHTY_LEVELS;
 // The wave spawns at the end of windup and takes up to BURST_WAVE_TRAVEL_DURATION to sweep
 // out to max range, so advance past windup + the full travel time (plus a small margin) to
 // guarantee any in-range hit has landed.
@@ -234,7 +234,7 @@ describe('Burst getTooltipText (damage tokens)', () => {
     it('Mighty mult 1.2 on base 10 shows dynamic {12}', () => {
         const gameState = {
             getLocalPlayerUnit: () => ({
-                getDamageModifier: () => ({ flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT }),
+                getDamageModifier: () => ({ flatAmt: 0, multiplier: MIGHTY_ONE_LEVEL_MULT }),
                 stackSize: 1,
             }),
         };
@@ -246,7 +246,7 @@ describe('Burst getTooltipText (damage tokens)', () => {
     it('research bag (character select) resolves Mighty via resolveTooltipContext', () => {
         const lines = BurstAbility_0302.getTooltipText({
             researchTrees: { [TRAINING_TREE_ID]: [TRAINING_NODE_MIGHTY] },
-            researchNodeLevels: { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_TWO_LEVELS } },
+            researchNodeLevels: { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_ONE_LEVEL } },
         });
         expect(lines.some((l) => l.includes('{12}'))).toBe(true);
         expect(lines.some((l) => l.includes(`{${BURST_DAMAGE}}`))).toBe(false);

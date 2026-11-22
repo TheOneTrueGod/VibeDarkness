@@ -25,7 +25,7 @@ import {
 } from '../game/visibility/senses';
 
 describe('passive research at mission spawn', () => {
-    it('Healthy adds 10 max HP per level (5 levels = +50)', () => {
+    it('Healthy adds 20 max HP per level (5 levels = +100)', () => {
         const trees = {
             [TINY_BATTLE_PLAYER_ID]: {
                 [TRAINING_TREE_ID]: [TRAINING_NODE_HEALTHY],
@@ -50,11 +50,11 @@ describe('passive research at mission spawn', () => {
             playerResearchTreesByPlayer: trees,
             playerResearchNodeLevelsByPlayer: levels,
         });
-        expect(unit.maxHp).toBe(getDefaultHp(PLAYER_CHARACTER_ID) + 50);
-        expect(unit.passiveBonuses?.maxHealth?.add).toBe(50);
+        expect(unit.maxHp).toBe(getDefaultHp(PLAYER_CHARACTER_ID) + 100);
+        expect(unit.passiveBonuses?.maxHealth?.add).toBe(100);
     });
 
-    it('Mighty adds +50% ability damage at 5 levels via damageModifier', () => {
+    it('Mighty adds +10 Attack (+100% ability damage) at 5 levels via damageModifier', () => {
         const trees = {
             [TINY_BATTLE_PLAYER_ID]: {
                 [TRAINING_TREE_ID]: [TRAINING_NODE_MIGHTY],
@@ -78,10 +78,11 @@ describe('passive research at mission spawn', () => {
             playerResearchTreesByPlayer: trees,
             playerResearchNodeLevelsByPlayer: levels,
         });
-        expect(unit.getDamageModifier().multiplier).toBe(1.5);
-        expect(getModifiedAbilityDamage(unit, 8)).toBe(12);
+        expect(unit.passiveBonuses?.attack?.add).toBe(10);
+        expect(unit.getDamageModifier().multiplier).toBeCloseTo(2);
+        expect(getModifiedAbilityDamage(unit, 8)).toBe(16);
         expect(PunchNEWAbility.getDamage?.()).toBe(8);
-        expect(PunchNEWAbility.getDamage?.(unit)).toBe(12);
+        expect(PunchNEWAbility.getDamage?.(unit)).toBe(16);
     });
 
     it('grantSense research becomes instance sense grants on the player unit at mission start', () => {

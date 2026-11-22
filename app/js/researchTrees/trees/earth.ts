@@ -1,4 +1,4 @@
-import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
+import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_ICON_EARTH } from '../researchTreeChrome';
 import {
@@ -19,8 +19,6 @@ export const EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE = 'earth_gather_stone_rubble_
 export const EARTH_NODE_STONE_TOMB = 'earth_stone_tomb';
 export const EARTH_RAPID_THROW_LEVELS = 3;
 export const EARTH_ATTUNED_LEVELS = 2;
-export const EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK = 1;
-export const EARTH_ATTUNED_MAX_MOVEMENT_ADD = EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS;
 /** Per rank: extra max uses and uses restored each round for Bone Claws (0111) and Digging Claws (0534). */
 export const EARTH_ATTUNED_CLAW_USES_PER_RANK = 1;
 /** Card ids Earth Attuned boosts: Bone Claws and its Digging Claws upgrade. */
@@ -201,10 +199,9 @@ export const earthTree: ResearchTreeDef = {
         {
             id: EARTH_NODE_EARTH_ATTUNED,
             title: 'Earth Attuned',
-            description: `+{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} movement point per round, and +{${EARTH_ATTUNED_CLAW_USES_PER_RANK}} uses to bone claws`,
+            // The movement point it used to grant now lives in Training (Earthen Stride).
+            description: `+{${EARTH_ATTUNED_CLAW_USES_PER_RANK}} uses to bone claws per rank.`,
             flavorText: 'The stone underfoot starts giving back the steps you take.',
-            // Also a stat upgrade (on top of the tree's `core` tag), e.g. for campsite stat slots.
-            tags: ['stat'],
             order: 10,
             tier: 11,
             levelTiers: [11, 13],
@@ -224,10 +221,6 @@ export const earthTree: ResearchTreeDef = {
                 maxUsesFlat: EARTH_ATTUNED_CLAW_USES_PER_RANK,
                 roundRecoveryFlat: EARTH_ATTUNED_CLAW_USES_PER_RANK,
             })),
-            passiveBonus: {
-                [PassiveStatKey.MaxMovementPoints]: { add: EARTH_ATTUNED_MAX_MOVEMENT_ADD },
-                [PassiveStatKey.MovementRegenPerRound]: { add: EARTH_ATTUNED_MAX_MOVEMENT_ADD },
-            },
         },
         {
             id: EARTH_NODE_GATHER_STONE,

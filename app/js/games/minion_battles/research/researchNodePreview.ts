@@ -11,6 +11,7 @@ import {
     applyPassiveBonusToBase,
     computePassiveBonuses,
     DEFAULT_PASSIVE_MULT,
+    getOutgoingDamageMultiplier,
     getNodeLevel,
     getNodeMaxLevels,
 } from '../../../researchTrees/passiveBonuses';
@@ -307,7 +308,7 @@ function readStatSheet(view: ResearchView): StatSheet {
         petHealth: petMaxHealth(view, passives),
         lightRegen: (passives[PassiveStatKey.LightRegenEnabled]?.add ?? 0) >= LIGHT_REGEN_ENABLED_ADD,
         allDamageFlat: getDamageBonusFromResearch(getResearchNodes),
-        allDamageMult: passives[PassiveStatKey.AllDamage]?.mult ?? DEFAULT_PASSIVE_MULT,
+        allDamageMult: getOutgoingDamageMultiplier(passives),
         earthDamageAdd: passives[PassiveStatKey.EarthDamage]?.add ?? 0,
         earthDamageMult: passives[PassiveStatKey.EarthDamage]?.mult ?? DEFAULT_PASSIVE_MULT,
         passives,

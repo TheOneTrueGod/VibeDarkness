@@ -8,7 +8,7 @@ import {
 } from './damageModifiers';
 import { DEFAULT_PASSIVE_MULT } from '../../../researchTrees/passiveBonuses';
 import {
-    TRAINING_MIGHTY_ALL_DAMAGE_MULT,
+    TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX,
     TRAINING_MIGHTY_LEVELS,
     TRAINING_NODE_CORE,
     TRAINING_NODE_MIGHTY,
@@ -19,11 +19,11 @@ import { formatTooltipNumber, resolveDamageToken } from './tooltipTokens';
 import type { Unit } from '../game/units/Unit';
 import { STACK_DAMAGE_SCALING, getStackDamageMultiplier } from '../game/units/stackRules';
 
-/** Mighty researched twice → all_damage mult 1.2 (base 10 → 12). */
-const MIGHTY_TWO_LEVELS = 2;
-const MIGHTY_TWO_LEVEL_MULT =
+/** Mighty at one level (+2 Attack) → damage mult 1.2 (base 10 → 12). */
+const MIGHTY_ONE_LEVEL = 1;
+const MIGHTY_ONE_LEVEL_MULT =
     1 +
-    ((TRAINING_MIGHTY_ALL_DAMAGE_MULT - 1) * MIGHTY_TWO_LEVELS) / TRAINING_MIGHTY_LEVELS;
+    ((TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX - 1) * MIGHTY_ONE_LEVEL) / TRAINING_MIGHTY_LEVELS;
 
 describe('applyDamageModifier', () => {
     it('applies flat + mult + stackSize without rounding', () => {
@@ -89,14 +89,14 @@ describe('getAbilityDamageForDisplay', () => {
     it('Mighty ×2 (mult 1.2) on base 10 → raw 12', () => {
         expect(
             getAbilityDamageForDisplay(10, {
-                damageModifier: { flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT },
+                damageModifier: { flatAmt: 0, multiplier: MIGHTY_ONE_LEVEL_MULT },
             }),
         ).toBe(12);
         expect(formatTooltipNumber(12)).toBe('12');
     });
 
     it('flat + mult combo', () => {
-        const modifier = { flatAmt: 2, multiplier: MIGHTY_TWO_LEVEL_MULT };
+        const modifier = { flatAmt: 2, multiplier: MIGHTY_ONE_LEVEL_MULT };
         expect(getAbilityDamageForDisplay(10, { damageModifier: modifier })).toBe(
             applyDamageModifier(10, modifier),
         );
@@ -118,7 +118,7 @@ describe('getAbilityDamageForDisplay', () => {
     });
 
     it('prefers attacker over damageModifier', () => {
-        const getDamageModifier = vi.fn(() => ({ flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT }));
+        const getDamageModifier = vi.fn(() => ({ flatAmt: 0, multiplier: MIGHTY_ONE_LEVEL_MULT }));
         const attacker = { getDamageModifier, stackSize: 1 } as unknown as Unit;
         expect(
             getAbilityDamageForDisplay(10, {
@@ -135,11 +135,11 @@ describe('buildDamageModifierFromResearch', () => {
             [TRAINING_TREE_ID]: [TRAINING_NODE_CORE, TRAINING_NODE_MIGHTY],
         };
         const levels = {
-            [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_TWO_LEVELS },
+            [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_ONE_LEVEL },
         };
         const mod = buildDamageModifierFromResearch(trees, levels);
         expect(mod.flatAmt).toBe(RESEARCH_DAMAGE_BONUSES[TRAINING_NODE_CORE]);
-        expect(mod.multiplier).toBe(MIGHTY_TWO_LEVEL_MULT);
+        expect(mod.multiplier).toBe(MIGHTY_ONE_LEVEL_MULT);
     });
 
     it('identity modifier when research empty', () => {
@@ -154,7 +154,7 @@ describe('resolveDamageToken (wired to display helper)', () => {
     it('formats Mighty-boosted Burst base 10 as "12"', () => {
         expect(
             resolveDamageToken(10, {
-                damageModifier: { flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT },
+                damageModifier: { flatAmt: 0, multiplier: MIGHTY_ONE_LEVEL_MULT },
             }),
         ).toBe('12');
     });

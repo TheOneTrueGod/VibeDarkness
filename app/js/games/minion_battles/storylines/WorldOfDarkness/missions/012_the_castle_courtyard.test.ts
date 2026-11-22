@@ -10,7 +10,7 @@ import { WorldOfDarknessStoryline } from '../WorldOfDarkness';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
 import { isTileInZone } from '../../../terrain/zones';
 import { CASTLE_APPROACH_ZONE } from '../MapSegments/61_49_castle_gate';
-import { CAMPSITE_3_MISSION_ID } from '../questMissions/campsite';
+import { TRAINING_CH3_MISSION_ID } from '../questMissions/trainingStation';
 import { SWARMLING_STACK_SIZE, THE_LONELY_CASTLE_MISSION_ID, WOLF_STACK_SIZE } from './011_the_lonely_castle';
 import {
     BRIDGE_CAMPFIRE_CELL,
@@ -58,7 +58,7 @@ describe('The Castle Courtyard (012)', () => {
     it('follows The Lonely Castle in Chapter 3', () => {
         const ch3 = WorldOfDarknessStoryline.chapters?.find((c) => c.id === 'wod_ch3');
         // The chapter opens with these three; the castle missions follow (see castlePath.test.ts).
-        expect(ch3?.missionIds.slice(0, 3)).toEqual([CAMPSITE_3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID]);
+        expect(ch3?.missionIds.slice(0, 3)).toEqual([TRAINING_CH3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID]);
         expect(WorldOfDarknessStoryline.edges).toContainEqual(
             expect.objectContaining({ fromMissionId: THE_LONELY_CASTLE_MISSION_ID, toMissionId: THE_CASTLE_COURTYARD_MISSION_ID }),
         );
