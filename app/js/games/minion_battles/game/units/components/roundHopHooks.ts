@@ -64,6 +64,7 @@ function carryTree(unit: Unit, to: { x: number; y: number }, options: RoundHopOp
             sinkSeconds: b.sinkSeconds,
             travelSeconds: b.travelSeconds,
             riseSeconds: b.riseSeconds,
+            ...(options.carryEruption ? { eruption: options.carryEruption } : {}),
         });
     }
 }

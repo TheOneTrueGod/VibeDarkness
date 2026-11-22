@@ -21,7 +21,7 @@
 
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import type { Unit } from '../units/Unit';
-import { peekNodeTreeState } from '../units/components/nodeTree';
+import { effectiveLeashLength, peekNodeTreeState } from '../units/components/nodeTree';
 
 /** Half the thickness of the blocking body, in px (added to the walker's own reach). */
 export const TETHER_HALF_WIDTH = 6;
@@ -56,7 +56,7 @@ export function getTetherSegment(lookup: Pick<TetherUnitLookup, 'getUnit'>, chil
         ay: parent.y,
         bx: child.x,
         by: child.y,
-        maxLength: state.tetherMaxLength,
+        maxLength: effectiveLeashLength(state) ?? state.tetherMaxLength,
     };
 }
 

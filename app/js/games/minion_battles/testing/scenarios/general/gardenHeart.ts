@@ -386,7 +386,8 @@ export const gardenHeartSpikeRingScenario: ScenarioDefinition = {
     title: 'Garden Heart: shelled in the final phase, the Heart fires 2 Spike Rings a round (no escalation)',
     category: 'general',
     generalSection: SECTION,
-    maxDurationMs: 12000,
+    // A round and a bit: a ring that comes due while the Heart is moving round the pond fires as it surfaces.
+    maxDurationMs: 14000,
     buildEngine() {
         const engine = buildTinyBattleEngine({ gridW: 30, gridH: 20, localPlayerId: P1, grass: true });
         engine.enemyScalingPlayerCount = 1;
@@ -401,7 +402,7 @@ export const gardenHeartSpikeRingScenario: ScenarioDefinition = {
             if (e.abilityId === SPIKE_RING_ABILITY_ID) run.rings++;
         });
         ringRuns.set(engine, run);
-        holdOpen(engine, player, 11);
+        holdOpen(engine, player, 13);
         return engine;
     },
     getInitialOrders(engine) {

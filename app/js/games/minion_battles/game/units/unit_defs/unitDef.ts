@@ -908,9 +908,10 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+            componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
         ],
         uiDescription:
-            'A rooted flower that heals the garden nodes around it, the Heart included. It never moves.',
+            'A rooted flower that heals the garden nodes around it, the Heart included. Like every node it burrows to a new spot every few seconds.',
     },
     gloam_lily: {
         bodyColor: 0x134e4a,
@@ -920,7 +921,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         baseSpawn: ENEMY_GLOAM_LILY,
         characterSpriteKey: 'curling_vines',
         hp: GLOAM_LILY_HP,
-        // Rooted like the Mender Bloom: no burrow hop, it never moves.
+        // Rooted like every node: it moves only by burrowing (`burrowHop`).
         speed: 0,
         size: 'Medium',
         stamina: 1,
@@ -929,9 +930,12 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
         renderOptions: GARDEN_NODE_RENDER_OPTIONS,
-        components: [componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID })],
+        components: [
+            componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
+            componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
+        ],
         uiDescription:
-            'A rooted flower that drinks the garden\'s light, one point at a time, from any distance. A light it drinks dry stays out, even after the flower is cut down.',
+            'A rooted flower that drinks the garden\'s light, one point at a time, from any distance, and burrows to a new spot every few seconds. A light it drinks dry stays out, even after the flower is cut down.',
     },
     hive_gourd: {
         bodyColor: 0x134e4a,

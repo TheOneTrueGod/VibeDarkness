@@ -38,6 +38,7 @@ import { KNOWLEDGE_REACTIONS } from '../../../../../../accountKnowledge';
 import type { Unit } from '../../../../game/units/Unit';
 import { UnitTag } from '../../../../game/units/unitTag';
 import { isBurrowEmerging } from '../../../../game/units/components/burrowEmergeHooks';
+import { resolveBurrowRender } from '../../../../game/units/unitRenderOptions';
 import '../../../../abilities/AbilityRegistry';
 
 registerWorldOfDarknessSegments();
@@ -264,6 +265,8 @@ describe('Garden Heart mission', () => {
         for (const u of fresh) {
             expect(isBurrowEmerging(u)).toBe(true);
             expect(u.tags.includes(UnitTag.Invincible)).toBe(true);
+            // Each comes up in a hop's blast, marked where it will rise.
+            expect(resolveBurrowRender(u, engine.tickTime)?.eruption).toBeTruthy();
             expect(Math.hypot(u.x - heart.x, u.y - heart.y)).toBeLessThan(1);
         }
         for (let i = 0; i < 60 * 2; i++) stepTick(engine);

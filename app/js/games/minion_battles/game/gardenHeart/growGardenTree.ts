@@ -21,6 +21,7 @@ import { GARDEN_GROWTH_PHASE_VARIABLE, STEM_LEASH_PX } from '../../card_defs/16_
 import { setBattleVariable } from '../battleVariables';
 import type { EngineContext } from '../EngineContext';
 import { startBurrowEmerge } from '../units/components/burrowEmergeHooks';
+import type { BurrowEruptionDef } from '../units/components/phaseDef';
 import { gardenTreeLayout, type GardenNodeSpec } from './gardenTreeLayouts';
 import { nearestPassablePoint } from '../geometry/nearestPassablePoint';
 
@@ -162,6 +163,8 @@ export interface GardenEmergeOptions {
     /** Each node's travel underground and its rise (tick-time seconds). */
     travelSeconds: number;
     riseSeconds: number;
+    /** How each node surfaces (e.g. the blast of its own hops). Default: a harmless puff. */
+    eruption?: BurrowEruptionDef;
 }
 
 /**
@@ -191,7 +194,13 @@ export function emergeGardenTree(
         const delay = parentStart === undefined ? options.delaySeconds : parentStart + hop;
         const from = parentSpot ?? (spec.parent === null ? { x: heart.x, y: heart.y } : nodeParentPoint(grown, heart, spec, engine));
         startAt.set(spec.key, delay);
-        startBurrowEmerge(unit, engine, { from, delaySeconds: delay, travelSeconds: options.travelSeconds, riseSeconds: options.riseSeconds });
+        startBurrowEmerge(unit, engine, {
+            from,
+            delaySeconds: delay,
+            travelSeconds: options.travelSeconds,
+            riseSeconds: options.riseSeconds,
+            ...(options.eruption ? { eruption: options.eruption } : {}),
+        });
     }
 }
 

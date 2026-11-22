@@ -16,6 +16,7 @@ import {
 } from './burrowEmerge';
 import { advanceBurrow, beginBurrow, beginBurrowUnderground } from './phaseBurrow';
 import { getComponentState } from './unitComponent';
+import type { BurrowEruptionDef } from './phaseDef';
 import { UnitTag, addUnitTag, hasUnitTag, removeUnitTag } from '../unitTag';
 
 export interface BurrowEmergeRequest {
@@ -25,11 +26,14 @@ export interface BurrowEmergeRequest {
     delaySeconds?: number;
     travelSeconds: number;
     riseSeconds: number;
+    /** How it surfaces (e.g. a blast like a hop's). Default: a harmless puff (`BURROW_EMERGE_ERUPTION`). */
+    eruption?: BurrowEruptionDef;
 }
 
 function finishEmerge(unit: Unit, state: BurrowEmergeState): void {
     if (state.addedInvincibleTag) removeUnitTag(unit, UnitTag.Invincible);
     state.addedInvincibleTag = false;
+    state.eruption = null;
 }
 
 /**
@@ -40,6 +44,7 @@ export function startBurrowEmerge(unit: Unit, engine: EngineContext, request: Bu
     const state = getComponentState(unit, BURROW_EMERGE_COMPONENT);
     state.closeSeconds = 0;
     state.sinkSeconds = 0;
+    state.eruption = request.eruption ?? null;
     state.travelSeconds = Math.max(0, request.travelSeconds);
     state.riseSeconds = Math.max(0, request.riseSeconds);
     if (!hasUnitTag(unit, UnitTag.Invincible)) {
@@ -67,6 +72,8 @@ export interface BurrowMoveRequest {
     sinkSeconds: number;
     travelSeconds: number;
     riseSeconds: number;
+    /** How it surfaces. Default: a harmless puff (`BURROW_EMERGE_ERUPTION`). */
+    eruption?: BurrowEruptionDef;
 }
 
 /**
@@ -79,6 +86,7 @@ export function startBurrowMove(unit: Unit, engine: EngineContext, request: Burr
     state.sinkSeconds = Math.max(0, request.sinkSeconds);
     state.travelSeconds = Math.max(0, request.travelSeconds);
     state.riseSeconds = Math.max(0, request.riseSeconds);
+    state.eruption = request.eruption ?? null;
     if (!hasUnitTag(unit, UnitTag.Invincible)) {
         addUnitTag(unit, UnitTag.Invincible);
         state.addedInvincibleTag = true;

@@ -19,7 +19,7 @@ import { defineUnitComponent, findComponentState } from './unitComponent';
 
 export const BURROW_EMERGE_COMPONENT_ID = 'burrowEmerge';
 
-/** The surfacing: a harmless puff (no damage, so no blast circle) with a few rock chips. */
+/** The default surfacing: a harmless puff (no damage, so no blast circle) with a few rock chips. A request may pass its own. */
 export const BURROW_EMERGE_ERUPTION: BurrowEruptionDef = {
     radiusUnitRadii: 2,
     damage: 0,
@@ -35,13 +35,15 @@ export interface BurrowEmergeState {
     sinkSeconds: number;
     travelSeconds: number;
     riseSeconds: number;
+    /** The surfacing of the burrow in progress; null = the harmless default (`BURROW_EMERGE_ERUPTION`). */
+    eruption: BurrowEruptionDef | null;
     /** The emergence added `UnitTag.Invincible` (so only it removes the tag). */
     addedInvincibleTag: boolean;
 }
 
 export const BURROW_EMERGE_COMPONENT = defineUnitComponent<BurrowEmergeState>({
     id: BURROW_EMERGE_COMPONENT_ID,
-    create: () => ({ burrow: null, closeSeconds: 0, sinkSeconds: 0, travelSeconds: 0, riseSeconds: 0, addedInvincibleTag: false }),
+    create: () => ({ burrow: null, closeSeconds: 0, sinkSeconds: 0, travelSeconds: 0, riseSeconds: 0, eruption: null, addedInvincibleTag: false }),
     toJSON: (s) =>
         s.burrow
             ? {
@@ -50,6 +52,7 @@ export const BURROW_EMERGE_COMPONENT = defineUnitComponent<BurrowEmergeState>({
                   ...(s.sinkSeconds ? { emergeSinkSeconds: s.sinkSeconds } : {}),
                   emergeTravelSeconds: s.travelSeconds,
                   emergeRiseSeconds: s.riseSeconds,
+                  ...(s.eruption ? { emergeEruption: { ...s.eruption } } : {}),
                   ...(s.addedInvincibleTag ? { emergeAddedInvincible: true } : {}),
               }
             : {},
@@ -59,6 +62,7 @@ export const BURROW_EMERGE_COMPONENT = defineUnitComponent<BurrowEmergeState>({
         s.sinkSeconds = typeof data.emergeSinkSeconds === 'number' ? data.emergeSinkSeconds : 0;
         s.travelSeconds = typeof data.emergeTravelSeconds === 'number' ? data.emergeTravelSeconds : 0;
         s.riseSeconds = typeof data.emergeRiseSeconds === 'number' ? data.emergeRiseSeconds : 0;
+        s.eruption = parseEruption(data.emergeEruption);
         s.addedInvincibleTag = data.emergeAddedInvincible === true;
     },
 });
@@ -67,9 +71,17 @@ export function peekBurrowEmergeState(unit: Unit): BurrowEmergeState | undefined
     return findComponentState(unit, BURROW_EMERGE_COMPONENT);
 }
 
+/** A serialized eruption def, or null when absent or malformed (plain data: radius, damage, hit rule, flags). */
+function parseEruption(raw: unknown): BurrowEruptionDef | null {
+    const e = raw as Partial<BurrowEruptionDef> | undefined;
+    if (!e || typeof e !== 'object' || typeof e.damage !== 'number') return null;
+    return { ...(e as BurrowEruptionDef) };
+}
+
 /** The burrow def the burrow in progress runs (an emergence has no close or sink). */
 export function burrowEmergeDef(
-    state: Pick<BurrowEmergeState, 'travelSeconds' | 'riseSeconds'> & Partial<Pick<BurrowEmergeState, 'closeSeconds' | 'sinkSeconds'>>,
+    state: Pick<BurrowEmergeState, 'travelSeconds' | 'riseSeconds'> &
+        Partial<Pick<BurrowEmergeState, 'closeSeconds' | 'sinkSeconds' | 'eruption'>>,
 ): BurrowTransitionDef {
     return {
         closeSeconds: state.closeSeconds ?? 0,
@@ -77,6 +89,6 @@ export function burrowEmergeDef(
         travelSeconds: state.travelSeconds,
         riseSeconds: state.riseSeconds,
         sproutPoints: [],
-        eruption: BURROW_EMERGE_ERUPTION,
+        eruption: state.eruption ?? BURROW_EMERGE_ERUPTION,
     };
 }

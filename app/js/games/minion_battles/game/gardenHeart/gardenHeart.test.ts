@@ -92,7 +92,11 @@ import {
     getNodeParentId,
     hasLivingChildren,
     linkNodeChild,
+    NODE_TREE_COMPONENT,
+    hasLeashSlack,
+    type NodeTreeState,
 } from '../units/components/nodeTree';
+import { getComponentState } from '../units/components/unitComponent';
 import { peekSpawnerState } from '../units/components/spawnerComponent';
 import { serializeUnit } from '../units/unitToJSON';
 import { applySerializedUnitState } from '../units/unitFromJSON';
@@ -100,11 +104,12 @@ import { distanceToSegment, listLiveTethers, tetherCoveredTiles } from '../tethe
 import { resolveBurrowRender } from '../units/unitRenderOptions';
 import { applyUnitFlatReductions } from '../units/flatDamageReduction';
 import { BURROW_HOP_COMPONENT_ID, isBurrowHopDue, peekBurrowHopState } from '../units/components/burrowHop';
-import { hopKeepsTethers } from '../units/components/burrowHopHooks';
+import { chooseHopPoint, hopKeepsTethers } from '../units/components/burrowHopHooks';
 import { getBurrowVisual } from '../units/components/phaseBurrow';
 import { UnitTag, hasUnitTag, isCcImmune } from '../units/unitTag';
 import { isBurrowEmerging } from '../units/components/burrowEmergeHooks';
 import { peekRoundHopState } from '../units/components/roundHop';
+
 import { ellipseOrbitPoint } from '../geometry/ellipseOrbit';
 import { gardenOrbitClockwiseTiles } from '../../card_defs/16_enemy_garden_heart/gardenHeartRegistrations';
 import { getActiveUnitBanner } from '../unitBanner';
@@ -187,6 +192,7 @@ function cast(unit: Unit, abilityId: string, targets: ResolvedTarget[]): void {
 const getUnitDefEntry = (id: string) => getDefEntry(id as UnitDefId);
 
 const growCtx = (): GardenGrowContext => engine as unknown as GardenGrowContext;
+const getNodeTreeState = (u: Unit): NodeTreeState => getComponentState(u, NODE_TREE_COMPONENT);
 
 describe('Garden Heart registration', () => {
     it('registers every ability and card, every unit def, and lists the node kinds in the Bestiary', () => {
@@ -209,14 +215,14 @@ describe('Garden Heart registration', () => {
         }
     });
 
-    it('nothing in the garden walks; every node but the Mender Bloom, the Gloam Lily and the Heart hops by burrowing', () => {
+    it('nothing in the garden walks; every node hops by burrowing (the Heart moves once a round instead)', () => {
         for (const id of ['garden_heart', THORNSPITTER_ID, POD_MORTAR_ID, MENDER_BLOOM_ID, HIVE_GOURD_ID, CREEPER_ID, GLOAM_LILY_ID]) {
             expect(getUnitDefEntry(id)!.speed, id).toBe(0);
         }
         const hops = (id: string): boolean =>
             (getUnitDefEntry(id)!.components ?? []).some((c) => c.type.id === BURROW_HOP_COMPONENT_ID);
-        expect([THORNSPITTER_ID, POD_MORTAR_ID, CREEPER_ID, HIVE_GOURD_ID].every(hops)).toBe(true);
-        expect([MENDER_BLOOM_ID, GLOAM_LILY_ID, 'garden_heart'].some(hops)).toBe(false);
+        expect([THORNSPITTER_ID, POD_MORTAR_ID, CREEPER_ID, HIVE_GOURD_ID, MENDER_BLOOM_ID, GLOAM_LILY_ID].every(hops)).toBe(true);
+        expect(hops('garden_heart')).toBe(false);
     });
 });
 
@@ -904,26 +910,26 @@ describe('Bared windows, Severance and regrowth', () => {
 });
 
 describe('the Heart circles the pond', () => {
-    it('once a round, at the same moment in the second half, it burrows 3-6 tiles clockwise round the ring with its tree', () => {
+    it('once a round, at the same moment in the second half, it burrows 3-6 tiles clockwise round the ring', () => {
         setupEngine();
         // Due west on the ring's middle line (the tiny map is big enough for the arena's ring).
         const start = ellipseOrbitPoint(GARDEN_ORBIT, Math.PI, 0);
         const heart = addEnemy(ENEMY_GARDEN_HEART, start.x, start.y);
         addPlayer(centre(38), centre(38));
         // Phase 1: no Spike Ring, so no cast ever delays the move.
-        const [bud] = [...growGardenTree(growCtx(), heart, 1).values()];
+        growGardenTree(growCtx(), heart, 1);
         stepSeconds(1 / 60);
         const state = peekRoundHopState(heart)!;
         const offset = state.offsetSeconds!;
         expect(offset).toBeGreaterThanOrEqual(ROUND_DURATION / 2);
         expect(offset).toBeLessThanOrEqual(ROUND_DURATION);
 
-        const moves: Array<{ at: number; from: { x: number; y: number }; to: { x: number; y: number }; budCarried: boolean }> = [];
+        const moves: Array<{ at: number; from: { x: number; y: number }; to: { x: number; y: number } }> = [];
         let wasMoving = false;
         stepSeconds(ROUND_DURATION * 2.5, () => {
             const b = state.burrow;
             if (b && !wasMoving) {
-                moves.push({ at: engine.gameTime, from: { x: b.fromX, y: b.fromY }, to: { x: b.toX, y: b.toY }, budCarried: isBurrowEmerging(bud!) });
+                moves.push({ at: engine.gameTime, from: { x: b.fromX, y: b.fromY }, to: { x: b.toX, y: b.toY } });
                 expect(hasUnitTag(heart, UnitTag.Invincible)).toBe(true);
             }
             wasMoving = b !== null;
@@ -937,12 +943,61 @@ describe('the Heart circles the pond', () => {
             expect(tiles).toBeGreaterThanOrEqual(GARDEN_ROUND_ORBIT_TILES.min - 0.05);
             expect(tiles).toBeLessThanOrEqual(GARDEN_ROUND_ORBIT_TILES.max + 0.05);
         }
-        // The tree went with it at least once (a Bud mid-hop of its own stays put).
-        expect(moves.some((m) => m.budCarried)).toBe(true);
         // Each landing is somewhere new: not a perfect ellipse (the depth across the band is rolled per move).
         const depths = moves.map((m) => Math.hypot(m.to.x - GARDEN_ORBIT.cx, m.to.y - GARDEN_ORBIT.cy));
         expect(new Set(depths.map((d) => Math.round(d))).size).toBeGreaterThan(1);
         expect(hasUnitTag(heart, UnitTag.Invincible)).toBe(false);
+    });
+
+    it('leaves its nodes behind: a Stem stretches past its leash, and the node reconnects on its next hop', () => {
+        setupEngine();
+        const start = ellipseOrbitPoint(GARDEN_ORBIT, Math.PI, 0);
+        const heart = addEnemy(ENEMY_GARDEN_HEART, start.x, start.y);
+        addPlayer(centre(38), centre(38));
+        const [bud] = [...growGardenTree(growCtx(), heart, 1).values()];
+        const leash = getNodeTreeState(bud!).tetherMaxLength!;
+        // Keep the Bud from hopping on its own until the Heart has gone, then let it decide.
+        stepSeconds(1 / 60);
+        const hop = peekBurrowHopState(bud!)!;
+        const heartHop = peekRoundHopState(heart)!;
+        hop.nextHopAtGameTime = heartHop.nextAtGameTime! + 4;
+        // Put the Bud south of the Heart, near the end of its leash: the Heart's move clockwise from due west goes
+        // north, so the Stem surely stretches past its leash.
+        bud!.x = heart.x;
+        bud!.y = heart.y + leash * 0.95;
+        const budAt = { x: bud!.x, y: bud!.y };
+        let guard = 0;
+        while (heartHop.burrow === null && guard++ < 60 * 12) stepSeconds(1 / 60);
+        while (heartHop.burrow !== null && guard++ < 60 * 20) stepSeconds(1 / 60);
+        const stretched = Math.hypot(bud!.x - heart.x, bud!.y - heart.y);
+        // Left where it was: not dragged, not carried.
+        expect(Math.hypot(bud!.x - budAt.x, bud!.y - budAt.y)).toBeLessThan(1);
+        expect(isBurrowEmerging(bud!)).toBe(false);
+        expect(stretched).toBeGreaterThan(leash);
+        expect(hasLeashSlack(bud!)).toBe(true);
+        expect(getNodeTreeState(bud!).leashSlackPx!).toBeGreaterThanOrEqual(stretched - 1);
+        // Its next hop takes it back within its leash, however far it had to go.
+        while (hop.burrow === null && guard++ < 60 * 30) stepSeconds(1 / 60);
+        while (hop.burrow !== null && guard++ < 60 * 40) stepSeconds(1 / 60);
+        expect(Math.hypot(bud!.x - heart.x, bud!.y - heart.y)).toBeLessThanOrEqual(leash);
+        expect(hasLeashSlack(bud!)).toBe(false);
+    });
+
+    it('a node whose Stem has slack hops back within its leash even from far beyond its normal hop range', () => {
+        setupEngine();
+        const heart = addEnemy(ENEMY_GARDEN_HEART, centre(10), centre(20));
+        const [bud] = [...growGardenTree(growCtx(), heart, 1).values()];
+        const tree = getNodeTreeState(bud!);
+        // 14 tiles away: far past both the leash (6) and a normal hop (5).
+        bud!.x = heart.x + 14 * CELL_SIZE;
+        bud!.y = heart.y;
+        tree.leashSlackPx = 14 * CELL_SIZE;
+        const rng = (min: number, max: number): number => engine.generateRandomInteger(min, max);
+        for (let i = 0; i < 5; i++) {
+            const p = chooseHopPoint(bud!, GARDEN_NODE_HOP, engine, rng)!;
+            expect(p).not.toBeNull();
+            expect(Math.hypot(p.x - heart.x, p.y - heart.y)).toBeLessThanOrEqual(tree.tetherMaxLength!);
+        }
     });
 });
 
@@ -1035,6 +1090,27 @@ describe('growing and dismissing a tree', () => {
         }
     });
 
+    it("with an eruption, each node of the entry surfaces in a marked blast that hits what stands there", () => {
+        setupEngine();
+        const heart = addEnemy(ENEMY_GARDEN_HEART, centre(20), centre(20));
+        addPlayer(centre(38), centre(38));
+        const grown = growGardenTree(growCtx(), heart, 1);
+        const [bud] = [...grown.values()];
+        // Not plant kin, so the Wild blast hits it.
+        const wolf = addEnemy(ENEMY_DARK_WOLF, bud!.x, bud!.y);
+        wolf.maxHp = wolf.hp = 1000;
+        emergeGardenTree(engine, heart, 1, grown, { delaySeconds: 0.2, ...GARDEN_NODE_EMERGE, eruption: GARDEN_NODE_HOP.burrow.eruption });
+        // Marked from the start, at the spot it will rise, 4x its size.
+        const telegraph = resolveBurrowRender(bud!, engine.tickTime)!.eruption!;
+        expect(telegraph).not.toBeNull();
+        expect(Math.hypot(telegraph.x - wolf.x, telegraph.y - wolf.y)).toBeLessThan(1);
+        expect(telegraph.radiusPx).toBeCloseTo(bud!.radius * GARDEN_NODE_HOP_BLAST_RADII, 5);
+        const before = wolf.hp;
+        stepSeconds(0.2 + GARDEN_NODE_EMERGE.travelSeconds + GARDEN_NODE_EMERGE.riseSeconds + 0.1);
+        expect(isBurrowEmerging(bud!)).toBe(false);
+        expect(before - wolf.hp).toBe(GARDEN_NODE_HOP_DAMAGE);
+    });
+
     it('nudges a node off rock onto passable ground', () => {
         setupEngine([[25, 20]]);
         const tm = engine.terrainManager!;
@@ -1103,11 +1179,11 @@ describe('Gloam Lily', () => {
         expect(lightOf('crystal')).toBeLessThan(3);
     });
 
-    it('is a rooted, shelled plant that never hops', () => {
+    it('is a rooted, shelled plant that hops by burrowing like every node', () => {
         const def = getUnitDefEntry(GLOAM_LILY_ID)!;
         expect(def.speed).toBe(0);
         expect(def.flatDamageReductions?.[0]?.condition).toBe('hasLivingChildren');
-        expect(def.components?.some((c) => c.type.id === BURROW_HOP_COMPONENT_ID)).toBe(false);
+        expect(def.components?.some((c) => c.type.id === BURROW_HOP_COMPONENT_ID)).toBe(true);
         expect(ENEMY_GLOAM_LILY.abilities).toContain(DRINK_LIGHT_ABILITY_ID);
     });
 });

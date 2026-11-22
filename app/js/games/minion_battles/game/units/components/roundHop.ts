@@ -33,6 +33,8 @@ export interface RoundHopOptions {
     burrow: Omit<BurrowTransitionDef, 'sproutPoints' | 'pointRule' | 'exclusionZones' | 'exclusionSources' | 'minDistanceFromExclusions'>;
     /** Move everything under the unit in its node tree with it. Default false. */
     carryNodeTree?: boolean;
+    /** How each carried node surfaces (e.g. a blast like its own hops). Default: a harmless puff. */
+    carryEruption?: BurrowTransitionDef['eruption'];
 }
 
 export interface RoundHopState {

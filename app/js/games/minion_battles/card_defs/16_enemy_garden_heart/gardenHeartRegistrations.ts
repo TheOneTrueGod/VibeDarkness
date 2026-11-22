@@ -49,6 +49,7 @@ import {
     GARDEN_STATE_BANNER_SEC,
     GARDEN_GROW_TREE_CALLBACK_ID,
     GARDEN_NODE_EMERGE,
+    GARDEN_NODE_HOP,
     GARDEN_ORBIT,
     GARDEN_PHASE_ORBIT_RULE_ID,
     GARDEN_PHASE_ORBIT_TILES,
@@ -129,12 +130,17 @@ registerBurrowCallback(GARDEN_DISMISS_TREE_CALLBACK_ID, (heart, engine) => {
  * Burrow callback for the `rise` stage: the Heart has surfaced at its sprout point; grow the tree of the phase it has
  * just entered (phase state `index` counts phases entered, so the next layout is `index + 1`; phase 1 grows at mission
  * start through `growGardenTree` directly). The tree makes an entry: once the Heart is up, each node burrows out to
- * its spot, Knots first, then their Buds (`emergeGardenTree`).
+ * its spot, Knots first, then their Buds (`emergeGardenTree`), each in the blast of a node hop.
  */
 registerBurrowCallback(GARDEN_GROW_TREE_CALLBACK_ID, (heart, engine) => {
     const phase = (peekPhaseState(heart)?.index ?? 0) + 1;
     const grown = growGardenTree(engine as unknown as GardenGrowContext, heart, phase);
-    emergeGardenTree(engine, heart, phase, grown, { delaySeconds: GARDEN_HEART_RISE_SECONDS, ...GARDEN_NODE_EMERGE });
+    emergeGardenTree(engine, heart, phase, grown, {
+        delaySeconds: GARDEN_HEART_RISE_SECONDS,
+        ...GARDEN_NODE_EMERGE,
+        // Each node comes up in the same marked blast as its hops.
+        eruption: GARDEN_NODE_HOP.burrow.eruption,
+    });
 });
 
 /** Exclusion source for the retreat: every Briar tile is a zone the Heart must not resurface in (old Stems). */

@@ -204,7 +204,7 @@ export const GARDEN_TRICKLE_REGROW_SEC_BY_PHASE: Readonly<Record<number, number>
 export const GARDEN_TRICKLE_RULE_ID = 'gardenTrickleRegrow';
 /**
  * The tree's entry when the Heart surfaces with a new phase: once the Heart has risen, each node burrows out to its
- * spot (from the Heart, or from its parent once the parent is up). Tick-time seconds per node.
+ * spot (from the Heart, or from its parent once the parent is up) and surfaces in a hop's blast. Tick-time seconds per node.
  */
 export const GARDEN_NODE_EMERGE = { travelSeconds: 0.45, riseSeconds: 0.3 } as const;
 /** Health of each growth phase (base, one player). The Heart's max HP is the sum; the retreat thresholds follow from them. */
@@ -268,13 +268,14 @@ export const GARDEN_ROUND_ORBIT_RULE_ID = 'gardenRoundOrbit';
 /** Sprout point rule id for the phase burrow: `GARDEN_PHASE_ORBIT_TILES` around `GARDEN_ORBIT`. */
 export const GARDEN_PHASE_ORBIT_RULE_ID = 'gardenPhaseOrbit';
 /**
- * The Heart's round move: rolled once to a moment in the second half of the round and kept for the fight. Its whole
- * tree burrows with it by the same offset. A harmless surfacing (rock chips, no blast).
+ * The Heart's round move: rolled once to a moment in the second half of the round and kept for the fight. Its tree is
+ * left behind: the Stems stretch past their leash instead of dragging the nodes, and each node's next hop takes it
+ * back within its leash of its parent (`chooseHopPoint` reconnects). The Heart's own surfacing is harmless (rock chips).
  */
 export const GARDEN_HEART_ROUND_HOP: RoundHopOptions = {
     window: { min: ROUND_DURATION / 2, max: ROUND_DURATION },
     destinationRule: GARDEN_ROUND_ORBIT_RULE_ID,
-    carryNodeTree: true,
+    // The tree stays behind: its Stems stretch (slack) and each node catches up on its next hop.
     burrow: {
         closeSeconds: 0.3,
         sinkSeconds: 0.5,

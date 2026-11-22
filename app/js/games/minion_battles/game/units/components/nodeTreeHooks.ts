@@ -15,6 +15,7 @@
  */
 
 import type { Unit } from '../Unit';
+import { isUnitBurrowing } from './burrowingNow';
 import type { UnitComponentContext, UnitComponentHooks } from './unitComponentHooks';
 import {
     getTetherSegment,
@@ -23,7 +24,7 @@ import {
     tetherVinePoints,
     STEM_WITHER_EFFECT_TYPE,
 } from '../../tethers/tether';
-import { findNodeTreeRoot, nodeTreeOptionsOf, peekNodeTreeState, rootHasRegrowth } from './nodeTree';
+import { findNodeTreeRoot, nodeTreeOptionsOf, peekNodeTreeState, rootHasRegrowth, effectiveLeashLength } from './nodeTree';
 import { openNodeRegrowth } from './nodeRegrowthHooks';
 import { getEnemyHealthMultiplier } from '../../../constants/enemyConstants';
 import { Effect } from '../../effects/Effect';
@@ -58,11 +59,25 @@ function fire(
     if (id) CALLBACKS.get(id)?.(unit, ctx, event, child);
 }
 
-/** Pull one tethered child back inside its leash. Exported for tests. */
+/**
+ * Pull one tethered child back inside its leash. Exported for tests.
+ *
+ * While the PARENT is burrowing (a hop, a round move), the child is not dragged: the Stem stretches and the extra
+ * length is kept as slack (`leashSlackPx`) until the child is back within its leash, so a node left behind stays put
+ * until it decides to move. Anything that moves the CHILD (a knockback, a nudge) is still clamped.
+ */
 export function applyLeash(child: Unit, ctx: UnitComponentContext): void {
+    const state = peekNodeTreeState(child);
     const seg = getTetherSegment(ctx.engine, child);
-    if (!seg) return;
-    const clamped = clampToLeash(seg.ax, seg.ay, child.x, child.y, seg.maxLength);
+    if (!seg || !state || state.tetherMaxLength === null) return;
+    const length = Math.hypot(child.x - seg.ax, child.y - seg.ay);
+    if (state.leashSlackPx !== null && length <= state.tetherMaxLength) state.leashSlackPx = null;
+    const parent = ctx.engine.getUnit(seg.parentId);
+    if (parent && length > (effectiveLeashLength(state) ?? Infinity) && isUnitBurrowing(parent)) {
+        state.leashSlackPx = length;
+        return;
+    }
+    const clamped = clampToLeash(seg.ax, seg.ay, child.x, child.y, effectiveLeashLength(state) ?? seg.maxLength);
     if (clamped.x !== child.x || clamped.y !== child.y) {
         child.x = clamped.x;
         child.y = clamped.y;

@@ -17,7 +17,7 @@ import {
 } from './burrowHop';
 import { advanceBurrow, beginBurrow } from './phaseBurrow';
 import { peekPhaseState } from './phaseComponent';
-import { peekNodeTreeState } from './nodeTree';
+import { hasLeashSlack, peekNodeTreeState } from './nodeTree';
 import { areEnemies } from '../../teams';
 import { distanceToSegment } from '../../tethers/tether';
 import { UnitTag, addUnitTag, hasUnitTag, removeUnitTag } from '../unitTag';
@@ -107,7 +107,17 @@ export function hopKeepsTethers(unit: Unit, x: number, y: number, engine: Pick<E
     return true;
 }
 
-/** A random open point for the hop, or null when none of the tries works. */
+/** Share of the leash a reconnecting hop lands within (some margin, so the Stem is not taut again at once). */
+const RECONNECT_LEASH_SHARE = 0.85;
+
+/**
+ * A random open point for the hop, or null when none of the tries works.
+ *
+ * Normally the points are `minDistancePx`-`maxDistancePx` from the unit and must keep every Stem within its leash.
+ * A unit whose own Stem has slack (its parent burrowed away from it, `hasLeashSlack`) RECONNECTS instead: the points
+ * are around its parent, within its normal leash, however far that is from the unit, and its own children are not
+ * checked (their Stems take up slack while it burrows).
+ */
 export function chooseHopPoint(
     unit: Unit,
     options: BurrowHopOptions,
@@ -117,14 +127,28 @@ export function chooseHopPoint(
     const maxD = Math.max(1, Math.floor(options.maxDistancePx));
     const minD = Math.min(maxD, Math.max(1, Math.floor(options.minDistancePx ?? maxD / 5)));
     const tm = engine.terrainManager;
+    const tree = peekNodeTreeState(unit);
+    const parent = tree?.parentId ? engine.getUnit(tree.parentId) : undefined;
+    const reconnect = hasLeashSlack(unit) && parent?.isAlive() && tree?.tetherMaxLength != null;
+    const leash = tree?.tetherMaxLength ?? 0;
     const valid: { x: number; y: number }[] = [];
     for (let i = 0; i < HOP_CANDIDATES; i++) {
         const angle = (rng(0, 359) * Math.PI) / 180;
-        const dist = rng(minD, maxD);
-        const x = unit.x + Math.cos(angle) * dist;
-        const y = unit.y + Math.sin(angle) * dist;
+        let x: number;
+        let y: number;
+        if (reconnect) {
+            // Around the parent: never on top of it, never past the leash.
+            const reach = Math.max(1, Math.floor(leash * RECONNECT_LEASH_SHARE));
+            const dist = rng(Math.min(reach, Math.ceil(parent!.radius + unit.radius)), reach);
+            x = parent!.x + Math.cos(angle) * dist;
+            y = parent!.y + Math.sin(angle) * dist;
+        } else {
+            const dist = rng(minD, maxD);
+            x = unit.x + Math.cos(angle) * dist;
+            y = unit.y + Math.sin(angle) * dist;
+        }
         if (tm && !tm.isPassable(x, y)) continue;
-        if (!hopKeepsTethers(unit, x, y, engine)) continue;
+        if (!reconnect && !hopKeepsTethers(unit, x, y, engine)) continue;
         const crowded = engine.units.some(
             (u) => u !== unit && u.isAlive() && Math.hypot(u.x - x, u.y - y) < u.radius + unit.radius,
         );

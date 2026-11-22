@@ -72,6 +72,11 @@ export interface NodeTreeState {
     childIds: string[];
     /** Leash length in px when this unit is tethered to its parent; null for an untethered link or a root. */
     tetherMaxLength: number | null;
+    /**
+     * Slack: the parent burrowed away and left this unit farther off than its leash. The Stem stretches to this length
+     * instead of dragging it, until the unit is back within `tetherMaxLength` (then null). See `effectiveLeashLength`.
+     */
+    leashSlackPx: number | null;
     /** The death handling already ran (guards a double `unit_died`). */
     resolved: boolean;
     /**
@@ -88,11 +93,12 @@ export interface NodeTreeState {
 
 export const NODE_TREE_COMPONENT = defineUnitComponent<NodeTreeState, NodeTreeOptions>({
     id: 'nodeTree',
-    create: () => ({ parentId: null, childIds: [], tetherMaxLength: null, resolved: false, dismissed: false, layoutKey: null }),
+    create: () => ({ parentId: null, childIds: [], tetherMaxLength: null, leashSlackPx: null, resolved: false, dismissed: false, layoutKey: null }),
     toJSON: (state) => ({
         ...(state.parentId !== null ? { nodeParentId: state.parentId } : {}),
         ...(state.childIds.length > 0 ? { nodeChildIds: [...state.childIds] } : {}),
         ...(state.tetherMaxLength !== null ? { nodeTetherMaxLength: state.tetherMaxLength } : {}),
+        ...(state.leashSlackPx !== null ? { nodeLeashSlack: state.leashSlackPx } : {}),
         ...(state.resolved ? { nodeResolved: true } : {}),
         ...(state.layoutKey !== null ? { nodeLayoutKey: state.layoutKey } : {}),
     }),
@@ -102,6 +108,7 @@ export const NODE_TREE_COMPONENT = defineUnitComponent<NodeTreeState, NodeTreeOp
             ? data.nodeChildIds.filter((id): id is string => typeof id === 'string')
             : [];
         state.tetherMaxLength = typeof data.nodeTetherMaxLength === 'number' ? data.nodeTetherMaxLength : null;
+        state.leashSlackPx = typeof data.nodeLeashSlack === 'number' ? data.nodeLeashSlack : null;
         state.resolved = data.nodeResolved === true;
         state.layoutKey = typeof data.nodeLayoutKey === 'string' ? data.nodeLayoutKey : null;
     },
@@ -109,6 +116,17 @@ export const NODE_TREE_COMPONENT = defineUnitComponent<NodeTreeState, NodeTreeOp
 
 export function peekNodeTreeState(unit: Unit): NodeTreeState | undefined {
     return findComponentState(unit, NODE_TREE_COMPONENT);
+}
+
+/** How long the Stem may be right now: the leash, or longer while it has slack. Null when untethered. */
+export function effectiveLeashLength(state: Pick<NodeTreeState, 'tetherMaxLength' | 'leashSlackPx'>): number | null {
+    if (state.tetherMaxLength === null) return null;
+    return Math.max(state.tetherMaxLength, state.leashSlackPx ?? 0);
+}
+
+/** True when the unit's Stem is stretched past its leash (its parent burrowed away from it). */
+export function hasLeashSlack(unit: Unit): boolean {
+    return (peekNodeTreeState(unit)?.leashSlackPx ?? null) !== null;
 }
 
 export function nodeTreeOptionsOf(unit: Unit): NodeTreeOptions | undefined {
