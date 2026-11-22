@@ -22,7 +22,7 @@ export const QUEST_CASTLE_GUARDHOUSE = defineCastleMission({
     description: SCRIPT.description,
     preMissionStory: SCRIPT.preMissionStory,
     rooms: [SEGMENT_60_48_SPARRING_PIT.id, SEGMENT_60_49_WEST_GUARDHOUSE.id],
-    entry: castlePoi(SEGMENT_60_48_SPARRING_PIT, '60_48_entry_east'),
+    entry: castlePoi(SEGMENT_60_48_SPARRING_PIT, '60_48_west_door'),
     exit: castlePoi(SEGMENT_60_49_WEST_GUARDHOUSE, '60_49_exit_west'),
     exitLabel: SCRIPT.objectives.reach_exit,
     spawnPreset: 'castle_standard',

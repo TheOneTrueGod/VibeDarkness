@@ -52,8 +52,8 @@ export const SEGMENT_59_48_KENNEL_YARD: CastleSegment = {
         { id: '59_48_kennels_west', label: 'West Kennels', col: 2, row: 8, type: 'enemySpawn' },
         // In the thicket on the east side.
         { id: '59_48_thicket', label: 'Thicket', col: 19, row: 11, type: 'enemySpawn' },
-        // On the path from the sparring pit: where the kennels-and-range mission starts.
-        { id: '59_48_entry_east', label: 'Entry: East', col: 19, row: 15, type: 'generic', tags: ['entry'] },
+        // Just inside the south door from the storerooms: where the kennels-and-range mission starts.
+        { id: '59_48_entry_south', label: 'Entry: South', col: 10, row: 19, type: 'generic', tags: ['entry'] },
     ],
     network: {
         nodes: [{ id: '59_48_center', position: { kind: 'gridPoint', col: 14, row: 14 }, tags: ['castle'] }],

@@ -397,9 +397,9 @@ describe('castle segments (58-64 x 43-49)', () => {
         for (const id of [
             '61_47_exit_north',
             '61_47_entry_south',
-            '60_48_entry_east',
-            '60_47_exit_west',
-            '59_48_entry_east',
+            '60_48_west_door',
+            '60_47_entry_west',
+            '59_48_entry_south',
             '59_47_exit_campfires',
             '62_48_entry_west',
             '63_48_exit_north',

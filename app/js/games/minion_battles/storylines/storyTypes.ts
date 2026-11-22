@@ -229,11 +229,13 @@ export interface GroupVotePhrase {
     effect?: GroupVoteEffect;
 }
 
+/** Pre-mission phrase. `grant_research_auto` grants before the battle loads, so the fight already has it. */
 export type PreMissionPhrase =
     | DialoguePhrase
     | ChoicePhrase
     | GrantEquipmentRandomPhrase
-    | GroupVotePhrase;
+    | GroupVotePhrase
+    | GrantResearchAutoPhrase;
 
 /** Pre-mission story shown in lobby after character select, before battle. */
 export interface PreMissionStoryDef {
@@ -241,8 +243,8 @@ export interface PreMissionStoryDef {
 }
 
 /**
- * Auto-grant a research node to every non-spectator player at this point in the post-mission story.
- * No UI is shown; the client sends the grant silently and advances. Idempotent on the server.
+ * Auto-grant a research node to every non-spectator player at this point in the pre- or post-mission
+ * story. No UI is shown; the client sends the grant silently and advances. Idempotent on the server.
  */
 export interface GrantResearchAutoPhrase {
     type: 'grant_research_auto';

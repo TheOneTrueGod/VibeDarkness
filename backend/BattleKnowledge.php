@@ -16,7 +16,7 @@ final class BattleKnowledge
     public const ENGINE_KEYS = ['Reactions'];
 
     /** @var list<string> Keys a signed-in player may grant their own account when a battle starts. */
-    public const START_GRANTABLE_KEYS = ['Reactions'];
+    public const START_GRANTABLE_KEYS = ['Reactions', 'Combos'];
 
     public static function isStartGrantable(string $key): bool
     {

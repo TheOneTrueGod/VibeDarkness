@@ -90,9 +90,9 @@ export function useResearchTreeView({
     const playerVisibleResearchTrees = useMemo(
         () =>
             eligibleResearchTrees.filter((tree) =>
-                isPlayerVisibleResearchTree(tree, activeResearchTrees, playerAbilityIds, equipment),
+                isPlayerVisibleResearchTree(tree, activeResearchTrees, playerAbilityIds, equipment, account?.knowledge ?? {}),
             ),
-        [eligibleResearchTrees, playerAbilityIds, activeResearchTrees, equipment],
+        [eligibleResearchTrees, playerAbilityIds, activeResearchTrees, equipment, account?.knowledge],
     );
 
     const displayResearchTrees = useMemo(() => {

@@ -53,8 +53,9 @@ export const SEGMENT_60_48_SPARRING_PIT: CastleSegment = {
         { id: '60_48_pit_northwest', label: 'North-west of the Pit', col: 2, row: 3, type: 'enemySpawn' },
         // Grass south-east of the pit.
         { id: '60_48_pit_southeast', label: 'South-east of the Pit', col: 17, row: 19, type: 'enemySpawn' },
-        // Just inside the courtyard's west door: where the training-grounds mission starts.
-        { id: '60_48_entry_east', label: 'Entry: East', col: 19, row: 14, type: 'generic', tags: ['entry'] },
+        // Just inside the courtyard's west door: where the Raid the Larder guardhouse mission starts and
+        // the training-grounds mission ends.
+        { id: '60_48_west_door', label: 'West Door', col: 19, row: 14, type: 'generic', tags: ['entry', 'exit'] },
     ],
     network: {
         nodes: [{ id: '60_48_center', position: { kind: 'gridPoint', col: 10, row: 14 }, tags: ['castle'] }],

@@ -26,6 +26,7 @@ import { RESEARCH_TREES } from './list';
 import { DEFAULT_PASSIVE_MULT, getAddAtLevel, getMultBonusAtLevel, getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 import { getNodeResearchSources } from './researchSources';
 import { mergeAbilityModifierInto } from './abilityModifierMerge';
+import { resolveSpecifiedAbilityIds } from './abilitySpecification';
 import type { SenseGrant } from '../games/minion_battles/game/visibility/senses';
 import { getCharacterTreeLevel, requiredTreeLevelForNode } from './treeLevels';
 
@@ -827,16 +828,9 @@ export function computeAbilityModifiersFromResearch(
             for (const modifier of node.abilityResearchModifiers ?? []) {
                 const spec = modifier.abilitySpecification;
                 const scaled = scaleAbilityResearchModifierByLevel(modifier, level, getNodeMaxLevels(node));
-                if (spec.type === 'abilityId') {
-                    const entry = result[spec.abilityId] ?? (result[spec.abilityId] = {});
+                for (const abilityId of resolveSpecifiedAbilityIds(spec, getTagsForAbility, unitAbilityIds)) {
+                    const entry = result[abilityId] ?? (result[abilityId] = {});
                     mergeAbilityModifierInto(entry, scaled);
-                } else if (spec.type === 'tag' && getTagsForAbility && unitAbilityIds) {
-                    for (const abilityId of unitAbilityIds) {
-                        if (getTagsForAbility(abilityId).includes(spec.tag)) {
-                            const entry = result[abilityId] ?? (result[abilityId] = {});
-                            mergeAbilityModifierInto(entry, scaled);
-                        }
-                    }
                 }
             }
         }

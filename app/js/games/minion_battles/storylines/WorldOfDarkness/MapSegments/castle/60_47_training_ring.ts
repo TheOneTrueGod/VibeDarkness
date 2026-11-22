@@ -53,8 +53,8 @@ export const SEGMENT_60_47_TRAINING_RING: CastleSegment = {
         { id: '60_47_dummies', label: 'Practice Dummies', col: 10, row: 13, type: 'enemySpawn' },
         // Grass corner north of the track.
         { id: '60_47_ring_northwest', label: 'North-west Corner', col: 3, row: 2, type: 'enemySpawn' },
-        // Where the track path meets the archery green: where the training-grounds mission ends.
-        { id: '60_47_exit_west', label: 'Exit: West', col: 1, row: 12, type: 'generic', tags: ['exit'] },
+        // Where the track path meets the archery green: where the training-grounds mission starts.
+        { id: '60_47_entry_west', label: 'Entry: West', col: 1, row: 12, type: 'generic', tags: ['entry'] },
         // In the walled lane from the crossroads to the barracks.
         { id: '60_47_barracks_lane', label: 'Barracks Lane', col: 12, row: 2, type: 'generic' },
     ],

@@ -8,7 +8,7 @@ import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
 import type { PortraitSide, PreMissionStoryDef, StoryChoiceAction, StoryChoiceActionEquipItem } from '../../storylines/storyTypes';
 import { STORY_BACKGROUNDS } from '../../assets/story';
-import { SPECTATOR_ID } from '../../state';
+import { SPECTATOR_ID, isControlEnemy } from '../../state';
 import { getItemDef } from '../../character_defs/items';
 import { getActiveResearchTrees } from '../../../../researchTrees/activeResearch';
 import { prepLoadoutPrimaryIdsForStoryChoice } from '../../storylines/questPrepLoadout';
@@ -19,7 +19,14 @@ import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/Colu
 import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmentSpeakerPortrait';
 import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import StoryPhraseBottomPanel from './preMissionStory/StoryPhraseBottomPanel';
-import { isChoice, isDialogue, isGrantEquipmentRandom, isGroupVote } from './preMissionStory/preMissionStoryTypeGuards';
+import {
+    isChoice,
+    isDialogue,
+    isGrantEquipmentRandom,
+    isGrantResearchAuto,
+    isGroupVote,
+} from './preMissionStory/preMissionStoryTypeGuards';
+import { sendAutoResearchGrant, shouldSkipAutoResearchGrant } from './preMissionStory/autoResearchGrant';
 import { STORY_CHOICE_BOTTOM_ROW_CLASS } from './preMissionStory/storyChoiceGrid';
 import { storyPhraseBackgroundUrl } from './preMissionStory/storyPhraseBackground';
 import { TestIds } from '../../../../testing/testIds';
@@ -153,6 +160,32 @@ export default function PreMissionStoryPhase({
                 advancePhrase();
             });
     }, [advancePhrase, currentPhrase, isHost, api, missionId, phraseIndex]);
+
+    // Each playing client grants its own character `grant_research_auto` nodes, and waits for the server
+    // before moving on, so the research is on the character when the battle loads it.
+    const lastAutoResearchIndexRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (!isGrantResearchAuto(currentPhrase)) return;
+        if (lastAutoResearchIndexRef.current === phraseIndex) return;
+        lastAutoResearchIndexRef.current = phraseIndex;
+        const selection = characterSelections[playerId] ?? '';
+        const grantCtx = {
+            playerId,
+            characterSelections,
+            playerEquipmentByPlayer: playerEquipmentByPlayer ?? {},
+            playerResearchTreesByPlayer,
+            missionPrepLoadoutsByPlayer,
+            questPrepLoadoutsByPlayer,
+            questAbilityLoadoutsByCharacterId,
+        };
+        if (selection === '' || selection === SPECTATOR_ID || isControlEnemy(selection)
+            || shouldSkipAutoResearchGrant(currentPhrase, grantCtx)) {
+            advancePhrase();
+            return;
+        }
+        void sendAutoResearchGrant(api, currentPhrase, grantCtx).finally(advancePhrase);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [phraseIndex]);
 
     const handleStartGame = useCallback(async () => {
         onBattleStartStatusChange?.(true);

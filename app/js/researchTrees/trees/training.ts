@@ -62,6 +62,10 @@ export const SPARE_CHARGE_MAX_ADD = 1;
 /** Stored Static: extra max Static and extra Static at mission start. */
 export const STORED_STATIC_ADD = 2;
 
+/** Core Training: flat Max Health and Attack (passive bag, like Healthy and Mighty). */
+export const TRAINING_CORE_MAX_HEALTH_ADD = 10;
+export const TRAINING_CORE_ATTACK_ADD = 1;
+
 /** Campaign cost of the single-rank core-specific Training nodes. */
 export const TRAINING_CORE_NODE_COST = { vigor: 10, attunement: 5 };
 
@@ -103,7 +107,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: TRAINING_NODE_CORE,
             title: 'Core Training',
-            description: `{${DescriptiveValue.Tiny}} Damage boost and {${DescriptiveValue.Small}} Max Health boost.`,
+            description: `${statPillToken('health', `+${TRAINING_CORE_MAX_HEALTH_ADD}`)} ${statPillToken('attack', `+${TRAINING_CORE_ATTACK_ADD}`)}`,
             flavorText: 'Learn to brace with the terrain before every strike.',
             order: 10,
             tier: 12,
@@ -115,6 +119,10 @@ export const trainingTree: ResearchTreeDef = {
             ],
             cost: {},
             effects: [],
+            passiveBonus: {
+                [PassiveStatKey.MaxHealth]: { add: TRAINING_CORE_MAX_HEALTH_ADD },
+                [PassiveStatKey.Attack]: { add: TRAINING_CORE_ATTACK_ADD },
+            },
         },
         {
             id: TRAINING_NODE_DOUBLE_PUNCH,

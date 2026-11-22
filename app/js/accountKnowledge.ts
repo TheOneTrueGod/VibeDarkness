@@ -96,10 +96,14 @@ export const KNOWLEDGE_TUTORIAL_REACTIONS = 'TutorialReactions';
 export const KNOWLEDGE_REACTIONS = 'Reactions';
 
 /**
- * Systems: Combos. Gates the research that gives abilities the Combo keyword (Flurry). Nothing grants it
- * yet (admin grant only). The engine does not read it: a Combo only exists once its node is researched.
+ * Systems: Combos. Gates the research that gives abilities the Combo keyword (Flurry). Granted at the start
+ * of The Training Grounds (`startRewards`). The engine does not read it: a Combo only exists once its node
+ * is researched.
  */
 export const KNOWLEDGE_COMBOS = 'Combos';
+
+/** Tutorial: Combos. Carries the tutorial shown at the start of The Training Grounds, where Combos unlock. */
+export const KNOWLEDGE_TUTORIAL_COMBOS = 'TutorialCombos';
 
 /**
  * Knowledge keys the battle engine reads per player. Only these are copied into engine state
@@ -278,6 +282,13 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
         type: 'tutorial',
         tier: 3,
         description: 'Recorded by the tutorial shown, with the game held, the first time a player gets a reaction pause.',
+    },
+    {
+        key: KNOWLEDGE_TUTORIAL_COMBOS,
+        label: 'Tutorial: Combos',
+        type: 'tutorial',
+        tier: 3,
+        description: 'Recorded by the tutorial on chaining attacks with Combo, shown at the start of The Training Grounds.',
     },
 ];
 

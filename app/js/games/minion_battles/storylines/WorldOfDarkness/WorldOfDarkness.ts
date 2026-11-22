@@ -20,8 +20,7 @@ import {
     CAMPSITE_MISSION_ID,
     CAMPSITE_2_MISSION_ID,
     CAMPSITE_CH3_CROSSROADS_MISSION_ID,
-    CAMPSITE_CH3_TRAINING_A_MISSION_ID,
-    CAMPSITE_CH3_TRAINING_B_MISSION_ID,
+    CAMPSITE_CH3_TRAINING_MISSION_ID,
     CAMPSITE_CH3_WALLS_MISSION_ID,
 } from './questMissions/campsite';
 import { TRAINING_CH3_MISSION_ID } from './questMissions/trainingStation';
@@ -235,6 +234,7 @@ export const WOD_CRYSTAL_CORRUPTION_BANK: QuestSlotBank = {
 /**
  * Map node that starts Raid the Larder: between the west guardhouse and the storerooms (59.5_49),
  * after The Castle Courtyard (both rooms open only onto the training ring, west of the courtyard).
+ * Clearing it opens Kennels and Range, north of the storerooms.
  */
 export const WOD_RAID_THE_LARDER_BANK: QuestSlotBank = {
     id: WOD_RAID_THE_LARDER_BANK_ID,
@@ -305,13 +305,18 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: GREAT_HALL_MISSION_ID, result: 'victory', toMissionId: THE_KINGS_COURT_MISSION_ID },
         // Listed after the great hall edge, so Continue after the crossroads goes on to the great hall.
         { fromMissionId: CASTLE_CROSSROADS_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_CROSSROADS_MISSION_ID },
-        // Optional training branch through the courtyard's west door. A side edge, listed after the
-        // crossroads edge, so Continue after the courtyard still goes to the crossroads.
-        { fromMissionId: THE_CASTLE_COURTYARD_MISSION_ID, result: 'victory', toMissionId: TRAINING_GROUNDS_MISSION_ID, isSideMission: true },
-        { fromMissionId: TRAINING_GROUNDS_MISSION_ID, result: 'victory', toMissionId: KENNELS_AND_RANGE_MISSION_ID },
-        // Two campsites side by side on the archery green's campfires.
-        { fromMissionId: KENNELS_AND_RANGE_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_TRAINING_A_MISSION_ID },
-        { fromMissionId: KENNELS_AND_RANGE_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_TRAINING_B_MISSION_ID },
+        // Optional training branch: Raid the Larder (off the courtyard) -> Kennels and Range, which forks
+        // to The Training Grounds (where Combos unlock) and a campsite on the archery green's campfires.
+        // Listed after the crossroads edge, so Continue after the courtyard still goes to the crossroads.
+        {
+            fromMissionId: THE_CASTLE_COURTYARD_MISSION_ID,
+            result: 'victory',
+            toMissionId: KENNELS_AND_RANGE_MISSION_ID,
+            requiresQuestBankId: WOD_RAID_THE_LARDER_BANK_ID,
+        },
+        // Training Grounds first, so Continue after the kennels goes on into the training ring.
+        { fromMissionId: KENNELS_AND_RANGE_MISSION_ID, result: 'victory', toMissionId: TRAINING_GROUNDS_MISSION_ID },
+        { fromMissionId: KENNELS_AND_RANGE_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_TRAINING_MISSION_ID },
         // Garden branch through the courtyard's east door, to a placeholder boss. Listed after the
         // crossroads edge, so Continue after the courtyard still goes to the crossroads.
         { fromMissionId: THE_CASTLE_COURTYARD_MISSION_ID, result: 'victory', toMissionId: OVERGROWN_GARDEN_MISSION_ID },
@@ -392,8 +397,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
                 TRAINING_CH3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID,
                 CASTLE_CROSSROADS_MISSION_ID, CAMPSITE_CH3_CROSSROADS_MISSION_ID,
                 GREAT_HALL_MISSION_ID, THE_KINGS_COURT_MISSION_ID,
-                TRAINING_GROUNDS_MISSION_ID, KENNELS_AND_RANGE_MISSION_ID,
-                CAMPSITE_CH3_TRAINING_A_MISSION_ID, CAMPSITE_CH3_TRAINING_B_MISSION_ID,
+                KENNELS_AND_RANGE_MISSION_ID, TRAINING_GROUNDS_MISSION_ID, CAMPSITE_CH3_TRAINING_MISSION_ID,
                 OVERGROWN_GARDEN_MISSION_ID, GARDEN_HEART_MISSION_ID,
                 CHAPEL_WING_MISSION_ID, EAST_WALL_WALK_MISSION_ID, CAMPSITE_CH3_WALLS_MISSION_ID,
                 WIZARDS_TOWER_MISSION_ID, COURT_MAGICIAN_TOWER_MISSION_ID,

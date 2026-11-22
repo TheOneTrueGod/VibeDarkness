@@ -2,7 +2,6 @@ import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 
 export const MISC_TREE_ID = 'lightbearer';
-export const MISC_NODE_BEAST_CORE = 'beast_core';
 export const MISC_NODE_AIR_CORE = 'air_core';
 export const MISC_NODE_CHARGED_CORE = 'charged_core';
 export const MISC_NODE_BLINK_CORE = 'blink_core';
@@ -12,23 +11,8 @@ export const miscTree: ResearchTreeDef = {
     title: 'Lightbearer',
     theme: 'generic',
     icon: RESEARCH_TREE_ICON_GENERIC,
-    accessRequirements: [{ type: 'anyResearched', treeId: MISC_TREE_ID, nodeIds: [MISC_NODE_BEAST_CORE, MISC_NODE_AIR_CORE, MISC_NODE_CHARGED_CORE, MISC_NODE_BLINK_CORE] }],
+    accessRequirements: [{ type: 'anyResearched', treeId: MISC_TREE_ID, nodeIds: [MISC_NODE_AIR_CORE, MISC_NODE_CHARGED_CORE, MISC_NODE_BLINK_CORE] }],
     nodes: [
-        {
-            id: MISC_NODE_BEAST_CORE,
-            title: 'Beast Core',
-            description: 'Your body carries the memory of the hunt. You move and strike with animal swiftness.',
-            order: 10,
-            tier: 10,
-            draft: true,
-            position: { x: 340, y: 290 },
-            prereqNodeIds: [],
-            exclusiveWithNodeIds: [],
-            requirements: [MISSION_REWARD_REQUIREMENT],
-            cost: {},
-            effects: [{ type: 'addCard', cardId: '0111' }],
-            modifiesAbility: { from: '0111', to: '0111' },
-        },
         {
             id: MISC_NODE_AIR_CORE,
             title: 'Air Core',

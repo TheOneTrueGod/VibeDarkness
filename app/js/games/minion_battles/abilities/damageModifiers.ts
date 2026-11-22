@@ -6,7 +6,6 @@ import {
     computePassiveBonuses,
 } from '../../../researchTrees/passiveBonuses';
 import type { ResearchNodeLevels } from '../../../researchTrees/types';
-import { getDamageBonusFromResearch } from '../research/researchTrainingEffects';
 import type { TooltipResolveContext } from './tooltipTokens';
 import { getStackDamageMultiplier } from '../game/units/stackRules';
 
@@ -95,18 +94,14 @@ export function getAbilityDamageForDisplay(base: number, ctx: TooltipResolveCont
 
 /**
  * Build the same `DamageModifier` mission spawn bakes into player combatSettings
- * (`BaseMissionDef`: Training flat via `getDamageBonusFromResearch` + Mighty
- * `passiveBonuses.all_damage.mult`).
+ * (`BaseMissionDef`: the outgoing multiplier from the passive bag, i.e. all_damage and Attack).
  */
 export function buildDamageModifierFromResearch(
     researchTrees: Record<string, string[]> | undefined,
     levels?: ResearchNodeLevels,
 ): DamageModifier {
-    const getResearchNodes = (treeId: string) => researchTrees?.[treeId] ?? [];
     const passiveBonuses = computePassiveBonuses(researchTrees, levels);
-    const flatAmt = getDamageBonusFromResearch(getResearchNodes);
-    const multiplier = getOutgoingDamageMultiplier(passiveBonuses);
-    return { flatAmt, multiplier };
+    return { flatAmt: 0, multiplier: getOutgoingDamageMultiplier(passiveBonuses) };
 }
 
 /**

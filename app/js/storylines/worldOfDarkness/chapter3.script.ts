@@ -88,24 +88,23 @@ export const chapter3Scripts = {
         preMissionStory: preMissionLine('The throne room doors stand open. Something large is breathing in the dark.'),
     },
     // TODO(story): placeholder copy for the optional training branch.
-    training_grounds: {
-        name: 'The Training Grounds',
-        description: "West of the courtyard, the castle's old training ring lies overgrown. Something moves among the practice dummies.",
-        objectives: {
-            reach_exit: 'Cross the training ring',
-        },
-        preMissionStory: preMissionLine('Through the west door the grass grows tall over a sparring pit and a ring of wooden dummies.'),
-    },
     kennels_and_range: {
         name: 'Kennels and Range',
-        description: 'Past the empty kennels, two old fire pits by the archery green could still hold a camp.',
+        description: 'North of the storerooms, past the empty kennels, two old fire pits by the archery green could still hold a camp.',
         objectives: {
             reach_exit: 'Reach the fire pits by the archery green',
         },
-        preMissionStory: preMissionLine('The kennels stand open and empty. Beyond them, by the archery targets, there are two fire pits.'),
+        preMissionStory: preMissionLine('Out of the storerooms, the kennels stand open and empty. Beyond them, by the archery targets, there are two fire pits.'),
+    },
+    training_grounds: {
+        name: 'The Training Grounds',
+        description: "East of the archery green, the castle's old training ring lies overgrown. Learn to chain your attacks into Combos here.",
+        objectives: {
+            reach_exit: "Reach the courtyard's west door",
+        },
+        preMissionStory: preMissionLine('Past the archery green the grass grows tall over a ring of wooden dummies. Old drills are still scratched into the posts.'),
     },
     campsite_ch3_training_a: campsiteScript,
-    campsite_ch3_training_b: campsiteScript,
     // TODO(story): placeholder copy for the garden branch.
     overgrown_garden: {
         name: 'The Overgrown Garden',

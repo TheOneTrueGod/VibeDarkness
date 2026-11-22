@@ -2,6 +2,7 @@ import type {
     ChoicePhrase,
     DialoguePhrase,
     GrantEquipmentRandomPhrase,
+    GrantResearchAutoPhrase,
     GroupVotePhrase,
     PreMissionPhrase,
     StoryChoiceActionGrantResources,
@@ -17,6 +18,10 @@ export function isChoice(phrase: PreMissionPhrase | undefined): phrase is Choice
 
 export function isGrantEquipmentRandom(phrase: PreMissionPhrase | undefined): phrase is GrantEquipmentRandomPhrase {
     return phrase?.type === 'grant_equipment_random';
+}
+
+export function isGrantResearchAuto(phrase: PreMissionPhrase | undefined): phrase is GrantResearchAutoPhrase {
+    return phrase?.type === 'grant_research_auto';
 }
 
 export function isGroupVote(phrase: PreMissionPhrase | undefined): phrase is GroupVotePhrase {

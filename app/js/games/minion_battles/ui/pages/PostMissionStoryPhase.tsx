@@ -32,12 +32,16 @@ import {
 import { getItemDef } from '../../character_defs/items';
 import { SPECTATOR_ID, isControlEnemy } from '../../state';
 import { getResearchNode } from '../../../../researchTrees/list';
-import { getActiveResearchTrees } from '../../../../researchTrees/activeResearch';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
 import PostMissionChoicePanel from './preMissionStory/PostMissionChoicePanel';
 import { STORY_CHOICE_BOTTOM_ROW_CLASS } from './preMissionStory/storyChoiceGrid';
 import { storyPhraseBackgroundUrl } from './preMissionStory/storyPhraseBackground';
+import {
+    autoResearchRewardId,
+    sendAutoResearchGrant,
+    shouldSkipAutoResearchGrant,
+} from './preMissionStory/autoResearchGrant';
 import { isGrantResources } from './preMissionStory/preMissionStoryTypeGuards';
 import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmentSpeakerPortrait';
 import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
@@ -49,10 +53,7 @@ import {
     eligibleStoryRewardPlayerIds,
     sumAlsoGrantToOthersFromParty,
 } from '../../storylines/partyStoryGrants';
-import {
-    prepLoadoutPrimaryIdsForResearchGrant,
-    prepLoadoutPrimaryIdsForStoryChoice,
-} from '../../storylines/questPrepLoadout';
+import { prepLoadoutPrimaryIdsForStoryChoice } from '../../storylines/questPrepLoadout';
 
 function isDialogue(phrase: PostMissionPhrase | undefined): phrase is DialoguePhrase {
     return !!phrase && phrase.type === 'dialogue';
@@ -308,39 +309,21 @@ export default function PostMissionStoryPhase({
             return;
         }
         const phrase = currentPhrase;
-        // Eligibility reads active research (inactive weapon trees ignored, virtual roots included).
-        const myResearch = getActiveResearchTrees(
-            playerResearchTreesByPlayer[playerId] ?? {},
-            playerEquipmentByPlayer[playerId] ?? [],
-        );
-        const shouldSkip = (phrase.skipIfResearched ?? []).some(({ treeId, nodeIds }) =>
-            (myResearch[treeId] ?? []).some((id) => nodeIds.includes(id))
-        );
-        if (shouldSkip) {
-            advancePhrase();
-            return;
-        }
-        const rewardId = `${phrase.treeId}+${phrase.nodeId}`;
-        const prepLoadoutPrimaryIds = prepLoadoutPrimaryIdsForResearchGrant({
+        const grantCtx = {
             playerId,
-            characterId: characterSelections[playerId],
-            equipment: playerEquipmentByPlayer[playerId] ?? [],
-            researchTrees: playerResearchTreesByPlayer[playerId],
-            treeId: phrase.treeId,
-            nodeId: phrase.nodeId,
+            characterSelections,
+            playerEquipmentByPlayer,
+            playerResearchTreesByPlayer,
             missionPrepLoadoutsByPlayer,
             questPrepLoadoutsByPlayer,
             questAbilityLoadoutsByCharacterId,
-        });
-        void api.sendMessage(MessageType.STORY_CHOICE, {
-            choiceId: 'auto_grant_research',
-            optionId: 'auto',
-            actionType: 'grant_research_to_player' as const,
-            treeId: phrase.treeId,
-            nodeId: phrase.nodeId,
-            researchRewardId: rewardId,
-            ...(prepLoadoutPrimaryIds && { prepLoadoutPrimaryIds }),
-        }).catch((err) => console.error('Failed to auto-grant research:', err));
+        };
+        if (shouldSkipAutoResearchGrant(phrase, grantCtx)) {
+            advancePhrase();
+            return;
+        }
+        const rewardId = autoResearchRewardId(phrase);
+        void sendAutoResearchGrant(api, phrase, grantCtx);
         const node = getResearchNode(phrase.treeId, phrase.nodeId);
         if (node) {
             accumulatedResearchIdsRef.current.push(rewardId);

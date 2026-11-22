@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+    TRAINING_CORE_ATTACK_ADD,
     TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX,
     TRAINING_MIGHTY_LEVELS,
     TRAINING_NODE_CORE,
     TRAINING_NODE_MIGHTY,
     TRAINING_TREE_ID,
 } from '../../../researchTrees/trees/training';
-import { RESEARCH_DAMAGE_BONUSES } from '../research/researchTrainingEffects';
+import { ATTACK_DAMAGE_MULT_PER_POINT } from '../../../researchTrees/types';
 import { getAbilityModifier, hasResearchNode, resolveTooltipContext } from './abilityModifierHelpers';
 import { GRAVITY_LOCUS_ABILITY_ID, GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE } from '../card_defs/09_gravity_core/gravityConstants';
 import { GRAVITY_NODE_REPULSE, GRAVITY_TREE_ID } from '../../../researchTrees/trees/gravity';
@@ -42,8 +43,9 @@ describe('resolveTooltipContext', () => {
         const ctx = resolveTooltipContext(gameState);
         expect(ctx.attacker).toBeUndefined();
         expect(ctx.damageModifier).toEqual({
-            flatAmt: RESEARCH_DAMAGE_BONUSES[TRAINING_NODE_CORE],
-            multiplier: MIGHTY_ONE_LEVEL_MULT,
+            // Core Training's Attack adds to Mighty's: both go into the multiplier.
+            flatAmt: 0,
+            multiplier: MIGHTY_ONE_LEVEL_MULT + TRAINING_CORE_ATTACK_ADD * ATTACK_DAMAGE_MULT_PER_POINT,
         });
     });
 

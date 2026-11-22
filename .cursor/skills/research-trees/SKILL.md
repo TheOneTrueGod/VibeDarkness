@@ -133,3 +133,5 @@ The node tooltip's before/after block is derived by `buildResearchNodePreview` (
 - **Upgrades** (`replaceCard`, `abilityResearchModifiers`, or `modifiesAbility` when the effects do not already describe the change): before card and after card. Both are AbilitySlotPreview; each tooltip resolves `getTooltipText` against that column's research snapshot, so a global damage bonus already on the character shows in both.
 
 `modifiesAbility` is only a fallback for behaviour that is not in effects or modifiers (same id both sides). A grant or virtual-root weapon should not use it as a before/after pair.
+
+**Which abilities a modifier targets** (`abilityResearchModifiers[].abilitySpecification`, resolved by `researchTrees/abilitySpecification.ts`): `abilityId` (one ability), `tag` (the unit's abilities carrying that tag), or `researchTreeTier` (every ability a tree's nodes in a tier range modify via `modifiesAbility.to`, e.g. `WEAPON_BASIC_ABILITIES_SPEC` = each weapon's basic ability, which Flurry uses). The evaluator, tree-ability index and node preview all go through the resolver; the preview shows tag and tree-tier targets only for abilities in the loadout.

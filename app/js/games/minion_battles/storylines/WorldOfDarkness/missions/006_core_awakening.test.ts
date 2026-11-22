@@ -21,7 +21,6 @@ import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTre
 import { GRAVITY_TREE_ID, GRAVITY_NODE_CORE } from '../../../../../researchTrees/trees/gravity';
 import {
     MISC_NODE_AIR_CORE,
-    MISC_NODE_BEAST_CORE,
     MISC_NODE_BLINK_CORE,
     MISC_NODE_CHARGED_CORE,
 } from '../../../../../researchTrees/trees/misc';
@@ -76,7 +75,6 @@ describe('listTier10RootCoreCandidates', () => {
     it('excludes draft cores from the candidate pool', () => {
         const candidates = listTier10RootCoreCandidates();
         expect(candidates.some((c) => c.nodeId === MISC_NODE_BLINK_CORE)).toBe(false);
-        expect(candidates.some((c) => c.nodeId === MISC_NODE_BEAST_CORE)).toBe(false);
         expect(candidates.some((c) => c.nodeId === MISC_NODE_AIR_CORE)).toBe(false);
         expect(candidates.some((c) => c.nodeId === MISC_NODE_CHARGED_CORE)).toBe(false);
     });

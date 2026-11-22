@@ -37,6 +37,8 @@ import {
     TRAINING_NODE_TREMORSENSE,
     TRAINING_TREE_ID,
     trainingTree,
+    TRAINING_CORE_ATTACK_ADD,
+    TRAINING_CORE_MAX_HEALTH_ADD,
 } from '../../../researchTrees/trees/training';
 import { getItemDef } from '../character_defs/items';
 import {
@@ -46,8 +48,8 @@ import {
     WEAPON_ITEM_SHIELD,
 } from '../../../researchTrees/trees/weaponTreeIds';
 import { weaponsTree } from '../../../researchTrees/trees/weapons';
-import { RESEARCH_DAMAGE_BONUSES, RESEARCH_HEALTH_BONUSES } from './researchTrainingEffects';
 import { MOVEMENT_BASE_MAX } from '../resources/Movement';
+import { ATTACK_DAMAGE_MULT_PER_POINT } from '../../../researchTrees/types';
 import { buildResearchNodePreview, type ResearchNodePreview } from './researchNodePreview';
 
 function nodeById(tree: ResearchTreeDef, id: string): ResearchNodeDef {
@@ -122,7 +124,7 @@ describe('buildResearchNodePreview', () => {
         });
     });
 
-    it('keeps an owned damage percent in a flat damage before and after', () => {
+    it('Core Training adds Max Health and an Attack point on top of Mighty', () => {
         const preview = buildResearchNodePreview({
             treeId: TRAINING_TREE_ID,
             node: nodeById(trainingTree, TRAINING_NODE_CORE),
@@ -130,16 +132,15 @@ describe('buildResearchNodePreview', () => {
             researchNodeLevels: { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: 1 } },
         });
         const pct = Math.round((MIGHTY_ONE_LEVEL_MULT - 1) * 100);
-        const flat = RESEARCH_DAMAGE_BONUSES[TRAINING_NODE_CORE];
-        const health = RESEARCH_HEALTH_BONUSES[TRAINING_NODE_CORE];
+        const corePct = Math.round(TRAINING_CORE_ATTACK_ADD * ATTACK_DAMAGE_MULT_PER_POINT * 100);
         const base = getDefaultHp(PLAYER_CHARACTER_ID);
         expect(stat(preview, 'allDamage')).toMatchObject({
             before: `${ALL_DAMAGE} +${pct}%`,
-            after: `${ALL_DAMAGE} +${flat}, +${pct}%`,
+            after: `${ALL_DAMAGE} +${pct + corePct}%`,
         });
         expect(stat(preview, 'maxHealth')).toMatchObject({
             before: String(base),
-            after: String(base + health),
+            after: String(base + TRAINING_CORE_MAX_HEALTH_ADD),
         });
     });
 

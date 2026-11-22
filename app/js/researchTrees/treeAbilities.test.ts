@@ -1,3 +1,4 @@
+import { KNOWLEDGE_COMBOS } from '../accountKnowledge';
 import { describe, expect, it } from 'vitest';
 import { CORE_ITEM_IDS } from '../games/minion_battles/character_defs/items';
 import { coreBasicItem } from '../games/minion_battles/character_defs/items/core/004_core_basic';
@@ -92,18 +93,27 @@ describe('sortResearchTreesByPlayerAbilities', () => {
 });
 
 describe('Weapons tree visibility', () => {
-    it('is hidden from players while only virtual roots are active', () => {
-        // Base Rocks / Stick / Shield and Charged Shield have no upgrades yet.
+    it('is hidden from players while only virtual roots are open to them', () => {
+        // Base Rocks / Stick / Shield and Charged Shield have no upgrades of their own; Flurry (every
+        // weapon) needs Knowledge: Combos, so it does not count without it.
         for (const equipment of [['001'], ['002'], ['003'], ['016'], []]) {
-            expect(researchTreeHasNonRootNodes(weaponsTree, equipment), equipment.join(',')).toBe(false);
-            expect(isPlayerVisibleResearchTree(weaponsTree, {}, new Set(['throw_rock']), equipment)).toBe(false);
+            expect(researchTreeHasNonRootNodes(weaponsTree, equipment, {}), equipment.join(',')).toBe(false);
+            expect(isPlayerVisibleResearchTree(weaponsTree, {}, new Set(['throw_rock']), equipment, {})).toBe(false);
+        }
+    });
+
+    it('is visible with any weapon once the player knows Combos (Flurry)', () => {
+        const knowsCombos = { [KNOWLEDGE_COMBOS]: {} };
+        for (const equipment of [['001'], ['002'], ['003'], ['016']]) {
+            expect(researchTreeHasNonRootNodes(weaponsTree, equipment, knowsCombos), equipment.join(',')).toBe(true);
+            expect(isPlayerVisibleResearchTree(weaponsTree, {}, new Set(['throw_rock']), equipment, knowsCombos)).toBe(true);
         }
     });
 
     it('is visible once an equipped weapon has an upgrade', () => {
         for (const equipment of [['011'], ['012'], ['013'], ['014'], ['015']]) {
-            expect(researchTreeHasNonRootNodes(weaponsTree, equipment), equipment.join(',')).toBe(true);
-            expect(isPlayerVisibleResearchTree(weaponsTree, {}, new Set(['throw_rock']), equipment)).toBe(true);
+            expect(researchTreeHasNonRootNodes(weaponsTree, equipment, {}), equipment.join(',')).toBe(true);
+            expect(isPlayerVisibleResearchTree(weaponsTree, {}, new Set(['throw_rock']), equipment, {})).toBe(true);
         }
     });
 

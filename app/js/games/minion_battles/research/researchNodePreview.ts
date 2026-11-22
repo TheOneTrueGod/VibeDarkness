@@ -22,6 +22,7 @@ import {
     getSenseGrantsFromResearch,
 } from '../../../researchTrees/evaluator';
 import { RESEARCH_TREES } from '../../../researchTrees/list';
+import { resolveSpecifiedAbilityIds } from '../../../researchTrees/abilitySpecification';
 import {
     getVirtualRootItemIds,
     PassiveStatKey,
@@ -39,10 +40,6 @@ import { getAbilityTagsForId } from '../abilities/Ability';
 import { getDefaultHp, getUnitSensesDef, PLAYER_CHARACTER_ID } from '../game/units/unit_defs/unitDef';
 import { mergeSenseGrants, type SenseProfile } from '../game/visibility/senses';
 import { getPetDef } from '../game/units/pet_defs/petDef';
-import {
-    getDamageBonusFromResearch,
-    getHealthBonusFromResearch,
-} from './researchTrainingEffects';
 import { MOVEMENT_BASE_MAX, MOVEMENT_BASE_RECOVERY_PER_ROUND } from '../resources/Movement';
 import { LIGHT_REGEN_ENABLED_ADD } from '../resources/Light';
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../resources/resourceDisplayDefs';
@@ -232,9 +229,10 @@ function collectAbilityChanges(
         if (unlocks.includes(id) || upgradeCovers(upgrades, id)) continue;
         pushUpgrade(upgrades, id, id);
     }
+    // Tag and tree-tier specs can name many abilities: preview the ones in this loadout.
     for (const modifier of node.abilityResearchModifiers ?? []) {
-        if (modifier.abilitySpecification.type !== 'tag') continue;
-        for (const id of abilitiesWithTag(modifier, abilityIds)) {
+        if (modifier.abilitySpecification.type === 'abilityId') continue;
+        for (const id of loadoutAbilitiesForSpec(modifier, abilityIds)) {
             if (unlocks.includes(id) || upgradeCovers(upgrades, id)) continue;
             pushUpgrade(upgrades, id, id);
         }
@@ -254,10 +252,9 @@ function collectAbilityChanges(
     return { unlocks, upgrades };
 }
 
-function abilitiesWithTag(modifier: AbilityResearchModifier, abilityIds: readonly string[]): string[] {
-    if (modifier.abilitySpecification.type !== 'tag') return [];
-    const tag = modifier.abilitySpecification.tag;
-    return abilityIds.filter((id) => getAbilityTagsForId(id).some((abilityTag) => abilityTag === tag));
+function loadoutAbilitiesForSpec(modifier: AbilityResearchModifier, abilityIds: readonly string[]): string[] {
+    const named = resolveSpecifiedAbilityIds(modifier.abilitySpecification, getAbilityTagsForId, abilityIds);
+    return named.filter((id) => abilityIds.includes(id));
 }
 
 function pushUnique(ids: string[], id: string): void {
@@ -293,12 +290,10 @@ interface StatSheet {
 }
 
 function readStatSheet(view: ResearchView): StatSheet {
-    const getResearchNodes = (treeId: string) => view.researchTrees[treeId] ?? [];
     const passives = computePassiveBonuses(view.researchTrees, view.researchNodeLevels, () => true);
-    const healthBonus = getHealthBonusFromResearch(getResearchNodes);
     const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
     return {
-        maxHealth: applyPassiveBonusToBase(baseHp + healthBonus, passives[PassiveStatKey.MaxHealth]),
+        maxHealth: applyPassiveBonusToBase(baseHp, passives[PassiveStatKey.MaxHealth]),
         maxHunger: getCharacterMaxHunger(view.researchTrees, view.researchNodeLevels),
         maxMovement: applyPassiveBonusToBase(MOVEMENT_BASE_MAX, passives[PassiveStatKey.MaxMovementPoints]),
         movementRegen: applyPassiveBonusToBase(
@@ -307,7 +302,7 @@ function readStatSheet(view: ResearchView): StatSheet {
         ),
         petHealth: petMaxHealth(view, passives),
         lightRegen: (passives[PassiveStatKey.LightRegenEnabled]?.add ?? 0) >= LIGHT_REGEN_ENABLED_ADD,
-        allDamageFlat: getDamageBonusFromResearch(getResearchNodes),
+        allDamageFlat: passives[PassiveStatKey.AllDamage]?.add ?? 0,
         allDamageMult: getOutgoingDamageMultiplier(passives),
         earthDamageAdd: passives[PassiveStatKey.EarthDamage]?.add ?? 0,
         earthDamageMult: passives[PassiveStatKey.EarthDamage]?.mult ?? DEFAULT_PASSIVE_MULT,

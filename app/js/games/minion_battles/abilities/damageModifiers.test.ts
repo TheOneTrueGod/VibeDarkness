@@ -10,11 +10,12 @@ import { DEFAULT_PASSIVE_MULT } from '../../../researchTrees/passiveBonuses';
 import {
     TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX,
     TRAINING_MIGHTY_LEVELS,
+    TRAINING_CORE_ATTACK_ADD,
     TRAINING_NODE_CORE,
     TRAINING_NODE_MIGHTY,
     TRAINING_TREE_ID,
 } from '../../../researchTrees/trees/training';
-import { RESEARCH_DAMAGE_BONUSES } from '../research/researchTrainingEffects';
+import { ATTACK_DAMAGE_MULT_PER_POINT } from '../../../researchTrees/types';
 import { formatTooltipNumber, resolveDamageToken } from './tooltipTokens';
 import type { Unit } from '../game/units/Unit';
 import { STACK_DAMAGE_SCALING, getStackDamageMultiplier } from '../game/units/stackRules';
@@ -130,7 +131,7 @@ describe('getAbilityDamageForDisplay', () => {
 });
 
 describe('buildDamageModifierFromResearch', () => {
-    it('matches BaseMissionDef: Training flat + Mighty all_damage.mult', () => {
+    it('matches BaseMissionDef: Core Training and Mighty Attack both go into the multiplier', () => {
         const trees = {
             [TRAINING_TREE_ID]: [TRAINING_NODE_CORE, TRAINING_NODE_MIGHTY],
         };
@@ -138,8 +139,8 @@ describe('buildDamageModifierFromResearch', () => {
             [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_ONE_LEVEL },
         };
         const mod = buildDamageModifierFromResearch(trees, levels);
-        expect(mod.flatAmt).toBe(RESEARCH_DAMAGE_BONUSES[TRAINING_NODE_CORE]);
-        expect(mod.multiplier).toBe(MIGHTY_ONE_LEVEL_MULT);
+        expect(mod.flatAmt).toBe(0);
+        expect(mod.multiplier).toBeCloseTo(MIGHTY_ONE_LEVEL_MULT + TRAINING_CORE_ATTACK_ADD * ATTACK_DAMAGE_MULT_PER_POINT);
     });
 
     it('identity modifier when research empty', () => {

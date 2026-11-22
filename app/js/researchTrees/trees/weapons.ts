@@ -1,6 +1,6 @@
 // Sword and mace feel: see `./Weapons.md`.
 import { KNOWLEDGE_COMBOS, KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
-import type { ResearchNodeDef, ResearchTreeDef } from '../types';
+import type { AbilitySpecification, ResearchNodeDef, ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
 import { WEAPON_TREE_PREMIUM_METAL_COST, WEAPON_TREE_STANDARD_METAL_COST } from '../weaponResearchCosts';
 import {
@@ -32,6 +32,16 @@ import {
 } from './weaponTreeIds';
 
 export { WEAPONS_TREE_ID };
+
+/** Weapons-tree tiers 0-1 hold only the virtual roots: each weapon's basic ability. */
+export const WEAPON_BASIC_ABILITY_MAX_TIER = 1;
+
+/** Every weapon's basic ability (Flurry's target). Resolve with `staticSpecifiedAbilityIds`. */
+export const WEAPON_BASIC_ABILITIES_SPEC: AbilitySpecification = {
+    type: 'researchTreeTier',
+    treeId: WEAPONS_TREE_ID,
+    maxTier: WEAPON_BASIC_ABILITY_MAX_TIER,
+};
 
 interface WeaponRootSpec {
     id: string;
@@ -130,24 +140,23 @@ export const weaponsTree: ResearchTreeDef = {
             abilityId: 'throw_knife',
         }),
         {
+            // Every weapon's basic ability (its tier 1 virtual root) gains Combo. Depends on no root, so
+            // it sits in the tree's trailing row and stays active whatever weapon is equipped. Granted at
+            // the start of The Training Grounds.
             id: NODE_KNIFE_COMBO,
             title: 'Flurry',
-            description: 'Throw Knife gains {Combo}.',
-            flavorText: 'The next knife is already in your hand.',
+            description: "Each weapon's basic ability gains {Combo}.",
+            flavorText: 'The next strike is already on its way.',
             order: 25,
             tier: 13,
-            prereqNodeIds: [KNIVES_ROOT_NODE_ID],
+            prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [
-                { type: 'anyResearched', treeId: WEAPONS_TREE_ID, nodeIds: [KNIVES_ROOT_NODE_ID] },
-                { type: 'accountKnowledge', key: KNOWLEDGE_COMBOS },
-            ],
+            requirements: [{ type: 'accountKnowledge', key: KNOWLEDGE_COMBOS }],
             cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
             effects: [],
             abilityResearchModifiers: [
-                { abilitySpecification: { type: 'abilityId', abilityId: 'throw_knife' }, comboUnlimited: true },
+                { abilitySpecification: WEAPON_BASIC_ABILITIES_SPEC, comboUnlimited: true },
             ],
-            modifiesAbility: { from: 'throw_knife', to: 'throw_knife' },
         },
 
         // Melee

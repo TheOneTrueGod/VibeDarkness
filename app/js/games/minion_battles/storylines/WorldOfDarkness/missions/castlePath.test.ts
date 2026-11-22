@@ -5,6 +5,9 @@
 
 import { describe, it, expect } from 'vitest';
 import type { MissionResult } from '../../../../../types';
+import type { QuestResult } from '../../questTypes';
+import { KNOWLEDGE_COMBOS } from '../../../../../accountKnowledge';
+import { NODE_KNIFE_COMBO, WEAPONS_TREE_ID } from '../../../../../researchTrees/trees/weaponTreeIds';
 import { GameEngine } from '../../../game/GameEngine';
 import { resetGameObjectIdCounter } from '../../../game/GameObject';
 import { TerrainManager } from '../../../terrain/TerrainManager';
@@ -15,8 +18,13 @@ import { chapter3Scripts } from '../../../../../storylines/worldOfDarkness/chapt
 import { MISSION_MAP } from '../../index';
 import { getUnlockedMissionIds, getNextVictoryMissionId, getSideMissionIds } from '../../unlock';
 import { registerWorldOfDarknessSegments } from '../registerSegments';
-import { WorldOfDarknessStoryline } from '../WorldOfDarkness';
+import { WOD_RAID_THE_LARDER_BANK_ID, WorldOfDarknessStoryline } from '../WorldOfDarkness';
+import { RAID_THE_LARDER_QUEST_ID } from '../quests/raid_the_larder';
+import { TUTORIAL_COMBOS } from '../tutorials';
 import { castleMapPosition, sideBySideMapPositions, WOD_CH3_MIN_NODE_GAP_PX } from '../chapter3Map';
+import { SEGMENT_59_48_KENNEL_YARD } from '../MapSegments/castle/59_48_kennel_yard';
+import { SEGMENT_60_47_TRAINING_RING } from '../MapSegments/castle/60_47_training_ring';
+import { SEGMENT_60_48_SPARRING_PIT } from '../MapSegments/castle/60_48_sparring_pit';
 import { SEGMENT_59_47_ARCHERY_GREEN } from '../MapSegments/castle/59_47_archery_green';
 import { SEGMENT_63_45_SUMMONING_CIRCLE } from '../MapSegments/castle/63_45_summoning_circle';
 import { SEGMENT_59_44_MASTER_BEDROOM } from '../MapSegments/castle/59_44_master_bedroom';
@@ -27,10 +35,8 @@ import {
     CAMPSITE_CH3_CROSSROADS_MISSION_ID,
     CAMPSITE_CH3_RESEARCH_MAX_TIER,
     CAMPSITE_CH3_RESEARCH_MIN_TIER,
-    CAMPSITE_CH3_TRAINING_A,
-    CAMPSITE_CH3_TRAINING_A_MISSION_ID,
-    CAMPSITE_CH3_TRAINING_B,
-    CAMPSITE_CH3_TRAINING_B_MISSION_ID,
+    CAMPSITE_CH3_TRAINING,
+    CAMPSITE_CH3_TRAINING_MISSION_ID,
     CAMPSITE_CH3_WALLS,
     CAMPSITE_CH3_WALLS_MISSION_ID,
     type CampsiteMission,
@@ -89,7 +95,7 @@ const CASTLE_MISSIONS: CastleMission[] = [
     OVERGROWN_GARDEN, GARDEN_HEART, CHAPEL_WING, EAST_WALL_WALK, WIZARDS_TOWER, COURT_MAGICIAN_TOWER,
     BARRACKS_WING, WEST_WALL_WALK, ROYAL_CHAMBERS, ROYAL_BEDCHAMBER,
 ];
-const CH3_CAMPSITES: CampsiteMission[] = [CAMPSITE_CH3_CROSSROADS, CAMPSITE_CH3_TRAINING_A, CAMPSITE_CH3_TRAINING_B, CAMPSITE_CH3_WALLS];
+const CH3_CAMPSITES: CampsiteMission[] = [CAMPSITE_CH3_CROSSROADS, CAMPSITE_CH3_TRAINING, CAMPSITE_CH3_WALLS];
 
 function initMission(mission: CastleMission): GameEngine {
     resetGameObjectIdCounter(1);
@@ -244,30 +250,63 @@ describe('chapter 3 castle main path', () => {
         expect(getNextVictoryMissionId('the_castle_courtyard', [WorldOfDarknessStoryline])).toBe(CASTLE_CROSSROADS_MISSION_ID);
     });
 
-    it('the training branch is optional: side missions off the courtyard, Continue still goes to the crossroads', () => {
+    it('the training branch is optional: Continue after the courtyard still goes to the crossroads', () => {
         expect(TRAINING_GROUNDS.isSideMission).toBe(true);
         expect(KENNELS_AND_RANGE.isSideMission).toBe(true);
-        expect(getSideMissionIds('the_castle_courtyard', [WorldOfDarknessStoryline])).toEqual([TRAINING_GROUNDS_MISSION_ID]);
+        expect(getSideMissionIds('the_castle_courtyard', [WorldOfDarknessStoryline])).toEqual([]);
         expect(getNextVictoryMissionId('the_castle_courtyard', [WorldOfDarknessStoryline])).toBe(CASTLE_CROSSROADS_MISSION_ID);
-        expect(getNextVictoryMissionId(TRAINING_GROUNDS_MISSION_ID, [WorldOfDarknessStoryline])).toBe(KENNELS_AND_RANGE_MISSION_ID);
+        expect(getNextVictoryMissionId(KENNELS_AND_RANGE_MISSION_ID, [WorldOfDarknessStoryline])).toBe(TRAINING_GROUNDS_MISSION_ID);
     });
 
-    it('unlocks training grounds -> kennels and range -> both training campsites', () => {
-        const unlockedAfter = (results: MissionResult[]) => getUnlockedMissionIds(WorldOfDarknessStoryline, results);
-        const campsites = [CAMPSITE_CH3_TRAINING_A_MISSION_ID, CAMPSITE_CH3_TRAINING_B_MISSION_ID];
+    it('unlocks raid the larder -> kennels and range -> the training grounds and the training campsite', () => {
+        const larderCleared: QuestResult[] = [
+            { questDefId: RAID_THE_LARDER_QUEST_ID, result: 'victory', placement: 'bank', bankId: WOD_RAID_THE_LARDER_BANK_ID },
+        ];
+        const unlockedAfter = (results: MissionResult[], quests: QuestResult[] = []) =>
+            getUnlockedMissionIds(WorldOfDarknessStoryline, results, quests);
+        const fork = [TRAINING_GROUNDS_MISSION_ID, CAMPSITE_CH3_TRAINING_MISSION_ID];
 
+        // The courtyard alone opens nothing on the branch: Kennels and Range waits on Raid the Larder.
         let unlocked = unlockedAfter(THROUGH_COURTYARD);
-        expect(unlocked.has(TRAINING_GROUNDS_MISSION_ID)).toBe(true);
-        for (const id of [KENNELS_AND_RANGE_MISSION_ID, ...campsites]) expect(unlocked.has(id), id).toBe(false);
+        for (const id of [KENNELS_AND_RANGE_MISSION_ID, ...fork]) expect(unlocked.has(id), id).toBe(false);
 
-        unlocked = unlockedAfter([...THROUGH_COURTYARD, victory(TRAINING_GROUNDS_MISSION_ID)]);
+        unlocked = unlockedAfter(THROUGH_COURTYARD, larderCleared);
         expect(unlocked.has(KENNELS_AND_RANGE_MISSION_ID)).toBe(true);
-        for (const id of campsites) expect(unlocked.has(id), id).toBe(false);
+        for (const id of fork) expect(unlocked.has(id), id).toBe(false);
 
-        unlocked = unlockedAfter([...THROUGH_COURTYARD, victory(TRAINING_GROUNDS_MISSION_ID), victory(KENNELS_AND_RANGE_MISSION_ID)]);
-        for (const id of campsites) expect(unlocked.has(id), id).toBe(true);
+        unlocked = unlockedAfter([...THROUGH_COURTYARD, victory(KENNELS_AND_RANGE_MISSION_ID)], larderCleared);
+        for (const id of fork) expect(unlocked.has(id), id).toBe(true);
         // The training branch does not open the main path.
         expect(unlocked.has(GREAT_HALL_MISSION_ID)).toBe(false);
+    });
+
+    it('draws the gate line from the Raid the Larder node to Kennels and Range', () => {
+        const gates = (WorldOfDarknessStoryline.edges ?? []).filter((e) => e.toMissionId === KENNELS_AND_RANGE_MISSION_ID);
+        expect(gates).toEqual([
+            expect.objectContaining({ fromMissionId: 'the_castle_courtyard', requiresQuestBankId: WOD_RAID_THE_LARDER_BANK_ID }),
+        ]);
+    });
+
+    it('kennels and range starts at the south door by the storerooms; the training grounds runs from the green to the west door', () => {
+        expect(KENNELS_AND_RANGE.entryCell).toEqual(castlePoiCell(KENNELS_AND_RANGE.rooms, castlePoi(SEGMENT_59_48_KENNEL_YARD, '59_48_entry_south')));
+        expect(TRAINING_GROUNDS.entryCell).toEqual(castlePoiCell(TRAINING_GROUNDS.rooms, castlePoi(SEGMENT_60_47_TRAINING_RING, '60_47_entry_west')));
+        expect(TRAINING_GROUNDS.exitCell).toEqual(castlePoiCell(TRAINING_GROUNDS.rooms, castlePoi(SEGMENT_60_48_SPARRING_PIT, '60_48_west_door')));
+    });
+
+    it('the training grounds unlocks Combos: knowledge at battle start, Flurry before it, and the Combos tutorial', () => {
+        expect(TRAINING_GROUNDS.startRewards?.knowledgeKeys).toEqual([KNOWLEDGE_COMBOS]);
+        const grants = (TRAINING_GROUNDS.preMissionStory?.phrases ?? []).filter((p) => p.type === 'grant_research_auto');
+        expect(grants).toEqual([
+            {
+                type: 'grant_research_auto',
+                treeId: WEAPONS_TREE_ID,
+                nodeId: NODE_KNIFE_COMBO,
+                skipIfResearched: [{ treeId: WEAPONS_TREE_ID, nodeIds: [NODE_KNIFE_COMBO] }],
+            },
+        ]);
+        // No requiresKnowledge: it plays whether or not the player already had Flurry.
+        expect(TUTORIAL_COMBOS.trigger).toEqual({ type: 'battleStart', missionId: TRAINING_GROUNDS_MISSION_ID });
+        expect(TUTORIAL_COMBOS.requiresKnowledge).toBeUndefined();
     });
 
     it('walking and explore missions start with the party at the entry and opening enemies on open ground', () => {
@@ -294,20 +333,17 @@ describe('chapter 3 castle main path', () => {
         }
     });
 
-    it('training nodes sit on their tiles, with the two campsites side by side on the campfires', () => {
+    it('training nodes sit on their tiles, with the campsite between the two campfires', () => {
         expect(TRAINING_GROUNDS.mapPosition).toEqual(castleMapPosition(60, 47.5));
         expect(KENNELS_AND_RANGE.mapPosition).toEqual(castleMapPosition(59, 48));
 
         const west = castlePoiMapPosition(castlePoi(SEGMENT_59_47_ARCHERY_GREEN, '59_47_campfire_west'));
         const east = castlePoiMapPosition(castlePoi(SEGMENT_59_47_ARCHERY_GREEN, '59_47_campfire_east'));
-        const a = CAMPSITE_CH3_TRAINING_A.mapPosition;
-        const b = CAMPSITE_CH3_TRAINING_B.mapPosition;
-        expect(a.y).toBeCloseTo(b.y);
-        expect(a.x).toBeLessThan(b.x);
-        expect((a.x + b.x) / 2).toBeCloseTo((west.x + east.x) / 2);
-        expect((a.y + b.y) / 2).toBeCloseTo((west.y + east.y) / 2);
+        const camp = CAMPSITE_CH3_TRAINING.mapPosition;
+        expect(camp.x).toBeCloseTo((west.x + east.x) / 2);
+        expect(camp.y).toBeCloseTo((west.y + east.y) / 2);
         // Every node on the training branch is at least a node gap from the others.
-        const nodes = [TRAINING_GROUNDS.mapPosition, KENNELS_AND_RANGE.mapPosition, a, b];
+        const nodes = [TRAINING_GROUNDS.mapPosition, KENNELS_AND_RANGE.mapPosition, camp];
         for (let i = 0; i < nodes.length; i++) {
             for (let j = i + 1; j < nodes.length; j++) {
                 const d = Math.hypot(nodes[i]!.x - nodes[j]!.x, nodes[i]!.y - nodes[j]!.y);
@@ -317,7 +353,7 @@ describe('chapter 3 castle main path', () => {
 
         const ch3 = WorldOfDarknessStoryline.chapters!.find((c) => c.id === 'wod_ch3')!;
         expect(ch3.missionIds).toEqual(expect.arrayContaining([
-            TRAINING_GROUNDS_MISSION_ID, KENNELS_AND_RANGE_MISSION_ID, CAMPSITE_CH3_TRAINING_A_MISSION_ID, CAMPSITE_CH3_TRAINING_B_MISSION_ID,
+            TRAINING_GROUNDS_MISSION_ID, KENNELS_AND_RANGE_MISSION_ID, CAMPSITE_CH3_TRAINING_MISSION_ID,
         ]));
     });
 

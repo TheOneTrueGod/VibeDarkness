@@ -11,7 +11,7 @@ import {
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
 } from '../chapter2Map';
-import { castleMapPosition, sideBySideMapPositions } from '../chapter3Map';
+import { castleMapPosition } from '../chapter3Map';
 import { SEGMENT_59_47_ARCHERY_GREEN } from '../MapSegments/castle/59_47_archery_green';
 import { castlePoi, castlePoiMapPosition } from '../missions/castle/castleMission';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
@@ -43,9 +43,11 @@ export const CAMPSITE_MISSION_ID = 'campsite';
 export const CAMPSITE_2_MISSION_ID = 'campsite_2';
 /** Chapter 3 campsite on the 61_47 crossroads, after The Crossroads. */
 export const CAMPSITE_CH3_CROSSROADS_MISSION_ID = 'campsite_ch3_crossroads';
-/** Chapter 3 training-ring campsites, side by side on the 59_47 campfires, after Kennels and Range. */
-export const CAMPSITE_CH3_TRAINING_A_MISSION_ID = 'campsite_ch3_training_a';
-export const CAMPSITE_CH3_TRAINING_B_MISSION_ID = 'campsite_ch3_training_b';
+/**
+ * Chapter 3 training-ring campsite on the 59_47 campfires, after Kennels and Range. The id keeps its
+ * old `_a` suffix (there used to be two) so saved results still match.
+ */
+export const CAMPSITE_CH3_TRAINING_MISSION_ID = 'campsite_ch3_training_a';
 /** Chapter 3 campsite on the north wall, after either winding wall walk (east or west). */
 export const CAMPSITE_CH3_WALLS_MISSION_ID = 'campsite_ch3_walls';
 /** Chapter 3 campsites grant rank 11 or 12 research: new first abilities or upgrades to them. */
@@ -150,26 +152,13 @@ export const CAMPSITE_CH3_CROSSROADS = new CampsiteMission(
     campsiteResearchSlots(CAMPSITE_CH3_RESEARCH_MIN_TIER, CAMPSITE_CH3_RESEARCH_MAX_TIER),
 );
 
-/**
- * The two training campsites' Mission Map spots: the archery green's west and east campfire POIs,
- * spread apart about their midpoint so the two nodes do not overlap.
- */
-const [TRAINING_A_POSITION, TRAINING_B_POSITION] = sideBySideMapPositions(
-    castlePoiMapPosition(castlePoi(SEGMENT_59_47_ARCHERY_GREEN, '59_47_campfire_west')),
-    castlePoiMapPosition(castlePoi(SEGMENT_59_47_ARCHERY_GREEN, '59_47_campfire_east')),
-);
+/** Midway between the archery green's two campfire POIs (59_47), after Kennels and Range. */
+const TRAINING_WEST_FIRE = castlePoiMapPosition(castlePoi(SEGMENT_59_47_ARCHERY_GREEN, '59_47_campfire_west'));
+const TRAINING_EAST_FIRE = castlePoiMapPosition(castlePoi(SEGMENT_59_47_ARCHERY_GREEN, '59_47_campfire_east'));
 
-/** On the archery green's west campfire (59_47), after Kennels and Range. */
-export const CAMPSITE_CH3_TRAINING_A = new CampsiteMission(
-    CAMPSITE_CH3_TRAINING_A_MISSION_ID,
-    TRAINING_A_POSITION,
-    campsiteResearchSlots(CAMPSITE_CH3_RESEARCH_MIN_TIER, CAMPSITE_CH3_RESEARCH_MAX_TIER),
-);
-
-/** On the archery green's east campfire (59_47), after Kennels and Range. */
-export const CAMPSITE_CH3_TRAINING_B = new CampsiteMission(
-    CAMPSITE_CH3_TRAINING_B_MISSION_ID,
-    TRAINING_B_POSITION,
+export const CAMPSITE_CH3_TRAINING = new CampsiteMission(
+    CAMPSITE_CH3_TRAINING_MISSION_ID,
+    { x: (TRAINING_WEST_FIRE.x + TRAINING_EAST_FIRE.x) / 2, y: (TRAINING_WEST_FIRE.y + TRAINING_EAST_FIRE.y) / 2 },
     campsiteResearchSlots(CAMPSITE_CH3_RESEARCH_MIN_TIER, CAMPSITE_CH3_RESEARCH_MAX_TIER),
 );
 

@@ -32,7 +32,6 @@ import type { TerrainAccessId } from '../../terrain/TerrainType';
 import { LIFTED_BUFF_TYPE } from '../../buffs/liftedBuffType';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import {
-    getDefaultHp,
     getDefaultRadius,
     getUnitCombatCcDef,
     getUnitComponentSpecs,
@@ -45,7 +44,6 @@ import {
     PLAYER_CHARACTER_ID,
     resolvePlayerUnitRadius,
 } from './unit_defs/unitDef';
-import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import { evaluateSwapTriggers } from '../../abilities/abilitySwap';
 import { UnitTag } from './unitTag';
 import type { EngineContext } from '../EngineContext';
@@ -511,17 +509,6 @@ export class Unit extends GameObject {
      */
     isUntargetable(): boolean {
         return this.isSpawning() || this.isInTerrainHazard() || isEtherealCharacter(this.characterId);
-    }
-
-    /**
-     * Calculate max health from unit def base + Training health maps + unit passiveBonuses.
-     * Prefer the bag attached at mission start; callers without a bag get Training-map HP only.
-     * @param getResearchNodes Callback (treeId) => researched node IDs for this unit's owner.
-     */
-    calculateMaxHealth(getResearchNodes: (treeId: string) => string[]): number {
-        const base = getDefaultHp(this.characterId);
-        const bonus = getHealthBonusFromResearch(getResearchNodes);
-        return applyPassiveBonusToBase(base + bonus, this.passiveBonuses?.maxHealth);
     }
 
     /** Return this unit's damage modifier; defaults to no bonus. */

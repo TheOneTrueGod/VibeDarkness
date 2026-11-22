@@ -11,7 +11,8 @@ import { KNOWLEDGE_COMBOS } from '../accountKnowledge';
 import { meetsRequirement, type ResearchContext } from './evaluator';
 import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { weaponsTree } from './trees/weapons';
-import { KNIVES_ROOT_NODE_ID, NODE_KNIFE_COMBO, WEAPONS_TREE_ID } from './trees/weaponTreeIds';
+import { NODE_KNIFE_COMBO, NODE_MORE_ROCK, WEAPONS_TREE_ID } from './trees/weaponTreeIds';
+import { isVirtualRootNode } from './types';
 import type { AccountState, CampaignResources } from '../types';
 
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
@@ -104,18 +105,31 @@ describe('Flurry (knife combo research node)', () => {
         };
     }
 
-    it('grants unlimited Combo on throw_knife when researched', () => {
-        const modifiers = computeAbilityModifiersFromResearch(
-            { [WEAPONS_TREE_ID]: [NODE_KNIFE_COMBO] },
-            undefined,
-            [THROW_KNIFE_ABILITY_ID],
-        );
-        expect(modifiers[THROW_KNIFE_ABILITY_ID]?.comboUnlimited).toBe(true);
+    it("Flurry grants unlimited Combo to every weapon's basic ability (each virtual root)", () => {
+        const rootAbilityIds = weaponsTree.nodes.filter(isVirtualRootNode).map((n) => n.modifiesAbility!.to);
+        expect(rootAbilityIds).toEqual(expect.arrayContaining([THROW_KNIFE_ABILITY_ID, THROW_ROCK_ABILITY_ID, '0103']));
+        const modifiers = computeAbilityModifiersFromResearch({ [WEAPONS_TREE_ID]: [NODE_KNIFE_COMBO] });
+        for (const abilityId of rootAbilityIds) {
+            expect(modifiers[abilityId]?.comboUnlimited, abilityId).toBe(true);
+        }
     });
 
-    it('requires Knowledge: Combos', () => {
+    it('Flurry stops at the basic abilities: higher-tier weapon nodes do not add their abilities', () => {
+        const higherTier = weaponsTree.nodes.filter((n) => (n.tier ?? 0) > 1 && n.modifiesAbility);
+        const rootAbilityIds = new Set(weaponsTree.nodes.filter(isVirtualRootNode).map((n) => n.modifiesAbility!.to));
+        const modifiers = computeAbilityModifiersFromResearch({ [WEAPONS_TREE_ID]: [NODE_KNIFE_COMBO] });
+        for (const node of higherTier) {
+            const id = node.modifiesAbility!.to;
+            if (rootAbilityIds.has(id)) continue;
+            expect(modifiers[id]?.comboUnlimited, `${node.id} -> ${id}`).toBeUndefined();
+        }
+        expect(weaponsTree.nodes.find((n) => n.id === NODE_MORE_ROCK)!.tier).toBeGreaterThan(1);
+    });
+
+    it('requires only Knowledge: Combos (no weapon root)', () => {
         const node = weaponsTree.nodes.find((n) => n.id === NODE_KNIFE_COMBO)!;
-        const researched = { [WEAPONS_TREE_ID]: new Set([KNIVES_ROOT_NODE_ID]) };
+        expect(node.prereqNodeIds).toEqual([]);
+        const researched = {};
         const without = ctxWithKnowledge({});
         const withKnowledge = ctxWithKnowledge({ [KNOWLEDGE_COMBOS]: {} });
         expect(node.requirements.every((r) => meetsRequirement(r, without, researched))).toBe(false);

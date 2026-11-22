@@ -6,10 +6,6 @@ import type { Unit } from '../../game/units/Unit';
 import { createPlayerUnit } from '../../game/units/index';
 import { getDefaultHp, PLAYER_CHARACTER_ID } from '../../game/units/unit_defs/unitDef';
 import {
-    getHealthBonusFromResearch,
-    getDamageBonusFromResearch,
-} from '../../research/researchTrainingEffects';
-import {
     applyPassiveBonusToBase,
     computePassiveBonuses,
     DEFAULT_PASSIVE_MULT,
@@ -127,9 +123,7 @@ export function spawnTinyPlayerUnit(
         params.playerResearchNodeLevelsByPlayer?.[params.playerId],
     );
     const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
-    const healthBonus = getHealthBonusFromResearch(getResearchNodes);
-    const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);
-    const maxHp = applyPassiveBonusToBase(baseHp + healthBonus, passiveBonuses.maxHealth);
+    const maxHp = applyPassiveBonusToBase(baseHp, passiveBonuses.maxHealth);
     const damageMultiplier = getOutgoingDamageMultiplier(passiveBonuses);
     const unit = createPlayerUnit(
         {
@@ -143,8 +137,8 @@ export function spawnTinyPlayerUnit(
             hp: maxHp,
             maxHp,
             combatSettings:
-                flatDamageBonus > 0 || damageMultiplier !== DEFAULT_PASSIVE_MULT
-                    ? { damageModifier: { flatAmt: flatDamageBonus, multiplier: damageMultiplier } }
+                damageMultiplier !== DEFAULT_PASSIVE_MULT
+                    ? { damageModifier: { flatAmt: 0, multiplier: damageMultiplier } }
                     : undefined,
             passiveBonuses,
         },

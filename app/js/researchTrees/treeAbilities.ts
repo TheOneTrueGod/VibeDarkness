@@ -1,13 +1,16 @@
 import { getItemDef } from '../games/minion_battles/character_defs/items';
 import { getInactiveResearchNodeIds } from './activeResearch';
+import { staticSpecifiedAbilityIds } from './abilitySpecification';
 import {
     getVirtualRootItemIds,
     hasVirtualRootNodes,
     isDisabledResearchNode,
     isDraftResearchNode,
     isVirtualRootNode,
+    type ResearchNodeDef,
     type ResearchTreeDef,
 } from './types';
+import { hasAccountKnowledge, type AccountKnowledgeMap } from '../accountKnowledge';
 
 /** Abilities the tree owns outright: `ownedAbilityIds` plus the cards of its access and virtual-root items. */
 function ownedBaseAbilityIds(tree: ResearchTreeDef): Set<string> {
@@ -55,9 +58,9 @@ export function collectResearchTreeAbilityIds(tree: ResearchTreeDef): Set<string
             ids.add(modified.to);
         }
         for (const mod of node.abilityResearchModifiers ?? []) {
-            if (mod.abilitySpecification.type !== 'abilityId') continue;
-            const abilityId = mod.abilitySpecification.abilityId;
-            if (isOwned(abilityId)) ids.add(abilityId);
+            for (const abilityId of staticSpecifiedAbilityIds(mod.abilitySpecification) ?? []) {
+                if (isOwned(abilityId)) ids.add(abilityId);
+            }
         }
     }
 
@@ -82,29 +85,45 @@ function treeHasResearchedNodes(
     return (researchedTrees?.[treeId] ?? []).length > 0;
 }
 
+/** True when every `accountKnowledge` requirement on the node is in `knowledge`. */
+function nodeKnowledgeMet(node: ResearchNodeDef, knowledge: AccountKnowledgeMap): boolean {
+    return node.requirements.every((r) => r.type !== 'accountKnowledge' || hasAccountKnowledge(knowledge, r.key));
+}
+
 /**
  * True when the tree has a player-facing node besides its virtual roots that is active for
- * `equipment` (pass `undefined` to ignore equipment).
+ * `equipment` (pass `undefined` to ignore equipment). With `knowledge`, a node gated by account
+ * knowledge the player lacks (e.g. Flurry before Combos) does not count.
  */
-export function researchTreeHasNonRootNodes(tree: ResearchTreeDef, equipment?: readonly string[]): boolean {
+export function researchTreeHasNonRootNodes(
+    tree: ResearchTreeDef,
+    equipment?: readonly string[],
+    knowledge?: AccountKnowledgeMap,
+): boolean {
     const inactive = equipment ? getInactiveResearchNodeIds(tree, equipment) : new Set<string>();
     return tree.nodes.some(
-        (n) => !isVirtualRootNode(n) && !inactive.has(n.id) && !isDraftResearchNode(n) && !isDisabledResearchNode(n),
+        (n) =>
+            !isVirtualRootNode(n)
+            && !inactive.has(n.id)
+            && !isDraftResearchNode(n)
+            && !isDisabledResearchNode(n)
+            && (knowledge === undefined || nodeKnowledgeMet(n, knowledge)),
     );
 }
 
 /**
  * Players see trees they have abilities in, or that they have already researched. A tree with
- * virtual roots (Weapons) is hidden while nothing but roots is active for `equipment`: admins
- * still list it, dimmed.
+ * virtual roots (Weapons) is hidden while nothing but roots is active for `equipment` (and, with
+ * `knowledge`, open to the player): admins still list it, dimmed.
  */
 export function isPlayerVisibleResearchTree(
     tree: ResearchTreeDef,
     researchedTrees: Record<string, string[]> | undefined,
     playerAbilityIds: ReadonlySet<string>,
     equipment?: readonly string[],
+    knowledge?: AccountKnowledgeMap,
 ): boolean {
-    if (hasVirtualRootNodes(tree) && !researchTreeHasNonRootNodes(tree, equipment)) return false;
+    if (hasVirtualRootNodes(tree) && !researchTreeHasNonRootNodes(tree, equipment, knowledge)) return false;
     return researchTreeMatchesAbilityIds(tree, playerAbilityIds) || treeHasResearchedNodes(researchedTrees, tree.id);
 }
 

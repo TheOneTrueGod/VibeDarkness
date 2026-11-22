@@ -1,6 +1,7 @@
 /** World of Darkness tutorials. Registered in `storylines/tutorialRegistry.ts`; see `tutorials/tutorialTypes.ts`. */
 import {
     KNOWLEDGE_TUTORIAL_BATTLE_BASICS,
+    KNOWLEDGE_TUTORIAL_COMBOS,
     KNOWLEDGE_TUTORIAL_CRYSTALS,
     KNOWLEDGE_TUTORIAL_CC_RESISTANCE,
     KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES,
@@ -14,6 +15,9 @@ import { ENEMY_ALPHA_WOLF, ENEMY_DARK_WOLF } from '../../constants/enemyConstant
 import { DARK_AWAKENING } from './missions/001_dark_awakening';
 import { TOWARDS_THE_LIGHT } from './missions/002_towards_the_light';
 import { LIGHT_EMPOWERED } from './missions/003_light_empowered';
+import { TRAINING_GROUNDS_MISSION_ID } from './missions/017_training_grounds';
+import { staticSpecifiedAbilityIds } from '../../../../researchTrees/abilitySpecification';
+import { WEAPON_BASIC_ABILITIES_SPEC } from '../../../../researchTrees/trees/weapons';
 
 const PUNCH_ABILITY_ID = '0120';
 const THROW_TORCH_ABILITY_ID = '0601';
@@ -166,6 +170,30 @@ export const TUTORIAL_REACTIONS: TutorialDef = {
     ],
 };
 
+/**
+ * The Training Grounds opening, where Combos unlock (the mission grants Flurry before the fight). Shown
+ * whether or not the player already had Flurry. Points at the player's weapon ability.
+ */
+export const TUTORIAL_COMBOS: TutorialDef = {
+    id: 'combos_intro',
+    knowledgeKey: KNOWLEDGE_TUTORIAL_COMBOS,
+    title: 'Combos',
+    trigger: { type: 'battleStart', missionId: TRAINING_GROUNDS_MISSION_ID },
+    steps: [
+        {
+            text: "Your weapon's basic ability now has {Combo}.",
+            pointAt: { type: 'abilityCard', abilityIds: staticSpecifiedAbilityIds(WEAPON_BASIC_ABILITIES_SPEC) ?? [] },
+            advance: { type: 'next' },
+        },
+        {
+            text:
+                'When a {Combo} attack finishes, you can use it again right away instead of waiting. ' +
+                'Each follow-up chains on, so you can keep attacking.',
+            advance: { type: 'next', label: 'Got it' },
+        },
+    ],
+};
+
 export const WORLD_OF_DARKNESS_TUTORIALS: readonly TutorialDef[] = [
     TUTORIAL_FIRST_BATTLE,
     TUTORIAL_LIGHT,
@@ -174,4 +202,5 @@ export const WORLD_OF_DARKNESS_TUTORIALS: readonly TutorialDef[] = [
     TUTORIAL_CC_RESISTANCE,
     TUTORIAL_JUGGERNAUT_FRAMES,
     TUTORIAL_REACTIONS,
+    TUTORIAL_COMBOS,
 ];

@@ -57,10 +57,6 @@ import {
 } from '../character_defs/characterLoadout';
 import { getDefaultHp, PLAYER_CHARACTER_ID, resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
 import {
-    getDamageBonusFromResearch,
-    getHealthBonusFromResearch,
-} from '../research/researchTrainingEffects';
-import {
     applyPassiveBonusToBase,
     computePassiveBonuses,
     DEFAULT_PASSIVE_MULT,
@@ -485,18 +481,11 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             const passiveBonuses =
                 mergePassiveBonuses(researchPassives, dsPlayerBag) ?? researchPassives;
             const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
-            const healthBonus = getHealthBonusFromResearch(getResearchNodes);
-            const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);
-            const maxHp = applyPassiveBonusToBase(baseHp + healthBonus, passiveBonuses.maxHealth);
+            const maxHp = applyPassiveBonusToBase(baseHp, passiveBonuses.maxHealth);
             const damageMultiplier = getOutgoingDamageMultiplier(passiveBonuses);
             const combatSettings =
-                flatDamageBonus > 0 || damageMultiplier !== DEFAULT_PASSIVE_MULT
-                    ? {
-                          damageModifier: {
-                              flatAmt: flatDamageBonus,
-                              multiplier: damageMultiplier,
-                          },
-                      }
+                damageMultiplier !== DEFAULT_PASSIVE_MULT
+                    ? { damageModifier: { flatAmt: 0, multiplier: damageMultiplier } }
                     : undefined;
             const weaponAbilityIds = loadout.weaponAbilityIds.filter((id) => abilities.includes(id));
             const unit = createPlayerUnit(

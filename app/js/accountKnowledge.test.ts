@@ -19,6 +19,7 @@ import {
     KNOWLEDGE_TUTORIAL_CC_RESISTANCE,
     KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES,
     KNOWLEDGE_TUTORIAL_REACTIONS,
+    KNOWLEDGE_TUTORIAL_COMBOS,
     KNOWLEDGE_REACTIONS,
     KNOWLEDGE_COMBOS,
 } from './accountKnowledge';
@@ -50,7 +51,7 @@ describe('account knowledge registry', () => {
             KNOWLEDGE_TUTORIAL_CC_RESISTANCE,
             KNOWLEDGE_TUTORIAL_JUGGERNAUT_FRAMES,
         ];
-        const tierThree = [KNOWLEDGE_REACTIONS, KNOWLEDGE_COMBOS, KNOWLEDGE_TUTORIAL_REACTIONS];
+        const tierThree = [KNOWLEDGE_REACTIONS, KNOWLEDGE_COMBOS, KNOWLEDGE_TUTORIAL_REACTIONS, KNOWLEDGE_TUTORIAL_COMBOS];
         for (const k of ACCOUNT_KNOWLEDGE) {
             const expected = tierOne.includes(k.key) ? 1 : tierThree.includes(k.key) ? 3 : 2;
             expect(k.tier, k.key).toBe(expected);

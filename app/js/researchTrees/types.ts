@@ -60,7 +60,14 @@ export type ResearchEffect =
  */
 export type AbilitySpecification =
     | { type: 'abilityId'; abilityId: string }
-    | { type: 'tag'; tag: string };
+    | { type: 'tag'; tag: string }
+    /**
+     * Every ability a node of `treeId` modifies (`modifiesAbility.to`) when that node's display `tier` is in
+     * [`minTier` (default 0), `maxTier`]. Resolved from the tree definitions alone, so it does not need the
+     * unit's abilities. Weapons with `maxTier: 1` is each weapon's basic ability (its virtual root).
+     * Resolve with `resolveSpecifiedAbilityIds` (`abilitySpecification.ts`).
+     */
+    | { type: 'researchTreeTier'; treeId: string; maxTier: number; minTier?: number };
 
 /** Aggregated per-ability modifier passed to ability logic at runtime. */
 export interface AbilityModifier {
