@@ -34,20 +34,20 @@ export default function SyncStatusCard({
               }
             : tone === 'info'
               ? {
-                    border: 'border-sky-500/50',
-                    bg: 'bg-sky-950/92',
-                    title: 'text-sky-200/95',
-                    summary: 'text-sky-100',
-                    detail: 'text-sky-100/88',
-                    spinner: 'border-sky-300/85 border-t-transparent',
+                    border: 'border-yellow-400/55',
+                    bg: 'bg-yellow-950/95',
+                    title: 'text-yellow-200/95',
+                    summary: 'text-yellow-100',
+                    detail: 'text-yellow-100/90',
+                    spinner: 'border-yellow-300/85 border-t-transparent',
                 }
               : tone === 'danger'
                 ? {
                       border: 'border-red-500/55',
-                      bg: 'bg-red-950/92',
+                      bg: 'bg-red-950/95',
                       title: 'text-red-200/95',
                       summary: 'text-red-100',
-                      detail: 'text-red-100/88',
+                      detail: 'text-red-100/90',
                       spinner: 'border-red-300/85 border-t-transparent',
                   }
                 : tone === 'neutral'
