@@ -54,10 +54,25 @@ export interface TimerRingDef {
     offsetPx: number;
 }
 
+/**
+ * A drawn plant body in place of the character sprite, so each kind has its own outline (artbook "silhouettes"):
+ * - `turret`: a spiked base and a thorned barrel that turns to its AI target.
+ * - `mortar`: a pod with an upright barrel. `gourd`: a two-lobed gourd whose holes glow open.
+ * - `creeper`: tendrils curling out of the plates; open, a coiled thorny vine. `lily`: petals round a glowing core.
+ * - `seed`: a cracked seed; its cracks glow while its fused-body blast is telegraphed.
+ * The shell state comes from `plated` (closed while a flat reduction is active); its colours colour the plates.
+ */
+export type PlantFormId = 'turret' | 'mortar' | 'gourd' | 'creeper' | 'lily' | 'seed';
+
+export interface PlantFormDef {
+    form: PlantFormId;
+}
+
 export interface UnitRenderOptions {
     plated?: PlatedLookDef;
     burrow?: BurrowLookDef;
     timerRing?: TimerRingDef;
+    plantForm?: PlantFormDef;
 }
 
 /** Red used for a blast telegraph when the fused body does not set its own. */
@@ -87,6 +102,46 @@ export function resolvePlatedLook(unit: Unit): PlatedLook | null {
     if (!def) return null;
     const closed = unit.flatDamageReductions.some((r) => isFlatReductionActive(r, unit));
     return { state: closed ? 'closed' : 'open', def };
+}
+
+// ---------------------------------------------------------------------------
+// Plant form
+// ---------------------------------------------------------------------------
+
+export interface PlantFormLook {
+    form: PlantFormId;
+    /** Shell open (no flat reduction active, or no `plated` option at all). */
+    open: boolean;
+    /** Plate colours: the `plated` option's, else null (the painter's Nightbloom defaults). */
+    plated: PlatedLookDef | null;
+    /** 0-1 through a fused-body telegraph (the seed about to burst), else null. */
+    bursting: number | null;
+}
+
+export function resolvePlantForm(unit: Unit): PlantFormLook | null {
+    const options = getUnitRenderOptions(unit.characterId);
+    const def = options?.plantForm;
+    if (!def) return null;
+    const plated = resolvePlatedLook(unit);
+    const telegraph = resolveFusedBodyTelegraph(unit);
+    return { form: def.form, open: plated ? plated.state === 'open' : true, plated: plated?.def ?? null, bursting: telegraph ? telegraph.fill : null };
+}
+
+/**
+ * Where an aiming form points (radians, 0 = +x, screen y down): at the unit's AI target when it has one alive,
+ * else null (keep the last aim). `getUnit` looks a unit up by id.
+ */
+export function resolvePlantAim(
+    unit: Unit,
+    getUnit: (id: string) => { x: number; y: number; isAlive(): boolean } | undefined,
+): number | null {
+    const targetId = (unit.aiContext as { targetUnitId?: string } | undefined)?.targetUnitId;
+    const target = targetId ? getUnit(targetId) : undefined;
+    if (!target?.isAlive()) return null;
+    const dx = target.x - unit.x;
+    const dy = target.y - unit.y;
+    if (dx === 0 && dy === 0) return null;
+    return Math.atan2(dy, dx);
 }
 
 // ---------------------------------------------------------------------------

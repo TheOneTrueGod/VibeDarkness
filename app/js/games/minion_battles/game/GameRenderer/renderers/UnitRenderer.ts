@@ -33,7 +33,7 @@ import {
 } from '../../units/unit_defs/unitDef';
 import { getSpawnRenderState } from '../../units/spawnVisuals';
 import { getDrowningRenderState, type DrowningRenderState } from '../../terrainHazards/drowning';
-import { resolveBurrowRender } from '../../units/unitRenderOptions';
+import { resolveBurrowRender, resolvePlantAim } from '../../units/unitRenderOptions';
 import { syncPlatedLook, syncTimerRing } from './unitRenderOptionsVisual';
 import { DisplayWiggle } from '../displayWiggle';
 import { shouldShowJuggernautRing, syncJuggernautRing } from './juggernautRing';
@@ -378,7 +378,8 @@ export class UnitRenderer {
 
             syncDarknessNeedles(visual, unit);
             // Plated shell look (`UnitDefEntry.renderOptions.plated`): closed while a flat reduction is active, open after.
-            syncPlatedLook(visual, unit, nowMs / 1000);
+            // Plant forms (`renderOptions.plantForm`) are drawn here too; a turret aims at its AI target.
+            syncPlatedLook(visual, unit, nowMs / 1000, resolvePlantAim(unit, (id) => engine.getUnit(id)));
             // Timer ring (`renderOptions.timerRing`): a thin arc outside the body draining over a status window (world time).
             syncTimerRing(visual, unit, engine.gameTime);
 

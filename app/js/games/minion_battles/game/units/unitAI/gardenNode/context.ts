@@ -1,6 +1,6 @@
 /**
- * gardenNode tree AI context (the Garden Heart and every node kind: Thornspitter, Pod Mortar, Mender Bloom, Hive Gourd,
- * Creeper).
+ * gardenNode tree AI context (the Garden Heart and every node kind: Thornspitter, Pod Mortar, Hive Gourd, Creeper,
+ * Gloam Lily).
  */
 
 import type { UnitAIContextBase } from '../contextBase';

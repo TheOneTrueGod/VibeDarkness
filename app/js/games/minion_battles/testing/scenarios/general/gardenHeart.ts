@@ -28,7 +28,6 @@ import {
     ENEMY_DARK_WOLF,
     ENEMY_GARDEN_HEART,
     ENEMY_GLOAM_LILY,
-    ENEMY_MENDER_BLOOM,
     ENEMY_POD_MORTAR,
     ENEMY_THORNSPITTER,
 } from '../../../constants/enemyConstants';
@@ -767,11 +766,11 @@ export const gardenHeartLightAndDarknessScenario: ScenarioDefinition = {
 interface WildRun {
     heart: Unit;
     wolf: Unit;
-    bloom: Unit;
+    plant: Unit;
     cast: boolean;
     wolfHit: boolean;
-    bloomHit: boolean;
-    thornPassedBloom: boolean;
+    plantHit: boolean;
+    thornPassedPlant: boolean;
 }
 const wildRuns = new WeakMap<GameEngine, WildRun>();
 
@@ -790,15 +789,15 @@ export const gardenHeartWildScenario: ScenarioDefinition = {
         // Close enough that the arm's thorns are less than a unit width apart where they pass; the arm sweeps every
         // direction once in the window, so each of them is crossed.
         const wolf = addEnemy(engine, ENEMY_DARK_WOLF, heart.x + 100, heart.y);
-        const bloom = addEnemy(engine, ENEMY_MENDER_BLOOM, heart.x - 100, heart.y);
+        const plant = addEnemy(engine, ENEMY_GLOAM_LILY, heart.x - 100, heart.y);
         wolf.maxHp = wolf.hp = 100000; // survives the thorns so the hit can be seen
         // A forced cast, as the Bared callback does.
         grantAbilityUses(heart, PINWHEEL_ABILITY_ID, 1);
         executeUnitAbility(heart, getAbility(PINWHEEL_ABILITY_ID)!, [], engine);
-        const run: WildRun = { heart, wolf, bloom, cast: true, wolfHit: false, bloomHit: false, thornPassedBloom: false };
+        const run: WildRun = { heart, wolf, plant, cast: true, wolfHit: false, plantHit: false, thornPassedPlant: false };
         engine.eventBus.on('damage_taken', (e: DamageTakenEvent) => {
             if (e.unitId === wolf.id) run.wolfHit = true;
-            if (e.unitId === bloom.id) run.bloomHit = true;
+            if (e.unitId === plant.id) run.plantHit = true;
         });
         wildRuns.set(engine, run);
         holdOpen(engine, player, 8);
@@ -810,15 +809,15 @@ export const gardenHeartWildScenario: ScenarioDefinition = {
     assertPass(engine) {
         const run = wildRuns.get(engine)!;
         for (const p of engine.projectiles) {
-            if (p.sourceAbilityId === PINWHEEL_ABILITY_ID && Math.hypot(p.x - run.bloom.x, p.y - run.bloom.y) < 14) {
-                run.thornPassedBloom = true;
+            if (p.sourceAbilityId === PINWHEEL_ABILITY_ID && Math.hypot(p.x - run.plant.x, p.y - run.plant.y) < 14) {
+                run.thornPassedPlant = true;
             }
         }
-        return run.wolfHit && run.thornPassedBloom && !run.bloomHit && run.bloom.hp === run.bloom.maxHp;
+        return run.wolfHit && run.thornPassedPlant && !run.plantHit && run.plant.hp === run.plant.maxHp;
     },
     failureMessage(engine) {
         const run = wildRuns.get(engine);
-        return `cast=${run?.cast} wolfHit=${run?.wolfHit} thornPassedBloom=${run?.thornPassedBloom} bloomHit=${run?.bloomHit}`;
+        return `cast=${run?.cast} wolfHit=${run?.wolfHit} thornPassedPlant=${run?.thornPassedPlant} plantHit=${run?.plantHit}`;
     },
 };
 

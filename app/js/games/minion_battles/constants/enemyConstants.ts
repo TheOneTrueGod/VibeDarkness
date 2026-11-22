@@ -243,16 +243,6 @@ export const ENEMY_POD_MORTAR: EnemySpawnDef = {
     unitAITreeId: 'gardenNode',
 };
 
-export const ENEMY_MENDER_BLOOM: EnemySpawnDef = {
-    characterId: 'mender_bloom',
-    name: 'Mender Bloom',
-    position: { x: 0, y: 0 },
-    teamId: 'enemy',
-    abilities: ['1603'],
-    aiSettings: { minRange: 0, maxRange: 0 },
-    unitAITreeId: 'gardenNode',
-};
-
 export const ENEMY_HIVE_GOURD: EnemySpawnDef = {
     characterId: 'hive_gourd',
     name: 'Hive Gourd',

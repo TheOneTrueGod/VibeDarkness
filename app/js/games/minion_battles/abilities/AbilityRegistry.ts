@@ -82,7 +82,6 @@ import { ConjureCrystalAbility_1407 } from '../card_defs/14_enemy_court_magician
 import { CrystalLaserAbility_1490 } from '../card_defs/14_enemy_court_magician/1490_CrystalLaser/1490Ability';
 import { ThornFansAbility_1601 } from '../card_defs/16_enemy_garden_heart/1601_ThornFans/1601Ability';
 import { LobSeedAbility_1602 } from '../card_defs/16_enemy_garden_heart/1602_LobSeed/1602Ability';
-import { MendAbility_1603 } from '../card_defs/16_enemy_garden_heart/1603_Mend/1603Ability';
 import '../card_defs/16_enemy_garden_heart/gardenHeartRegistrations';
 import { RunnerVineAbility_1604 } from '../card_defs/16_enemy_garden_heart/1604_RunnerVine/1604Ability';
 import { SpikeRingAbility_1605 } from '../card_defs/16_enemy_garden_heart/1605_SpikeRing/1605Ability';
@@ -235,7 +234,6 @@ register(ConjureCrystalAbility_1407);
 register(CrystalLaserAbility_1490);
 register(ThornFansAbility_1601);
 register(LobSeedAbility_1602);
-register(MendAbility_1603);
 register(RunnerVineAbility_1604);
 register(SpikeRingAbility_1605);
 register(PinwheelAbility_1607);

@@ -56,7 +56,6 @@ import {
     ENEMY_GARDEN_HEART,
     ENEMY_THORNSPITTER,
     ENEMY_POD_MORTAR,
-    ENEMY_MENDER_BLOOM,
     ENEMY_HIVE_GOURD,
     ENEMY_CREEPER,
     ENEMY_GLOAM_LILY,
@@ -95,6 +94,7 @@ import {
     GARDEN_HEART_ROUND_HOP,
     GARDEN_TRICKLE_RULE_ID,
     GARDEN_NODE_RENDER_OPTIONS,
+    gardenNodeLook,
     GARDEN_WILD_HIT_RULE,
     DRINK_LIGHT_ABILITY_ID,
     GLOAM_LILY_HP,
@@ -188,7 +188,6 @@ export type EnemyUnitId =
     | 'garden_heart'
     | 'thornspitter'
     | 'pod_mortar'
-    | 'mender_bloom'
     | 'hive_gourd'
     | 'creeper'
     | 'gloam_lily';
@@ -759,6 +758,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 0,
         creatureType: 'nature',
+        // Drawn as a cracked seed whose cracks glow while its blast is telegraphed (no in-battle sprite).
+        renderOptions: { plantForm: { form: 'seed' } },
         tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         // 5 s fuse, last 1.5 s telegraphed, reaction frame 0.2 s before the burst. Killing it first cancels the burst.
         components: [
@@ -840,15 +841,15 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         // Retreats when a phase's health pool is gone: the old tree dies to Briar, the Heart resurfaces elsewhere with the next tree.
         phases: GARDEN_HEART_PHASES,
         uiDescription:
-            'A plated seed pod rooted in the garden. While anything grows from it, its Shell turns aside almost any hit, and every tip you cut costs it health. Cut the last tip and it is bared for five seconds: it spins thorns and takes extra damage, then the whole plant regrows. Stuns and knockbacks do nothing to it, and its thorns hurt everything but plants. Once a round it burrows a little way around the pond, plant and all. When it has lost enough, it sinks into the ground and comes up farther round the pond with a bigger plant.',
+            'A plated seed pod rooted in the garden. While anything grows from it, its Shell turns aside almost any hit, and every tip you cut costs it health. Cut the last tip and it is bared for five seconds: it spins thorns and takes extra damage, then the whole plant regrows. Stuns and knockbacks do nothing to it, and its thorns hurt everything but plants. Once a round it burrows a little way around the pond, bursting up where it surfaces, and leaves its plant to follow. When it has lost enough, it sinks into the ground and comes up farther round the pond with a bigger plant.',
     },
     thornspitter: {
         bodyColor: 0x134e4a,
         displayName: 'Thornspitter',
         sprite: UNIT_SPRITE_URLS.curling_vines,
         bestiary: { abilityIds: ['1601'] },
-        baseSpawn: ENEMY_THORNSPITTER,
         characterSpriteKey: 'curling_vines',
+        baseSpawn: ENEMY_THORNSPITTER,
         hp: 40,
         // Rooted: nodes never walk (`burrowHop` moves them).
         speed: 0,
@@ -858,7 +859,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'nature',
         tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
-        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        renderOptions: gardenNodeLook('turret'),
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
             componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
@@ -871,8 +872,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         displayName: 'Pod Mortar',
         sprite: UNIT_SPRITE_URLS.curling_vines,
         bestiary: { abilityIds: ['1602'] },
-        baseSpawn: ENEMY_POD_MORTAR,
         characterSpriteKey: 'curling_vines',
+        baseSpawn: ENEMY_POD_MORTAR,
         hp: 40,
         // Rooted: nodes never walk (`burrowHop` moves them).
         speed: 0,
@@ -882,7 +883,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'nature',
         tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
-        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        renderOptions: gardenNodeLook('mortar'),
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
             componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
@@ -890,36 +891,13 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         uiDescription:
             'A garden node that lobs a seed. It bursts after five seconds unless it is destroyed first.',
     },
-    mender_bloom: {
-        bodyColor: 0x134e4a,
-        displayName: 'Mender Bloom',
-        sprite: UNIT_SPRITE_URLS.curling_vines,
-        bestiary: { abilityIds: ['1603'] },
-        baseSpawn: ENEMY_MENDER_BLOOM,
-        characterSpriteKey: 'curling_vines',
-        hp: 50,
-        speed: 0,
-        size: 'Medium',
-        stamina: 1,
-        perceptionRange: 520,
-        creatureType: 'nature',
-        tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
-        flatDamageReductions: [SHELL_REDUCTION],
-        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
-        components: [
-            componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
-            componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
-        ],
-        uiDescription:
-            'A rooted flower that heals the garden nodes around it, the Heart included. Like every node it burrows to a new spot every few seconds.',
-    },
     gloam_lily: {
         bodyColor: 0x134e4a,
         displayName: 'Gloam Lily',
         sprite: UNIT_SPRITE_URLS.curling_vines,
         bestiary: { abilityIds: [DRINK_LIGHT_ABILITY_ID] },
-        baseSpawn: ENEMY_GLOAM_LILY,
         characterSpriteKey: 'curling_vines',
+        baseSpawn: ENEMY_GLOAM_LILY,
         hp: GLOAM_LILY_HP,
         // Rooted like every node: it moves only by burrowing (`burrowHop`).
         speed: 0,
@@ -929,7 +907,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'nature',
         tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
-        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        renderOptions: gardenNodeLook('lily'),
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
             componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
@@ -942,8 +920,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         displayName: 'Hive Gourd',
         sprite: UNIT_SPRITE_URLS.curling_vines,
         bestiary: { abilityIds: [] },
-        baseSpawn: ENEMY_HIVE_GOURD,
         characterSpriteKey: 'curling_vines',
+        baseSpawn: ENEMY_HIVE_GOURD,
         hp: 70,
         // Rooted: nodes never walk (`burrowHop` moves them).
         speed: 0,
@@ -953,7 +931,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'nature',
         tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
-        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        renderOptions: gardenNodeLook('gourd'),
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
             componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
@@ -974,8 +952,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         displayName: 'Creeper',
         sprite: UNIT_SPRITE_URLS.curling_vines,
         bestiary: { abilityIds: ['1604'] },
-        baseSpawn: ENEMY_CREEPER,
         characterSpriteKey: 'curling_vines',
+        baseSpawn: ENEMY_CREEPER,
         hp: 45,
         // Rooted: nodes never walk (`burrowHop` moves them).
         speed: 0,
@@ -985,7 +963,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'nature',
         tags: [UnitTag.Structure, UnitTag.BleedImmune, UnitTag.GardenKin],
         flatDamageReductions: [SHELL_REDUCTION],
-        renderOptions: GARDEN_NODE_RENDER_OPTIONS,
+        renderOptions: gardenNodeLook('creeper'),
         components: [
             componentSpec(NODE_TREE_COMPONENT, { onLastChildDied: SHELL_OPEN_CALLBACK_ID }),
             componentSpec(BURROW_HOP_COMPONENT, GARDEN_NODE_HOP),
@@ -1177,7 +1155,8 @@ class DefaultUnitDef implements IUnitDef {
         let characterTexture: Texture | null = null;
         if (unit.characterId === PLAYER_CHARACTER_ID && unit.portraitId) {
             characterTexture = context.getPlayerPortraitTexture(unit.portraitId);
-        } else if (def.characterSpriteKey) {
+        } else if (def.characterSpriteKey && !def.renderOptions?.plantForm) {
+            // A plant form (`renderOptions.plantForm`) is drawn instead of the sprite; the key stays for remnants and icons.
             characterTexture = context.getCharacterTexture(def.characterSpriteKey);
         }
         const showCharacterSprite = Boolean(characterTexture);
@@ -1544,7 +1523,7 @@ export function syncUnitCharacterSpriteIfNeeded(visual: Container, unit: Unit, c
         return;
     }
     const key = getCharacterSpriteKey(unit.characterId);
-    if (!key) return;
+    if (!key || UNIT_DEFS[unit.characterId as UnitDefId]?.renderOptions?.plantForm) return;
     const texture = context.getCharacterTexture(key);
     if (!texture) return;
     ensureUnitCharacterSprite(visual, unit, texture, true);

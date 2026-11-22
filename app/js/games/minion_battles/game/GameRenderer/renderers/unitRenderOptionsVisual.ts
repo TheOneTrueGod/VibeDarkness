@@ -1,7 +1,11 @@
 import { Graphics } from 'pixi.js';
 import type { Container } from 'pixi.js';
 import type { Unit } from '../../units/Unit';
-import { resolvePlatedLook, resolveTimerRing, type PlatedLook } from '../../units/unitRenderOptions';
+import { resolvePlantForm, resolvePlatedLook, resolveTimerRing, type PlatedLook } from '../../units/unitRenderOptions';
+import { drawPlantForm } from './plantFormVisual';
+import { halfEllipsePoints } from './halfEllipse';
+
+export { halfEllipsePoints };
 import { strokeClockwiseArc } from './castStateRingVisual';
 
 /**
@@ -14,23 +18,6 @@ const SPIKE_COUNT = 10;
 /** How far each half of an open shell swings out, in radii, and how far it tilts. */
 const OPEN_SPLIT_RADII = 0.42;
 const OPEN_TILT_DEG = 8;
-const HALF_STEPS = 12;
-
-/** Points of the left (`side` -1) or right (+1) half of an ellipse, closed along the seam, rotated then shifted. */
-export function halfEllipsePoints(side: -1 | 1, rx: number, ry: number, offsetX: number, tiltDeg: number): number[] {
-    const out: number[] = [];
-    const rad = (tiltDeg * Math.PI) / 180;
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
-    // Sweep from the top (-90 deg) round the outside to the bottom (+90 deg); the closing edge is the seam.
-    for (let i = 0; i <= HALF_STEPS; i++) {
-        const a = -Math.PI / 2 + (i / HALF_STEPS) * Math.PI;
-        const x = Math.cos(a) * rx * side;
-        const y = Math.sin(a) * ry;
-        out.push(x * cos - y * sin + offsetX, x * sin + y * cos);
-    }
-    return out;
-}
 
 /** Plated shell, closed (two plates meeting on a glowing seam) or open (plates swung apart round a bare core). */
 export function drawPlatedLook(g: Graphics, look: PlatedLook, radius: number, timeSec: number): void {
@@ -88,13 +75,47 @@ export function drawPlatedLook(g: Graphics, look: PlatedLook, radius: number, ti
     }
 }
 
+/** How fast a turret's barrel turns toward a new aim (per second, exponential). */
+const AIM_TURN_RATE = 10;
+/** Starting aim before a target is ever seen: up the screen. */
+const DEFAULT_AIM = -Math.PI / 2;
+const aimByUnit = new WeakMap<Unit, { angle: number; timeSec: number }>();
+
+/** Ease the drawn aim toward `target` (radians; null keeps the last aim) over the wall time since the last frame. */
+export function easePlantAim(unit: Unit, target: number | null, timeSec: number): number {
+    const prev = aimByUnit.get(unit);
+    let angle = prev?.angle ?? target ?? DEFAULT_AIM;
+    if (prev && target !== null) {
+        const dt = Math.max(0, Math.min(0.25, timeSec - prev.timeSec));
+        let delta = target - angle;
+        delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+        angle += delta * (1 - Math.exp(-AIM_TURN_RATE * dt));
+    }
+    aimByUnit.set(unit, { angle, timeSec });
+    return angle;
+}
+
 /**
  * Add, update or hide the plated look child of a unit visual. Cheap when the def has no `plated` option (one def
- * lookup, nothing created).
+ * lookup, nothing created). A unit with `renderOptions.plantForm` draws its plant form instead (which shows the same
+ * shell state); `aim` is where an aiming form points (radians, null keeps the last aim).
  */
-export function syncPlatedLook(visual: Container, unit: Unit, timeSec: number): void {
-    const look = unit.isAlive() ? resolvePlatedLook(unit) : null;
+export function syncPlatedLook(visual: Container, unit: Unit, timeSec: number, aim: number | null = null): void {
+    const plant = unit.isAlive() ? resolvePlantForm(unit) : null;
+    const look = plant || !unit.isAlive() ? null : resolvePlatedLook(unit);
     let g = visual.children.find((c) => c.label === PLATED_LABEL) as Graphics | undefined;
+    if (plant) {
+        if (!g) {
+            g = new Graphics();
+            g.label = PLATED_LABEL;
+            g.eventMode = 'none';
+            visual.addChild(g);
+        }
+        g.visible = true;
+        g.clear();
+        drawPlantForm(g, plant, unit.radius, timeSec, easePlantAim(unit, aim, timeSec));
+        return;
+    }
     if (!look) {
         if (g) g.visible = false;
         return;

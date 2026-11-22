@@ -1,7 +1,7 @@
 /**
  * Garden Heart enemy family: ability ids, unit ids and the numbers shared by abilities, unit defs, AI and the tree
  * layouts. Design: browser plan 0008 ("The fight", "Node kinds"). Vocabulary: Heart, Knot, Bud, Stem, Shell, Briar,
- * Tangle. The five node KINDS (Thornspitter, Pod Mortar, Mender Bloom, Hive Gourd, Creeper) are behaviours; being a
+ * Tangle. The node KINDS (Thornspitter, Pod Mortar, Hive Gourd, Creeper, Gloam Lily) are behaviours; being a
  * Knot or a Bud is a node's place in the tree, so every kind can sit anywhere.
  */
 
@@ -10,7 +10,7 @@ import type { RoundHopOptions } from '../../game/units/components/roundHop';
 import { ROUND_DURATION } from '../../game/gameConstants';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import type { UnitRenderOptions } from '../../game/units/unitRenderOptions';
+import type { PlantFormId, UnitRenderOptions } from '../../game/units/unitRenderOptions';
 import type { PinwheelPresetId } from '../../abilities/pinwheelPresets';
 import { wildHitRule } from '../../game/hitRule';
 import { UnitTag } from '../../game/units/unitTag';
@@ -23,7 +23,6 @@ export const GARDEN_WILD_HIT_RULE = wildHitRule(UnitTag.GardenKin);
 
 export const THORN_FANS_ABILITY_ID = `${GROUP}01`;
 export const LOB_SEED_ABILITY_ID = `${GROUP}02`;
-export const MEND_ABILITY_ID = `${GROUP}03`;
 export const RUNNER_VINE_ABILITY_ID = `${GROUP}04`;
 export const SPIKE_RING_ABILITY_ID = `${GROUP}05`;
 export const DRINK_LIGHT_ABILITY_ID = `${GROUP}06`;
@@ -36,7 +35,6 @@ export const PINWHEEL_DOUBLED_ABILITY_ID = `${GROUP}09`;
 export const GARDEN_HEART_ID = 'garden_heart';
 export const THORNSPITTER_ID = 'thornspitter';
 export const POD_MORTAR_ID = 'pod_mortar';
-export const MENDER_BLOOM_ID = 'mender_bloom';
 export const HIVE_GOURD_ID = 'hive_gourd';
 export const CREEPER_ID = 'creeper';
 export const POD_SEED_ID = 'pod_seed';
@@ -57,6 +55,10 @@ export const GARDEN_NODE_RENDER_OPTIONS: UnitRenderOptions = {
     plated: { plateColor: NIGHTBLOOM_PRIMARY, seamColor: 0x0b2f2c, coreColor: NIGHTBLOOM_SECONDARY },
     burrow: { dirtColor: GARDEN_DIRT_COLOR },
 };
+/** A node kind's look: the shared plates and dirt, drawn as its own plant form (`renderOptions.plantForm`). */
+export function gardenNodeLook(form: PlantFormId): UnitRenderOptions {
+    return { ...GARDEN_NODE_RENDER_OPTIONS, plantForm: { form } };
+}
 /** Node-tree callback id fired on a Knot when its last child dies (the Shell opens). */
 export const SHELL_OPEN_CALLBACK_ID = 'gardenShellOpen';
 
@@ -137,12 +139,6 @@ export const LOB_SEED_MIN_RANGE = 80;
 export const LOB_SEED_MAX_RANGE = 380;
 /** How fast the seed burrows out to where it surfaces (px/s): about 1.5 s to max range. */
 export const LOB_SEED_BURROW_SPEED = 380;
-
-// ---- Mender Bloom ----
-export const MEND_RADIUS_PX = 220;
-export const MEND_AMOUNT = 12;
-export const MEND_WINDUP_SEC = 1.2;
-export const MEND_COOLDOWN_SEC = 2.5;
 
 // ---- Gloam Lily ----
 export const GLOAM_LILY_HP = 45;
@@ -270,8 +266,12 @@ export const GARDEN_PHASE_ORBIT_RULE_ID = 'gardenPhaseOrbit';
 /**
  * The Heart's round move: rolled once to a moment in the second half of the round and kept for the fight. Its tree is
  * left behind: the Stems stretch past their leash instead of dragging the nodes, and each node's next hop takes it
- * back within its leash of its parent (`chooseHopPoint` reconnects). The Heart's own surfacing is harmless (rock chips).
+ * back within its leash of its parent (`chooseHopPoint` reconnects). Where the Heart surfaces is a blast (a node hop's,
+ * Heart-sized), marked in red from the moment it starts moving underground.
  */
+export const GARDEN_HEART_ROUND_HOP_DAMAGE = 8;
+/** Blast radius of the Heart's round move (px): a little under the resprout eruption's 3 tiles. */
+export const GARDEN_HEART_ROUND_HOP_BLAST_PX = 2.5 * CELL_SIZE;
 export const GARDEN_HEART_ROUND_HOP: RoundHopOptions = {
     window: { min: ROUND_DURATION / 2, max: ROUND_DURATION },
     destinationRule: GARDEN_ROUND_ORBIT_RULE_ID,
@@ -281,7 +281,15 @@ export const GARDEN_HEART_ROUND_HOP: RoundHopOptions = {
         sinkSeconds: 0.5,
         travelSeconds: 1,
         riseSeconds: 0.6,
-        eruption: { radiusUnitRadii: 1.5, damage: 0, reactable: false, rockShower: { count: 12 } },
+        eruption: {
+            radiusPx: GARDEN_HEART_ROUND_HOP_BLAST_PX,
+            damage: GARDEN_HEART_ROUND_HOP_DAMAGE,
+            // Like a node hop: the red mark during the 1 s travel is the warning, no reaction frame.
+            reactable: false,
+            telegraphFrom: 'travel',
+            rockShower: { count: 14 },
+            hitRule: GARDEN_WILD_HIT_RULE,
+        },
     },
 };
 

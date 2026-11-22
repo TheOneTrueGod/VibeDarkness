@@ -11,9 +11,9 @@
  * Phase 1 teaches the Shell (kill the Bud, the Heart opens); each later phase adds one new idea:
  * - P1: one Thornspitter Bud.
  * - P2: a Thornspitter and a Pod Mortar.
- * - P3: a Hive Gourd Knot with a Thornspitter Bud, a Creeper Knot with a Mender Bloom Bud (first Knot to open), and a
- *   Gloam Lily Bud on the Heart (it drinks the garden's light from here on).
- * - P4: two Knots with two Buds each (all five older kinds in play), a Pod Mortar Bud and a Gloam Lily Bud on the Heart.
+ * - P3 (four nodes): a Hive Gourd Knot with a Thornspitter Bud (the first chain), and a Creeper Bud and a Gloam Lily
+ *   Bud on the Heart (the Lily drinks the garden's light from here on).
+ * - P4: two Knots with two Buds each (all four older kinds in play), a Pod Mortar Bud and a Gloam Lily Bud on the Heart.
  */
 
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
@@ -21,16 +21,14 @@ import {
     CREEPER_ID,
     HIVE_GOURD_ID,
     GLOAM_LILY_ID,
-    MENDER_BLOOM_ID,
     POD_MORTAR_ID,
     THORNSPITTER_ID,
 } from '../../card_defs/16_enemy_garden_heart/gardenHeartConstants';
 
-/** The six node kinds (unit def ids). */
+/** The five node kinds (unit def ids). */
 export type GardenNodeKind =
     | typeof THORNSPITTER_ID
     | typeof POD_MORTAR_ID
-    | typeof MENDER_BLOOM_ID
     | typeof HIVE_GOURD_ID
     | typeof CREEPER_ID
     | typeof GLOAM_LILY_ID;
@@ -65,8 +63,7 @@ export const GARDEN_TREE_LAYOUTS: readonly (readonly GardenNodeSpec[])[] = [
     [
         { key: 'gourd', kind: HIVE_GOURD_ID, parent: null, angleDeg: -45, distancePx: KNOT_DISTANCE },
         { key: 'gourdSpit', kind: THORNSPITTER_ID, parent: 'gourd', angleDeg: -45, distancePx: BUD_DISTANCE },
-        { key: 'creeper', kind: CREEPER_ID, parent: null, angleDeg: 135, distancePx: KNOT_DISTANCE },
-        { key: 'creeperBloom', kind: MENDER_BLOOM_ID, parent: 'creeper', angleDeg: 135, distancePx: BUD_DISTANCE },
+        { key: 'creeper', kind: CREEPER_ID, parent: null, angleDeg: 135, distancePx: HEART_BUD_DISTANCE },
         { key: 'heartLily', kind: GLOAM_LILY_ID, parent: null, angleDeg: 45, distancePx: HEART_BUD_DISTANCE },
     ],
     // P4
@@ -75,7 +72,7 @@ export const GARDEN_TREE_LAYOUTS: readonly (readonly GardenNodeSpec[])[] = [
         { key: 'gourdSpit', kind: THORNSPITTER_ID, parent: 'gourd', angleDeg: -75, distancePx: BUD_DISTANCE },
         { key: 'gourdMortar', kind: POD_MORTAR_ID, parent: 'gourd', angleDeg: -15, distancePx: BUD_DISTANCE },
         { key: 'creeper', kind: CREEPER_ID, parent: null, angleDeg: 135, distancePx: KNOT_DISTANCE },
-        { key: 'creeperBloom', kind: MENDER_BLOOM_ID, parent: 'creeper', angleDeg: 165, distancePx: BUD_DISTANCE },
+        { key: 'creeperSpitB', kind: THORNSPITTER_ID, parent: 'creeper', angleDeg: 165, distancePx: BUD_DISTANCE },
         { key: 'creeperSpit', kind: THORNSPITTER_ID, parent: 'creeper', angleDeg: 105, distancePx: BUD_DISTANCE },
         { key: 'heartMortarA', kind: POD_MORTAR_ID, parent: null, angleDeg: 45, distancePx: HEART_BUD_DISTANCE },
         { key: 'heartLily', kind: GLOAM_LILY_ID, parent: null, angleDeg: 225, distancePx: HEART_BUD_DISTANCE },

@@ -27,7 +27,6 @@ import { ConjureCrystalCard_1407 } from './14_enemy_court_magician/1407_ConjureC
 import { CrystalLaserCard_1490 } from './14_enemy_court_magician/1490_CrystalLaser/1490Ability';
 import { ThornFansCard_1601 } from './16_enemy_garden_heart/1601_ThornFans/1601Ability';
 import { LobSeedCard_1602 } from './16_enemy_garden_heart/1602_LobSeed/1602Ability';
-import { MendCard_1603 } from './16_enemy_garden_heart/1603_Mend/1603Ability';
 import { RunnerVineCard_1604 } from './16_enemy_garden_heart/1604_RunnerVine/1604Ability';
 import { SpikeRingCard_1605 } from './16_enemy_garden_heart/1605_SpikeRing/1605Ability';
 import { PinwheelCard_1607, PinwheelDoubledCard_1609 } from './16_enemy_garden_heart/1607_Pinwheel/1607Ability';
@@ -147,7 +146,6 @@ const cardDefs: CardDef[] = [
     CrystalLaserCard_1490,
     ThornFansCard_1601,
     LobSeedCard_1602,
-    MendCard_1603,
     RunnerVineCard_1604,
     SpikeRingCard_1605,
     PinwheelCard_1607,

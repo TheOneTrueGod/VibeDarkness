@@ -238,49 +238,49 @@ describe('growGardenTree onlyMissing', () => {
     }
 
     it('nodes remember their layout key', () => {
-        const { grown } = heartWithTree(3);
+        const { grown } = heartWithTree(4);
         for (const [key, unit] of grown) expect(getNodeLayoutKey(unit)).toBe(key);
     });
 
     it('grows only the missing keys, parents first, up to the limit, and nothing when whole', () => {
-        const { heart, grown } = heartWithTree(3);
-        const layout = gardenTreeLayout(3)!;
-        expect(missingGardenNodeKeys(engine, heart, 3)).toEqual([]);
-        expect(growGardenTree(growCtx(), heart, 3, { onlyMissing: true }).size).toBe(0);
+        const { heart, grown } = heartWithTree(4);
+        const layout = gardenTreeLayout(4)!;
+        expect(missingGardenNodeKeys(engine, heart, 4)).toEqual([]);
+        expect(growGardenTree(growCtx(), heart, 4, { onlyMissing: true }).size).toBe(0);
 
         // Cut a Knot's Bud and the Knot's own slot is untouched; cut the Bud's key only.
         const bud = grown.get('gourdSpit')!;
         bud.hp = 0;
         bud.active = false;
         engine.eventBus.emit('unit_died', { unitId: bud.id, killerUnitId: null });
-        expect(missingGardenNodeKeys(engine, heart, 3)).toEqual(['gourdSpit']);
+        expect(missingGardenNodeKeys(engine, heart, 4)).toEqual(['gourdSpit']);
 
         const knot = grown.get('creeper')!;
-        const knotBud = grown.get('creeperBloom')!;
-        for (const u of [knotBud, knot]) {
+        const knotBuds = ['creeperSpitB', 'creeperSpit'].map((k) => grown.get(k)!);
+        for (const u of [...knotBuds, knot]) {
             u.hp = 0;
             u.active = false;
             engine.eventBus.emit('unit_died', { unitId: u.id, killerUnitId: null });
         }
-        const missing = missingGardenNodeKeys(engine, heart, 3);
-        expect(missing).toEqual(layout.map((s) => s.key).filter((k) => ['gourdSpit', 'creeper', 'creeperBloom'].includes(k)));
+        const missing = missingGardenNodeKeys(engine, heart, 4);
+        expect(missing).toEqual(layout.map((s) => s.key).filter((k) => ['gourdSpit', 'creeper', 'creeperSpitB', 'creeperSpit'].includes(k)));
 
-        // One at a time: first the missing bud under the surviving Knot, then the Knot, then its Bud (parent first).
+        // One at a time: first the missing bud under the surviving Knot, then the Knot, then its Buds (parent first).
         const order: string[] = [];
-        for (let i = 0; i < 3; i++) {
-            const g = growGardenTree(growCtx(), heart, 3, { onlyMissing: true, limit: 1 });
+        for (let i = 0; i < 4; i++) {
+            const g = growGardenTree(growCtx(), heart, 4, { onlyMissing: true, limit: 1 });
             expect(g.size).toBe(1);
             const [key] = [...g][0]!;
             order.push(key);
         }
         expect(order).toEqual(missing);
-        expect(missingGardenNodeKeys(engine, heart, 3)).toEqual([]);
-        expect(growGardenTree(growCtx(), heart, 3, { onlyMissing: true }).size).toBe(0);
+        expect(missingGardenNodeKeys(engine, heart, 4)).toEqual([]);
+        expect(growGardenTree(growCtx(), heart, 4, { onlyMissing: true }).size).toBe(0);
     });
 
     it('a Bud waits for its missing Knot when the limit stops short of the Knot', () => {
-        const { heart, grown } = heartWithTree(3);
-        for (const key of ['creeperBloom', 'creeper']) {
+        const { heart, grown } = heartWithTree(4);
+        for (const key of ['creeperSpitB', 'creeperSpit', 'creeper']) {
             const u = grown.get(key)!;
             u.hp = 0;
             u.active = false;

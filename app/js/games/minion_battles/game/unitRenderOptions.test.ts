@@ -15,6 +15,7 @@ import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { createUnitFromSpawnConfig } from './units/index';
 import { getUnitDefEntry } from './units/unit_defs/unitDef';
 import { ENEMY_GARDEN_HEART, ENEMY_THORNSPITTER } from '../constants/enemyConstants';
+import { CREEPER_ID, GLOAM_LILY_ID, HIVE_GOURD_ID, POD_MORTAR_ID, THORNSPITTER_ID } from '../card_defs/16_enemy_garden_heart/gardenHeartConstants';
 import { NODE_TREE_COMPONENT, linkNodeChild } from './units/components/nodeTree';
 import { NODE_REGROWTH_COMPONENT } from './units/components/nodeRegrowth';
 import { registerNodeRegrowthCallback } from './units/components/nodeRegrowthHooks';
@@ -29,11 +30,13 @@ import {
     DEFAULT_TELEGRAPH_COLOR,
     resolveBurrowRender,
     resolveFusedBodyTelegraph,
+    resolvePlantAim,
+    resolvePlantForm,
     resolvePlatedLook,
     resolveTimerRing,
 } from './units/unitRenderOptions';
 import { GARDEN_NODE_RENDER_OPTIONS } from '../card_defs/16_enemy_garden_heart/gardenHeartConstants';
-import { halfEllipsePoints } from './GameRenderer/renderers/unitRenderOptionsVisual';
+import { easePlantAim, halfEllipsePoints } from './GameRenderer/renderers/unitRenderOptionsVisual';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const TICKS_PER_SEC = 60;
@@ -99,6 +102,56 @@ describe('plated look', () => {
         expect(Math.max(...right.filter((_, i) => i % 2 === 0))).toBeCloseTo(10);
         const shifted = halfEllipsePoints(1, 10, 12, 5, 0);
         expect(shifted[0]).toBeCloseTo(right[0]! + 5);
+    });
+});
+
+describe('plant form', () => {
+    it('every node kind has its own form; the Heart keeps the plated sprite look', () => {
+        const forms = [THORNSPITTER_ID, POD_MORTAR_ID, HIVE_GOURD_ID, CREEPER_ID, GLOAM_LILY_ID, 'pod_seed'].map(
+            (id) => getUnitDefEntry(id as never)!.renderOptions?.plantForm?.form,
+        );
+        expect(forms).toEqual(['turret', 'mortar', 'gourd', 'creeper', 'lily', 'seed']);
+        expect(getUnitDefEntry('garden_heart')!.renderOptions?.plantForm).toBeUndefined();
+    });
+
+    it('follows the Shell: closed with a living child, open after; uses the plated palette', () => {
+        const engine = makeEngine();
+        const knot = addGarden(engine, ENEMY_THORNSPITTER, cell(12), cell(8));
+        const bud = addGarden(engine, ENEMY_THORNSPITTER, cell(14), cell(8));
+        linkNodeChild(knot, bud);
+        expect(resolvePlantForm(knot)).toMatchObject({ form: 'turret', open: false, plated: GARDEN_NODE_RENDER_OPTIONS.plated, bursting: null });
+        expect(resolvePlantForm(bud)?.open).toBe(true);
+        bud.takeDamage(99999, null, engine.eventBus);
+        engine.stepSimulationFixedTicks(2);
+        expect(resolvePlantForm(knot)?.open).toBe(true);
+        engine.destroy();
+    });
+
+    it("a seed's cracks glow only while its blast is telegraphed", () => {
+        const engine = makeEngine();
+        const seed = spawnFusedBody(engine, { characterId: 'pod_seed', x: cell(10), y: cell(8), unitId: 'seed' })!;
+        expect(resolvePlantForm(seed)?.bursting).toBeNull();
+        step(engine, 5 - 1.5 + 0.1);
+        expect(resolvePlantForm(seed)?.bursting).toBeGreaterThan(0);
+        engine.destroy();
+    });
+
+    it('a turret aims at its AI target, keeps its last aim without one, and turns smoothly', () => {
+        const engine = makeEngine();
+        const turret = addGarden(engine, ENEMY_THORNSPITTER, cell(12), cell(8));
+        const target = addGarden(engine, ENEMY_THORNSPITTER, cell(12), cell(4)); // straight up the screen
+        const lookup = (id: string) => engine.getUnit(id);
+        expect(resolvePlantAim(turret, lookup)).toBeNull();
+        (turret.aiContext as { targetUnitId?: string }).targetUnitId = target.id;
+        expect(resolvePlantAim(turret, lookup)).toBeCloseTo(-Math.PI / 2, 6);
+
+        const first = easePlantAim(turret, 0, 10); // first frame snaps
+        expect(first).toBe(0);
+        const mid = easePlantAim(turret, Math.PI / 2, 10.05);
+        expect(mid).toBeGreaterThan(0);
+        expect(mid).toBeLessThan(Math.PI / 2);
+        expect(easePlantAim(turret, null, 10.1)).toBe(mid); // no target: holds
+        engine.destroy();
     });
 });
 
