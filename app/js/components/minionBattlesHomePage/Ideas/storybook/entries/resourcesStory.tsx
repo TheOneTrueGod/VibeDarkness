@@ -48,10 +48,10 @@ const TH_CLASS = 'px-3 py-2 text-left text-[11px] font-semibold uppercase tracki
 const TD_CLASS = 'px-3 py-2 align-middle';
 
 function ResourcesTable({ values }: { values: StorybookControlValues }) {
-    const search = controlString(values, 'search');
+    const search = controlString(values, 'resource');
     const customFill = controlNumber(values, 'fill');
     const customCost = controlNumber(values, 'cost');
-    const defs = ALL_RESOURCE_DISPLAY_DEFS.filter((d) => matchesSearch(search, d.name, d.id));
+    const defs = ALL_RESOURCE_DISPLAY_DEFS.filter((d) => matchesSearch(search, d.name, d.id, d.barStyle ?? ''));
 
     return (
         <div className="overflow-x-auto rounded-lg border border-border-custom">
@@ -125,11 +125,11 @@ export const RESOURCES_STORY: StorybookEntry = {
     id: 'resources',
     name: 'Resources',
     description:
-        'One row per ALL_RESOURCE_DISPLAY_DEFS entry: ResourceCostIcon at 1x / 3x, and the in-game bar at several fills (HealthSegmentBar for HP and Shield, ResourceBarRow otherwise).',
+        'One row per ALL_RESOURCE_DISPLAY_DEFS entry: ResourceCostIcon at 1x / 3x, and the in-game bar at several fills (HealthSegmentBar for HP and Shield, ResourceBarRow otherwise). Every control is a URL parameter, e.g. ?resource=water&fill=25.',
     controls: [
         {
             kind: 'search',
-            id: 'search',
+            id: 'resource',
             label: 'Resource',
             placeholder: 'Search resources…',
             suggestions: ALL_RESOURCE_DISPLAY_DEFS.map((d) => d.name),

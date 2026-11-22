@@ -26,6 +26,8 @@ Log in with the helper account in `.env.playwright.local` only (`PLAYWRIGHT_USER
 
 That account is a **Manager**, so it can open the Ability Test, Ideas (including the Storybook), Bestiary and Lobby Archive tabs. Use them for testing: the Storybook for visual components, the Bestiary for enemies and their abilities. See **campaign-home-tabs** ("Testing with the staff tabs").
 
+The Storybook also opens **without logging in** (signed-out visitors get a standalone page at `/campaign/ideas/storybook/...`). Its controls are URL parameters, so a link opens the exact case (`/campaign/ideas/storybook/research-cards?node=mighty&pin=1`). Never build a throwaway preview page; extend the Storybook entry instead (`app/js/components/minionBattlesHomePage/Ideas/storybook/AGENTS.md`).
+
 ## Order-submission architecture
 
 In the **live game**, player orders flow through:

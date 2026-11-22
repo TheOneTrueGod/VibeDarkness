@@ -18,6 +18,13 @@ Scripts:
 
 Vitest discovery lives in `vitest.workspace.ts` (unit + sim). Root `vite.config.ts` keeps shared `globals` / `environment` / `setupFiles` only.
 
+## Checking UI visually
+
+To see a UI change in the browser, use the **Storybook**: open `/campaign/ideas/storybook/<entryId>` on the Vite dev server (`vite-dev` in `.claude/launch.json`; the user may already have it running on port 5173). **No login is needed**: signed-out visitors get a standalone Storybook page at those URLs.
+
+- Every Storybook control is a URL parameter, so link straight to the case: `/campaign/ideas/storybook/research-cards?node=mighty&pin=1` (one node, tooltips pinned open), `/campaign/ideas/storybook/resources?resource=water`.
+- **Never create a throwaway preview page or entry file.** If the Storybook cannot show the case, extend the entry for that component (or add one) under `app/js/components/minionBattlesHomePage/Ideas/storybook/`; see its `AGENTS.md`.
+
 ## TypeScript
 
 After adding new fields to interfaces or crossing an interface/class boundary, run:

@@ -1,8 +1,11 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import IdeasSidebarButton from '../IdeasSidebarButton';
 import StorybookControlPanel from './StorybookControlPanel';
 import {
     defaultStorybookValues,
+    storybookSearchParams,
+    storybookValuesFromSearchParams,
     type StorybookControlValue,
     type StorybookControlValues,
     type StorybookEntry,
@@ -34,36 +37,49 @@ export function StorybookEntryList({
 
 /**
  * Storybook right side: the selected entry's examples (scrolling) above a fixed-height control panel.
- * Control values are kept per entry, so switching entries and back keeps the settings.
+ * Control values live in the URL query (`?node=mighty&pin=1`, see `storybookValuesFromSearchParams`), so a link
+ * opens the page already set up. Each entry's last query is remembered, so switching entries and back keeps it.
  */
 export default function StorybookView({ entry }: { entry: StorybookEntry | null }) {
-    const [valuesByEntry, setValuesByEntry] = useState<Record<string, StorybookControlValues>>({});
-
+    const [searchParams, setSearchParams] = useSearchParams();
+    const lastQueryByEntry = useRef<Record<string, string>>({});
+    const query = searchParams.toString();
     const entryId = entry?.id;
-    const setValue = useCallback(
-        (id: string, value: StorybookControlValue) => {
+
+    // Back on an entry with a bare URL: restore the settings it had when we left it.
+    useEffect(() => {
+        if (!entryId || query) return;
+        const saved = lastQueryByEntry.current[entryId];
+        if (saved) setSearchParams(new URLSearchParams(saved), { replace: true });
+        // Only on entry change: clearing the query (Reset) must not bring the old settings back.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [entryId]);
+
+    const values = useMemo(
+        () => (entry ? storybookValuesFromSearchParams(entry.controls, new URLSearchParams(query)) : {}),
+        [entry, query],
+    );
+
+    const writeValues = useCallback(
+        (next: StorybookControlValues) => {
             if (!entry) return;
-            setValuesByEntry((prev) => ({
-                ...prev,
-                [entry.id]: { ...(prev[entry.id] ?? defaultStorybookValues(entry.controls)), [id]: value },
-            }));
+            const params = storybookSearchParams(entry.controls, next);
+            lastQueryByEntry.current[entry.id] = params.toString();
+            setSearchParams(params, { replace: true });
         },
-        [entry],
+        [entry, setSearchParams],
+    );
+    const setValue = useCallback(
+        (id: string, value: StorybookControlValue) => writeValues({ ...values, [id]: value }),
+        [values, writeValues],
     );
     const reset = useCallback(() => {
-        if (!entryId) return;
-        setValuesByEntry((prev) => {
-            const next = { ...prev };
-            delete next[entryId];
-            return next;
-        });
-    }, [entryId]);
+        if (entry) writeValues(defaultStorybookValues(entry.controls));
+    }, [entry, writeValues]);
 
     if (!entry) {
         return <p className="p-4 text-sm text-muted">No storybook entries.</p>;
     }
-
-    const values = valuesByEntry[entry.id] ?? defaultStorybookValues(entry.controls);
 
     return (
         <div className="flex h-full min-h-0 flex-col">

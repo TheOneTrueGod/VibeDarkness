@@ -4,9 +4,15 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { UserDataProvider } from '../../../../user/UserDataProvider';
 import { STORYBOOK_ENTRIES } from './storybookEntries';
-import { defaultStorybookValues, type StorybookControlValues } from './storybookTypes';
+import {
+    defaultStorybookValues,
+    storybookSearchParams,
+    storybookValuesFromSearchParams,
+    type StorybookControlValues,
+} from './storybookTypes';
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../../../../games/minion_battles/resources/resourceDisplayDefs';
 import { RESEARCH_TREES } from '../../../../researchTrees/list';
+import { TRAINING_NODE_HEALTHY, TRAINING_NODE_MIGHTY } from '../../../../researchTrees/trees/training';
 import { GARDEN_HEART_PALETTES, GARDEN_HEART_STYLES } from '../fxArt/gardenHeartArt';
 
 function renderEntry(id: string, overrides: StorybookControlValues = {}): string {
@@ -36,7 +42,7 @@ describe('storybook entries', () => {
         for (const def of ALL_RESOURCE_DISPLAY_DEFS) expect(all).toContain(`>${def.name}<`);
         expect(all).toContain('3x');
 
-        const water = renderEntry('resources', { search: 'wat' });
+        const water = renderEntry('resources', { resource: 'wat' });
         expect(water).toContain('>Water<');
         expect(water).not.toContain('>Health<');
     });
@@ -69,5 +75,42 @@ describe('storybook entries', () => {
         const chosen = renderEntry('garden-heart', { chosenOnly: true });
         expect(chosen).toContain('Nightbloom');
         expect(chosen).not.toContain("Queen&#x27;s Garden");
+    });
+
+    it('Research Cards: a Node search shows just the matching nodes, with tooltips pinned open on request', () => {
+        const html = renderEntry('research-cards', { node: 'mighty', pin: true, level: 2 });
+        expect(html).toContain('Mighty');
+        expect(html).not.toContain('Healthy');
+        expect(html).toContain(`research-node-pinned-${TRAINING_NODE_MIGHTY}`);
+        expect(html).toContain('research-stat-reminder-attack');
+        expect(html).toContain('(2/5)');
+
+        // Description text matches too: `attack` finds the node whose pill is {stat:attack:...}.
+        const byText = renderEntry('research-cards', { node: 'attack' });
+        expect(byText).toContain('Mighty');
+        expect(byText).not.toContain(`research-node-pinned-${TRAINING_NODE_HEALTHY}`);
+
+        expect(renderEntry('research-cards', { node: 'zzz-no-such-node' })).toContain('No research tree matches');
+    });
+});
+
+describe('storybook URL parameters', () => {
+    const entry = () => STORYBOOK_ENTRIES.find((e) => e.id === 'research-cards')!;
+
+    it('read control values from the query string, falling back to defaults for bad values', () => {
+        const values = storybookValuesFromSearchParams(
+            entry().controls,
+            new URLSearchParams('node=mighty&pin=1&level=99&state=nonsense&tree=Training'),
+        );
+        expect(values).toMatchObject({ node: 'mighty', pin: true, level: 5, state: 'enabled', tree: 'Training' });
+    });
+
+    it('write only non-default values, and read back what they write', () => {
+        const controls = entry().controls;
+        expect(storybookSearchParams(controls, defaultStorybookValues(controls)).toString()).toBe('');
+        const values = { ...defaultStorybookValues(controls), node: 'mighty', pin: true, level: 3 };
+        const params = storybookSearchParams(controls, values);
+        expect(params.toString()).toBe('node=mighty&pin=1&level=3');
+        expect(storybookValuesFromSearchParams(controls, params)).toEqual(values);
     });
 });

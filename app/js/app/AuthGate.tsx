@@ -6,7 +6,8 @@ import LoginScreen from '../components/LoginScreen';
 import AppTitleBar from '../components/AppTitleBar';
 import { LobbyClient } from '../LobbyClient';
 import type { AccountState } from '../types';
-import { campaignHomePath } from '../components/ability-tests/campaignTabPaths';
+import { campaignHomePath, storybookEntryIdFromPath } from '../components/ability-tests/campaignTabPaths';
+import PublicStorybookPage from '../components/minionBattlesHomePage/Ideas/storybook/PublicStorybookPage';
 
 function getNextRedirect(): string {
     const params = new URLSearchParams(window.location.search);
@@ -38,6 +39,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
     if (!user) {
         const path = window.location.pathname;
+        // The Storybook needs no account: its links (e.g. `?node=mighty&pin=1`) open straight to the page.
+        if (storybookEntryIdFromPath(path) != null) return <PublicStorybookPage />;
         if (path !== '/' && path !== '/index.html') {
             const next = encodeURIComponent(path + window.location.search);
             window.location.replace('/?next=' + next);

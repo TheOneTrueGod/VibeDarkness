@@ -25,6 +25,10 @@ Use this skill whenever you:
   - Keep vertical and horizontal padding consistent with nearby elements.
   - Align new controls with existing ones (e.g. card bars, headers).
 
+## Checking a component visually
+
+Check visual changes in the **Storybook** (Ideas → Storybook), not a throwaway preview page. Controls are URL parameters, so link to the exact case (`/campaign/ideas/storybook/research-cards?node=mighty&pin=1`). If no entry shows your component or case, add a control or entry under `app/js/components/minionBattlesHomePage/Ideas/storybook/` (see its `AGENTS.md`). It needs no login; see "Checking UI visually" in `CLAUDE.md`.
+
 ## Tooltip and hover box rules
 
 When adding or editing **tooltips, hover boxes, popovers, or any floating help UI**:

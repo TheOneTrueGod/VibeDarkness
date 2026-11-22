@@ -10,6 +10,7 @@ import {
 import { getThemeById } from '../../../../../games/minion_battles/themes/abilityTheme';
 import ResearchNodeCard, { type ResearchNodeCardProps } from '../../../../../games/minion_battles/ui/components/ResearchNodeCard';
 import { ResearchTreeList } from '../../../../../games/minion_battles/ui/components/ResearchTreePanel';
+import { getNodeMaxLevels } from '../../../../../researchTrees/passiveBonuses';
 import { compareResearchNodesByTier } from '../../../../../games/minion_battles/ui/components/researchNodeGrid';
 import {
     controlBoolean,
@@ -28,6 +29,20 @@ function exampleNodes(tree: ResearchTreeDef, count: number): ResearchNodeDef[] {
         .filter((n) => !isDraftResearchNode(n) && !isDisabledResearchNode(n) && !isVirtualRootNode(n))
         .sort(compareResearchNodesByTier)
         .slice(0, count);
+}
+
+/** Most cards one tree shows for a node search, so a broad query stays readable. */
+const MAX_NODE_MATCHES_PER_TREE = 24;
+
+/**
+ * Nodes matching the `node` search (title, id or description, so `attack` finds every `{stat:attack:...}` node).
+ * Drafts and disabled nodes count too, since a search names them on purpose; free weapon roots never do.
+ */
+function searchedNodes(tree: ResearchTreeDef, query: string): ResearchNodeDef[] {
+    return tree.nodes
+        .filter((n) => !isVirtualRootNode(n) && matchesSearch(query, n.title, n.id, n.description))
+        .sort(compareResearchNodesByTier)
+        .slice(0, MAX_NODE_MATCHES_PER_TREE);
 }
 
 function ColourSwatch({ role, hex, note }: { role: string; hex: string; note?: string }) {
@@ -78,7 +93,10 @@ function TreeSection({ tree, values }: { tree: ResearchTreeDef; values: Storyboo
     const selected = controlBoolean(values, 'selected');
     const state = controlString(values, 'state') as NodeState;
     const layout = controlString(values, 'layout') as 'comfortable' | 'compact';
-    const nodes = exampleNodes(tree, controlNumber(values, 'count'));
+    const nodeQuery = controlString(values, 'node').trim();
+    const nodes = nodeQuery ? searchedNodes(tree, nodeQuery) : exampleNodes(tree, controlNumber(values, 'count'));
+    const level = controlNumber(values, 'level');
+    const pinned = controlBoolean(values, 'pin');
 
     return (
         <section className="rounded-lg border border-border-custom bg-dark-900/40 p-3">
@@ -105,6 +123,8 @@ function TreeSection({ tree, values }: { tree: ResearchTreeDef; values: Storyboo
                             layout={layout}
                             showCost
                             showRequirements
+                            currentLevel={Math.min(level, getNodeMaxLevels(node))}
+                            tooltipMode={pinned ? 'pinned' : 'hover'}
                         />
                     ))}
                 </div>
@@ -115,10 +135,17 @@ function TreeSection({ tree, values }: { tree: ResearchTreeDef; values: Storyboo
 
 function ResearchCardsPreview({ values }: { values: StorybookControlValues }) {
     const search = controlString(values, 'tree');
-    const trees = RESEARCH_TREES.filter((t) => matchesSearch(search, t.title, t.id, t.theme));
+    const nodeQuery = controlString(values, 'node').trim();
+    const trees = RESEARCH_TREES.filter((t) => matchesSearch(search, t.title, t.id, t.theme))
+        // A node search hides trees with no matching node.
+        .filter((t) => !nodeQuery || searchedNodes(t, nodeQuery).length > 0);
     return (
         <div className="flex flex-col gap-4">
-            {trees.length === 0 && <p className="text-sm text-muted">No research tree matches “{search}”.</p>}
+            {trees.length === 0 && (
+                <p className="text-sm text-muted">
+                    No research tree matches “{search}”{nodeQuery ? ` with a node matching “${nodeQuery}”` : ''}.
+                </p>
+            )}
             {trees.map((tree) => (
                 <TreeSection key={tree.id} tree={tree} values={values} />
             ))}
@@ -131,7 +158,7 @@ export const RESEARCH_CARDS_STORY: StorybookEntry = {
     id: 'research-cards',
     name: 'Research Cards',
     description:
-        'Per research tree: theme colours, the Upgrades sidebar nameplate (ResearchTreeList) purchased and unpurchased, and example ResearchNodeCards.',
+        'Per research tree: theme colours, the Upgrades sidebar nameplate (ResearchTreeList) purchased and unpurchased, and example ResearchNodeCards. Every control is a URL parameter, e.g. ?node=mighty&pin=1.',
     controls: [
         {
             kind: 'search',
@@ -141,6 +168,16 @@ export const RESEARCH_CARDS_STORY: StorybookEntry = {
             suggestions: RESEARCH_TREES.map((t) => t.title),
             defaultValue: '',
         },
+        {
+            kind: 'search',
+            id: 'node',
+            label: 'Node',
+            placeholder: 'Name, id or text…',
+            suggestions: [...new Set(RESEARCH_TREES.flatMap((t) => t.nodes.filter((n) => !isVirtualRootNode(n)).map((n) => n.title)))],
+            defaultValue: '',
+        },
+        { kind: 'toggle', id: 'pin', label: 'Pin tooltips open', defaultValue: false },
+        { kind: 'range', id: 'level', label: 'Level', min: 0, max: 5, defaultValue: 0 },
         { kind: 'toggle', id: 'selected', label: 'Nameplate selected', defaultValue: false },
         {
             kind: 'select',
@@ -164,6 +201,7 @@ export const RESEARCH_CARDS_STORY: StorybookEntry = {
             ],
             defaultValue: 'comfortable',
         },
+        // Ignored while a Node search is set: then every matching node shows.
         { kind: 'range', id: 'count', label: 'Cards per tree', min: 1, max: 6, defaultValue: 2 },
     ],
     render: (values) => <ResearchCardsPreview values={values} />,

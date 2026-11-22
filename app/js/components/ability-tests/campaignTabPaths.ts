@@ -124,6 +124,18 @@ export function parseIdeasSubpath(subpath: string | undefined): { view: IdeasVie
     return { view, itemId: itemId ?? null };
 }
 
+/**
+ * For a Storybook URL (`/campaign/ideas/storybook` or `/campaign/ideas/storybook/:entryId`), the entry id (`''` when
+ * none is given); `null` for any other path. The Storybook opens without logging in, so `AuthGate` checks this.
+ */
+export function storybookEntryIdFromPath(pathname: string): string | null {
+    const prefix = ideasPath('storybook');
+    const trimmed = pathname.replace(/\/+$/, '');
+    if (trimmed === prefix) return '';
+    if (!trimmed.startsWith(`${prefix}/`)) return null;
+    return decodeURIComponent(trimmed.slice(prefix.length + 1).split('/')[0] ?? '');
+}
+
 /** `/campaign/mission-overview/:missionId` — the read-only Mission Overview for one mission. */
 export function missionOverviewPath(missionId?: string | null): string {
     const base = campaignPathForTab('mission_overview');

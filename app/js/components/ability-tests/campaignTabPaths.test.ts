@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    storybookEntryIdFromPath,
     CHARACTER_INNER_TAB_SLUG,
     DEFAULT_CHARACTER_INNER_TAB,
     campaignHomePath,
@@ -73,5 +74,20 @@ describe('ideas tab paths', () => {
         expect(parseIdeasSubpath('storybook/resources')).toEqual({ view: 'storybook', itemId: 'resources' });
         expect(parseIdeasSubpath('bogus/0001')).toEqual({ view: null, itemId: '0001' });
         expect(parseIdeasSubpath(undefined)).toEqual({ view: null, itemId: null });
+    });
+});
+
+describe('storybookEntryIdFromPath', () => {
+    it('recognises Storybook URLs, which open without logging in', () => {
+        expect(storybookEntryIdFromPath('/campaign/ideas/storybook/research-cards')).toBe('research-cards');
+        expect(storybookEntryIdFromPath('/campaign/ideas/storybook/')).toBe('');
+        expect(storybookEntryIdFromPath('/campaign/ideas/storybook')).toBe('');
+    });
+
+    it('leaves every other path behind the login', () => {
+        expect(storybookEntryIdFromPath('/campaign/ideas/plans/0001')).toBeNull();
+        expect(storybookEntryIdFromPath('/campaign/ideas/storybookish')).toBeNull();
+        expect(storybookEntryIdFromPath('/campaign/characters')).toBeNull();
+        expect(storybookEntryIdFromPath('/')).toBeNull();
     });
 });
