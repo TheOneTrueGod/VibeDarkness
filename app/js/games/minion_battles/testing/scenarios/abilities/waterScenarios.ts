@@ -204,7 +204,7 @@ export const iceClawsSwapScenario: ScenarioDefinition = {
     buildEngine() {
         const engine = buildMageEngine(12, 8, CLAW_CASTER, BLOOD_MAGE_NODE_ICE_CLAWS, BLOOD_MAGE_NODE_CLAWS);
         const player = engine.getLocalPlayerUnit()!;
-        // Set to 5 Water: one Ice cast (3) leaves 2, below the cost, so the second order falls back to Blood.
+        // One Ice cast leaves less Water than the cost, so the second order falls back to Blood.
         player.getResource(ResourceId.Water)!.current = FALLBACK_START_WATER;
         queueSecondClawCast(engine, player);
         keepSimRunning(engine, CLAW_WATCH_SEC);
@@ -285,8 +285,8 @@ export const iceClawsIceOnlyScenario: ScenarioDefinition = {
 // Starting Water
 // ---------------------------------------------------------------------------
 
-/** Water the fallback scenarios start at, so one Ice Claws cast (3) leaves less than the cost. */
-const FALLBACK_START_WATER = 5;
+/** Water the fallback scenarios start at: one Ice Claws cast leaves one less than the cost, so the second cast cannot be Ice. */
+const FALLBACK_START_WATER = ICE_CLAWS_WATER_COST * 2 - 1;
 
 export const waterStartingAmountScenario: ScenarioDefinition = {
     id: 'water_starting_amount_e2e',
