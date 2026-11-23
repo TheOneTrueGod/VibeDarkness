@@ -37,6 +37,8 @@ export interface BuffExpireContext {
     interruptUnitAndRefundAbilities?(unit: Unit): void;
     /** Spawn a visual effect at expiry (e.g. a detonation burst). */
     addEffect?(effect: Effect): void;
+    /** The engine, for expiry hooks that change the world (e.g. returning an exiled unit). */
+    engine?: EngineContext;
 }
 
 /** Serializable buff data. Subclasses extend with their own fields. */

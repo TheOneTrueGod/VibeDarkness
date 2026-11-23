@@ -55,7 +55,7 @@ Zero-frame abilities with `actionChannel: 'special'` fill `BattleOrder.specialAc
 - Usable **alongside** a primary ability (and movement) in the same turn.
 - Selecting a special never auto-ends the turn; auto-end-turn only fires on a **primary** submit.
 - ITS: specials do not enter sequential targeting; when a primary begins ITS, carry `specialAction` on the order so commit preserves it (`buildFinalizedSequentialTargetingOrder` spreads `baseOrder`).
-- Reference: Order: Attack (`0708`) and Order: Move (`0709`).
+- Reference: Order: Attack (`0708`) and Guard (`0712`, a targeted command that exiles the spirit).
 
 ## Targeting preview helper choice
 

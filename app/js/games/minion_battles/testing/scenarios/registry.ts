@@ -93,6 +93,8 @@ import {
     petCommandPreemptsBiteScenario,
     petDisplacementCloneFinishesCastScenario,
     petDisplacementStrikeClonesHuntScenario,
+    petGuardShieldReducesHitsScenario,
+    petGuardTwoSpiritsStackScenario,
     petSicEmPounceScenario,
 } from './general/pets';
 import {
@@ -314,7 +316,11 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     petCommandPreemptsBiteScenario,
     petBusyBlocksCommandScenario,
     petDisplacementStrikeClonesHuntScenario,
+    petGuardShieldReducesHitsScenario,
+    petGuardTwoSpiritsStackScenario,
     petDisplacementCloneFinishesCastScenario,
+    petGuardShieldReducesHitsScenario,
+    petGuardTwoSpiritsStackScenario,
     aiPlanHoldStabilityScenario,
     aiTerrainInterruptScenario,
     aiReplanStaggerScenario,

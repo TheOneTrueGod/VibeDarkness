@@ -80,7 +80,7 @@ export const commandCoreTree: ResearchTreeDef = {
         {
             id: COMMAND_CORE_NODE_LOYAL_COMPANION,
             title: 'Loyal Companion',
-            description: "A spirit hound joins you. It can't be harmed, stays where you send it, and strikes whatever your weapon hits. Grants {Order: Move} and {Sic 'Em}.",
+            description: "A spirit hound joins you. It can't be harmed, stays where you send it, and strikes whatever your weapon hits. Grants {Guard} and {Sic 'Em}.",
             flavorText: 'Some bonds are forged in silence, tested in blood.',
             order: 5,
             tier: 10,
@@ -101,7 +101,7 @@ export const commandCoreTree: ResearchTreeDef = {
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.ArmoryCore, toItemId: CORE_ITEM_IDS.CommandCore },
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.StormCore, toItemId: CORE_ITEM_IDS.CommandCore },
                 { type: 'grantPet', petId: 'dog' },
-                { type: 'addCard', cardId: '0709' },
+                { type: 'addCard', cardId: '0712' },
                 { type: 'addCard', cardId: '0704' },
             ],
         },

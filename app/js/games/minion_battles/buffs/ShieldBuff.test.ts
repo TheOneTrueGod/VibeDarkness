@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ShieldBuff, SHIELD_BUFF_TYPE } from './ShieldBuff';
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
@@ -6,6 +6,9 @@ import { Unit as UnitClass } from '../game/units/Unit';
 import { applyDamageToShields } from '../game/units/unitShield';
 import { DEFAULT_HEAL_PENALTY_PCT } from '../game/units/unitHeal';
 import type { TeamId } from '../game/teams';
+import { createGuardShield } from './guardShield';
+import type { BuffExpireContext } from './Buff';
+import { BUFF_PARTICLE_AURA_PRESETS } from '../game/effects/buffParticleAura';
 
 // onGameTick's unit/engine params are unused by ShieldBuff's drain logic — safe stand-ins.
 const FAKE_UNIT = {} as Unit;
@@ -143,6 +146,56 @@ describe('ShieldBuff', () => {
             const restored = ShieldBuff.fromJSON(new ShieldBuff(10, 2, 'blood', 0.5).toJSON());
             expect(restored.decayHealFraction).toBe(0.5);
             expect(ShieldBuff.fromJSON(new ShieldBuff(10, 2).toJSON()).decayHealFraction).toBe(0);
+        });
+    });
+
+    describe('guard shield (refill floor, expiry, link, serialization)', () => {
+        function makeGuard(overrides: Partial<{ floor: number; seconds: number; gameTime: number; guardianUnitId: string }> = {}): ShieldBuff {
+            return createGuardShield({ floor: 2, seconds: 10, gameTime: 5, guardianUnitId: 'spirit-1', ...overrides });
+        }
+
+        it('expires at its time even with HP left', () => {
+            const buff = makeGuard();
+            expect(buff.remainingHp).toBe(2);
+            expect(buff.isExpired(14.9, 1)).toBe(false);
+            expect(buff.isExpired(15, 1)).toBe(true);
+        });
+
+        it('onBeforeExpire returns the linked exiled unit at the holder position', () => {
+            const buff = makeGuard();
+            const returnExiledUnit = vi.fn();
+            const holder = { x: 120, y: 80 } as Unit;
+
+            buff.onBeforeExpire(holder, { engine: { returnExiledUnit } } as unknown as BuffExpireContext);
+
+            expect(returnExiledUnit).toHaveBeenCalledWith('spirit-1', { x: 120, y: 80 });
+        });
+
+        it('onBeforeExpire does nothing for a shield with no linked unit', () => {
+            const returnExiledUnit = vi.fn();
+            new ShieldBuff(10, 0).onBeforeExpire({ x: 0, y: 0 } as Unit, { engine: { returnExiledUnit } } as unknown as BuffExpireContext);
+            expect(returnExiledUnit).not.toHaveBeenCalled();
+        });
+
+        it('round-trips the new fields through JSON', () => {
+            const restored = ShieldBuff.fromJSON(JSON.parse(JSON.stringify(makeGuard().toJSON())));
+
+            expect(restored.theme).toBe('command');
+            expect(restored.refillFloor).toBe(2);
+            expect(restored.expiresAtGameTime).toBe(15);
+            expect(restored.linkedExiledUnitId).toBe('spirit-1');
+            expect(restored.particleAura).toEqual(BUFF_PARTICLE_AURA_PRESETS.spiritMotes());
+        });
+
+        it('a plain shield serializes without the guard fields and loads with defaults', () => {
+            const json = new ShieldBuff(10, 2).toJSON();
+            expect(json).not.toHaveProperty('refillFloor');
+            expect(json).not.toHaveProperty('expiresAtGameTime');
+            const restored = ShieldBuff.fromJSON(json);
+            expect(restored.refillFloor).toBe(0);
+            expect(restored.expiresAtGameTime).toBeNull();
+            expect(restored.linkedExiledUnitId).toBeNull();
+            expect(restored.particleAura).toBeUndefined();
         });
     });
 });

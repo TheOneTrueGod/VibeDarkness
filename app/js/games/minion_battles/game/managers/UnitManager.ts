@@ -22,6 +22,16 @@ import { isSinglePieceStep, planStepPieces } from '../time/stepPieces';
 import { processUnitPassiveEvent, processUnitPassives } from '../../abilities/passiveRunner';
 import type { AIContext } from '../units/unitAI';
 import { restoreSerializedUnit } from '../units/restoreSerializedUnit';
+import {
+    exileUnitFrom,
+    restoreExiledUnits,
+    returnExiledUnitTo,
+    serializeExiledUnits,
+    tickExiledUnits,
+    type ExileOptions,
+    type ExiledUnitRecord,
+    type SerializedExiledUnitRecord,
+} from '../units/exile';
 import { countNinjutsuEnemyUnits } from '../ninjutsu/NinjutsuManager';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unitDef';
@@ -109,6 +119,8 @@ function findEscapeCell(
 
 export class UnitManager {
     units: Unit[] = [];
+    /** Units temporarily out of play (not in `units`; see `game/units/exile.ts`). */
+    exiledUnits: ExiledUnitRecord[] = [];
     private ctx: EngineContext;
 
     constructor(ctx: EngineContext) {
@@ -146,6 +158,29 @@ export class UnitManager {
 
     getUnits(): Unit[] {
         return this.units;
+    }
+
+    /** Take `unit` out of play (see `game/units/exile.ts`). False when it is not in play or is dead. */
+    exileUnit(unit: Unit, opts: ExileOptions): boolean {
+        return exileUnitFrom(this, this.ctx, unit, opts);
+    }
+
+    /** Put an exiled unit back in play at `at` (default: its anchor's last position, else where it left). */
+    returnExiledUnit(unitId: string, at?: { x: number; y: number }): boolean {
+        return returnExiledUnitTo(this, this.ctx, unitId, at);
+    }
+
+    getExiledUnit(id: string): Unit | undefined {
+        return this.exiledUnits.find((r) => r.unit.id === id)?.unit;
+    }
+
+    getExiledUnits(): readonly ExiledUnitRecord[] {
+        return this.exiledUnits;
+    }
+
+    /** Once per engine tick: return exiled units whose timer is up or whose anchor died. */
+    tickExiledUnits(): void {
+        tickExiledUnits(this, this.ctx);
     }
 
     getLocalPlayerUnit(localPlayerId: string): Unit | undefined {
@@ -439,8 +474,18 @@ export class UnitManager {
         return this.units.map((u) => u.toJSON(currentGameTick));
     }
 
-    restoreFromJSON(unitDataArray: Record<string, unknown>[], eventBus: EventBus, currentGameTick: number = 0): void {
+    exiledToJSON(currentGameTick: number = 0): SerializedExiledUnitRecord[] {
+        return serializeExiledUnits(this.exiledUnits, currentGameTick);
+    }
+
+    restoreFromJSON(
+        unitDataArray: Record<string, unknown>[],
+        eventBus: EventBus,
+        currentGameTick: number = 0,
+        exiledData?: readonly SerializedExiledUnitRecord[],
+    ): void {
         this.units = [];
+        this.exiledUnits = restoreExiledUnits(exiledData, eventBus, currentGameTick, this.ctx);
         for (const unitData of unitDataArray) {
             this.units.push(restoreSerializedUnit(unitData, eventBus, currentGameTick, this.ctx));
         }

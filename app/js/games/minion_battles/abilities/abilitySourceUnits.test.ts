@@ -54,7 +54,7 @@ describe('resolveAbilitySourceUnits with requireFree', () => {
         makeBusy(near);
         expect(resolveAbilitySourceUnits(FREE_NEAREST, owner, units, undefined, engine)).toEqual([far]);
         expect(resolveAbilitySourceUnits(FREE_ALL, owner, units, undefined, engine)).toEqual([far]);
-        // Without requireFree the nearest pet is used, busy or not (Order: Move, Guard, Attack).
+        // Without requireFree the nearest pet is used, busy or not (Order: Attack).
         expect(resolveAbilitySourceUnits(NEAREST, owner, units, undefined, engine)).toEqual([near]);
     });
 

@@ -1,7 +1,7 @@
 /**
  * pet_ordered_move — Walk to a player-ordered destination; suppress auto-engage until arrival.
  *
- * Entered by Order: Move. Cleared on arrival, unreachable destination, heel, or a new order.
+ * Entered by an ordered move. Cleared on arrival, unreachable destination, heel, or a new order.
  */
 
 import type { Unit } from '../../Unit';

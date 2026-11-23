@@ -10,8 +10,6 @@
  *
  * commandPetOrderAttack — sticky focus order (Order: Attack special).
  *
- * commandPetOrderMove — set walk goal to a destination; cancel basicAttack casts (Order: Move).
- *
  * ## Sic 'em → Pounce preview checklist
  *
  * When a command card delegates movement to a pet ability (0704 → 0702 Pounce):
@@ -30,8 +28,7 @@
 
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
-import type { RecoveryChargeType, AbilityTag } from './Ability';
-import { abilityHasTag } from './Ability';
+import type { RecoveryChargeType } from './Ability';
 import type { ResolvedTarget } from '../game/types';
 import type { PetAITreeContext } from '../game/units/unitAI/pet/context';
 import { createCommandCue } from '../game/effects/commandCue';
@@ -39,7 +36,6 @@ import { grantRecoveryChargeToAbility } from './abilityUses';
 import { applyHeal, DEFAULT_HEAL_PENALTY_PCT } from '../game/units/unitHeal';
 import type { AbilityEngineContext } from './AbilityEngineContext';
 import { clearPetGuardWander } from '../game/units/unitAI/pet/pet_guardWander';
-import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { canPreempt } from '../game/units/castPriority';
 import { isUnitLingering } from '../game/units/ephemeralExpiry';
 import { isPetRevivable } from '../game/units/petHelpers';
@@ -201,7 +197,7 @@ export function commandPetAbility(
     playCommandCues(opts?.owner, commanded, engine as { addEffect?(e: unknown): void });
 }
 
-// ---- Order: Attack / Order: Move ----
+// ---- Order: Attack ----
 
 export interface OrderAttackEngineCtx {
     gameTime: number;
@@ -233,60 +229,8 @@ export function commandPetOrderAttack(
     playCommandCues(owner, pets, engine);
 }
 
-export interface OrderMoveEngineCtx {
-    gameTime: number;
-    gameTick: number;
-    addEffect?(e: unknown): void;
-    cancelActiveAbility?(unitId: string, abilityId: string): void;
-}
-
-const BASIC_ATTACK_TAG: AbilityTag = 'basicAttack';
-
 /**
- * Order: Move. Cancel active casts tagged `basicAttack` on each pet, then make the destination the pet's
- * anchor: it walks there and from then on wanders within its def's `anchorRadius` of it (see pet_follow).
- * Non-basic casts are left alone (movement queues via walkIntent).
- */
-export function commandPetOrderMove(
-    pets: Unit[],
-    dest: { x: number; y: number },
-    engine: OrderMoveEngineCtx,
-    owner?: Unit,
-): void {
-    for (const pet of pets) {
-        if (!pet.isAlive()) continue;
-
-        // Cancel only basic-attack casts.
-        for (const active of [...pet.activeAbilities]) {
-            if (abilityHasTag(active.abilityId, BASIC_ATTACK_TAG)) {
-                engine.cancelActiveAbility?.(pet.id, active.abilityId);
-            }
-        }
-
-        const ctx = pet.aiContext as PetAITreeContext;
-        ctx.aiState = 'pet_follow';
-        ctx.anchorX = dest.x;
-        ctx.anchorY = dest.y;
-        ctx.orderedMoveX = undefined;
-        ctx.orderedMoveY = undefined;
-        ctx.targetUnitId = undefined;
-        ctx.orderedFocus = false;
-        ctx.heelUntilGameTime = undefined;
-        clearPetGuardWander(ctx);
-
-        // Start walking now rather than waiting for the pet's next AI turn.
-        pet.setWalkGoal({
-            kind: 'cell',
-            col: Math.floor(dest.x / CELL_SIZE),
-            row: Math.floor(dest.y / CELL_SIZE),
-            targetPixel: { x: dest.x, y: dest.y },
-        });
-    }
-    playCommandCues(owner, pets, engine);
-}
-
-/**
- * Guard (Order: Move's other mode). Clear each pet's ordered anchor so it anchors on its owner again:
+ * Guard (0712), when the spirit returns. Clear each pet's ordered anchor so it anchors on its owner again:
  * it walks back and stays within its def's `anchorRadius` of the owner.
  */
 export function commandPetGuard(

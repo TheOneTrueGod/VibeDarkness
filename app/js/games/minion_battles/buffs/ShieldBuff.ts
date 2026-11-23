@@ -12,15 +12,31 @@
  * the source unit as caster; rule trigger counts (`maxTriggers`) live on the shield, not the cast.
  */
 
-import { Buff, type BuffSerialized } from './Buff';
+import { Buff, type BuffExpireContext, type BuffSerialized } from './Buff';
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
+import type { BuffParticleAuraDef } from '../game/effects/buffParticleAura';
 import { applyHeal } from '../game/units/unitHeal';
 
 export const SHIELD_BUFF_TYPE = 'shield';
 
 /** Visual palette for the shield shell. Mechanics are identical across themes. */
-export type ShieldBuffTheme = 'blood' | 'gravity' | 'light';
+export type ShieldBuffTheme = 'blood' | 'gravity' | 'light' | 'command';
+
+/**
+ * Optional extras for a shield, all data (see `buffs/guardShield.ts` for the preset that uses them):
+ * - `refillFloor`: after a hit takes from this shield, its HP is set back to at least this (a refilling shield
+ *   reduces every hit by the floor and never reaches 0).
+ * - `expiresAtGameTime`: the shield also expires at this world time (a refilling shield never hits 0 HP).
+ * - `linkedExiledUnitId`: an exiled unit returned at the holder's position when this shield expires.
+ * - `particleAura`: render-only particles the holder emits while shielded.
+ */
+export interface ShieldBuffOptions {
+    refillFloor?: number;
+    expiresAtGameTime?: number | null;
+    linkedExiledUnitId?: string | null;
+    particleAura?: BuffParticleAuraDef;
+}
 
 /** Who granted a shield, so its blocks can fire the granting ability's ON_BLOCK_SUCCESS rules. */
 export interface ShieldBuffSource {
@@ -35,6 +51,10 @@ export interface ShieldBuffSerialized extends BuffSerialized {
     decayHealFraction?: number;
     source?: ShieldBuffSource;
     blockRuleTriggerCounts?: Record<string, number>;
+    refillFloor?: number;
+    expiresAtGameTime?: number;
+    linkedExiledUnitId?: string;
+    particleAura?: BuffParticleAuraDef;
 }
 
 export class ShieldBuff extends Buff {
@@ -49,6 +69,13 @@ export class ShieldBuff extends Buff {
     readonly source: ShieldBuffSource | null;
     /** ON_BLOCK_SUCCESS rule trigger counts for this shield (the scope of `maxTriggers`). */
     blockRuleTriggerCounts: Record<string, number> = {};
+    /** After a hit takes from this shield, `remainingHp` is raised back to at least this (0 = no refill). Per shield: floors of several shields add. */
+    readonly refillFloor: number;
+    /** World time at which the shield expires regardless of HP; null = HP-only expiry. */
+    readonly expiresAtGameTime: number | null;
+    /** Exiled unit returned at the holder's position when this shield expires; null = none. */
+    readonly linkedExiledUnitId: string | null;
+    override readonly particleAura: BuffParticleAuraDef | undefined;
 
     constructor(
         remainingHp: number,
@@ -56,6 +83,7 @@ export class ShieldBuff extends Buff {
         theme: ShieldBuffTheme = 'blood',
         decayHealFraction = 0,
         source: ShieldBuffSource | null = null,
+        options: ShieldBuffOptions = {},
     ) {
         // `duration` is unused — ShieldBuff.isExpired only checks remainingHp<=0 — but the
         // base class constructor requires some BuffDuration, so pass a harmless placeholder.
@@ -65,6 +93,10 @@ export class ShieldBuff extends Buff {
         this.theme = theme;
         this.decayHealFraction = Math.max(0, decayHealFraction);
         this.source = source;
+        this.refillFloor = Math.max(0, options.refillFloor ?? 0);
+        this.expiresAtGameTime = options.expiresAtGameTime ?? null;
+        this.linkedExiledUnitId = options.linkedExiledUnitId ?? null;
+        this.particleAura = options.particleAura;
     }
 
     override onGameTick(unit: Unit, _engine: EngineContext, dt: number): void {
@@ -75,8 +107,16 @@ export class ShieldBuff extends Buff {
         if (this.decayHealFraction > 0) applyHeal(unit, drained * this.decayHealFraction);
     }
 
-    override isExpired(_gameTime: number, _roundNumber: number): boolean {
-        return this.remainingHp <= 0;
+    /** Expired at 0 HP, or once past `expiresAtGameTime` when one is set. */
+    override isExpired(gameTime: number, _roundNumber: number): boolean {
+        if (this.remainingHp <= 0) return true;
+        return this.expiresAtGameTime !== null && gameTime >= this.expiresAtGameTime;
+    }
+
+    /** Returns the linked exiled unit (if any) at the holder's position; a unit already back in play is left alone. */
+    override onBeforeExpire(unit: Unit, ctx: BuffExpireContext): void {
+        if (this.linkedExiledUnitId === null) return;
+        ctx.engine?.returnExiledUnit(this.linkedExiledUnitId, { x: unit.x, y: unit.y });
     }
 
     override toJSON(): ShieldBuffSerialized {
@@ -90,6 +130,10 @@ export class ShieldBuff extends Buff {
             ...(Object.keys(this.blockRuleTriggerCounts).length > 0
                 ? { blockRuleTriggerCounts: { ...this.blockRuleTriggerCounts } }
                 : {}),
+            ...(this.refillFloor > 0 ? { refillFloor: this.refillFloor } : {}),
+            ...(this.expiresAtGameTime !== null ? { expiresAtGameTime: this.expiresAtGameTime } : {}),
+            ...(this.linkedExiledUnitId !== null ? { linkedExiledUnitId: this.linkedExiledUnitId } : {}),
+            ...(this.particleAura ? { particleAura: structuredClone(this.particleAura) } : {}),
         };
     }
 
@@ -98,12 +142,17 @@ export class ShieldBuff extends Buff {
         const remainingHp = typeof d.remainingHp === 'number' ? d.remainingHp : 0;
         const drainPerSecond = typeof d.drainPerSecond === 'number' ? d.drainPerSecond : 0;
         const theme: ShieldBuffTheme =
-            d.theme === 'gravity' || d.theme === 'light' ? d.theme : 'blood';
+            d.theme === 'gravity' || d.theme === 'light' || d.theme === 'command' ? d.theme : 'blood';
         const decayHealFraction = typeof d.decayHealFraction === 'number' ? d.decayHealFraction : 0;
         const source = d.source && typeof d.source.unitId === 'string' && typeof d.source.abilityId === 'string'
             ? { unitId: d.source.unitId, abilityId: d.source.abilityId }
             : null;
-        const buff = new ShieldBuff(remainingHp, drainPerSecond, theme, decayHealFraction, source);
+        const buff = new ShieldBuff(remainingHp, drainPerSecond, theme, decayHealFraction, source, {
+            refillFloor: typeof d.refillFloor === 'number' ? d.refillFloor : 0,
+            expiresAtGameTime: typeof d.expiresAtGameTime === 'number' ? d.expiresAtGameTime : null,
+            linkedExiledUnitId: typeof d.linkedExiledUnitId === 'string' ? d.linkedExiledUnitId : null,
+            particleAura: d.particleAura ? structuredClone(d.particleAura) : undefined,
+        });
         buff.blockRuleTriggerCounts = { ...(d.blockRuleTriggerCounts ?? {}) };
         buff.appliedAtTime = data.appliedAtTime ?? 0;
         buff.appliedAtRound = data.appliedAtRound ?? 1;

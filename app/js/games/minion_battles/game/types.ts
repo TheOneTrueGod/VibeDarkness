@@ -148,6 +148,8 @@ export interface SerializedGameState {
     /** NavGrid epoch: incremented when passability or cost of any cell changes. */
     navEpoch?: number;
     units: Record<string, unknown>[];
+    /** Units temporarily out of play (see `game/units/exile.ts`). Omitted when none. */
+    exiledUnits?: import('./units/exile').SerializedExiledUnitRecord[];
     projectiles: Record<string, unknown>[];
     waitingForOrders: WaitingForOrders | null;
     /** Orders scheduled for future ticks (included in checkpoints). */

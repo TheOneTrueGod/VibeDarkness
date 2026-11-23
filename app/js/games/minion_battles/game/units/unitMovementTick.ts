@@ -152,6 +152,7 @@ export function tickUnitUpkeep(unit: Unit, dt: number, engine: unknown): void {
                 units: engCtx.units,
                 interruptUnitAndRefundAbilities: engCtx.interruptUnitAndRefundAbilities?.bind(engCtx),
                 addEffect: engCtx.addEffect?.bind(engCtx),
+                engine: engCtx,
             });
         }
     }

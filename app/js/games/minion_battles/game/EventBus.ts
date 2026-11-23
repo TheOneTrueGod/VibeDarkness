@@ -25,6 +25,8 @@ export type GameEventType =
     | 'unit_banner'
     | 'ability_used'
     | 'unit_fade_in'
+    | 'unit_exiled'
+    | 'unit_returned'
     | 'projectile_hit'
     | 'attack_hit'
     | 'terrain_stone_damaged'
@@ -205,6 +207,24 @@ export interface AbilityUsedEvent {
 export interface UnitFadeInEvent {
     unitId: string;
     durationMs: number;
+}
+
+/** A unit left play (see `game/units/exile.ts`). `x`/`y` is where it left. */
+export interface UnitExiledEvent {
+    unitId: string;
+    reason: string;
+    x: number;
+    y: number;
+    anchorUnitId: string | null;
+}
+
+/** An exiled unit came back into play at `x`/`y`. `reason` is the one it was exiled with. */
+export interface UnitReturnedEvent {
+    unitId: string;
+    reason: string;
+    x: number;
+    y: number;
+    anchorUnitId: string | null;
 }
 
 export interface ProjectileHitEvent {
@@ -396,6 +416,8 @@ export type GameEventDataMap = {
     unit_banner: UnitBannerEvent;
     ability_used: AbilityUsedEvent;
     unit_fade_in: UnitFadeInEvent;
+    unit_exiled: UnitExiledEvent;
+    unit_returned: UnitReturnedEvent;
     projectile_hit: ProjectileHitEvent;
     attack_hit: AttackHitEvent;
     terrain_stone_damaged: TerrainStoneDamagedEvent;

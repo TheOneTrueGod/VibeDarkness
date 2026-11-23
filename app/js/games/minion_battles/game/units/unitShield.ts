@@ -31,6 +31,10 @@ export function applyDamageToShields(unit: Unit, incomingDamage: number): Shield
         const consumed = Math.min(shield.remainingHp, remaining);
         if (consumed <= 0) continue;
         shield.remainingHp -= consumed;
+        // A refilling shield (Guard) tops straight back up inside the same hit. The loop has already moved past
+        // it, so a hit is reduced once per shield; floors of several shields add, and shields without a floor
+        // keep their own HP, so extra shield is never reset down.
+        if (shield.refillFloor > 0) shield.remainingHp = Math.max(shield.remainingHp, shield.refillFloor);
         remaining -= consumed;
         shieldAbsorbed += consumed;
         absorbingShields.push(shield);

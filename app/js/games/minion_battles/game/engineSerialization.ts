@@ -35,6 +35,11 @@ function fieldObjectsJSON(engine: GameEngine): Pick<SerializedGameState, 'droppe
     return { droppedWeapons: saved.droppedWeapons, placedDeployables: saved.placedDeployables };
 }
 
+function exiledUnitsJSON(engine: GameEngine): Pick<SerializedGameState, 'exiledUnits'> {
+    const exiled = engine.state.unitManager.exiledToJSON(engine.gameTick);
+    return exiled.length === 0 ? {} : { exiledUnits: exiled };
+}
+
 export function serializeEngine(engine: GameEngine): SerializedGameState {
     const levelEventData = engine.state.levelEventManager.toJSON();
     const performanceLog = tickPerformanceTracker.getLastPerformanceLog();
@@ -51,6 +56,7 @@ export function serializeEngine(engine: GameEngine): SerializedGameState {
         ...(engine.state.timeManager.isDefault() ? {} : { timeManager: engine.state.timeManager.toJSON() }),
         navEpoch: engine.terrainManager?.navEpoch ?? 0,
         units: engine.state.unitManager.toJSON(engine.gameTick),
+        ...exiledUnitsJSON(engine),
         projectiles: engine.state.projectileManager.toJSON(),
         effectEmitters: engine.state.effectEmitterManager.toJSON(),
         waitingForOrders: engine.waitingForOrders
@@ -191,7 +197,7 @@ export function deserializeEngine(
     }));
 
     // Restore units (direct push, bypasses addUnit jitter since state is serialized)
-    engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus, engine.gameTick);
+    engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus, engine.gameTick, data.exiledUnits);
 
     // Roster size is frozen at mission start; legacy checkpoints omit it — recover from heroes present.
     engine.enemyScalingPlayerCount =

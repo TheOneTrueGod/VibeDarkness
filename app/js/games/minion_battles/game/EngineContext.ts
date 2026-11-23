@@ -70,6 +70,13 @@ export interface EngineContext {
     addEffect(effect: Effect): void;
     addProjectile(projectile: Projectile): void;
     getUnit(id: string): Unit | undefined;
+    /** Take a unit out of play (see `game/units/exile.ts`). False when it is not in play or is dead. */
+    exileUnit(unit: Unit, opts: import('./units/exile').ExileOptions): boolean;
+    /** Put an exiled unit back in play at `at` (default: its anchor's last position, else where it left). No-op for a unit that is not exiled. */
+    returnExiledUnit(unitId: string, at?: { x: number; y: number }): boolean;
+    /** An exiled unit by id (`getUnit` only finds units in play). */
+    getExiledUnit(id: string): Unit | undefined;
+    getExiledUnits(): readonly import('./units/exile').ExiledUnitRecord[];
     getAllies(caster: Unit): Unit[];
     addSpecialTile(tile: SpecialTile): void;
     damageSpecialTile(tileId: string, amount: number): boolean;

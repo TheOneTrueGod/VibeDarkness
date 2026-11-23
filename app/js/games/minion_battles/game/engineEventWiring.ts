@@ -23,6 +23,7 @@ import type { GameEngine } from './GameEngine';
 import { handlePetReactionsOnAttackHit } from './units/petReactions';
 import { releaseDeadPetFromOwner } from './units/petHelpers';
 import type { AbilityEngineContext } from '../abilities/AbilityEngineContext';
+import { registerGuardReturnListener } from '../card_defs/07_command_core/0712_Guard/guardReturn';
 
 export function wireCoreEventListeners(engine: GameEngine): void {
     engine.eventBus.clear();
@@ -39,6 +40,9 @@ export function wireCoreEventListeners(engine: GameEngine): void {
     engine.eventBus.on('attack_hit', (event) => {
         handlePetReactionsOnAttackHit(engine as unknown as AbilityEngineContext, event);
     });
+
+    // Guard (0712): the spirit re-emerges from the guarded unit when it returns from exile.
+    registerGuardReturnListener(engine);
 
     // Reactable fused bodies (e.g. the Pod Mortar seed): the frame opens `reactionLeadSeconds` before the burst.
     engine.eventBus.on('fused_body_reaction_frame', (event) => {

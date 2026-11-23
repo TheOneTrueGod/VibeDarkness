@@ -77,7 +77,7 @@ import { GatherStoneCard } from './05_earth_core/0536_GatherStone/0536Ability';
 import { DogBiteCard } from './07_command_core/0701_DogBite/0701Ability';
 import { SicEmCard } from './07_command_core/0704_SicEm/0704Ability';
 import { OrderAttackCard } from './07_command_core/0708_OrderAttack/0708Ability';
-import { OrderMoveCard } from './07_command_core/0709_OrderMove/0709Ability';
+import { GuardCard } from './07_command_core/0712_Guard/0712Ability';
 import { SpiritStormCard } from './07_command_core/0713_SpiritStorm/0713Ability';
 import { FlingThornCommandCard_0714 } from './07_command_core/0714_FlingThornCommand/0714Ability';
 import { DisplacementStrikeCard } from './07_command_core/0715_DisplacementStrike/0715Ability';
@@ -198,7 +198,7 @@ const cardDefs: CardDef[] = [
     DogBiteCard,
     SicEmCard,
     OrderAttackCard,
-    OrderMoveCard,
+    GuardCard,
     SpiritStormCard,
     FlingThornCommandCard_0714,
     DisplacementStrikeCard,

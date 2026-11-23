@@ -30,3 +30,7 @@ See `minion_battles/AGENTS.md` for the overall architecture (tick loop, data flo
 | `EventBus.ts` | Typed in-battle event bus |
 | `Camera.ts` | Ephemeral view state (never serialised) |
 | `GameRenderer.ts` | Pixi.js drawing; reads engine state each rAF frame |
+
+## Exile (units temporarily out of play)
+
+`UnitManager.exiledUnits` holds units that are **not** in `units`, so ticks, AI, collision, rendering, targeting and pet lookups skip them with no special cases. Entry points (on `GameEngine` and `EngineContext`): `exileUnit(unit, { reason, anchorUnitId?, returnAtGameTime? })` (cancels casts with no refund, clears movement, emits `unit_exiled`), `returnExiledUnit(unitId, at?)` (emits `unit_returned`; no-op for a unit that is not exiled), `getExiledUnit(id)`, `getExiledUnits()`. `getUnit(id)` only finds units in play. Returns are data-driven: once per tick the engine returns a unit whose `returnAtGameTime` has passed, or whose anchor died or vanished (at the anchor's last position). Users that return the unit themselves pass `returnAtGameTime: null`. Records round-trip through the snapshot as the optional `exiledUnits` key. Logic lives in `units/exile.ts`.

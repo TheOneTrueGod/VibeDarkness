@@ -23,6 +23,13 @@ describe('keywordRegistry', () => {
         expect(formatKeywordLine({ keyword: 'bright', n: 3 })).toBe('{Bright 3}');
     });
 
+    it('describes Guard Shield as a shield that refills after every hit', () => {
+        expect(keywordGlossaryEntries(['Guard Shield'])).toEqual([{
+            title: 'Guard Shield',
+            description: 'Shield that refills to {2} after every hit',
+        }]);
+    });
+
     it('describes Bleed as one damage per ten stacks each eighth of a round', () => {
         expect(keywordGlossaryEntries(['Bleed'])).toEqual([{
             title: 'Bleed',

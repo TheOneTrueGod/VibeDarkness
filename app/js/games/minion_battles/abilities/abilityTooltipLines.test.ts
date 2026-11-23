@@ -6,10 +6,11 @@ import { SicEmAbility } from '../card_defs/07_command_core/0704_SicEm/0704Abilit
 import { BramblePatchCommandAbility_0707 } from '../card_defs/07_command_core/0707_BramblePatchCommand/0707Ability';
 import { SPIRIT_STORM_ABILITY_ID } from '../card_defs/07_command_core/0713_SpiritStorm/0713Ability';
 import { FLING_THORN_COMMAND_ID } from '../card_defs/07_command_core/0714_FlingThornCommand/0714Ability';
-import { ORDER_MOVE_ABILITY_ID } from '../card_defs/07_command_core/0709_OrderMove/0709Ability';
+import { ORDER_ATTACK_ABILITY_ID } from '../card_defs/07_command_core/0708_OrderAttack/0708Ability';
+import { GUARD_ABILITY_ID } from '../card_defs/07_command_core/0712_Guard/0712Ability';
 
 describe('getAbilityTooltipLines', () => {
-    it.each([SicEmAbility.id, BramblePatchCommandAbility_0707.id, SPIRIT_STORM_ABILITY_ID, FLING_THORN_COMMAND_ID])(
+    it.each([SicEmAbility.id, BramblePatchCommandAbility_0707.id, SPIRIT_STORM_ABILITY_ID, FLING_THORN_COMMAND_ID, GUARD_ABILITY_ID])(
         'appends the free-spirit line for requireFree ability %s',
         (id) => {
             const ability = getAbility(id)!;
@@ -19,8 +20,8 @@ describe('getAbilityTooltipLines', () => {
         },
     );
 
-    it('adds nothing for Order: Move', () => {
-        const ability = getAbility(ORDER_MOVE_ABILITY_ID)!;
+    it('adds nothing for Order: Attack', () => {
+        const ability = getAbility(ORDER_ATTACK_ABILITY_ID)!;
         expect(getAbilityTooltipLines(ability)).toEqual(ability.getTooltipText());
         expect(getAbilityTooltipLines(ability)).not.toContain(REQUIRES_FREE_SPIRIT_TOOLTIP_LINE);
     });

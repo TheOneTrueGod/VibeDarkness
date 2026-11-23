@@ -231,6 +231,22 @@ const lightShieldBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
     g.stroke({ color: LIGHT_SHIELD_COLOR_INNER, width: 1, alpha: 0.55 * pulse });
 };
 
+/** Guard Shield: a soft pulsing shell in the Command palette (lime glow over a pine inner ring). */
+const COMMAND_SHIELD_COLOR = 0xd9f99d;
+const COMMAND_SHIELD_COLOR_INNER = 0x0f766e;
+const commandShieldBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
+    const shield = buff as ShieldBuff;
+    if (shield.remainingHp <= 0) return;
+
+    const pulse = 0.55 + 0.25 * Math.sin(ctx.gameTime * 4);
+    const shellRadius = unit.radius + 4;
+    g.circle(0, 0, shellRadius);
+    g.fill({ color: COMMAND_SHIELD_COLOR, alpha: 0.14 * pulse });
+    g.stroke({ color: COMMAND_SHIELD_COLOR, width: 2, alpha: 0.75 * pulse });
+    g.circle(0, 0, shellRadius * 0.7);
+    g.stroke({ color: COMMAND_SHIELD_COLOR_INNER, width: 1, alpha: 0.6 * pulse });
+};
+
 /**
  * Shield: a translucent shell around the unit's body, shimmering black/red/transparent.
  * See card_defs/03_blood_mage/AGENTS.md for the design intent behind Blood Mend, which grants this.
@@ -252,6 +268,10 @@ const shieldBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
     }
     if (shield.theme === 'light') {
         lightShieldBuffVisual(g, unit, buff, ctx);
+        return;
+    }
+    if (shield.theme === 'command') {
+        commandShieldBuffVisual(g, unit, buff, ctx);
         return;
     }
 

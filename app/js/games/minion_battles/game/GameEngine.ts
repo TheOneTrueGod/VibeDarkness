@@ -104,6 +104,7 @@ import {
 // Re-exports for backward compatibility
 
 import { FIXED_DT, ROUND_DURATION } from './gameConstants';
+import type { ExileOptions, ExiledUnitRecord } from './units/exile';
 import type { StartTimeStopSpec, TimeManager, TimeStop } from './time/TimeManager';
 import { startLoopClock, type StopLoopClock } from './loopClock';
 
@@ -482,6 +483,12 @@ export class GameEngine implements EngineContext {
 
     getUnit(id: string): Unit | undefined { return this.state.unitManager.getUnit(id); }
     getUnits(): Unit[] { return this.state.unitManager.getUnits(); }
+    /** Take a unit out of play; see `game/units/exile.ts`. */
+    exileUnit(unit: Unit, opts: ExileOptions): boolean { return this.state.unitManager.exileUnit(unit, opts); }
+    /** Put an exiled unit back in play at `at` (default: anchor's last position, else where it left). */
+    returnExiledUnit(unitId: string, at?: { x: number; y: number }): boolean { return this.state.unitManager.returnExiledUnit(unitId, at); }
+    getExiledUnit(id: string): Unit | undefined { return this.state.unitManager.getExiledUnit(id); }
+    getExiledUnits(): readonly ExiledUnitRecord[] { return this.state.unitManager.getExiledUnits(); }
     getLocalPlayerUnit(): Unit | undefined { return this.state.unitManager.getLocalPlayerUnit(this.localPlayerId); }
     getAllies(caster: Unit): Unit[] { return this.state.unitManager.getAllies(caster); }
 
@@ -1456,6 +1463,7 @@ export class GameEngine implements EngineContext {
                 this.isPaused = true;
             }
             this.orderPause.scheduleParallelPauseAfterUnitTick();
+            this.state.unitManager.tickExiledUnits();
             this.state.unitManager.processCrystalAura();
             this.state.specialTileManager.gameTick(this.units, this);
         }
@@ -1807,6 +1815,7 @@ export class GameEngine implements EngineContext {
         }
         this.eventBus.clear();
         this.state.unitManager.units = [];
+        this.state.unitManager.exiledUnits = [];
         this.state.projectileManager.projectiles = [];
         this.state.effectManager.effects = [];
         this.state.effectEmitterManager.emitters = [];

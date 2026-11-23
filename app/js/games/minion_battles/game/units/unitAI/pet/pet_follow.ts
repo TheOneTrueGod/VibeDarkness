@@ -1,7 +1,7 @@
 /**
  * pet_follow — Stay near the anchor; engage or shoot at enemies depending on the pet def.
  *
- * The anchor is the point the pet was last ordered to (`ctx.anchorX/Y`, set by Order: Move) or, while
+ * The anchor is the point the pet was last ordered to (`ctx.anchorX/Y`, set by an order) or, while
  * guarding, the owner. Within the def's `anchorRadius` the pet wanders on a ring around the anchor; beyond
  * it, it walks back (chasing the owner when guarding).
  *

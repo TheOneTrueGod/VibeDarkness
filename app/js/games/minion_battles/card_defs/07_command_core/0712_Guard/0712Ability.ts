@@ -1,54 +1,165 @@
 /**
- * Guard — Order: Move's other mode (the `guard` entry in its `abilityModes.modeAbilityIds`). Zero-frame
- * special with no target: the spirit drops its ordered point and anchors on the player again, staying
- * within its `anchorRadius` of them. Never occupies a bar slot of its own.
+ * Guard - player command card. Pick an ally (or yourself) within range: the nearest free spirit is exiled
+ * (`game/units/exile.ts`, reason `'guard'`) and the target gets a Guard Shield (`buffs/guardShield.ts`) that
+ * refills to `GUARD_SHIELD_FLOOR` after every hit, so each hit is reduced by that much. When the shield ends
+ * the spirit re-emerges from the target (`guardReturn.ts`). With no free spirit, or no valid target, it fizzles.
+ * A clone (Displacement Strike) may guard; it returns no later than its despawn time.
  */
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
-import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
-import { resolveAbilitySourceUnits, commandPetGuard } from '../../../abilities/petCommands';
-import type { Unit } from '../../../game/units/Unit';
-import type { ResolvedTarget } from '../../../game/types';
+import { resolveAbilitySourceUnits, playCommandCues } from '../../../abilities/petCommands';
+import { asCastPriorityEngine } from '../../../abilities/abilitySourceUnits';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
-import type { AbilityStatic } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, PetAbilitySource } from '../../../abilities/Ability';
+import { drawNoPetSourceFizzle, drawRangeRings } from '../../../abilities/previewHelpers';
+import { createGuardShield } from '../../../buffs/guardShield';
+import type { EngineContext } from '../../../game/EngineContext';
+import { areAllies } from '../../../game/teams';
+import type { Unit } from '../../../game/units/Unit';
+import { unitRangeHitbox } from '../../../hitboxes';
+import { type CardDef } from '../../types';
+import {
+    GUARD_ABILITY_ID,
+    GUARD_EXILE_REASON,
+    GUARD_RANGE,
+    GUARD_SECONDS,
+    GUARD_SHIELD_FLOOR,
+} from './guardConstants';
+import { guardPulse } from './guardReturn';
 
-export const GUARD_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}12`;
+export { GUARD_ABILITY_ID, GUARD_RANGE, GUARD_SECONDS, GUARD_SHIELD_FLOOR };
+export const GUARD_TARGET_LABEL = 'Guard target';
 
-const SPECIAL_TIMINGS: AbilityTimingInterval[] = [
-    { id: 'special', start: 0, end: 0.001, abilityPhase: AbilityPhase.Active, doNotRefund: true },
+const MAX_USES = 1;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
+const CAST_DURATION = 0.1;
+const COOLDOWN_DURATION = 0.4;
+/** Command Core lime, for the range ring. */
+const PREVIEW_COLOR = 0xd9f99d;
+
+export const GUARD_PET_SOURCE: PetAbilitySource = { type: 'pet', selector: 'nearest', requireFree: true };
+
+const GUARD_HITBOX = unitRangeHitbox(GUARD_RANGE, 0, true);
+
+const ABILITY_TIMINGS: AbilityTimingInterval[] = [
+    {
+        id: 'active',
+        start: 0,
+        end: CAST_DURATION,
+        abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
+        targetDef: {
+            kind: 'select',
+            label: GUARD_TARGET_LABEL,
+            hitbox: GUARD_HITBOX,
+            filter: 'ally',
+            allowMiss: false,
+            includeSelf: true,
+        },
+        castBehaviours: [
+            {
+                timingStart: 'start',
+                behaviour: CastBehaviours.Instant((ctx) => {
+                    const eng = ctx.engine as unknown as EngineContext;
+                    const t = ctx.target;
+                    const target = t.type === 'unit' && t.unitId ? eng.getUnit(t.unitId) : undefined;
+                    if (!target?.isAlive()) return;
+                    // The guarded unit never guards itself (a spirit or clone can be the ally).
+                    const [spirit] = resolveAbilitySourceUnits(
+                        GuardAbility, ctx.caster, eng.units.filter((u) => u !== target), { x: target.x, y: target.y }, eng,
+                    );
+                    if (!spirit) return;
+
+                    // A clone must be back by its despawn time (it then expires as usual).
+                    const despawnAt = spirit.ephemeralDespawnAtGameTime;
+                    const seconds = despawnAt == null
+                        ? GUARD_SECONDS
+                        : Math.max(0, Math.min(GUARD_SECONDS, despawnAt - eng.gameTime));
+                    const exiled = eng.exileUnit(spirit, {
+                        reason: GUARD_EXILE_REASON,
+                        anchorUnitId: target.id,
+                        returnAtGameTime: despawnAt,
+                    });
+                    if (!exiled) return;
+
+                    playCommandCues(ctx.caster, [spirit], eng);
+                    eng.addEffect(guardPulse(spirit.x, spirit.y, 0.45));
+                    target.addBuff(
+                        createGuardShield({
+                            floor: GUARD_SHIELD_FLOOR,
+                            seconds,
+                            guardianUnitId: spirit.id,
+                            gameTime: eng.gameTime,
+                        }),
+                        eng.gameTime,
+                        eng.roundNumber,
+                        eng.eventBus,
+                    );
+                }),
+            },
+        ],
+    },
+    { id: 'cooldown', start: CAST_DURATION, end: CAST_DURATION + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
 ];
 
+/** A lime shield over a white spirit mote on a teal disc (Command Core palette). */
 const GUARD_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="32" cy="32" r="22" fill="#0f766e" stroke="#d9f99d" stroke-width="2"/>
-  <path d="M32 16 L45 21 L45 33 C45 41 39 46 32 49 C25 46 19 41 19 33 L19 21 Z" fill="none" stroke="#d9f99d" stroke-width="2.5" stroke-linejoin="round"/>
-  <circle cx="32" cy="33" r="3" fill="#d9f99d"/>
+  <circle cx="32" cy="32" r="28" fill="#0f766e"/>
+  <path d="M32 14 L47 20 L47 33 C47 42 40 48 32 51 C24 48 17 42 17 33 L17 20 Z" fill="#042f2e" stroke="#d9f99d" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M32 24 L38 32 L32 40 L26 32 Z" fill="#ffffff"/>
 </svg>`;
 
-export const GuardAbility: AbilityStatic = defineAbility({
+export const GuardAbility = defineAbility({
     id: GUARD_ABILITY_ID,
     name: 'Guard',
+    flavorText: 'It steps into you and does not step out until the danger passes.',
     image: GUARD_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
-    maxUses: 1,
-    tags: ['free', 'secondary'],
-    actionChannel: 'special',
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: 0,
     targets: [],
-    abilityTimings: SPECIAL_TIMINGS,
-    abilitySource: { type: 'pet', selector: 'nearest' },
-    getRange: () => ({ minRange: 0, maxRange: 0 }),
+    abilityTimings: ABILITY_TIMINGS,
+    abilitySource: GUARD_PET_SOURCE,
+
+    getRange(_caster: Unit): { minRange: number; maxRange: number } {
+        return { minRange: 0, maxRange: GUARD_RANGE };
+    },
 
     getTooltipText(): string[] {
         return [
-            'Call your spirit back to guard you. It stays close to your side.',
-            'Zero-frame special — usable with another action.',
+            `Your spirit shields an ally for {${GUARD_SECONDS}}s`,
+            '{Guard Shield}',
         ];
     },
 
-    applySpecialAction(caster: Unit, _targets: ResolvedTarget[], engine: unknown): void {
-        const eng = engine as { units: Unit[]; addEffect?(e: unknown): void };
-        const pets = resolveAbilitySourceUnits(GuardAbility, caster, eng.units);
-        if (pets.length === 0) return;
-        commandPetGuard(pets, eng, caster);
+    // Range ring round the caster and a line from the spirit to the ally under the cursor; the fizzle X with no free spirit.
+    renderTargetingPreviewSelectedTargets(gr, caster, _currentTargets, mouseWorld, units, gameState) {
+        gr.clear();
+        const spirit = resolveAbilitySourceUnits(GuardAbility, caster, units, mouseWorld, asCastPriorityEngine(gameState))[0];
+        if (!spirit) {
+            drawNoPetSourceFizzle(gr, caster);
+            return;
+        }
+        drawRangeRings(gr, caster.x, caster.y, 0, GUARD_RANGE, { strokeColor: PREVIEW_COLOR, fillAlpha: 0.08 });
+        const ally = units.find((u) => (
+            u.isAlive()
+            && areAllies(caster.teamId, u.teamId)
+            && Math.hypot(mouseWorld.x - u.x, mouseWorld.y - u.y) <= u.radius + 8
+            && Math.hypot(caster.x - u.x, caster.y - u.y) <= GUARD_RANGE
+        ));
+        if (!ally) return;
+        gr.moveTo(spirit.x, spirit.y);
+        gr.lineTo(ally.x, ally.y);
+        gr.stroke({ color: PREVIEW_COLOR, width: 3, alpha: 0.7 });
+        gr.circle(ally.x, ally.y, ally.radius + 4);
+        gr.stroke({ color: PREVIEW_COLOR, width: 2, alpha: 0.9 });
     },
 });
+
+export const GuardCard: CardDef = {
+    abilityId: GUARD_ABILITY_ID,
+};

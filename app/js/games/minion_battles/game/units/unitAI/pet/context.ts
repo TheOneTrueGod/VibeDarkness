@@ -26,7 +26,7 @@ export interface PetAITreeContext extends UnitAIContextBase {
     /** gameTime when the pet last scanned for enemies. */
     lastScanTime?: number;
     /**
-     * The point the pet was last ordered to (Order: Move). It wanders within its def's `anchorRadius` of it.
+     * The point the pet was last ordered to. It wanders within its def's `anchorRadius` of it.
      * Unset = guarding: the anchor is the owner.
      */
     anchorX?: number;

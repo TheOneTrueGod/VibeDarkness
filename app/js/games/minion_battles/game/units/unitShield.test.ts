@@ -4,6 +4,7 @@ import { EventBus } from '../EventBus';
 import { applyDamageToShields, getTotalShieldHp } from './unitShield';
 import { applyDamageToUnitDetailed } from './unitDamage';
 import { ShieldBuff } from '../../buffs/ShieldBuff';
+import { createGuardShield } from '../../buffs/guardShield';
 
 function makeUnit(overrides: Partial<ConstructorParameters<typeof Unit>[0]> = {}): Unit {
     return new Unit({
@@ -101,5 +102,64 @@ describe('applyDamageToUnitDetailed shieldAbsorbed', () => {
 
         expect(breakdown).toEqual({ hpDamage: 12, armourRemoved: 0, shieldAbsorbed: 0 });
         expect(unit.hp).toBe(28);
+    });
+});
+
+describe('guard shield (refill floor)', () => {
+    const guard = (id = 'spirit') => createGuardShield({ floor: 2, seconds: 10, gameTime: 0, guardianUnitId: id });
+
+    it('a 5-damage hit deals 3 through and leaves the shield at 2', () => {
+        const unit = makeUnit();
+        const shield = guard();
+        unit.buffs = [shield];
+
+        const result = applyDamageToShields(unit, 5);
+
+        expect(result.shieldAbsorbed).toBe(2);
+        expect(result.remainingDamage).toBe(3);
+        expect(shield.remainingHp).toBe(2);
+        expect(shield.isExpired(0, 1)).toBe(false);
+    });
+
+    it('two guard shields reduce a 5-damage hit to 1 and both stay at 2', () => {
+        const unit = makeUnit();
+        const a = guard('a');
+        const b = guard('b');
+        unit.buffs = [a, b];
+
+        const result = applyDamageToShields(unit, 5);
+
+        expect(result.remainingDamage).toBe(1);
+        expect(a.remainingHp).toBe(2);
+        expect(b.remainingHp).toBe(2);
+        expect(getTotalShieldHp(unit)).toBe(4);
+    });
+
+    it('a guard shield plus a 6-HP plain shield: the guard refills, the plain shield is never refilled', () => {
+        const unit = makeUnit();
+        const g = guard();
+        const plain = new ShieldBuff(6, 0);
+        unit.buffs = [g, plain];
+
+        const result = applyDamageToShields(unit, 3);
+
+        expect(result.remainingDamage).toBe(0);
+        expect(g.remainingHp).toBe(2);
+        expect(plain.remainingHp).toBe(5);
+
+        applyDamageToShields(unit, 3);
+        expect(g.remainingHp).toBe(2);
+        expect(plain.remainingHp).toBe(4);
+    });
+
+    it('a hit smaller than the floor leaves the shield at 2 (refilled, not left at 1)', () => {
+        const unit = makeUnit();
+        const shield = guard();
+        unit.buffs = [shield];
+
+        const result = applyDamageToShields(unit, 1);
+
+        expect(result.remainingDamage).toBe(0);
+        expect(shield.remainingHp).toBe(2);
     });
 });

@@ -4,7 +4,7 @@
  * Painted by `CommandCue` in `effect_defs/commandEffects.ts`.
  *
  * Every pet command goes through `abilities/petCommands.ts`, which plays this once per commanded pet, so
- * every order (Pet, Sic 'em, Bramble Patch, Order: Attack, Order: Move) shares one look. Colours come from
+ * every order (Pet, Sic 'em, Bramble Patch, Order: Attack, Guard) shares one look. Colours come from
  * a theme (Command by default), so another commander family can reuse it with its own palette.
  */
 import { Effect } from './Effect';

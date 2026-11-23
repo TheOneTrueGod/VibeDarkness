@@ -203,6 +203,13 @@ registerGlossaryTerm({
     description: 'Slows movement and pricks shadow creatures until it wears out.',
 });
 
+/** `{Guard Shield}`: Guard's refilling shield (`buffs/guardShield.ts`). */
+registerGlossaryTerm({
+    title: 'Guard Shield',
+    matches: ['guard shield'],
+    description: 'Shield that refills to {2} after every hit',
+});
+
 registerGlossaryTerm({
     title: 'Stun',
     matches: ['stun', 'stuns', 'stunned'],

@@ -20,7 +20,7 @@ export interface PetDefEntry {
     autoEngage?: boolean;
     /**
      * With `autoEngage: false`: while guarding (no ordered point, so the anchor is the owner), still engage
-     * enemies within `engageLeashRange` of the owner. Sent to a point with Order: Move, the pet holds there
+     * enemies within `engageLeashRange` of the owner. Given an anchor point (ctx.anchorX/Y), the pet holds there
      * and does not chase. Default false.
      */
     engageWhileGuarding?: boolean;
@@ -50,7 +50,7 @@ const PET_DEFS: Record<string, PetDefEntry> = {
         abilityIds: ['0701', '0702', '0710', '0711'],
         basicAttackAbilityId: '0701',
         // Guarding (the mission start, or after Guard) it follows its owner and attacks enemies near them;
-        // sent to a point with Order: Move it holds there instead.
+        // anchored on a point it holds there instead.
         autoEngage: false,
         engageWhileGuarding: true,
         anchorRadius: 50,

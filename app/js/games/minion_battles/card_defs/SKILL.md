@@ -52,7 +52,7 @@ Break the ability into parts (movement, hitbox, effect, event rule, CastBehaviou
 ## Special cases
 
 - **Command cards and delegated abilities** (Sic 'em `0704` delegating to Pounce `0702`): with `abilitySource: { type: 'pet' }`, the preview draws from `resolveAbilitySourceUnits` (use `createPetSourcedMovementPreview`), follows the delegate's terrain-aware movement, and imports range constants from the delegate file. Checklist in `abilities/petCommands.ts`; reference `07_command_core/0704_SicEm/0704Ability.ts`.
-- **Special actions:** zero-frame abilities with `actionChannel: 'special'` fill `BattleOrder.specialAction`, never enter `activeAbilities`, and never auto-end the turn. During sequential targeting, carry `specialAction` on the order. Reference: `0708`, `0709`.
+- **Special actions:** zero-frame abilities with `actionChannel: 'special'` fill `BattleOrder.specialAction`, never enter `activeAbilities`, and never auto-end the turn. During sequential targeting, carry `specialAction` on the order. Reference: `0708`.
 - **Preview helper choice:** see the decision table at the top of `abilities/previewHelpers.ts`; if runtime movement uses `DashBehaviour` / `computeForcedDisplacement`, use the matching terrain-aware preview.
 - **Deployables:** use `findDeployables` / `consumeDeployable` (see `game/deployables/AGENTS.md`), pass the caster's team, and use identical args in preview and cast. Reference: `08_light_core/0806_LayHands/0806Ability.ts`.
 

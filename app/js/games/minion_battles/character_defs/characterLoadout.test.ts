@@ -28,7 +28,7 @@ describe('resolveCharacterLoadout', () => {
         const { abilityIds, weaponAbilityIds } = resolveCharacterLoadout([CORE_ITEM_IDS.CommandCore, STICK], {
             [COMMAND_CORE_TREE_ID]: ['loyal_companion', 'mimic_thorn', 'mimic_brambles', 'spirit_storm'],
         });
-        for (const card of ['0704', '0707', '0709', '0713', '0714']) {
+        for (const card of ['0704', '0707', '0712', '0713', '0714']) {
             expect(abilityIds).toContain(card);
             expect(weaponAbilityIds).not.toContain(card);
         }

@@ -8,16 +8,12 @@ import { OrderManager } from './managers/OrderManager';
 import type { EngineContext } from './EngineContext';
 import type { BattleOrder } from './types';
 import { buildFinalizedSequentialTargetingOrder } from './interaction/InteractiveTargetingSession';
-import {
-    commandPetOrderAttack,
-    commandPetOrderMove,
-} from '../abilities/petCommands';
+import { commandPetOrderAttack } from '../abilities/petCommands';
 import type { PetAITreeContext } from './units/unitAI/pet/context';
 import { pet_engage } from './units/unitAI/pet/pet_engage';
 import type { AIContext } from './units/unitAI/types';
 import { initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
 import { ORDER_ATTACK_ABILITY_ID } from '../card_defs/07_command_core/0708_OrderAttack/0708Ability';
-import { ORDER_MOVE_ABILITY_ID } from '../card_defs/07_command_core/0709_OrderMove/0709Ability';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { FLING_THORN_ABILITY_ID } from '../card_defs/07_command_core/0705_FlingThorn/0705Ability';
 import {
@@ -161,7 +157,7 @@ describe('buildFinalizedSequentialTargetingOrder', () => {
             abilityId: '0116',
             targets: [],
             specialAction: {
-                abilityId: ORDER_MOVE_ABILITY_ID,
+                abilityId: ORDER_ATTACK_ABILITY_ID,
                 targets: [{ type: 'pixel', position: { x: 10, y: 20 } }],
             },
         };
@@ -170,7 +166,7 @@ describe('buildFinalizedSequentialTargetingOrder', () => {
             { 'Target 1': { type: 'unit', unitId: 'e1' } },
             base,
         );
-        expect(finalized.specialAction?.abilityId).toBe(ORDER_MOVE_ABILITY_ID);
+        expect(finalized.specialAction?.abilityId).toBe(ORDER_ATTACK_ABILITY_ID);
         expect(finalized.endTurn).toBe(true);
         expect(finalized.targets[0]?.unitId).toBe('e1');
     });
@@ -193,7 +189,7 @@ describe('buildFinalizedSequentialTargetingOrder', () => {
     });
 });
 
-describe('Order: Attack / Order: Move abilities', () => {
+describe('Order: Attack ability', () => {
     it('Order: Attack applySpecialAction sets sticky focus', () => {
         const ability = getAbility(ORDER_ATTACK_ABILITY_ID);
         expect(ability?.actionChannel).toBe('special');
@@ -228,37 +224,6 @@ describe('Order: Attack / Order: Move abilities', () => {
         expect(ctx.orderedFocus).toBe(true);
         expect(ctx.targetUnitId).toBe('enemy_x');
         expect(effects.length).toBe(1);
-    });
-
-    it('Order: Move cancels basicAttack casts but not others', () => {
-        const pet = makePet();
-        pet.activeAbilities.push(
-            { abilityId: '0701', startTime: 0, targets: [] } as Unit['activeAbilities'][number],
-            { abilityId: '0702', startTime: 0, targets: [] } as Unit['activeAbilities'][number],
-        );
-        const cancelled: string[] = [];
-        commandPetOrderMove(
-            [pet],
-            { x: 300, y: 100 },
-            {
-                gameTime: 1,
-                gameTick: 10,
-                cancelActiveAbility: (_id, abilityId) => { cancelled.push(abilityId); },
-            },
-        );
-        expect(cancelled).toEqual(['0701']);
-        const ctx = pet.aiContext as PetAITreeContext;
-        // The destination becomes the pet's anchor; pet_follow walks there and wanders near it.
-        expect(ctx.aiState).toBe('pet_follow');
-        expect(ctx.anchorX).toBe(300);
-        expect(ctx.anchorY).toBe(100);
-        expect(ctx.orderedFocus).toBe(false);
-        // The pet starts walking to the exact ordered pixel straight away.
-        expect(pet.walkIntent).toEqual({
-            dest: { col: 7, row: 2 },
-            managed: true,
-            targetPixel: { x: 300, y: 100 },
-        });
     });
 });
 

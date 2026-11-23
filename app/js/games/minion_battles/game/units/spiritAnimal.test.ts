@@ -1,5 +1,5 @@
 /**
- * The spirit animal (Command Core): ethereal body, anchor orders (Order: Move / Guard), owner weapon-hit
+ * The spirit animal (Command Core): ethereal body, anchors (Guard), owner weapon-hit
  * reactions, and the dash strike that Spirit Strike and Spirit Flurry are built from.
  */
 import { describe, expect, it } from 'vitest';
@@ -10,7 +10,7 @@ import { findEnemies } from './unitAI/utils';
 import type { PetAITreeContext } from './unitAI/pet/context';
 import { pet_follow, resolvePetAnchor } from './unitAI/pet/pet_follow';
 import type { AIContext } from './unitAI/types';
-import { commandPetGuard, commandPetOrderMove } from '../../abilities/petCommands';
+import { commandPetGuard } from '../../abilities/petCommands';
 import { handlePetReactionsOnAttackHit } from './petReactions';
 import { DashStrikeBehaviour } from '../../abilities/CastBehaviours/DashStrikeBehaviour';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
@@ -56,11 +56,12 @@ describe('ethereal spirit', () => {
 });
 
 describe('anchor orders', () => {
-    it('Order: Move anchors on the point, Guard anchors back on the owner', () => {
+    it('an ordered anchor point holds until Guard anchors back on the owner', () => {
         const owner = makeUnit('owner', 0, 0, 'player');
         const spirit = makeSpirit(owner);
-        commandPetOrderMove([spirit], { x: 300, y: 120 }, { gameTime: 0, gameTick: 0 });
         const ctx = spirit.aiContext as PetAITreeContext;
+        ctx.anchorX = 300;
+        ctx.anchorY = 120;
         expect(resolvePetAnchor(ctx, owner)).toEqual({ x: 300, y: 120 });
         commandPetGuard([spirit], {});
         expect(resolvePetAnchor(ctx, owner)).toBe(owner);
@@ -84,12 +85,14 @@ describe('anchor orders', () => {
         expect(ctx.targetUnitId).toBe('enemy');
     });
 
-    it('sent to a point with Order: Move it holds there and does not chase', () => {
+    it('anchored on a point it holds there and does not chase', () => {
         const owner = makeUnit('owner', 0, 0, 'player');
         const spirit = makeSpirit(owner, 30, 0);
         const enemy = makeUnit('enemy', 120, 0, 'enemy');
-        commandPetOrderMove([spirit], { x: 30, y: 0 }, { gameTime: 0, gameTick: 0 });
         const ctx = spirit.aiContext as PetAITreeContext;
+        ctx.anchorX = 30;
+        ctx.anchorY = 0;
+        ctx.aiState = 'pet_follow';
         pet_follow.actions.execute(spirit, followContext([owner, spirit, enemy]));
         expect(ctx.aiState).toBe('pet_follow');
         expect(ctx.targetUnitId).toBeUndefined();

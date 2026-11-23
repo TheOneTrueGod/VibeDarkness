@@ -47,6 +47,12 @@ import { spawnPetForOwner } from '../../../game/units/petSpawn';
 import { getLivingPetsOfUnit } from '../../../game/units/petHelpers';
 import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
 import type { Unit } from '../../../game/units/Unit';
+import {
+    GUARD_ABILITY_ID,
+    GUARD_SECONDS,
+    GUARD_SHIELD_FLOOR,
+    GUARD_TARGET_LABEL,
+} from '../../../card_defs/07_command_core/0712_Guard/0712Ability';
 
 /** Pounce only stuns: all of Sic 'em's damage comes from the Spirit Flurry strikes. */
 const POUNCE_HIT_DAMAGE = 0;
@@ -780,4 +786,175 @@ export const petDisplacementCloneFinishesCastScenario: ScenarioDefinition = {
             `t=${engine.gameTime.toFixed(2)}`
         );
     },
+};
+
+
+// ---- Scenarios 7-8: Guard (0712) ----
+
+const GUARD_HIT_DAMAGE = 5;
+const GUARD_OWNER_POS = { x: 200, y: 200 };
+/** Within this many px of the shielded unit counts as "beside" it (the return emerges at its position). */
+const GUARD_BESIDE_PX = 80;
+
+interface GuardRun {
+    ownerId: string;
+    spiritIds: string[];
+    /** Game times (s) at which a hit lands on the owner. */
+    hitTimes: number[];
+    nextHit: number;
+    /** Damage each hit actually dealt, and how many spirits were exiled when it landed. */
+    hits: { dealt: number; exiled: number }[];
+}
+
+const guardRuns = new WeakMap<GameEngine, GuardRun>();
+
+/** The owner (a lot of HP, so the hits never kill it), `spiritCount` spirits beside it, and the Guard card with that many uses. */
+function buildGuardBattle(spiritCount: number, hitTimes: number[]): GameEngine {
+    const engine = buildTinyBattleEngine({ gridW: 16, gridH: 11, localPlayerId: P, grass: true });
+    const player = spawnTinyPlayerUnit(engine, {
+        playerId: P,
+        x: GUARD_OWNER_POS.x,
+        y: GUARD_OWNER_POS.y,
+        abilities: [GUARD_ABILITY_ID],
+    });
+    player.maxHp = 200;
+    player.hp = 200;
+    player.abilityRuntime[GUARD_ABILITY_ID]!.maxUses = spiritCount;
+    player.abilityRuntime[GUARD_ABILITY_ID]!.currentUses = spiritCount;
+    const spiritIds: string[] = [];
+    for (let i = 0; i < spiritCount; i++) {
+        const spirit = spawnPetForOwner(engine, player, {
+            petDefId: 'dog',
+            at: { x: GUARD_OWNER_POS.x + (i === 0 ? 60 : -60), y: GUARD_OWNER_POS.y },
+            abilityIds: [...getPetDef('dog')!.abilityIds],
+            maxHp: 30,
+            spawnSource: 'initialGameSpawn',
+        })!;
+        spiritIds.push(spirit.id);
+    }
+    guardRuns.set(engine, { ownerId: player.id, spiritIds, hitTimes, nextHit: 0, hits: [] });
+    return engine;
+}
+
+function guardOrder(engine: GameEngine) {
+    const owner = engine.getLocalPlayerUnit()!;
+    const target: ResolvedTarget = { type: 'unit', unitId: owner.id };
+    return {
+        unitId: owner.id,
+        abilityId: GUARD_ABILITY_ID,
+        targets: [target],
+        targetsByLabel: { [GUARD_TARGET_LABEL]: target },
+    };
+}
+
+/** Land the scheduled hits (the "enemy"), recording what each dealt. Called from `assertPass`, which runs every tick. */
+function runGuardHits(engine: GameEngine): GuardRun {
+    const run = guardRuns.get(engine)!;
+    const owner = engine.getUnit(run.ownerId);
+    while (owner && run.nextHit < run.hitTimes.length && engine.gameTime >= run.hitTimes[run.nextHit]!) {
+        const before = owner.hp;
+        owner.takeDamage(GUARD_HIT_DAMAGE, 'guard_tester', engine.eventBus);
+        run.hits.push({ dealt: before - owner.hp, exiled: engine.getExiledUnits().length });
+        run.nextHit++;
+    }
+    return run;
+}
+
+function guardSpiritsBeside(engine: GameEngine, run: GuardRun): boolean {
+    const owner = engine.getUnit(run.ownerId);
+    if (!owner) return false;
+    return run.spiritIds.every((id) => {
+        const s = engine.getUnit(id);
+        return !!s && Math.hypot(s.x - owner.x, s.y - owner.y) <= GUARD_BESIDE_PX;
+    });
+}
+
+function guardFailure(engine: GameEngine): string {
+    const run = guardRuns.get(engine)!;
+    return (
+        `hits dealt=[${run.hits.map((h) => h.dealt).join(',')}] exiled at hits=[${run.hits.map((h) => h.exiled).join(',')}] ` +
+        `exiled now=${engine.getExiledUnits().length} spirits in play=` +
+        `${run.spiritIds.filter((id) => engine.getUnit(id)).length}/${run.spiritIds.length} t=${engine.gameTime.toFixed(2)}`
+    );
+}
+
+/**
+ * The player casts Guard (0712) on themself. The spirit leaves the map, and an "enemy" lands 5-damage hits on the owner
+ * every 2 s. When the 10 s shield ends the spirit emerges beside the owner again.
+ *
+ * Assertions:
+ *   1. Every hit dealt 5 - 2 = 3 (the guard shield refills to its floor after each hit).
+ *   2. The spirit was exiled (off the map) at every hit.
+ *   3. Once the shield has ended the spirit is back in play beside the owner and nothing is exiled.
+ */
+export const petGuardShieldReducesHitsScenario: ScenarioDefinition = {
+    id: 'pet_guard_shield_reduces_hits',
+    title: 'Guard (0712): the spirit leaves the map, each hit is reduced by 2, then the spirit re-emerges at the owner',
+    category: 'general',
+    generalSection: 'Pets',
+    maxDurationMs: 14000,
+
+    buildEngine() {
+        const engine = buildGuardBattle(1, [2, 4, 6]);
+        queuePlayerWaits(engine, 840);
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        return [guardOrder(engine)];
+    },
+
+    assertPass(engine) {
+        const run = runGuardHits(engine);
+        return (
+            engine.gameTime > GUARD_SECONDS + 1.5 &&
+            run.hits.length === 3 &&
+            run.hits.every((h) => h.dealt === GUARD_HIT_DAMAGE - GUARD_SHIELD_FLOOR && h.exiled === 1) &&
+            engine.getExiledUnits().length === 0 &&
+            guardSpiritsBeside(engine, run)
+        );
+    },
+
+    failureMessage: guardFailure,
+};
+
+/**
+ * Two spirits guard the same owner (two casts of Guard), so the floor is 4: a 5-damage hit deals 1. When their shields
+ * end both spirits emerge beside the owner.
+ *
+ * Assertions:
+ *   1. Both spirits were exiled at the hits, and each hit dealt 5 - 4 = 1.
+ *   2. After the shields end both spirits are back in play beside the owner.
+ */
+export const petGuardTwoSpiritsStackScenario: ScenarioDefinition = {
+    id: 'pet_guard_two_spirits_stack',
+    title: 'Guard (0712): two spirits guarding one ally stack to a floor of 4, then both re-emerge at the ally',
+    category: 'general',
+    generalSection: 'Pets',
+    maxDurationMs: 15000,
+
+    buildEngine() {
+        const engine = buildGuardBattle(2, [3, 5]);
+        // The second cast, a little after the first (past Guard's 0.4 s cooldown).
+        engine.state.orderMgr.queueOrder(40, guardOrder(engine));
+        queuePlayerWaits(engine, 900);
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        return [guardOrder(engine)];
+    },
+
+    assertPass(engine) {
+        const run = runGuardHits(engine);
+        return (
+            engine.gameTime > GUARD_SECONDS + 2.5 &&
+            run.hits.length === 2 &&
+            run.hits.every((h) => h.dealt === GUARD_HIT_DAMAGE - 2 * GUARD_SHIELD_FLOOR && h.exiled === 2) &&
+            engine.getExiledUnits().length === 0 &&
+            guardSpiritsBeside(engine, run)
+        );
+    },
+
+    failureMessage: guardFailure,
 };
