@@ -21,6 +21,7 @@ import { fusedBodyOptionsOf } from './units/components/fusedBodyComponent';
 import { requestReactionFrame } from './reactions/reactionFrame';
 import type { GameEngine } from './GameEngine';
 import { handlePetReactionsOnAttackHit } from './units/petReactions';
+import { emitPetAttackHit } from './units/petAttackHit';
 import { releaseDeadPetFromOwner } from './units/petHelpers';
 import type { AbilityEngineContext } from '../abilities/AbilityEngineContext';
 import { registerGuardReturnListener } from '../card_defs/07_command_core/0712_Guard/guardReturn';
@@ -40,6 +41,8 @@ export function wireCoreEventListeners(engine: GameEngine): void {
     engine.eventBus.on('attack_hit', (event) => {
         handlePetReactionsOnAttackHit(engine as unknown as AbilityEngineContext, event);
     });
+    // A pet hitting an enemy, for owner-side systems (e.g. the Kinship resource).
+    engine.eventBus.on('attack_hit', (event) => emitPetAttackHit(engine, event));
 
     // Guard (0712): the spirit re-emerges from the guarded unit when it returns from exile.
     registerGuardReturnListener(engine);

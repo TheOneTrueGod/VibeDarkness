@@ -29,6 +29,7 @@ import type { CardDef } from '../../types';
 import type { Unit } from '../../../game/units/Unit';
 import { getThemeById, themeGlowPair } from '../../../themes/abilityTheme';
 import { getLocalPlayerUnitFromGameState } from '../../../abilities/abilityModifierHelpers';
+import { kinshipCost, SPIRIT_STORM_KINSHIP_COST } from '../commandKinshipCosts';
 
 export const SPIRIT_STORM_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}13`;
 
@@ -127,7 +128,7 @@ export const SpiritStormAbility: AbilityStatic = defineAbility({
     id: SPIRIT_STORM_ABILITY_ID,
     name: 'Spirit Storm',
     image: SPIRIT_STORM_IMAGE,
-    resourceCost: null,
+    resourceCost: kinshipCost(SPIRIT_STORM_KINSHIP_COST),
     rechargeTurns: 0,
     maxUses: 1,
     recoveries: RECOVERIES,

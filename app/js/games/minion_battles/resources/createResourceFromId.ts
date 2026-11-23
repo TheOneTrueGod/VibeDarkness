@@ -12,6 +12,7 @@ import { Charge } from './Charge';
 import { Static } from './Static';
 import { Water } from './Water';
 import { Reflex } from './Reflex';
+import { Kinship } from './Kinship';
 import { isResourceId, type ResourceId } from './resourceIds';
 
 /**
@@ -32,6 +33,7 @@ const RESOURCE_FACTORIES: { [K in ResourceId]: () => Resource } = {
     static: () => new Static(),
     water: () => new Water(),
     reflex: () => new Reflex(),
+    kinship: () => new Kinship(),
 };
 
 /** Instantiate a fresh resource for checkpoint restore. Returns null for unknown IDs. */

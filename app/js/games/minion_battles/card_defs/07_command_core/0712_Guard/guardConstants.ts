@@ -10,5 +10,7 @@ export const GUARD_SHIELD_FLOOR = 2;
 export const GUARD_SECONDS = 10;
 /** Max distance (px) from the caster to the guarded unit. */
 export const GUARD_RANGE = 300;
+/** Kinship the caster recovers over the guard's duration (whole points, evenly spaced). */
+export const GUARD_KINSHIP_RECOVERY = 2;
 /** Wall-time fade-in of the spirit as it re-emerges. */
 export const GUARD_FADE_IN_MS = 300;

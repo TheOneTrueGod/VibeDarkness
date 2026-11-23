@@ -29,6 +29,7 @@ import {
     Swords,
     CloudLightning,
     Droplet,
+    PawPrint,
     type LucideIcon,
 } from 'lucide-react';
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../../../resources/resourceDisplayDefs';
@@ -47,6 +48,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
     Swords,
     CloudLightning,
     Droplet,
+    PawPrint,
 };
 
 const RESOURCE_DEF_BY_ID = Object.fromEntries(

@@ -23,6 +23,7 @@ import {
     DISPLACEMENT_STRIKE_PET_ABILITY_ID,
 } from '../0716_DisplacementStrikePet/0716Ability';
 import { SPIRIT_FLURRY_AREA_RADIUS } from '../0711_SpiritFlurry/0711Ability';
+import { kinshipCost, DISPLACEMENT_STRIKE_KINSHIP_COST } from '../commandKinshipCosts';
 
 /** Max distance (px) from the spirit to the aim point. */
 export const DISPLACEMENT_STRIKE_RANGE = 150;
@@ -97,7 +98,7 @@ export const DisplacementStrikeAbility = defineAbility({
     id: DISPLACEMENT_STRIKE_CARD_ID,
     name: 'Displacement Strike',
     image: DISPLACEMENT_STRIKE_IMAGE,
-    resourceCost: null,
+    resourceCost: kinshipCost(DISPLACEMENT_STRIKE_KINSHIP_COST),
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,

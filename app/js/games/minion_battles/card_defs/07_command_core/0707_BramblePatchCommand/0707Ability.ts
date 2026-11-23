@@ -30,6 +30,7 @@ import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abil
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { getCastElapsedAt } from '../../../game/time/actorClock';
+import { kinshipCost, BRAMBLE_PATCH_KINSHIP_COST } from '../commandKinshipCosts';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}07`;
 const MAX_USES = 1;
@@ -112,7 +113,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
     name: 'Bramble Patch',
     flavorText: 'It stamps once, and the ground grows teeth.',
     image: BRAMBLE_IMAGE,
-    resourceCost: null,
+    resourceCost: kinshipCost(BRAMBLE_PATCH_KINSHIP_COST),
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,

@@ -25,6 +25,7 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import { createPetSourcedMovementPreview } from '../../../abilities/previewHelpers';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import { nullHitbox } from '../../../hitboxes';
+import { kinshipCost, SIC_EM_KINSHIP_COST } from '../commandKinshipCosts';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}04`;
 const MAX_USES = 2;
@@ -86,7 +87,7 @@ export const SicEmAbility = defineAbility({
     name: "Sic 'em",
     flavorText: 'Point, and it is already moving.',
     image: SICE_EM_IMAGE,
-    resourceCost: null,
+    resourceCost: kinshipCost(SIC_EM_KINSHIP_COST),
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,

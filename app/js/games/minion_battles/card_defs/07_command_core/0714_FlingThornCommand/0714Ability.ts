@@ -25,7 +25,9 @@ import {
     FLING_THORN_COUNT,
     FLING_THORN_DAMAGE,
     FLING_THORN_MAX_DISTANCE,
+    FLING_THORN_PIERCE,
 } from '../0705_FlingThorn/0705Ability';
+import { kinshipCost, FLING_THORNS_KINSHIP_COST } from '../commandKinshipCosts';
 
 export const FLING_THORN_COMMAND_ID = `${formatGroupId(AbilityGroupId.Command)}14`;
 export const FLING_THORN_AIM_LABEL = 'Thorn aim';
@@ -89,7 +91,7 @@ export const FlingThornCommandAbility_0714 = defineAbility({
     name: 'Fling Thorns',
     flavorText: 'It watched the glowing insects, and learned to sting.',
     image: FLING_THORN_IMAGE,
-    resourceCost: null,
+    resourceCost: kinshipCost(FLING_THORNS_KINSHIP_COST),
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
@@ -108,6 +110,7 @@ export const FlingThornCommandAbility_0714 = defineAbility({
         const count = getRepeatCount(FLING_THORN_COUNT, getCasterAbilityModifier(owner, FLING_THORN_ABILITY_ID));
         return [
             `Your spirit flings {${count}} thorns dealing {${FLING_THORN_DAMAGE}} damage`,
+            `{Pierce ${FLING_THORN_PIERCE}}`,
         ];
     },
 

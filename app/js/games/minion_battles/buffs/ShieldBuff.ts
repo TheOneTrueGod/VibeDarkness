@@ -30,12 +30,22 @@ export type ShieldBuffTheme = 'blood' | 'gravity' | 'light' | 'command';
  * - `expiresAtGameTime`: the shield also expires at this world time (a refilling shield never hits 0 HP).
  * - `linkedExiledUnitId`: an exiled unit returned at the holder's position when this shield expires.
  * - `particleAura`: render-only particles the holder emits while shielded.
+ * - `resourceTrickle`: a unit (usually whoever granted the shield) gains `amount` of a resource spread evenly over
+ *   the shield's timed duration, in whole points (needs `expiresAtGameTime`). Any remainder lands on expiry.
  */
 export interface ShieldBuffOptions {
     refillFloor?: number;
     expiresAtGameTime?: number | null;
     linkedExiledUnitId?: string | null;
     particleAura?: BuffParticleAuraDef;
+    resourceTrickle?: ShieldResourceTrickle | null;
+}
+
+/** Resource granted over a timed shield's duration (see `ShieldBuffOptions.resourceTrickle`). */
+export interface ShieldResourceTrickle {
+    unitId: string;
+    resourceId: string;
+    amount: number;
 }
 
 /** Who granted a shield, so its blocks can fire the granting ability's ON_BLOCK_SUCCESS rules. */
@@ -55,6 +65,8 @@ export interface ShieldBuffSerialized extends BuffSerialized {
     expiresAtGameTime?: number;
     linkedExiledUnitId?: string;
     particleAura?: BuffParticleAuraDef;
+    resourceTrickle?: ShieldResourceTrickle;
+    resourceTrickleGranted?: number;
 }
 
 export class ShieldBuff extends Buff {
@@ -76,6 +88,10 @@ export class ShieldBuff extends Buff {
     /** Exiled unit returned at the holder's position when this shield expires; null = none. */
     readonly linkedExiledUnitId: string | null;
     override readonly particleAura: BuffParticleAuraDef | undefined;
+    /** Resource granted over the timed duration; null = none. */
+    readonly resourceTrickle: ShieldResourceTrickle | null;
+    /** Whole points of `resourceTrickle` granted so far. */
+    resourceTrickleGranted = 0;
 
     constructor(
         remainingHp: number,
@@ -97,9 +113,11 @@ export class ShieldBuff extends Buff {
         this.expiresAtGameTime = options.expiresAtGameTime ?? null;
         this.linkedExiledUnitId = options.linkedExiledUnitId ?? null;
         this.particleAura = options.particleAura;
+        this.resourceTrickle = options.resourceTrickle ? { ...options.resourceTrickle } : null;
     }
 
-    override onGameTick(unit: Unit, _engine: EngineContext, dt: number): void {
+    override onGameTick(unit: Unit, engine: EngineContext, dt: number): void {
+        this.tickResourceTrickle(engine);
         if (this.drainPerSecond <= 0 || this.remainingHp <= 0) return;
         const drained = Math.min(this.remainingHp, this.drainPerSecond * dt);
         this.remainingHp = Math.max(0, this.remainingHp - drained);
@@ -115,8 +133,29 @@ export class ShieldBuff extends Buff {
 
     /** Returns the linked exiled unit (if any) at the holder's position; a unit already back in play is left alone. */
     override onBeforeExpire(unit: Unit, ctx: BuffExpireContext): void {
+        // Whatever the trickle has not paid out yet lands now, so the full amount is always granted.
+        if (ctx.engine && this.resourceTrickle) this.grantTrickle(ctx.engine, this.resourceTrickle.amount);
         if (this.linkedExiledUnitId === null) return;
         ctx.engine?.returnExiledUnit(this.linkedExiledUnitId, { x: unit.x, y: unit.y });
+    }
+
+    /** Pays out `resourceTrickle` in whole points as the timed duration passes. */
+    private tickResourceTrickle(engine: EngineContext): void {
+        const trickle = this.resourceTrickle;
+        if (!trickle || this.expiresAtGameTime === null) return;
+        const span = this.expiresAtGameTime - this.appliedAtTime;
+        const progress = span > 0 ? Math.min(1, Math.max(0, (engine.gameTime - this.appliedAtTime) / span)) : 1;
+        this.grantTrickle(engine, Math.floor(progress * trickle.amount));
+    }
+
+    /** Raises the trickle's granted total to `target` points, adding the difference to the unit's resource. */
+    private grantTrickle(engine: Pick<EngineContext, 'getUnit'>, target: number): void {
+        const trickle = this.resourceTrickle;
+        if (!trickle) return;
+        const owed = Math.min(trickle.amount, target) - this.resourceTrickleGranted;
+        if (owed <= 0) return;
+        this.resourceTrickleGranted += owed;
+        engine.getUnit(trickle.unitId)?.getResource(trickle.resourceId)?.add(owed);
     }
 
     override toJSON(): ShieldBuffSerialized {
@@ -134,6 +173,9 @@ export class ShieldBuff extends Buff {
             ...(this.expiresAtGameTime !== null ? { expiresAtGameTime: this.expiresAtGameTime } : {}),
             ...(this.linkedExiledUnitId !== null ? { linkedExiledUnitId: this.linkedExiledUnitId } : {}),
             ...(this.particleAura ? { particleAura: structuredClone(this.particleAura) } : {}),
+            ...(this.resourceTrickle
+                ? { resourceTrickle: { ...this.resourceTrickle }, resourceTrickleGranted: this.resourceTrickleGranted }
+                : {}),
         };
     }
 
@@ -152,7 +194,14 @@ export class ShieldBuff extends Buff {
             expiresAtGameTime: typeof d.expiresAtGameTime === 'number' ? d.expiresAtGameTime : null,
             linkedExiledUnitId: typeof d.linkedExiledUnitId === 'string' ? d.linkedExiledUnitId : null,
             particleAura: d.particleAura ? structuredClone(d.particleAura) : undefined,
+            resourceTrickle: d.resourceTrickle
+                && typeof d.resourceTrickle.unitId === 'string'
+                && typeof d.resourceTrickle.resourceId === 'string'
+                && typeof d.resourceTrickle.amount === 'number'
+                ? d.resourceTrickle
+                : null,
         });
+        buff.resourceTrickleGranted = typeof d.resourceTrickleGranted === 'number' ? d.resourceTrickleGranted : 0;
         buff.blockRuleTriggerCounts = { ...(d.blockRuleTriggerCounts ?? {}) };
         buff.appliedAtTime = data.appliedAtTime ?? 0;
         buff.appliedAtRound = data.appliedAtRound ?? 1;

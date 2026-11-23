@@ -18,8 +18,10 @@ import { areAllies } from '../../../game/teams';
 import type { Unit } from '../../../game/units/Unit';
 import { unitRangeHitbox } from '../../../hitboxes';
 import { type CardDef } from '../../types';
+import { ResourceId } from '../../../resources/resourceIds';
 import {
     GUARD_ABILITY_ID,
+    GUARD_KINSHIP_RECOVERY,
     GUARD_EXILE_REASON,
     GUARD_RANGE,
     GUARD_SECONDS,
@@ -92,6 +94,12 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
                             seconds,
                             guardianUnitId: spirit.id,
                             gameTime: eng.gameTime,
+                            // The caster's bond deepens while the spirit guards.
+                            resourceTrickle: {
+                                unitId: ctx.caster.id,
+                                resourceId: ResourceId.Kinship,
+                                amount: GUARD_KINSHIP_RECOVERY,
+                            },
                         }),
                         eng.gameTime,
                         eng.roundNumber,
@@ -133,6 +141,7 @@ export const GuardAbility = defineAbility({
         return [
             `Your spirit shields an ally for {${GUARD_SECONDS}}s`,
             '{Guard Shield}',
+            `Recover {${GUARD_KINSHIP_RECOVERY}} Kinship over the duration`,
         ];
     },
 

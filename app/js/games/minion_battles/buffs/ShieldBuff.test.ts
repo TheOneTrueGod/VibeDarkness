@@ -198,4 +198,57 @@ describe('ShieldBuff', () => {
             expect(restored.particleAura).toBeUndefined();
         });
     });
+
+    describe('resourceTrickle', () => {
+        function trickleSetup() {
+            const added: number[] = [];
+            const caster = { getResource: () => ({ add: (n: number) => added.push(n) }) } as unknown as Unit;
+            const engine = {
+                gameTime: 0,
+                getUnit: (id: string) => (id === 'caster' ? caster : undefined),
+                returnExiledUnit: () => false,
+            };
+            const shield = createGuardShield({
+                floor: 2,
+                seconds: 10,
+                guardianUnitId: 'spirit',
+                gameTime: 0,
+                resourceTrickle: { unitId: 'caster', resourceId: 'kinship', amount: 2 },
+            });
+            shield.appliedAtTime = 0;
+            const tickAt = (t: number) => {
+                engine.gameTime = t;
+                shield.onGameTick(FAKE_UNIT, engine as unknown as EngineContext, 1 / 60);
+            };
+            return { added, engine, shield, tickAt };
+        }
+
+        it('pays the amount out in whole points spread over the duration', () => {
+            const { added, tickAt } = trickleSetup();
+            tickAt(4.9);
+            expect(added).toEqual([]);
+            tickAt(5);
+            expect(added).toEqual([1]);
+            tickAt(9.9);
+            expect(added).toEqual([1]);
+            tickAt(10);
+            expect(added).toEqual([1, 1]);
+        });
+
+        it('pays any remainder on expiry, never more than the amount', () => {
+            const { added, engine, shield, tickAt } = trickleSetup();
+            tickAt(5);
+            shield.onBeforeExpire(FAKE_UNIT, { engine } as unknown as BuffExpireContext);
+            shield.onBeforeExpire(FAKE_UNIT, { engine } as unknown as BuffExpireContext);
+            expect(added).toEqual([1, 1]);
+        });
+
+        it('round-trips the trickle and what it has paid', () => {
+            const { shield, tickAt } = trickleSetup();
+            tickAt(5);
+            const restored = ShieldBuff.fromJSON(shield.toJSON());
+            expect(restored.resourceTrickle).toEqual({ unitId: 'caster', resourceId: 'kinship', amount: 2 });
+            expect(restored.resourceTrickleGranted).toBe(1);
+        });
+    });
 });

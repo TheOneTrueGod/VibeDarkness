@@ -29,6 +29,7 @@ export type GameEventType =
     | 'unit_returned'
     | 'projectile_hit'
     | 'attack_hit'
+    | 'pet_attack_hit'
     | 'terrain_stone_damaged'
     | 'terrain_water_drained'
     | 'nearby_stone_damaged'
@@ -328,6 +329,14 @@ export interface AttackHitEvent {
     abilityId: string;
 }
 
+/** A pet landed a hit on an enemy (one per `attack_hit` whose source is a pet). See `game/units/petAttackHit.ts`. */
+export interface PetAttackHitEvent {
+    ownerUnitId: string;
+    petUnitId: string;
+    targetUnitId: string;
+    abilityId: string;
+}
+
 export interface UnitSlamLandedEvent {
     unitId: string;
     position: { x: number; y: number };
@@ -420,6 +429,7 @@ export type GameEventDataMap = {
     unit_returned: UnitReturnedEvent;
     projectile_hit: ProjectileHitEvent;
     attack_hit: AttackHitEvent;
+    pet_attack_hit: PetAttackHitEvent;
     terrain_stone_damaged: TerrainStoneDamagedEvent;
     terrain_water_drained: TerrainWaterDrainedEvent;
     nearby_stone_damaged: NearbyStoneDamagedEvent;

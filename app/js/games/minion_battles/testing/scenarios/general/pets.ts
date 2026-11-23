@@ -7,6 +7,9 @@
  */
 
 import type { ScenarioDefinition } from '../../types';
+import { attachResourcesFromEquipment } from '../../../storylines/BaseMissionDef';
+import { CORE_ITEM_IDS } from '../../../character_defs/items';
+import { ResourceId } from '../../../resources/resourceIds';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { ResolvedTarget } from '../../../game/types';
 import {
@@ -60,6 +63,16 @@ const POUNCE_HIT_DAMAGE = 0;
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
 
+/**
+ * A spirit's owner has the Command Core, so it has Kinship. These scenarios test the spirit, not the economy,
+ * so the owner starts full and can play any command card.
+ */
+function giveFullKinship(engine: GameEngine, owner: Unit): void {
+    attachResourcesFromEquipment([CORE_ITEM_IDS.CommandCore], owner, engine.eventBus);
+    const kinship = owner.getResource(ResourceId.Kinship);
+    if (kinship) kinship.current = kinship.max;
+}
+
 // Helper: spawn a dog linked to an owner.
 function spawnDog(
     engine: ReturnType<typeof buildTinyBattleEngine>,
@@ -67,6 +80,7 @@ function spawnDog(
     pos: { x: number; y: number },
     opts: { hp?: number; extraAbilities?: string[] } = {},
 ): ReturnType<typeof createUnitFromSpawnConfig> {
+    giveFullKinship(engine, owner);
     const dog = createUnitFromSpawnConfig(
         {
             id: 'dog1',
@@ -621,6 +635,7 @@ const DS_TARGET_POS = { x: 380, y: 200 };
 function buildDisplacementBattle(cards: string[], targetHp: number): GameEngine {
     const engine = buildTinyBattleEngine({ gridW: 16, gridH: 11, localPlayerId: P, grass: true });
     const player = spawnTinyPlayerUnit(engine, { playerId: P, x: DS_OWNER_POS.x, y: DS_OWNER_POS.y, abilities: cards });
+    giveFullKinship(engine, player);
     const spirit = spawnPetForOwner(engine, player, {
         petDefId: 'dog',
         at: DS_SPIRIT_POS,

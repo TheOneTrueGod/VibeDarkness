@@ -2,6 +2,7 @@ import type { ResourceDisplay } from './Resource';
 import { LIGHT_RESOURCE_COLOR, LIGHT_STARTING_MAX } from './Light';
 import { CHARGE_MAX, CHARGE_PER_ROUND, CHARGE_RESOURCE_COLOR } from './Charge';
 import { MOVEMENT_BASE_MAX } from './Movement';
+import { KINSHIP_EMPTY_COLOR, KINSHIP_MAX, KINSHIP_RESOURCE_COLOR, KINSHIP_TOOLTIP_LINES } from './Kinship';
 import { REFLEX_MAX, REFLEX_PER_ROUND, REFLEX_RESOURCE_COLOR } from './Reflex';
 import { STATIC_MAX, STATIC_PIP_CRACKLE_COLOR, STATIC_RESOURCE_COLOR } from './Static';
 import { WATER_BAR_DEEP_COLOR, WATER_BAR_STYLE, WATER_DEFAULT_MAX, WATER_RESOURCE_COLOR, WATER_TOOLTIP_LINES } from './Water';
@@ -23,6 +24,7 @@ export const ALL_RESOURCE_DISPLAY_DEFS: Array<Omit<ResourceDisplay, 'current'>> 
     { id: 'charge', name: 'Charge', color: CHARGE_RESOURCE_COLOR, iconName: 'Swords', max: CHARGE_MAX, perRoundGain: CHARGE_PER_ROUND, barStyle: 'pips' },
     { id: 'static', name: 'Static', color: STATIC_RESOURCE_COLOR, iconName: 'CloudLightning', max: STATIC_MAX, barStyle: 'pips', pipCrackleColor: STATIC_PIP_CRACKLE_COLOR },
     { id: 'water', name: 'Water', color: WATER_RESOURCE_COLOR, iconName: 'Droplet', max: WATER_DEFAULT_MAX, barStyle: WATER_BAR_STYLE, barDeepColor: WATER_BAR_DEEP_COLOR, tooltipLines: WATER_TOOLTIP_LINES },
+    { id: 'kinship', name: 'Kinship', color: KINSHIP_RESOURCE_COLOR, iconName: 'PawPrint', max: KINSHIP_MAX, tooltipLines: KINSHIP_TOOLTIP_LINES, barStyle: 'pips', pipShape: 'paw', pipEmptyColor: KINSHIP_EMPTY_COLOR },
     { id: 'reflex', name: 'Reflex', color: REFLEX_RESOURCE_COLOR, iconName: 'Zap', max: REFLEX_MAX, perRoundGain: REFLEX_PER_ROUND, barStyle: 'pips' },
 ];
 

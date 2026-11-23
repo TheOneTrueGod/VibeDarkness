@@ -4,7 +4,7 @@
  * When it expires, the linked spirit returns at the holder's position (`ShieldBuff.onBeforeExpire`).
  */
 
-import { ShieldBuff, type ShieldBuffSource } from './ShieldBuff';
+import { ShieldBuff, type ShieldBuffSource, type ShieldResourceTrickle } from './ShieldBuff';
 import { BUFF_PARTICLE_AURA_PRESETS } from '../game/effects/buffParticleAura';
 
 export interface GuardShieldParams {
@@ -18,6 +18,8 @@ export interface GuardShieldParams {
     gameTime: number;
     /** Who granted it, so blocks fire the granting ability's ON_BLOCK_SUCCESS rules. */
     source?: ShieldBuffSource | null;
+    /** Resource paid out over the shield's duration (e.g. Kinship back to the Guard's caster). */
+    resourceTrickle?: ShieldResourceTrickle | null;
 }
 
 export function createGuardShield(params: GuardShieldParams): ShieldBuff {
@@ -26,5 +28,6 @@ export function createGuardShield(params: GuardShieldParams): ShieldBuff {
         expiresAtGameTime: params.gameTime + params.seconds,
         linkedExiledUnitId: params.guardianUnitId,
         particleAura: BUFF_PARTICLE_AURA_PRESETS.spiritMotes(),
+        resourceTrickle: params.resourceTrickle ?? null,
     });
 }

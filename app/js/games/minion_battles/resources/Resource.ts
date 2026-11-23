@@ -27,6 +27,10 @@ export interface ResourceDisplay {
     barStyle?: ResourceBarStyle;
     /** `pips` bars only: CSS colour of a small lightning crackle animated over each filled orb (Static). */
     pipCrackleColor?: string;
+    /** `pips` bars only: the shape of each pip. Default `orb`. */
+    pipShape?: ResourcePipShape;
+    /** `pips` bars only: CSS colour of an unfilled pip. Default: `color`, faded. */
+    pipEmptyColor?: string;
     /** `liquid` bars only: CSS colour of the deep end of the fill gradient (the tree theme's primary). Defaults to a darkened `color`. */
     barDeepColor?: string;
     /**
@@ -42,6 +46,9 @@ export interface ResourceDisplay {
  */
 export type ResourceBarStyle = 'bar' | 'pips' | 'liquid';
 
+/** `orb`: a round pip. `paw`: a paw print (Kinship). */
+export type ResourcePipShape = 'orb' | 'paw';
+
 export abstract class Resource {
     /** Unique resource type ID (e.g. 'rage', 'mana'). */
     abstract readonly id: string;
@@ -55,6 +62,10 @@ export abstract class Resource {
     readonly barStyle?: ResourceBarStyle;
     /** See `ResourceDisplay.pipCrackleColor`. */
     readonly pipCrackleColor?: string;
+    /** See `ResourceDisplay.pipShape`. */
+    readonly pipShape?: ResourcePipShape;
+    /** See `ResourceDisplay.pipEmptyColor`. */
+    readonly pipEmptyColor?: string;
     /** See `ResourceDisplay.barDeepColor`. */
     readonly barDeepColor?: string;
     /** See `ResourceDisplay.tooltipLines`. */

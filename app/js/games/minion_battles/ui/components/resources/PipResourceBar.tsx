@@ -7,6 +7,35 @@ interface PipResourceBarProps {
 
 /** Orb diameter, in pixels. */
 const PIP_SIZE = 10;
+/** Paw print size (width and height), in pixels: a little larger so the toes read. */
+const PAW_SIZE = 13;
+
+/**
+ * One paw print (pad and three toes) in a 12 x 12 box, filled with `color`. Matches option C of the
+ * Kinship bar artbook.
+ */
+function PawPip({ color, filled }: { color: string; filled: boolean }) {
+    return (
+        <svg
+            className="shrink-0 transition-opacity duration-100"
+            width={PAW_SIZE}
+            height={PAW_SIZE}
+            viewBox="-6 -8.5 12 12"
+            style={{
+                opacity: filled ? 1 : 0.7,
+                filter: filled ? `drop-shadow(0 0 2px ${color})` : undefined,
+            }}
+            aria-hidden
+        >
+            <g fill={color}>
+                <ellipse cx={0} cy={0} rx={4} ry={3.4} />
+                <circle cx={-4} cy={-5} r={1.6} />
+                <circle cx={0} cy={-6.5} r={1.6} />
+                <circle cx={4} cy={-5} r={1.6} />
+            </g>
+        </svg>
+    );
+}
 /** How often a crackle re-forks (ms). */
 const CRACKLE_FRAME_MS = 110;
 
@@ -54,12 +83,23 @@ function useCrackleFrame(active: boolean): number {
  * One orb per point of `max`, filled for each point of `current`, packed from the left.
  * Orbs wrap onto another row when there are more than fit, so a larger max still fits the bar.
  * With `pipCrackleColor`, each filled orb has a small lightning crackle flickering over it.
+ * `pipShape: 'paw'` draws paw prints instead (filled in `color`, unfilled in `pipEmptyColor`).
  */
 export function PipResourceBar({ resource }: PipResourceBarProps) {
     const count = Math.max(0, Math.floor(resource.max));
     const filled = Math.floor(resource.current);
     const crackle = resource.pipCrackleColor;
     const frame = useCrackleFrame(crackle !== undefined && filled > 0);
+    if (resource.pipShape === 'paw') {
+        const empty = resource.pipEmptyColor ?? resource.color;
+        return (
+            <div className="flex min-h-4 flex-wrap items-center gap-[2px]">
+                {Array.from({ length: count }, (_, i) => (
+                    <PawPip key={i} color={i < filled ? resource.color : empty} filled={i < filled} />
+                ))}
+            </div>
+        );
+    }
     return (
         <div className="flex min-h-4 flex-wrap items-center gap-[3px]">
             {Array.from({ length: count }, (_, i) => {
