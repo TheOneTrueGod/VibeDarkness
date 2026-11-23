@@ -33,12 +33,8 @@ import { meleeLineHitbox } from '../../hitboxes';
 import type { HitboxSpec } from '../../hitboxes/HitboxSpec';
 import { defineAbility, type AbilityDefInput } from '../defineAbility';
 import type { WindupLungeConfig } from '../WindupLunge';
-import { getAbilityDamageForDisplay } from '../damageModifiers';
-import { resolveTooltipContext } from '../abilityModifierHelpers';
-import {
-    formatTooltipLegacyLines,
-    type TooltipTokenBindings,
-} from '../tooltipTokens';
+import type { TooltipTokenBindings } from '../tooltipTokens';
+import { flatDamageFor, flatDamageGetDamage, flatDamageTooltip } from './flatDamage';
 
 // ---------------------------------------------------------------------------
 // Config interface
@@ -198,7 +194,7 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
             forwardDistance: config.forwardDistance ?? 12,
             backwardDistance: config.backwardDistance ?? 0,
         })
-        .withDamage((ctx) => config.damage + (ctx.caster.abilityModifiers[config.id]?.damageFlat ?? 0));
+        .withDamage((ctx) => flatDamageFor(config.id, config.damage, ctx.caster));
 
     if (config.knockbackTier !== undefined) {
         behaviour = behaviour.withKnockback(config.knockbackTier);
@@ -237,16 +233,6 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
     };
 
     // Assemble the full input for defineAbility.
-    const baseDamage = config.damage;
-    const tooltipBindings: TooltipTokenBindings = {
-        DAMAGE: { kind: 'damage', base: baseDamage },
-        ...config.tooltipBindings,
-    };
-    const getDamage = (caster?: Unit): number => {
-        const withFlat = baseDamage + (caster?.abilityModifiers?.[config.id]?.damageFlat ?? 0);
-        return getAbilityDamageForDisplay(withFlat, caster ? { attacker: caster } : {});
-    };
-
     const defInput: AbilityDefInput = {
         id: config.id,
         name: config.name,
@@ -266,23 +252,8 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
         trackTargetUntilLabel: config.trackTargetUntilLabel,
         abilityEvents: config.abilityEvents,
         movementLock: { until: movementLockUntil },
-        getDamage,
-        getTooltipText(gameState?: unknown): string[] {
-            // Prefer explicit {{DAMAGE}}; also rewrite legacy `{base}` placeholders so
-            // existing melee tooltips pick up the unified damage-modifier path.
-            const templates = config.getTooltipText(gameState).map((line) =>
-                line.includes('{{DAMAGE}}')
-                    ? line
-                    : line.split(`{${baseDamage}}`).join('{{DAMAGE}}'),
-            );
-            const tipCtx = resolveTooltipContext(gameState, { ability: { id: config.id } });
-            const flat = tipCtx.attacker?.abilityModifiers?.[config.id]?.damageFlat ?? 0;
-            const bindings: TooltipTokenBindings = {
-                ...tooltipBindings,
-                DAMAGE: { kind: 'damage', base: baseDamage + flat },
-            };
-            return formatTooltipLegacyLines(templates, bindings, tipCtx);
-        },
+        getDamage: flatDamageGetDamage(config.id, config.damage),
+        getTooltipText: flatDamageTooltip(config.id, config.damage, config.getTooltipText, config.tooltipBindings),
         ...(config.lunge ? { lunge: config.lunge } : {}),
     };
 

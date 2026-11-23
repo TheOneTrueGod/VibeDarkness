@@ -1,15 +1,21 @@
 /**
- * DogBite — the dog's basic melee attack.
- * A quick snap that the pet AI auto-uses when engaging. Slightly faster windup
- * than a swarmling bite so the dog feels reactive rather than lumbering. Deals
- * modest damage; its value comes from the AI chaining it on every engage tick.
+ * DogBite — the spirit animal's basic attack, which the pet AI auto-uses when engaging.
+ * Fires instantly: the spirit dashes straight through the target, leaving a slash, and the target takes
+ * damage as it passes (one strike of Spirit Flurry, 0711). Deals modest damage; its value comes from the
+ * AI chaining it on every engage tick.
  */
 
 import { BasicAttackBuilder } from '../../../abilities/archetypes/BasicAttackBuilder';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
+import { themedSlashTrail } from '../../../game/effects/slashTrail';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}01`;
 const DAMAGE = 1;
+/**
+ * Seconds after the dash before the next bite. With no windup, this keeps the old bite's cadence
+ * (0.6 s windup + 0.1 s strike + 0.9 s cooldown = 1.6 s per bite).
+ */
+const COOLDOWN_SECONDS = 1.48;
 
 const BITE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <circle cx="32" cy="32" r="22" fill="#1a1205" stroke="#3d2a0a" stroke-width="2"/>
@@ -22,12 +28,12 @@ const BITE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http:
 const { ability: DogBiteAbility, card: DogBiteCard } = BasicAttackBuilder({
     id: CARD_ID,
     name: 'Dog Bite',
-    description: `Snap at the target for {{DAMAGE}} damage.`,
+    description: `Dash through the target for {{DAMAGE}} damage.`,
     damage: DAMAGE,
     image: BITE_IMAGE,
-    windupDuration: 0.6,
-    cooldownDuration: 0.9,
-    telegraphColor: 0xff8800,
+    windupDuration: 0,
+    cooldownDuration: COOLDOWN_SECONDS,
+    strike: { kind: 'dashThrough', trail: themedSlashTrail('command') },
 }).build();
 
 export { DogBiteAbility, DogBiteCard };

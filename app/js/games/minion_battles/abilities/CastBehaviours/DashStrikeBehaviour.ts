@@ -8,7 +8,8 @@
  * (`SpiritSlash`, `effect_defs/spiritSlashEffects.ts`) is drawn from the start along the dash and fades.
  *
  * Reusable: put one on an interval for a single strike (Spirit Strike, 0710) or several in sequence with
- * different `angleOffsetDeg` for a flurry (Spirit Flurry, 0711). The approach direction comes from
+ * different `angleOffsetDeg` for a flurry (Spirit Flurry, 0711). Basic attacks use it through
+ * `BasicAttackBuilder`'s `strike: { kind: 'dashThrough' }` (Dog Bite, 0701). The approach direction comes from
  * `withApproachFrom` (default: from the caster's own position), rotated by `angleOffsetDeg`.
  *
  * Terrain: the blink and the far end are pulled in toward the target until passable, so the caster never
@@ -40,6 +41,8 @@ interface DashStrikePayload {
 }
 
 type ApproachFn = (caster: Unit, target: Unit, ctx: CastBehaviourSetupContext) => { x: number; y: number } | null;
+/** Damage per strike: a flat number, or resolved from the caster as the hit lands (e.g. research `damageFlat`). */
+export type DashStrikeDamage = number | ((ctx: CastBehaviourTickContext, target: Unit) => number);
 
 /** Share of the window by which the dash reaches the far end (the rest is a short settle). */
 const DASH_SHARE = 0.85;
@@ -47,7 +50,7 @@ const DASH_SHARE = 0.85;
 export class DashStrikeBehaviour implements CastBehaviour {
     readonly keepsUnitTargetsBeyondRange = true;
 
-    private _damage = 3;
+    private _damage: DashStrikeDamage = 3;
     private _overshootPx = 24;
     private _angleOffsetDeg = 0;
     private _approach: ApproachFn | null = null;
@@ -56,7 +59,7 @@ export class DashStrikeBehaviour implements CastBehaviour {
     /** Radius (px) round the anchor point in which a strike picks its own enemy; null = unit targets only. */
     private _areaRadius: number | null = null;
 
-    withDamage(damage: number): this {
+    withDamage(damage: DashStrikeDamage): this {
         this._damage = damage;
         return this;
     }
@@ -179,7 +182,7 @@ export class DashStrikeBehaviour implements CastBehaviour {
             attackerY: payload.startY,
             attackerId: ctx.caster.id,
             abilityId: ctx.abilityId,
-            damage: this._damage,
+            damage: typeof this._damage === 'function' ? this._damage(ctx, target) : this._damage,
             attackType: this._attackType,
         });
     }
