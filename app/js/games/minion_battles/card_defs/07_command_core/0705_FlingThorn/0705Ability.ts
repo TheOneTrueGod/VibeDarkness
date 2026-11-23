@@ -60,7 +60,7 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 const TOOLTIP_LINES = [
-    'Fling {{COUNT}} thorns in quick succession across a short cone, each dealing {{DAMAGE}} damage',
+    'Fling {{COUNT}} thorns dealing {{DAMAGE}} damage',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {

@@ -47,18 +47,19 @@ export const MAX_DASH_DISTANCE = 100;
 export const POUNCE_COLLISION_STEP = 4;
 /** Pounce only locks on and stuns: all of Sic 'em's damage comes from the Spirit Flurry strikes. */
 const DAMAGE = 0;
-const STUN_DURATION = 1.0;
+export const POUNCE_STUN_DURATION = 1.0;
+const STUN_DURATION = POUNCE_STUN_DURATION;
 /** Lock on: the dash ends on its first hit, and Spirit Flurry (0711) follows on that enemy. */
 const STOP_AFTER_HITS = 1;
 
 const TOOLTIP_LINES = [
-    'Lunge at a point. The first enemy hit is stunned for {{STUN_DURATION}}s, then your spirit locks on and dashes through it {{FLURRY_STRIKES}} times for {{STRIKE_DAMAGE}} damage each. On a miss, the dashes strike whatever enemy is nearest where it lands, one at a time.',
+    'Pounce, then strike {{FLURRY_STRIKES}} times for {{STRIKE_DAMAGE}} damage',
+    `{Stun ${STUN_DURATION}}`,
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     FLURRY_STRIKES: { kind: 'plain', value: SPIRIT_FLURRY_ANGLES.length },
     STRIKE_DAMAGE: { kind: 'damage', base: SPIRIT_STRIKE_DAMAGE },
-    STUN_DURATION: { kind: 'plain', value: STUN_DURATION },
 };
 
 const pounceDash = new DashBehaviour()

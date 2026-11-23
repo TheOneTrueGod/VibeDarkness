@@ -20,6 +20,7 @@ import {
     bramblePatchHalfWidth,
     bramblePatchRadius,
     bramblePatchShape,
+    BRAMBLE_PATCH_DAMAGE,
     BRAMBLE_PATCH_KNOCKBACK_TIER,
     BRAMBLE_PATCH_WINDUP,
     drawBramblePatchTelegraph,
@@ -109,6 +110,7 @@ const BRAMBLE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="ht
 export const BramblePatchCommandAbility_0707 = defineAbility({
     id: CARD_ID,
     name: 'Bramble Patch',
+    flavorText: 'It stamps once, and the ground grows teeth.',
     image: BRAMBLE_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -129,7 +131,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            'Command the nearest pet to slam a bramble patch, dealing damage and leaving lanternite-style thorns that slow movement and damage shadow creatures.',
+            `Your spirit deals {${BRAMBLE_PATCH_DAMAGE}} damage and leaves {Brambles}`,
             `{Knockback ${BRAMBLE_PATCH_KNOCKBACK_TIER}}`,
         ];
     },

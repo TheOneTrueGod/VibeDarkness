@@ -127,7 +127,7 @@ export const commandCoreTree: ResearchTreeDef = {
         {
             id: COMMAND_CORE_NODE_MIMIC_THORN,
             title: 'Mimic Thorn',
-            description: 'Order your spirit to {Fling Thorns}: a quick spray of short-range thorns wherever you aim it.',
+            description: 'Your spirit learns {Fling Thorns}',
             flavorText: 'It watched the glowing insects. It learned.',
             order: 20,
             tier: 11,
@@ -150,7 +150,7 @@ export const commandCoreTree: ResearchTreeDef = {
         {
             id: COMMAND_CORE_NODE_MIMIC_BRAMBLES,
             title: 'Mimic Brambles',
-            description: 'Command your pet to slam a {Bramble Patch} — damage, knockback, and slowing thorns in a circle.',
+            description: 'Your spirit learns {Bramble Patch}',
             flavorText: 'The bramble-weaver\'s lesson, taught by teeth and dirt.',
             order: 21,
             tier: 11,

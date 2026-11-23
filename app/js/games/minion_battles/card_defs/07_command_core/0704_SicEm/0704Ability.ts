@@ -14,7 +14,12 @@ import { type CardDef } from '../../types';
 import {
     MAX_DASH_DISTANCE as MAX_POUNCE_RANGE,
     POUNCE_COLLISION_STEP,
+    POUNCE_STUN_DURATION,
 } from '../0702_Pounce/0702Ability';
+import { SPIRIT_FLURRY_ABILITY_ID, SPIRIT_FLURRY_ANGLES } from '../0711_SpiritFlurry/0711Ability';
+import { SPIRIT_STRIKE_DAMAGE } from '../0710_SpiritStrike/0710Ability';
+import { getCasterAbilityModifier, getRepeatCount } from '../../../abilities/abilityModifierScales';
+import { getLocalPlayerUnitFromGameState } from '../../../abilities/abilityModifierHelpers';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { createPetSourcedMovementPreview } from '../../../abilities/previewHelpers';
@@ -79,6 +84,7 @@ const SIC_EM_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const, 
 export const SicEmAbility = defineAbility({
     id: CARD_ID,
     name: "Sic 'em",
+    flavorText: 'Point, and it is already moving.',
     image: SICE_EM_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -93,8 +99,14 @@ export const SicEmAbility = defineAbility({
         return { minRange: 0, maxRange: MAX_POUNCE_RANGE };
     },
 
-    getTooltipText(): string[] {
-        return [`Command the nearest pet to {Pounce} through enemies at the target point (stops on the 4th hit).`];
+    getTooltipText(gameState?: unknown): string[] {
+        // Frenzied Flurry research: the spirit inherits its owner's Spirit Flurry modifier (`repeatCountFlat`).
+        const owner = getLocalPlayerUnitFromGameState(gameState);
+        const strikes = getRepeatCount(SPIRIT_FLURRY_ANGLES.length, getCasterAbilityModifier(owner, SPIRIT_FLURRY_ABILITY_ID));
+        return [
+            `Your spirit pounces, then strikes {${strikes}} times for {${SPIRIT_STRIKE_DAMAGE}} damage`,
+            `{Stun ${POUNCE_STUN_DURATION}}`,
+        ];
     },
 
     renderTargetingPreviewSelectedTargets: createPetSourcedMovementPreview(

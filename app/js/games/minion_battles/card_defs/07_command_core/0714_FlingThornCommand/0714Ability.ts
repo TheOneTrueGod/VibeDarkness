@@ -87,6 +87,7 @@ const FLING_THORN_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns
 export const FlingThornCommandAbility_0714 = defineAbility({
     id: FLING_THORN_COMMAND_ID,
     name: 'Fling Thorns',
+    flavorText: 'It watched the glowing insects, and learned to sting.',
     image: FLING_THORN_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -106,7 +107,7 @@ export const FlingThornCommandAbility_0714 = defineAbility({
         const owner = getLocalPlayerUnitFromGameState(gameState);
         const count = getRepeatCount(FLING_THORN_COUNT, getCasterAbilityModifier(owner, FLING_THORN_ABILITY_ID));
         return [
-            `Order your spirit to fling {${count}} thorns in quick succession toward the target point, each dealing {${FLING_THORN_DAMAGE}} damage.`,
+            `Your spirit flings {${count}} thorns dealing {${FLING_THORN_DAMAGE}} damage`,
         ];
     },
 

@@ -56,6 +56,7 @@ Real trims. Add a pair here whenever a description gets cut down in review.
 | Before | After |
 |--------|-------|
 | `{attack +2} per level. Each Attack adds {10%} damage.` | `{attack +2}`, with the Attack reminder card `{attack +1} = {+10%} damage` |
+| `Command the nearest pet to slam a bramble patch, dealing damage and leaving lanternite-style thorns that slow movement and damage shadow creatures.` | `Your spirit deals {7} damage and leaves {Brambles}`, with the Brambles reminder card |
 
 ### Card flavour text [Canon]
 

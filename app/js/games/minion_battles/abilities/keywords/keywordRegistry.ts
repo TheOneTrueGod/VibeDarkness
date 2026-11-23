@@ -196,6 +196,13 @@ registerGlossaryTerm({
         'At the start of its cooldown, use this or another ability instead of waiting. A number is how many more casts can chain.',
 });
 
+/** `{Brambles}`: Bramble Patch's thorn tiles (`bramble_slow`, `card_defs/07_command_core/0706_BramblePatch`). */
+registerGlossaryTerm({
+    title: 'Brambles',
+    matches: ['brambles', 'bramble'],
+    description: 'Slows movement and pricks shadow creatures until it wears out.',
+});
+
 registerGlossaryTerm({
     title: 'Stun',
     matches: ['stun', 'stuns', 'stunned'],
