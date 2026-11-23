@@ -104,6 +104,8 @@ import { SpiritStrikeAbility } from '../card_defs/07_command_core/0710_SpiritStr
 import { SpiritFlurryAbility } from '../card_defs/07_command_core/0711_SpiritFlurry/0711Ability';
 import { SpiritStormAbility } from '../card_defs/07_command_core/0713_SpiritStorm/0713Ability';
 import { FlingThornCommandAbility_0714 } from '../card_defs/07_command_core/0714_FlingThornCommand/0714Ability';
+import { DisplacementStrikeAbility } from '../card_defs/07_command_core/0715_DisplacementStrike/0715Ability';
+import { DisplacementStrikePetAbility } from '../card_defs/07_command_core/0716_DisplacementStrikePet/0716Ability';
 import { LightBlastAbility } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
 import { LightImbuementAbility } from '../card_defs/08_light_core/0802_LightImbuement/0802Ability';
 import { ImbuedBatAbility } from '../card_defs/08_light_core/0803_ImbuedBat/0803Ability';
@@ -253,6 +255,8 @@ register(SpiritStrikeAbility);
 register(SpiritFlurryAbility);
 register(SpiritStormAbility);
 register(FlingThornCommandAbility_0714);
+register(DisplacementStrikeAbility);
+register(DisplacementStrikePetAbility);
 register(LightBlastAbility);
 register(LightImbuementAbility);
 register(ImbuedBatAbility);

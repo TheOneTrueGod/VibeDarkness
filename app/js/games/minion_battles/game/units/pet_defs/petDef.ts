@@ -56,6 +56,24 @@ const PET_DEFS: Record<string, PetDefEntry> = {
         anchorRadius: 50,
         reactions: [{ on: 'ownerWeaponHit', abilityId: '0710' }],
     },
+    /**
+     * A short-lived illusory copy of the spirit (Displacement Strike). It hunts enemies on its own and takes
+     * commands like the spirit, but has no reactions. Its real ability list (and modifiers) are copied from
+     * the source spirit at spawn; `abilityIds` here is only the dog's base list.
+     */
+    spirit_clone: {
+        id: 'spirit_clone',
+        name: 'Spirit Clone',
+        // The dog's body and stats with a translucent look (unit def `spirit_clone`).
+        unitCharacterId: 'spirit_clone',
+        // Clones roam: wide leashes, tune in playtest.
+        engageLeashRange: 400,
+        returnLeashRange: 700,
+        abilityIds: ['0701', '0702', '0710', '0711'],
+        basicAttackAbilityId: '0701',
+        autoEngage: true,
+        anchorRadius: 50,
+    },
 };
 
 export function getPetDef(petId: string): PetDefEntry | undefined {

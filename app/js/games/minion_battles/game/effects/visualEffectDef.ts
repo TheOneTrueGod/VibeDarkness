@@ -1,5 +1,6 @@
 import type { EffectImageKey } from '../effectImages';
 import type { EffectProperties } from './effectProperties';
+import type { DeathRemnantDef } from '../deathSequences/deathSequenceDef';
 
 /** Spawns N particles in a radial ring. Maps to existing `particleBurst` death effect. */
 export interface ParticleRingVFXDef {
@@ -30,7 +31,16 @@ export interface DirectEffectVFXDef {
     position?: 'caster' | 'target' | 'midpoint';
 }
 
+/**
+ * The unit's sprite left in place, shaking and dissolving (`DeathRemnant`), sized to the unit. The same
+ * remnant a death sequence draws, without its story pause (e.g. illusions that fade out on death).
+ */
+export interface RemnantVFXDef extends DeathRemnantDef {
+    type: 'remnant';
+}
+
 export type VisualEffectDef =
     | ParticleRingVFXDef
+    | RemnantVFXDef
     | DarkCreatureIconFlashVFXDef
     | DirectEffectVFXDef;

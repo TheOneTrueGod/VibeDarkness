@@ -8,6 +8,8 @@
 import type { EngineContext } from '../EngineContext';
 import type { VisualEffectDef } from './visualEffectDef';
 import { Effect } from './Effect';
+import type { DeathRemnantDef } from '../deathSequences/deathSequenceDef';
+import { CHARACTER_SPRITE_SCALE, getCharacterSpriteKey } from '../units/unit_defs/unitDef';
 import {
     DARK_CREATURE_DEATH_PARTICLE_LIFE_SECONDS,
     DARK_CREATURE_DEATH_PARTICLE_OUTWARD_SPEED_MAX,
@@ -18,6 +20,25 @@ import {
     DARK_CREATURE_DEATH_PARTICLE_UPWARD_ACCEL,
     DARK_CREATURE_ICON_DEATH_DURATION_SECONDS,
 } from '../deathEffects/darkCreatureVisualConstants';
+
+/**
+ * Leave the unit's sprite in place as a `DeathRemnant` that shakes and dissolves, sized to the unit. Used by
+ * the `remnant` visual effect and by death sequences.
+ */
+export function spawnDeathRemnant(engine: EngineContext, unit: MinimalUnit, def: DeathRemnantDef): void {
+    const { duration, characterSpriteKey, ...remnantData } = def;
+    engine.addEffect(new Effect({
+        x: unit.x,
+        y: unit.y,
+        duration,
+        effectType: 'DeathRemnant',
+        effectData: {
+            sizePx: unit.radius * 2 * CHARACTER_SPRITE_SCALE,
+            ...remnantData,
+            remnantCharacterKey: characterSpriteKey ?? getCharacterSpriteKey(unit.characterId),
+        },
+    }));
+}
 
 // ---------------------------------------------------------------------------
 // Shared helper — replicate logic from ParticleExplosion / spawnDarkCreatureDeathParticle
@@ -91,6 +112,11 @@ export function applyVisualEffectDefs(
                 for (let i = 0; i < n; i++) {
                     spawnDeathParticle(engine, unit, i, n, def.imageKey);
                 }
+                break;
+            }
+            case 'remnant': {
+                const { type: _type, ...remnant } = def;
+                spawnDeathRemnant(engine, unit, remnant);
                 break;
             }
             case 'darkCreatureIconFlash': {

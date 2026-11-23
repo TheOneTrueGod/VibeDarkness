@@ -110,3 +110,51 @@ describe('resolveMidCastSourceUnit', () => {
         expect(resolveMidCastSourceUnit(ability, owner, [owner]).id).toBe('owner');
     });
 });
+
+describe('resolveAbilitySourceUnits with pack', () => {
+    const PACK = {
+        id: 'pack_test',
+        abilitySource: { type: 'pet' as const, selector: 'nearest' as const, requireFree: true as const, pack: { count: 1, radiusPx: 80 } },
+    };
+
+    /** Owner at 0; `lead` nearest the aim point, `mate` 50 px from it, `edge` 70 px, `stray` 200 px (outside). */
+    function packScene() {
+        const owner = makeUnit('owner', 0, 'player', 'hero');
+        const lead = petOf(owner, 'lead', 100);
+        const edge = petOf(owner, 'edge', 170);
+        const mate = petOf(owner, 'mate', 150);
+        const stray = petOf(owner, 'stray', 300);
+        const units = [owner, lead, edge, mate, stray];
+        const engine = { units, gameTime: 0, getUnit: (id: string) => units.find((u) => u.id === id) };
+        return { owner, lead, edge, mate, stray, units, engine };
+    }
+
+    it('returns the nearest pet plus its nearest free neighbour inside the radius', () => {
+        const { owner, lead, mate, units, engine } = packScene();
+        expect(resolveAbilitySourceUnits(PACK, owner, units, { x: 90, y: 0 }, engine)).toEqual([lead, mate]);
+    });
+
+    it('skips a busy neighbour and one outside the radius', () => {
+        const { owner, lead, edge, mate, units, engine } = packScene();
+        makeBusy(mate);
+        expect(resolveAbilitySourceUnits(PACK, owner, units, { x: 90, y: 0 }, engine)).toEqual([lead, edge]);
+        makeBusy(edge);
+        // Only `stray` is left free, 200 px from `lead`: no extra.
+        expect(resolveAbilitySourceUnits(PACK, owner, units, { x: 90, y: 0 }, engine)).toEqual([lead]);
+    });
+
+    it('packCountFlat on the caster adds extras; no pack returns one pet as before', () => {
+        const { owner, lead, edge, mate, units, engine } = packScene();
+        owner.abilityModifiers = { pack_test: { packCountFlat: 1 } };
+        expect(resolveAbilitySourceUnits(PACK, owner, units, { x: 90, y: 0 }, engine)).toEqual([lead, mate, edge]);
+        expect(resolveAbilitySourceUnits(FREE_NEAREST, owner, units, { x: 90, y: 0 }, engine)).toEqual([lead]);
+    });
+
+    it('extras honour requiresAbilityId', () => {
+        const { owner, lead, edge, mate, units, engine } = packScene();
+        for (const pet of [lead, edge]) pet.abilities = [...pet.abilities, 'needed'];
+        const src = { id: 'pack_test', abilitySource: { ...PACK.abilitySource, requiresAbilityId: 'needed' } };
+        expect(resolveAbilitySourceUnits(src, owner, units, { x: 90, y: 0 }, engine)).toEqual([lead, edge]);
+        expect(mate.abilities).not.toContain('needed');
+    });
+});

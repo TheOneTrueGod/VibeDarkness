@@ -1,9 +1,10 @@
 import { TRAINING_TREE_ID } from './trees/training';
 import { describe, expect, it } from 'vitest';
 import { computePassiveBonuses } from './passiveBonuses';
-import { getPetAbilitiesFromResearch, getPetsFromResearch } from './evaluator';
+import { getDirectCardsFromResearch, getPetAbilitiesFromResearch, getPetsFromResearch } from './evaluator';
 import { PassiveStatKey } from './types';
 import {
+    COMMAND_CORE_NODE_DISPLACEMENT_STRIKE,
     COMMAND_CORE_NODE_EMPOWER_PET,
     COMMAND_CORE_NODE_LOYAL_COMPANION,
     COMMAND_CORE_NODE_MIMIC_BRAMBLES,
@@ -29,6 +30,19 @@ describe('command core research', () => {
             [COMMAND_CORE_TREE_ID]: [COMMAND_CORE_NODE_LOYAL_COMPANION, COMMAND_CORE_NODE_MIMIC_BRAMBLES],
         };
         expect(getPetAbilitiesFromResearch(research).get('dog')).toEqual(['0706']);
+    });
+
+    it('Displacement Strike grants card 0715 and pet ability 0716 to the dog', () => {
+        const node = commandCoreTree.nodes.find((n) => n.id === COMMAND_CORE_NODE_DISPLACEMENT_STRIKE)!;
+        expect(node.tier).toBe(11);
+        expect(node.prereqNodeIds).toEqual([COMMAND_CORE_NODE_LOYAL_COMPANION]);
+        const research = {
+            [COMMAND_CORE_TREE_ID]: [COMMAND_CORE_NODE_LOYAL_COMPANION, COMMAND_CORE_NODE_DISPLACEMENT_STRIKE],
+        };
+        expect(getDirectCardsFromResearch(research)).toContain('0715');
+        expect(getPetAbilitiesFromResearch(research).get('dog')).toEqual(['0716']);
+        expect(getDirectCardsFromResearch({ [COMMAND_CORE_TREE_ID]: [COMMAND_CORE_NODE_LOYAL_COMPANION] }))
+            .not.toContain('0715');
     });
 
     it('Mimic Thorn and Mimic Brambles can both be researched', () => {

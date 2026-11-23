@@ -17,7 +17,8 @@
 import type { ActivePreviewEngineContext, IAbilityPreviewGraphics, PetAbilitySource } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import type { ResolvedTarget } from '../game/types';
-import { getUnitAtPosition } from './targeting';
+import { getUnitAtPosition, petAnchorOptionsOf, resolveCasterPetAnchor } from './targeting';
+import { findNearestEnemyInArea } from './targetHelpers';
 import { areEnemies } from '../game/teams';
 import { getDistanceBasedInaccuracy } from './gunInaccuracy';
 import { computeForcedDisplacement, type ForcedDisplacement } from '../game/forceMove';
@@ -511,6 +512,43 @@ export function createPetSourcedMovementPreview(
                 endpointRadius: pet.radius * (options.style?.endpointRadiusScale ?? 1.1),
             },
         );
+    };
+}
+
+export interface PetAnchoredAreaPreviewOptions {
+    /** The command's `abilitySource` (its `requiresAbilityId` narrows the pet, as the cast does). */
+    abilitySource: PetAbilitySource;
+    /** The select's `maxRangeFromAnchor`: the aim point is clamped this far from the pet. */
+    maxRangeFromPet: number;
+    /** Radius of the ring drawn round the landing point (e.g. where summoned units appear). */
+    areaRadius: number;
+    /** An enemy within this of the aim point (edge distance) is the one hit: the ring centres on it, with a crosshair. */
+    snapRadius: number;
+    color: number;
+}
+
+/**
+ * Preset: command card with an `anchorUnit: 'casterPet'` select whose pet acts in an area round the aim
+ * (Displacement Strike's clone ring). Origin = the free pet the command will use (`resolveCasterPetAnchor`),
+ * never the caster; with none, the fizzle X. The renderer already draws the clamped line from the pet, so this
+ * adds the ring round the landing point, snapped onto the enemy the pet would strike there.
+ */
+export function createPetAnchoredAreaPreview(options: PetAnchoredAreaPreviewOptions): RenderTargetingPreviewFn {
+    const anchorOpts = petAnchorOptionsOf({ abilitySource: options.abilitySource });
+    return (gr, caster, _currentTargets, mouseWorld, units, gameState) => {
+        const pet = gameState ? resolveCasterPetAnchor(caster, gameState, { ...anchorOpts, requireFree: true }) : null;
+        if (!pet) {
+            drawNoPetSourceFizzle(gr, caster);
+            return;
+        }
+        const { endX, endY } = clampToMaxRange(pet, mouseWorld, options.maxRangeFromPet);
+        const enemy = findNearestEnemyInArea(units, pet, { x: endX, y: endY }, options.snapRadius);
+        const center = enemy ? { x: enemy.x, y: enemy.y } : { x: endX, y: endY };
+        gr.circle(center.x, center.y, options.areaRadius);
+        gr.fill({ color: options.color, alpha: 0.12 });
+        gr.circle(center.x, center.y, options.areaRadius);
+        gr.stroke({ color: options.color, width: 2, alpha: 0.7 });
+        if (enemy) drawCrosshair(gr, enemy.x, enemy.y, 12, { color: options.color, width: 2, alpha: 0.95 });
     };
 }
 

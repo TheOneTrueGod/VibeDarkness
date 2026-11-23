@@ -41,6 +41,8 @@ import type { AbilityEngineContext } from './AbilityEngineContext';
 import { clearPetGuardWander } from '../game/units/unitAI/pet/pet_guardWander';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { canPreempt } from '../game/units/castPriority';
+import { isUnitLingering } from '../game/units/ephemeralExpiry';
+import { isPetRevivable } from '../game/units/petHelpers';
 export { resolveAbilitySourceUnits } from './abilitySourceUnits';
 
 // ---- resolveAbilitySourceUnits ----
@@ -69,6 +71,8 @@ interface HeelEngineCtx {
 /**
  * Heal each pet, put them into heel state, and interrupt any active attack.
  * Also adds a green Pulse VFX on each pet so the effect is visible.
+ * Lingering pets (`ephemeralExpiry.ts`) are skipped, and dead pets that are not revivable (`isPetRevivable`:
+ * clones, ephemeral pets) stay dead.
  */
 export function commandHeel(
     owner: Unit,
@@ -76,7 +80,8 @@ export function commandHeel(
     engine: HeelEngineCtx,
     opts: HeelOptions,
 ): void {
-    for (const pet of pets) {
+    const heeled = pets.filter((p) => (p.isAlive() ? !isUnitLingering(p, engine.gameTime) : isPetRevivable(p)));
+    for (const pet of heeled) {
         const healAmount = Math.max(1, Math.floor(pet.maxHp * opts.healFraction));
 
         if (!pet.isAlive()) {
@@ -110,7 +115,7 @@ export function commandHeel(
         clearPetGuardWander(ctx);
 
     }
-    playCommandCues(owner, pets, engine);
+    playCommandCues(owner, heeled, engine);
 }
 
 // ---- Command cue ----
@@ -161,6 +166,8 @@ export interface CommandPetAbilityOpts {
  * Pass `opts.preGrantCharge` to restore a use before queuing (needed for commandCharge abilities), and
  * `opts.priority` to stamp a cast priority (pets it cannot preempt are skipped), and `opts.followUpOf` when
  * the order continues a running cast that it should replace.
+ * Lingering pets (`game/units/ephemeralExpiry.ts`) are skipped, except for a follow-up (`followUpOf`), so a
+ * chain such as Pounce → Spirit Flurry still finishes on a pet whose time ran out mid-chain.
  */
 export function commandPetAbility(
     pets: Unit[],
@@ -177,6 +184,7 @@ export function commandPetAbility(
     const commanded: Unit[] = [];
     for (const pet of pets) {
         if (!pet.isAlive()) continue;
+        if (followUpOf === undefined && isUnitLingering(pet, engine.gameTime)) continue;
         if (priority !== undefined && !canPreempt(pet, priority, engine.units, engine, followUpOf)) continue;
         if (opts?.preGrantCharge) {
             grantRecoveryChargeToAbility(pet, abilityId, opts.preGrantCharge.chargeType, opts.preGrantCharge.amount);

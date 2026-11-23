@@ -9,23 +9,28 @@ import PlanDetail from './PlanDetail';
 import { useIdeasRoute } from './useIdeasRoute';
 import { STORYBOOK_ENTRIES } from './storybook/storybookEntries';
 import StorybookView, { StorybookEntryList } from './storybook/StorybookView';
+import GlossaryView from './GlossaryView';
 import type { IdeasViewId } from '../../ability-tests/campaignTabPaths';
 
 const ITEM_IDS: Record<IdeasViewId, string[]> = {
     plans: PLANS.map((p) => p.id),
     ideas: IDEA_CATEGORIES.map((c) => c.id),
+    // One page, no items: `/campaign/ideas/glossary`.
+    glossary: [],
     storybook: STORYBOOK_ENTRIES.map((e) => e.id),
 };
 
 const TABS: { id: IdeasViewId; label: string }[] = [
     { id: 'plans', label: 'Plans' },
     { id: 'ideas', label: 'Ideas' },
+    { id: 'glossary', label: 'Glossary' },
     { id: 'storybook', label: 'Storybook' },
 ];
 
 const SUBTITLES: Record<IdeasViewId, string> = {
     plans: 'Edit in docs/ideas/plans/',
     ideas: 'Edit in docs/ideas/',
+    glossary: 'Add terms in abilities/keywords/',
     storybook: 'Add entries in Ideas/storybook/storybookEntries.ts',
 };
 
@@ -53,8 +58,8 @@ function IdeasTabSelector({ active, onChange }: { active: IdeasViewId; onChange:
 }
 
 /**
- * Admin brainstorming backlog, plans and UI storybook. Content lives in `docs/ideas/plans/*.md`,
- * `docs/ideas/*.md` and `storybook/storybookEntries.ts`.
+ * Admin brainstorming backlog, plans, keyword glossary and UI storybook. Content lives in `docs/ideas/plans/*.md`,
+ * `docs/ideas/*.md`, `games/minion_battles/abilities/keywords/keywordRegistry.ts` and `storybook/storybookEntries.ts`.
  */
 export default function IdeasPanel() {
     const { view, itemId, setView, selectItem } = useIdeasRoute(ITEM_IDS);
@@ -69,6 +74,8 @@ export default function IdeasPanel() {
         const category = IDEA_CATEGORIES.find((c) => c.id === itemId) ?? null;
         left = <IdeaCategoryList categories={IDEA_CATEGORIES} selectedId={category?.id ?? null} onSelect={selectItem} />;
         center = <IdeaCategoryDetail category={category} />;
+    } else if (view === 'glossary') {
+        center = <GlossaryView />;
     } else {
         const entry = STORYBOOK_ENTRIES.find((e) => e.id === itemId) ?? null;
         left = <StorybookEntryList entries={STORYBOOK_ENTRIES} selectedId={entry?.id ?? null} onSelect={selectItem} />;

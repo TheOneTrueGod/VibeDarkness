@@ -75,7 +75,7 @@ import { getAbility } from '../abilities/AbilityRegistry';
 import type { CharacterLoadout } from '../character_defs/characterLoadout';
 import { PassiveStatKey } from '../../../researchTrees/types';
 import { getPetDef } from '../game/units/pet_defs/petDef';
-import { inheritOwnerAbilityModifiers } from '../game/units/petHelpers';
+import { spawnPetForOwner } from '../game/units/petSpawn';
 import { AbilityGroupId, formatGroupId } from '../card_defs/AbilityGroupId';
 import { getAbilityTagsForId } from '../abilities/Ability';
 import { expandAbilityIdsForResearchModifiers } from '../abilities/abilityModifierHelpers';
@@ -566,35 +566,14 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     passiveBonuses[PassiveStatKey.PetMaxHealth],
                 );
                 const biteDamageFlat = passiveBonuses[PassiveStatKey.Ability0701Damage]?.add ?? 0;
-                const [pet] = engine.spawnUnit(
-                    {
-                        characterId: petDef.unitCharacterId,
-                        name: petDef.name,
-                        teamId: 'player',
-                        abilities: abilityIds,
-                        unitAITreeId: 'pet',
-                        aiSettings: { minRange: 0, maxRange: 50 },
-                        placement: { kind: 'fixedWorld', x: spawnX + 40, y: spawnY },
-                        aiHookup: { kind: 'pet', ownerUnitId: unit.id, defId: petId },
-                        hp: petMaxHp,
-                    },
-                    'initialGameSpawn',
-                );
-                if (!pet) continue;
-                // Research on the pet's abilities (e.g. Thorn Volley, Frenzied Flurry) lives on the owner.
-                inheritOwnerAbilityModifiers(pet, unit);
-                pet.maxHp = petMaxHp;
-                pet.hp = petMaxHp;
-                if (biteDamageFlat > 0) {
-                    pet.abilityModifiers = {
-                        ...pet.abilityModifiers,
-                        [dogBiteAbilityId]: {
-                            ...(pet.abilityModifiers[dogBiteAbilityId] ?? {}),
-                            damageFlat: (pet.abilityModifiers[dogBiteAbilityId]?.damageFlat ?? 0) + biteDamageFlat,
-                        },
-                    };
-                }
-                initializeAbilityRuntimeForUnit(pet);
+                spawnPetForOwner(engine, unit, {
+                    petDefId: petId,
+                    at: { x: spawnX + 40, y: spawnY },
+                    abilityIds,
+                    maxHp: petMaxHp,
+                    abilityModifiers: biteDamageFlat > 0 ? { [dogBiteAbilityId]: { damageFlat: biteDamageFlat } } : undefined,
+                    spawnSource: 'initialGameSpawn',
+                });
             }
         }
 

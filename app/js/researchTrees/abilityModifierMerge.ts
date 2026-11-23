@@ -19,6 +19,9 @@ export function mergeAbilityModifierInto(entry: AbilityModifier, modifier: Abili
     if (modifier.repeatCountFlat !== undefined) {
         entry.repeatCountFlat = (entry.repeatCountFlat ?? 0) + modifier.repeatCountFlat;
     }
+    if (modifier.packCountFlat !== undefined) {
+        entry.packCountFlat = (entry.packCountFlat ?? 0) + modifier.packCountFlat;
+    }
     if (modifier.tileAreaRadiusFlat !== undefined) {
         entry.tileAreaRadiusFlat = (entry.tileAreaRadiusFlat ?? 0) + modifier.tileAreaRadiusFlat;
     }

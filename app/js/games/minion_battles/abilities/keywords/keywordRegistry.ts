@@ -4,6 +4,7 @@ import { BLEED_TICKS_PER_ROUND } from '../../game/dotTick';
 import { BRIGHT_DEFS, BRIGHT_ROUND_END_DECAY, spawnBrightLight, type EngineWithLight } from '../brightKeyword';
 import { devourLightKeyword } from './devourLightKeyword';
 import { rendKeyword } from './rendKeyword';
+import { packKeyword } from './packKeyword';
 import { CONDUCTIVE_MARK_DEF } from '../../buffs/marks/conductiveMark';
 import type { AbilityKeywordUse, KeywordDef, KeywordId, KeywordResolve } from './keywordTypes';
 
@@ -91,6 +92,24 @@ export function keywordGlossaryEntries(keywordTexts: readonly string[]): Keyword
     return entries;
 }
 
+/** One row of the Ideas Glossary: a glossary term, or a described keyword shown at `n` = 1. */
+export interface GlossaryListEntry extends KeywordGlossaryEntry {
+    kind: 'term' | 'keyword';
+}
+
+/**
+ * Every glossary term (`registerGlossaryTerm`) and every keyword with `describe` (its reminder at `n` = 1,
+ * titled with the bare display name), sorted by title. Read-only; feeds the Ideas Glossary sub-tab.
+ */
+export function listGlossaryEntries(): GlossaryListEntry[] {
+    const entries: GlossaryListEntry[] = glossaryTerms.map((t) => ({ kind: 'term', title: t.title, description: t.description }));
+    for (const def of registry.values()) {
+        if (!def.describe) continue;
+        entries.push({ kind: 'keyword', title: def.displayName, description: def.describe(1) });
+    }
+    return entries.sort((a, b) => a.title.localeCompare(b.title));
+}
+
 /** Legacy-encoded tooltip line for a keyword use (e.g. `{Bright 3}`). */
 export function formatKeywordLine(use: Pick<AbilityKeywordUse, 'keyword' | 'n'>): string {
     return `{${formatKeywordText(use.keyword, use.n)}}`;
@@ -144,6 +163,7 @@ registerKeyword({
 
 registerKeyword(devourLightKeyword);
 registerKeyword(rendKeyword);
+registerKeyword(packKeyword);
 
 registerGlossaryTerm({
     title: 'Bleed',

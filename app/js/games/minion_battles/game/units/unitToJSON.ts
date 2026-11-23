@@ -182,6 +182,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         ...(unit.ephemeralDespawnAtGameTime != null
             ? { ephemeralDespawnAtGameTime: unit.ephemeralDespawnAtGameTime }
             : {}),
+        ...(unit.ephemeralExpiryPolicy !== 'immediate' ? { ephemeralExpiryPolicy: unit.ephemeralExpiryPolicy } : {}),
         ...(unit.tags.length > 0 ? { tags: [...unit.tags] } : {}),
         ...(Object.keys(unit.lockedAbilityModes).length > 0
             ? {

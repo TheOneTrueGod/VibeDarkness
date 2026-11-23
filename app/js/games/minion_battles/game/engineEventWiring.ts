@@ -21,6 +21,7 @@ import { fusedBodyOptionsOf } from './units/components/fusedBodyComponent';
 import { requestReactionFrame } from './reactions/reactionFrame';
 import type { GameEngine } from './GameEngine';
 import { handlePetReactionsOnAttackHit } from './units/petReactions';
+import { releaseDeadPetFromOwner } from './units/petHelpers';
 import type { AbilityEngineContext } from '../abilities/AbilityEngineContext';
 
 export function wireCoreEventListeners(engine: GameEngine): void {
@@ -59,6 +60,8 @@ export function wireCoreEventListeners(engine: GameEngine): void {
         else if (def?.onDeathVisualEffects?.length) applyVisualEffectDefs(def.onDeathVisualEffects, unit, engine);
         // Component death hooks (e.g. lanternite torch removal and Spore Rebirth) run after the visual death.
         runUnitComponentDeath(unit, engine.buildUnitComponentContext(0), data.killerUnitId ?? null);
+        // Pets gone for good (spirit clones, other ephemeral pets) leave their owner's pet list.
+        releaseDeadPetFromOwner(unit, (id) => engine.getUnit(id));
     });
 
     // Map-network hygiene: unregister immediately rather than waiting for the next

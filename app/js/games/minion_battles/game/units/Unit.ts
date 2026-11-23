@@ -64,6 +64,7 @@ import type {
     AISettings,
     ApplyKnockbackParams,
     DamageModifier,
+    EphemeralExpiryPolicy,
     KnockbackState,
     NudgeState,
     UnitAbilityRuntimeState,
@@ -94,6 +95,7 @@ export type {
     AISettings,
     ApplyKnockbackParams,
     DamageModifier,
+    EphemeralExpiryPolicy,
     KnockbackSource,
     KnockbackState,
     UnitAbilityRuntimeState,
@@ -399,6 +401,8 @@ export class Unit extends GameObject {
 
     /** When non-null, unit dies when GameEngine.gameTime reaches this value (displacer clones, phantom decoys, etc.). */
     ephemeralDespawnAtGameTime: number | null = null;
+    /** What happens at `ephemeralDespawnAtGameTime` (`ephemeralExpiry.ts`). Serialized when not `'immediate'`. */
+    ephemeralExpiryPolicy: EphemeralExpiryPolicy = 'immediate';
 
     /**
      * Component state slices keyed by component id (see `components/unitComponent.ts`). Declared on the unit's def
@@ -441,6 +445,7 @@ export class Unit extends GameObject {
         this.passiveBonuses = config.passiveBonuses;
         this.roundStartRecoveryCharges = config.roundStartRecoveryCharges ?? [];
         this.ephemeralDespawnAtGameTime = config.ephemeralDespawnAtGameTime ?? null;
+        this.ephemeralExpiryPolicy = config.ephemeralExpiryPolicy ?? 'immediate';
         this.stackSize = config.stackSize ?? 1;
         attachDefComponents(this, getUnitComponentSpecs(config.characterId));
         const defReductions = getUnitFlatDamageReductions(config.characterId);

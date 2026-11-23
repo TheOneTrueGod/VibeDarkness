@@ -2,6 +2,12 @@ import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
 import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_ICON_COMMAND } from '../researchTreeChrome';
+import {
+    DISPLACEMENT_STRIKE_CARD_ID,
+    DISPLACEMENT_STRIKE_CLONE_COUNT,
+    DISPLACEMENT_STRIKE_CLONE_SECONDS,
+    DISPLACEMENT_STRIKE_PET_ABILITY_ID,
+} from '../../games/minion_battles/card_defs/07_command_core/0716_DisplacementStrikePet/0716Constants';
 
 export const COMMAND_CORE_TREE_ID = 'command_core';
 export const COMMAND_CORE_NODE_LOYAL_COMPANION = 'loyal_companion';
@@ -15,6 +21,7 @@ export const COMMAND_CORE_NODE_STORM_SURGE = 'storm_surge';
 export const COMMAND_CORE_NODE_FRENZIED_FLURRY = 'frenzied_flurry';
 export const COMMAND_CORE_NODE_THORN_VOLLEY = 'thorn_volley';
 export const COMMAND_CORE_NODE_OVERGROWTH = 'overgrowth';
+export const COMMAND_CORE_NODE_DISPLACEMENT_STRIKE = 'displacement_strike';
 
 /** Storm Surge: Spirit Storm damage per pulse and area. */
 export const STORM_SURGE_DAMAGE_FLAT = 2;
@@ -60,6 +67,7 @@ export const COMMAND_STORM_SURGE_COST = { attunement: 10, vigor: 12, metal: 2 };
 export const COMMAND_FRENZIED_FLURRY_COST = { attunement: 10, vigor: 11, metal: 3 };
 export const COMMAND_THORN_VOLLEY_COST = { attunement: 11, vigor: 12, metal: 2 };
 export const COMMAND_OVERGROWTH_COST = { attunement: 10, vigor: 12, metal: 3 };
+export const COMMAND_DISPLACEMENT_STRIKE_COST = { attunement: 11, vigor: 10, metal: 3 };
 
 export const commandCoreTree: ResearchTreeDef = {
     id: COMMAND_CORE_TREE_ID,
@@ -160,6 +168,25 @@ export const commandCoreTree: ResearchTreeDef = {
             effects: [
                 { type: 'grantPetAbility', petId: 'dog', abilityId: '0706' },
                 { type: 'addCard', cardId: '0707' },
+            ],
+        },
+        {
+            id: COMMAND_CORE_NODE_DISPLACEMENT_STRIKE,
+            title: 'Displacement Strike',
+            description: `Order your spirit to {Displacement Strike}: {${DISPLACEMENT_STRIKE_CLONE_COUNT}} clones strike the target, then hunt for {${DISPLACEMENT_STRIKE_CLONE_SECONDS}}s.`,
+            flavorText: 'One shadow, then four. Only one of them is real.',
+            order: 22,
+            tier: 11,
+            position: { x: 370, y: 160 },
+            prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
+            ],
+            cost: COMMAND_DISPLACEMENT_STRIKE_COST,
+            effects: [
+                { type: 'grantPetAbility', petId: 'dog', abilityId: DISPLACEMENT_STRIKE_PET_ABILITY_ID },
+                { type: 'addCard', cardId: DISPLACEMENT_STRIKE_CARD_ID },
             ],
         },
         {

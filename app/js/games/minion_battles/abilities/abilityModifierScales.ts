@@ -23,6 +23,11 @@ export function getRepeatCount(base: number, modifier: AbilityModifier | undefin
     return Math.max(1, base + (modifier?.repeatCountFlat ?? 0));
 }
 
+/** Extra pets a pack command reaches: `base` plus `packCountFlat`, never below 0. */
+export function getPackCount(base: number, modifier: AbilityModifier | undefined): number {
+    return Math.max(0, base + (modifier?.packCountFlat ?? 0));
+}
+
 /** Half-width in tiles of a square tile area (`base` 1 = 3x3) plus `tileAreaRadiusFlat`, never below 0. */
 export function getTileAreaHalfWidth(base: number, modifier: AbilityModifier | undefined): number {
     return Math.max(0, base + (modifier?.tileAreaRadiusFlat ?? 0));

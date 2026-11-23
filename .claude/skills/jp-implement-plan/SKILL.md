@@ -51,7 +51,7 @@ You handle **exactly** the step named in your prompt. Never start another step. 
    - Apply relevant project skills as needed.
    - After each item: `- [ ]` → `- [x]`, add a **one-line summary** of what actually changed, save the plan.
 
-4. **Verify once per step** (unless the plan's Agent Instructions specify narrower commands): `npm run lint:changed`, then the test files named in the step. Fix what you broke; listed pre-existing failures are not yours. Everything else in that scoped run must be green before you finish.
+4. **Verify once per step:** `npm run lint:changed`, plus `npx tsc --noEmit` when the step crosses interface boundaries. **Do not run Vitest** in a regular step: write the step's tests and list them; the plan's final verification step runs them all once. Only that final step runs tests (its listed files, then `npm run test:sim` if it says so) and fixes failures; listed pre-existing failures are not yours.
 
 5. **Pause on ambiguity.** Return the question as your final output so the orchestrator can surface it and stop.
 
@@ -77,5 +77,5 @@ When no unchecked items remain:
 - **One step per worker** — fresh context; orchestrator only coordinates and reports.
 - **Never modify checked items** — only unchecked → checked (summary line beneath is fine).
 - **Lint before tests** — always `npm run lint:changed` before any Vitest run (not full `npm run lint` unless the plan says so).
-- **Targeted tests per step** — named files from the step; Completion does not imply `test:all`.
+- **Tests once, at the end** — regular steps lint and typecheck only; the final verification step runs the plan's named test files once. Completion does not imply `test:all`.
 - **Always update the plan file** before a worker finishes — surprises go in the plan, not only in chat.

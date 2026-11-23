@@ -643,6 +643,7 @@ export function spawnUnit(ctx: SpawnUnitContext, def: SpawnDefinition, spawnSour
                 unitTags: def.unitTags,
                 combatSettings: def.combatSettings,
                 ephemeralDespawnAtGameTime: def.ephemeralDespawnAtGameTime,
+                ephemeralExpiryPolicy: def.ephemeralExpiryPolicy,
                 controlGroupId: def.controlGroupId,
                 controllable: def.controllable,
             },

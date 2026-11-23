@@ -9,13 +9,13 @@ import type { Unit } from '../game/units/Unit';
 import type { UnitTag } from '../game/units/unitTag';
 import type { Camera } from '../game/Camera';
 import type { ResolvedTarget } from '../game/types';
-import type { AbilityStatic, IAbilityPreviewGraphics } from './Ability';
+import type { AbilityStatic, IAbilityPreviewGraphics, PetAbilitySource } from './Ability';
 import type { InteractiveTargetDef, SelectTargetDef } from './timingTargetDef';
 import { lungeStepDistance } from './stepLunge';
 import { isInteractiveTargetDef, isSelectTargetDef } from './timingTargetDef';
 import { isAbilityTimingInterval } from './abilityTimings';
 import { areEnemies, areAllies } from '../game/teams';
-import { getLivingPetsOfUnit } from '../game/units/petHelpers';
+import { getCommandablePetsOfUnit } from '../game/units/petHelpers';
 import { isUnitBusy } from '../game/units/castPriority';
 import { isUnitHeldByCastOf } from '../game/units/castHold';
 import { asCastPriorityEngine } from './abilitySourceUnits';
@@ -522,15 +522,29 @@ export interface CasterPetAnchorOptions {
      * Needs `engine.gameTime` for the busy check; without it every living pet counts.
      */
     requireFree?: boolean;
+    /** Only a pet that owns this ability id (see `PetAbilitySource.requiresAbilityId`). */
+    requiresAbilityId?: string;
+}
+
+/**
+ * The anchor filters an ability's `abilitySource` asks for (`requiresAbilityId`), so an `anchorUnit: 'casterPet'`
+ * clamp centres on the same kind of pet the cast will command.
+ */
+export function petAnchorOptionsOf(ability: { abilitySource?: PetAbilitySource } | undefined): CasterPetAnchorOptions {
+    const required = ability?.abilitySource?.requiresAbilityId;
+    return required ? { requiresAbilityId: required } : {};
 }
 
 /**
  * The caster's nearest living pet (to the caster), for `anchorUnit: 'casterPet'` and pet-moving cast
- * behaviours. Needs `engine.units`. With `requireFree`, see {@link CasterPetAnchorOptions}.
+ * behaviours. Needs `engine.units`. With `requireFree`, see {@link CasterPetAnchorOptions}. Lingering pets
+ * (`game/units/ephemeralExpiry.ts`) are left out when `engine.gameTime` is known.
  */
 export function resolveCasterPetAnchor(caster: Unit, engine: unknown, opts?: CasterPetAnchorOptions): Unit | null {
     const units = (engine as { units?: readonly Unit[] }).units ?? [];
-    let pets = getLivingPetsOfUnit(caster, units);
+    let pets = getCommandablePetsOfUnit(caster, units, asCastPriorityEngine(engine)?.gameTime);
+    const required = opts?.requiresAbilityId;
+    if (required) pets = pets.filter((p) => p.abilities.includes(required));
     if (opts?.requireFree) {
         const ours = pets.find((p) => isUnitHeldByCastOf(p, caster));
         if (ours) return ours;
@@ -551,7 +565,8 @@ export function resolveCasterPetAnchor(caster: Unit, engine: unknown, opts?: Cas
 
 /**
  * The point an anchored select step clamps around: the caster's pet (`anchorUnit`) or the earlier pick
- * named by `anchorLabel`. Null when it cannot be resolved yet.
+ * named by `anchorLabel`. Null when it cannot be resolved yet. `petAnchor` narrows the caster's pet
+ * (pass {@link petAnchorOptionsOf} the ability).
  */
 export function resolveSelectAnchorPoint(
     selectDefs: readonly SelectTargetDef[],
@@ -560,10 +575,12 @@ export function resolveSelectAnchorPoint(
     collectedTargetsByLabel: Record<string, ResolvedTarget>,
     collectedTargetsOrdered: ResolvedTarget[],
     engine: { getUnit(id: string): { x: number; y: number } | undefined | null },
+    petAnchor: CasterPetAnchorOptions = {},
 ): { x: number; y: number } | null {
     if (selectDef.anchorUnit === 'casterPet') {
         // The pet the cast would use (the nearest free one), else the nearest, so the clamp still has a centre.
-        const pet = resolveCasterPetAnchor(caster, engine, { requireFree: true }) ?? resolveCasterPetAnchor(caster, engine);
+        const pet = resolveCasterPetAnchor(caster, engine, { ...petAnchor, requireFree: true })
+            ?? resolveCasterPetAnchor(caster, engine, petAnchor);
         return pet ? { x: pet.x, y: pet.y } : null;
     }
     if (selectDef.anchorLabel == null) return null;
@@ -594,6 +611,7 @@ export function clampSelectTarget(
             collectedTargetsByLabel,
             collectedTargetsOrdered,
             engine,
+            petAnchorOptionsOf(ability),
         );
         if (!anchorPoint) return target;
 

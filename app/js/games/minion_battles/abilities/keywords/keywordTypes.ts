@@ -1,7 +1,7 @@
 import type { Unit } from '../../game/units/Unit';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 
-export type KeywordId = 'bright' | 'knockback' | 'devourLight' | 'rend';
+export type KeywordId = 'bright' | 'knockback' | 'devourLight' | 'rend' | 'pack';
 
 /** Cast-time context for keyword resolution (subset of the CastBehaviour context). */
 export interface KeywordContext {

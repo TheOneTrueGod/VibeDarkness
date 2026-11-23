@@ -236,8 +236,8 @@ export default function AbilityTooltip({
     );
 }
 
-/** A Slay-the-Spire-style reminder card for one keyword (title + description). */
-function KeywordCard({ entry, className = '' }: { entry: KeywordGlossaryEntry; className?: string }) {
+/** A Slay-the-Spire-style reminder card for one keyword (title + description). Also used by the Ideas Glossary. */
+export function KeywordCard({ entry, className = '' }: { entry: KeywordGlossaryEntry; className?: string }) {
     return (
         <div className={`rounded-lg border border-white bg-black p-2 shadow-lg ${className}`}>
             <h4 className="text-amber-300 font-bold text-xs mb-1">{entry.title}</h4>

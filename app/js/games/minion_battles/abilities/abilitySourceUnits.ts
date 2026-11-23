@@ -5,8 +5,9 @@
 
 import type { Unit } from '../game/units/Unit';
 import type { PetAbilitySource } from './Ability';
-import { getLivingPetsOfUnit } from '../game/units/petHelpers';
+import { getCommandablePetsOfUnit } from '../game/units/petHelpers';
 import { isUnitBusy, type CastPriorityEngine } from '../game/units/castPriority';
+import { getCasterAbilityModifier, getPackCount } from './abilityModifierScales';
 
 /**
  * The engine as a cast-priority context, when it is one (it has `gameTime`). Preview callbacks get the
@@ -29,11 +30,21 @@ export function asCastPriorityEngine(engine: unknown): CastPriorityEngine | unde
  * `'nearest'` is the nearest **free** pet, however far. That needs `engine` (anything with `gameTime`);
  * without it the busy check cannot run and every living pet counts.
  *
+ * With `requiresAbilityId`, only pets that own that ability count (checked before `requireFree`).
+ *
+ * Lingering pets (past their ephemeral time, finishing a cast; `game/units/ephemeralExpiry.ts`) are never
+ * picked when `engine` is given.
+ *
+ * With `pack` (`'nearest'` only), the picked pet comes first, followed by up to `pack.count` (plus the
+ * caster's `packCountFlat` for `ability.id`) other candidate pets within `pack.radiusPx` of it, nearest
+ * first. Extras pass every filter above. Commands anchored through `resolveCasterPetAnchor` (Spirit Storm)
+ * do not read `pack` yet.
+ *
  * `aimPoint` is optional; when absent (e.g. for unit-targeted abilities), nearest
  * is determined by distance from the caster.
  */
 export function resolveAbilitySourceUnits(
-    ability: { abilitySource?: PetAbilitySource },
+    ability: { id?: string; abilitySource?: PetAbilitySource },
     caster: Unit,
     units: readonly Unit[],
     aimPoint?: { x: number; y: number },
@@ -42,7 +53,11 @@ export function resolveAbilitySourceUnits(
     const src = ability.abilitySource;
     if (!src || src.type !== 'pet') return [caster];
 
-    let pets = getLivingPetsOfUnit(caster, units);
+    let pets = getCommandablePetsOfUnit(caster, units, engine?.gameTime);
+    if (src.requiresAbilityId) {
+        const required = src.requiresAbilityId;
+        pets = pets.filter((p) => p.abilities.includes(required));
+    }
     if (src.requireFree && engine) pets = pets.filter((p) => !isUnitBusy(p, units, engine));
     if (pets.length === 0) return [];
 
@@ -60,7 +75,28 @@ export function resolveAbilitySourceUnits(
             nearest = p;
         }
     }
-    return [nearest];
+    return [nearest, ...resolvePackExtras(ability, caster, nearest, pets)];
+}
+
+/** The other candidate pets a `pack` command also goes to, nearest to `picked` first. */
+function resolvePackExtras(
+    ability: { id?: string; abilitySource?: PetAbilitySource },
+    caster: Unit,
+    picked: Unit,
+    candidates: readonly Unit[],
+): Unit[] {
+    const pack = ability.abilitySource?.pack;
+    if (!pack) return [];
+    const modifier = ability.id ? getCasterAbilityModifier(caster, ability.id) : undefined;
+    const count = getPackCount(pack.count, modifier);
+    if (count <= 0) return [];
+    return candidates
+        .filter((p) => p !== picked)
+        .map((p) => ({ p, d: Math.hypot(p.x - picked.x, p.y - picked.y) }))
+        .filter(({ d }) => d <= pack.radiusPx)
+        .sort((a, b) => a.d - b.d)
+        .slice(0, count)
+        .map(({ p }) => p);
 }
 
 /**

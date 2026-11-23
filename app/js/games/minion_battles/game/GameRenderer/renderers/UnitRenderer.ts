@@ -29,6 +29,7 @@ import {
     CHARACTER_SPRITE_SCALE,
     getUnitDisplayWiggleRadius,
     getUnitAppearFadeInMs,
+    getUnitDisplayAlpha,
     type IUnitRenderContext,
 } from '../../units/unit_defs/unitDef';
 import { getSpawnRenderState } from '../../units/spawnVisuals';
@@ -339,7 +340,7 @@ export class UnitRenderer {
                     : null;
                 perceptionAlpha = enemyUnitAlpha(detection, light);
             }
-            visual.alpha = fadeAlpha * perceptionAlpha;
+            visual.alpha = fadeAlpha * perceptionAlpha * getUnitDisplayAlpha(unit.characterId);
             const isDebugOutlined = this.debugUnitOutlineId === unit.id;
 
             const body = visual.children.find((c) => c.label === 'body') as Graphics | undefined;

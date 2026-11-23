@@ -8,6 +8,7 @@ import type { Deployable, DeployableQuery } from '../game/deployables/Deployable
 import type { SpawnSource, ResolvedTarget } from '../game/types';
 import type { PassiveBonuses } from '../../../researchTrees/types';
 import type { FieldObjectManager } from '../game/fieldObjects/FieldObjectManager';
+import type { SpawnDefinition } from '../game/units/spawning/spawnDefinition';
 
 /**
  * Shared engine context for ability implementations.
@@ -40,6 +41,8 @@ export interface AbilityEngineContext {
     /** Ground/air effect layers — available on the full GameEngine, optional for test stubs. */
     terrainLayers?: TerrainLayerManager;
     addUnit?(unit: Unit, spawnSource?: SpawnSource): void;
+    /** Spawn units from a `SpawnDefinition` (full GameEngine; optional for test stubs). E.g. `spawnPetForOwner`. */
+    spawnUnit?(def: SpawnDefinition, spawnSource?: SpawnSource): Unit[];
     /** The local player's id — used by tooltip helpers that have no caster. */
     localPlayerId?: string;
     /** Look up which research nodes a player has unlocked in a given tree. */

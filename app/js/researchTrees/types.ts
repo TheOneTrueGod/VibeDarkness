@@ -98,6 +98,11 @@ export interface AbilityModifier {
      */
     repeatCountFlat?: number;
     /**
+     * Extra pets a pet command also goes to (`PetAbilitySource.pack`, the `{Pack N}` keyword). Additive merge.
+     * Read with `getPackCount` (`abilities/abilityModifierScales.ts`).
+     */
+    packCountFlat?: number;
+    /**
      * Extra tiles on each side of a tile-based area (3x3 -> 5x5 per +1). Additive merge. Read with
      * `getTileAreaHalfWidth` (`abilities/abilityModifierScales.ts`).
      */

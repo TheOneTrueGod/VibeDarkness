@@ -71,6 +71,27 @@ export function getCastEffectivePriority(unit: Unit, active: ActiveAbility, engi
 }
 
 /**
+ * Whether a running cast is still **in action**: its elapsed time is before the end of its last
+ * non-cooldown window (windup, active, waiting…). A cast with only cooldown left is winding down and
+ * no longer in action. Before the ability lookup is wired, every running cast counts as in action.
+ */
+export function isCastInAction(unit: Unit, active: ActiveAbility, engine: CastPriorityEngine): boolean {
+    const ability = abilityLookup?.(active.abilityId);
+    if (!ability) return true;
+    const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));
+    let actionEnd = 0;
+    for (const it of intervals) {
+        if (!isCooldownPhase(it.abilityPhase) && it.end > actionEnd) actionEnd = it.end;
+    }
+    return Math.max(0, getCastElapsed(unit, active, engine)) < actionEnd;
+}
+
+/** Whether any of the unit's running casts is still in action ({@link isCastInAction}). */
+export function unitHasCastInAction(unit: Unit, engine: CastPriorityEngine): boolean {
+    return unit.activeAbilities.some((active) => isCastInAction(unit, active, engine));
+}
+
+/**
  * Effective priority of a unit: `Major` when held by a cast, else the max over its casts (`Idle` if none).
  * `excludeAbilityId` leaves that cast out (a follow-up order's parent, `BattleOrder.followUpOf`); being
  * held by another unit's cast still counts.

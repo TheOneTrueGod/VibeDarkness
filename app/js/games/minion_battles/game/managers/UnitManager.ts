@@ -12,6 +12,7 @@ import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
 import { runUnitAI, getUnitAITree } from '../units/unitAI';
 import { isUnitHeldByCast } from '../units/castHold';
+import { isUnitLingering } from '../units/ephemeralExpiry';
 import { tickSpawnAnimation } from '../units/spawnAnimation';
 import { tickTerrainHazard } from '../terrainHazards/drowning';
 import { getUnitTravelSpeedPx, tickUnitFrozenUpkeep } from '../units/unitMovementTick';
@@ -379,11 +380,13 @@ export class UnitManager {
             engine.crowdSpacingManager.tick(this.units, engine.terrainManager, dt, engine.gameTime);
         });
         // Phase 3: AI decisions (all positions settled). Once per tick; frozen units do not think, and
-        // neither do units another unit's cast is holding (e.g. a pet pinned by its owner's Spirit Storm).
+        // neither do units another unit's cast is holding (e.g. a pet pinned by its owner's Spirit Storm), nor
+        // lingering units (past their ephemeral time, only finishing a cast; see `units/ephemeralExpiry.ts`).
         tickPerformanceTracker.measure([PERF_UNITS_AI], () => {
             for (const unit of this.units) {
                 if (!unit.active || unit.localFrozen || unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive() || unit.isSpawning()) continue;
                 if (isUnitHeldByCast(unit, this.units)) continue;
+                if (isUnitLingering(unit, engine.gameTime)) continue;
                 const tree = getUnitAITree(unit.unitAITreeId);
                 if (tree) runUnitAI(unit, tree, aiContext);
                 unit.pendingInterrupts.clear();

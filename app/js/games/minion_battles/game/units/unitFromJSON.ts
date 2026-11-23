@@ -58,6 +58,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     if (data.ephemeralDespawnAtGameTime != null) {
         unit.ephemeralDespawnAtGameTime = data.ephemeralDespawnAtGameTime as number;
     }
+    unit.ephemeralExpiryPolicy = data.ephemeralExpiryPolicy === 'finishCast' ? 'finishCast' : 'immediate';
     applyUnitComponentsFromJSON(unit, data);
     if (typeof data.invulnerabilityGenerations === 'number') {
         unit.invulnerabilityGenerations = data.invulnerabilityGenerations;

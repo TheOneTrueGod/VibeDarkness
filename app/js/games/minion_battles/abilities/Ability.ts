@@ -397,6 +397,23 @@ export interface PetAbilitySource {
     readonly selector: 'nearest' | 'all';
     /** Only free pets (effective cast priority below `Major`) count as sources. */
     readonly requireFree?: true;
+    /**
+     * Only pets that own this ability id (in `unit.abilities`) count as sources, e.g. a command whose pet
+     * ability some pets lack (Displacement Strike: spirit clones have no `0716`). Honoured by
+     * `resolveAbilitySourceUnits` and, for an `anchorUnit: 'casterPet'` select, the anchor pet
+     * (`resolveCasterPetAnchor`'s `requiresAbilityId`, via `petAnchorOptionsOf`).
+     */
+    readonly requiresAbilityId?: string;
+    /**
+     * Pack: the command also goes to up to `count` other pets within `radiusPx` of the picked one, nearest
+     * first (`resolveAbilitySourceUnits`). The caster's `abilityModifiers[abilityId].packCountFlat` adds to
+     * `count`. Extras pass the same filters as the picked pet (commandable, `requiresAbilityId`,
+     * `requireFree`). Only for `selector: 'nearest'`. Tooltip keyword: `{Pack N}` (`keywords/packKeyword.ts`).
+     *
+     * Not covered yet: commands that pick their pet through `resolveCasterPetAnchor` (Spirit Storm's linked
+     * area) act through the anchor pet only.
+     */
+    readonly pack?: { readonly count: number; readonly radiusPx: number };
 }
 
 export interface AbilityStatic {

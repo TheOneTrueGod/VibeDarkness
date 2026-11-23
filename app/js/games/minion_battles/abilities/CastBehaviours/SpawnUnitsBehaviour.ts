@@ -20,8 +20,15 @@ export interface SpawnUnitsConfig {
     /**
      * What each child looks like. A function so it can read the caster (team, AI tree) at fire time.
      * Pass `teamId` explicitly: a summon is not tied to the caster's own team by this block.
+     * Required unless `spawnOne` is set.
      */
-    template: SpawnUnitsTemplate | ((ctx: CastBehaviourTickContext) => SpawnUnitsTemplate);
+    template?: SpawnUnitsTemplate | ((ctx: CastBehaviourTickContext) => SpawnUnitsTemplate);
+    /**
+     * Spawn one child at a point yourself instead of through `template` and the spawner core, e.g. a pet of
+     * the caster's owner through `spawnPetForOwner` (pet AI, owner link, copied modifiers). Return undefined
+     * when nothing spawned there; that point is skipped. Takes the place of `template`.
+     */
+    spawnOne?: (ctx: CastBehaviourTickContext, at: SpawnPoint, index: number) => Unit | undefined;
     /**
      * The position picker: one world point per child, in spawn order. Called once per fire, AFTER
      * `replacePrevious` has faded the old batch. Any RNG it draws (use `engine.generateRandomInteger`)
@@ -30,7 +37,8 @@ export interface SpawnUnitsConfig {
     positions: (ctx: CastBehaviourTickContext) => SpawnPoint[];
     /**
      * "Replace previous batch": returns the living units of the earlier batch. Each is faded out
-     * (`ephemeralDespawnAtGameTime = now`) before the new batch is placed, so batches never stack.
+     * (`ephemeralDespawnAtGameTime = now`, policy `'immediate'` so a mid-cast unit does not linger) before
+     * the new batch is placed, so batches never stack.
      */
     replacePrevious?: (ctx: CastBehaviourTickContext) => Unit[];
     /** Called for each child right after it spawns (stat tweaks, AI hookup, VFX at its position). */
@@ -112,17 +120,29 @@ export class SpawnUnitsBehaviour implements CastBehaviour {
         if (config.replacePrevious) {
             for (const old of config.replacePrevious(ctx)) {
                 old.ephemeralDespawnAtGameTime = eng.gameTime;
+                // Replaced means gone now: a `'finishCast'` unit does not linger to end its cast.
+                old.ephemeralExpiryPolicy = 'immediate';
             }
         }
 
         const positions = config.positions(ctx);
         if (positions.length === 0) return;
 
-        const template = typeof config.template === 'function' ? config.template(ctx) : config.template;
-        const spawned = spawnUnitsAtPoints(ctx.caster, template, positions, eng);
+        const placed: { unit: Unit; at: SpawnPoint }[] = [];
+        if (config.spawnOne) {
+            positions.forEach((at, i) => {
+                const unit = config.spawnOne!(ctx, at, i);
+                if (unit) placed.push({ unit, at });
+            });
+        } else if (config.template) {
+            const template = typeof config.template === 'function' ? config.template(ctx) : config.template;
+            spawnUnitsAtPoints(ctx.caster, template, positions, eng).forEach((unit, i) =>
+                placed.push({ unit, at: positions[i]! }),
+            );
+        }
 
-        spawned.forEach((unit, i) => config.onSpawned?.(ctx, unit, i, positions[i]!));
-        config.onBatchSpawned?.(ctx, spawned);
+        placed.forEach(({ unit, at }, i) => config.onSpawned?.(ctx, unit, i, at));
+        config.onBatchSpawned?.(ctx, placed.map((p) => p.unit));
     }
 }
 

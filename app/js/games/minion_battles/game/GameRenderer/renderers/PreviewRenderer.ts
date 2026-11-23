@@ -15,6 +15,7 @@ import {
     computeLungeAimState,
     hasSelectAnchor,
     resolveSelectAnchorPoint,
+    petAnchorOptionsOf,
     resolveSelectPickForAim,
     constrainSelectAim,
     resolveTurnLimitReference,
@@ -296,6 +297,7 @@ function renderInvalidSelectTargetDef(
 
 function renderAnchoredSelectTargetDef(
     gr: IAbilityPreviewGraphics,
+    ability: AbilityStatic,
     selectDef: SelectTargetDef,
     caster: Unit,
     collectedTargets: ResolvedTarget[],
@@ -312,6 +314,7 @@ function renderAnchoredSelectTargetDef(
         collectedTargetsByLabel(selectTargetDefs, collectedTargets),
         collectedTargets,
         engine,
+        petAnchorOptionsOf(ability),
     );
     if (!anchorPoint) return;
     drawClampedLine(gr, anchorPoint, mouseWorld, selectDef.maxRangeFromAnchor, stroke);
@@ -863,6 +866,7 @@ export class PreviewRenderer {
                         if (hasSelectAnchor(interactiveDef)) {
                             renderAnchoredSelectTargetDef(
                                 gr,
+                                ability,
                                 interactiveDef,
                                 caster,
                                 ts.currentTargets,
@@ -948,6 +952,7 @@ export class PreviewRenderer {
                     } else if (hasSelectAnchor(nextSelectDef)) {
                         renderAnchoredSelectTargetDef(
                             gr,
+                            ability,
                             nextSelectDef,
                             caster,
                             plan.currentTargets,

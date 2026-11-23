@@ -791,6 +791,10 @@ function scaleAbilityResearchModifierByLevel(
         // Per-rank unit, like maxUsesFlat.
         scaled.repeatCountFlat = fields.repeatCountFlat * level;
     }
+    if (fields.packCountFlat !== undefined) {
+        // Per-rank unit, like maxUsesFlat.
+        scaled.packCountFlat = fields.packCountFlat * level;
+    }
     if (fields.tileAreaRadiusFlat !== undefined) {
         scaled.tileAreaRadiusFlat = fields.tileAreaRadiusFlat * level;
     }

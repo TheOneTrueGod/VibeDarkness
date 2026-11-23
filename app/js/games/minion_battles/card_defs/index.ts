@@ -80,6 +80,7 @@ import { OrderAttackCard } from './07_command_core/0708_OrderAttack/0708Ability'
 import { OrderMoveCard } from './07_command_core/0709_OrderMove/0709Ability';
 import { SpiritStormCard } from './07_command_core/0713_SpiritStorm/0713Ability';
 import { FlingThornCommandCard_0714 } from './07_command_core/0714_FlingThornCommand/0714Ability';
+import { DisplacementStrikeCard } from './07_command_core/0715_DisplacementStrike/0715Ability';
 import { BramblePatchCommandCard_0707 } from './07_command_core/0707_BramblePatchCommand/0707Ability';
 import { LightBlastCard } from './08_light_core/0801_LightBlast/0801Ability';
 import { LightImbuementCard } from './08_light_core/0802_LightImbuement/0802Card';
@@ -200,6 +201,7 @@ const cardDefs: CardDef[] = [
     OrderMoveCard,
     SpiritStormCard,
     FlingThornCommandCard_0714,
+    DisplacementStrikeCard,
     BramblePatchCommandCard_0707,
     LightBlastCard,
     LightImbuementCard,

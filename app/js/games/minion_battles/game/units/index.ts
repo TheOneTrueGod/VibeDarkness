@@ -18,7 +18,7 @@ import {
     PLAYER_CHARACTER_ID,
 } from './unit_defs/unitDef';
 import type { UnitTag } from './unitTag';
-import type { UnitCombatSettings } from './Unit';
+import type { EphemeralExpiryPolicy, UnitCombatSettings } from './Unit';
 import { generateGameObjectId } from '../GameObject';
 import { createResourceFromId } from '../../resources/createResourceFromId';
 import { applyCombatCrowdControlProfile } from './combatCcSpawn';
@@ -106,6 +106,8 @@ export function createUnitFromSpawnConfig(
         combatSettings?: UnitCombatSettings;
         /** Absolute gameTime after which this unit despawns (ephemeral summons). */
         ephemeralDespawnAtGameTime?: number | null;
+        /** What happens at `ephemeralDespawnAtGameTime` (default `'immediate'`). */
+        ephemeralExpiryPolicy?: EphemeralExpiryPolicy;
         /** Control group for player NPC control (from EnemySpawnDef / SpawnWaveEntry). */
         controlGroupId?: string;
         /** When false, never auto-assigned to a control player (default true). */
@@ -133,6 +135,7 @@ export function createUnitFromSpawnConfig(
         stamina: config.stamina ?? getDefaultStamina(config.characterId),
         combatSettings: config.combatSettings,
         ephemeralDespawnAtGameTime: config.ephemeralDespawnAtGameTime,
+        ephemeralExpiryPolicy: config.ephemeralExpiryPolicy,
     });
 
     if (config.aiSettings) {

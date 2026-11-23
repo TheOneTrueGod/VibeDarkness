@@ -179,6 +179,7 @@ export type EnemyUnitId =
     | 'lanternite_nest'
     | 'swarm_nest'
     | 'dog'
+    | 'spirit_clone'
     | 'target_dummy'
     | 'husk'
     | 'iron_warden'
@@ -360,6 +361,11 @@ export interface UnitDefEntry {
      * Never touches engine state. A running fade can also be started with the `unit_fade_in` event.
      */
     appearFadeInMs?: number;
+    /**
+     * Display-only opacity (0..1) the whole unit is drawn at, e.g. a translucent illusion. Multiplies the
+     * renderer's other fades. Default 1.
+     */
+    displayAlpha?: number;
     /**
      * This character belongs to a master of another character type on its team (e.g. the Court
      * Magician's crystals). Its master's abilities find it with `getBoundUnits`, and the `boundFixture`
@@ -609,6 +615,38 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         perceptionRange: 250,
         creatureType: 'beast',
         uiDescription: 'Spirit animal — a loyal hound of light that fights close to its master, biting enemies that stray too near.',
+    },
+    /** Displacement Strike's short-lived copy of the spirit dog: the dog's body, drawn translucent. */
+    spirit_clone: {
+        bodyColor: themeGlowPair(getThemeById('command')).dark,
+        displayName: 'Spirit Clone',
+        sprite: UNIT_SPRITE_URLS.dog,
+        spectralSprite: themedSpectralSprite('command'),
+        particleAura: BUFF_PARTICLE_AURA_PRESETS.spiritMotes(),
+        ethereal: true,
+        rootedWhileCasting: true,
+        castStateRing: true,
+        bestiary: { abilityIds: ['0701'], hidden: true },
+        characterSpriteKey: 'dog',
+        hp: 48,
+        speed: 140,
+        size: 'Tiny',
+        stamina: 2,
+        perceptionRange: 250,
+        creatureType: 'beast',
+        tags: [UnitTag.Clone],
+        displayAlpha: 0.55,
+        appearFadeInMs: 200,
+        // Illusions fade out where they stood (expiry or a killing blow) instead of a death effect.
+        onDeathVisualEffects: [{
+            type: 'remnant',
+            duration: 0.35,
+            dissolve: 'fade',
+            shakeAmplitudePx: 0,
+            startAlpha: 0.55,
+            corruptionTint: false,
+        }],
+        uiDescription: 'An illusory copy of the spirit dog that hunts on its own for a few seconds.',
     },
     /**
      * Test and Ability Test stand-in: the dog's old solid body (Small, targetable, collides). Fixtures use
@@ -1024,6 +1062,11 @@ export function getUnitDisplayWiggleRadius(characterId: string): number {
 /** Display-only fade-in (wall-time ms) when a unit of this character first appears; 0 = none. */
 export function getUnitAppearFadeInMs(characterId: string): number {
     return UNIT_DEFS[characterId as UnitDefId]?.appearFadeInMs ?? 0;
+}
+
+/** Display-only opacity the unit is drawn at (`UnitDefEntry.displayAlpha`); 1 = opaque. */
+export function getUnitDisplayAlpha(characterId: string): number {
+    return UNIT_DEFS[characterId as UnitDefId]?.displayAlpha ?? 1;
 }
 
 /** Resources (and starting values) attached to every spawn of this character id. */

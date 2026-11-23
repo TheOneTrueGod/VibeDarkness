@@ -30,6 +30,29 @@ export function getPixelTargetPosition(
     return target.position;
 }
 
+/**
+ * The living, active enemy of `caster` whose edge is nearest `point`, within `radius` px of it (edge distance),
+ * or null. The "point target picks the enemy there" rule (e.g. `DashStrike.withAreaTargeting`).
+ */
+export function findNearestEnemyInArea(
+    units: readonly Unit[],
+    caster: Unit,
+    point: { x: number; y: number },
+    radius: number,
+): Unit | null {
+    let best: Unit | null = null;
+    let bestDist = Infinity;
+    for (const unit of units) {
+        if (!unit.active || !unit.isAlive() || unit.id === caster.id) continue;
+        if (!areEnemies(caster.teamId, unit.teamId)) continue;
+        const dist = Math.hypot(unit.x - point.x, unit.y - point.y) - unit.radius;
+        if (dist > radius || dist >= bestDist) continue;
+        best = unit;
+        bestDist = dist;
+    }
+    return best;
+}
+
 /** Direction and distance from one point to another. */
 export interface DirectionFromTo {
     dirX: number;

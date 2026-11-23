@@ -28,7 +28,7 @@ import type {
 import { computeForcedDisplacement } from '../../game/forceMove';
 import { tryDamageOrBlock } from '../blockingHelpers';
 import { createSlashTrail, type SlashTrailColors } from '../../game/effects/slashTrail';
-import { areEnemies } from '../../game/teams';
+import { findNearestEnemyInArea } from '../targetHelpers';
 
 interface DashStrikePayload {
     /** The one unit this strike hits; null for a strike through an empty area. */
@@ -201,22 +201,7 @@ export class DashStrikeBehaviour implements CastBehaviour {
             anchor = t.position;
         }
         if (this._areaRadius === null || !anchor) return null;
-        return { unit: this.nearestEnemyInArea(ctx, anchor, this._areaRadius), point: anchor };
-    }
-
-    /** The living enemy whose edge is nearest `point`, within `radius` of it. */
-    private nearestEnemyInArea(ctx: CastBehaviourSetupContext, point: { x: number; y: number }, radius: number): Unit | null {
-        let best: Unit | null = null;
-        let bestDist = Infinity;
-        for (const unit of ctx.engine.units) {
-            if (!unit.active || !unit.isAlive() || unit.id === ctx.caster.id) continue;
-            if (!areEnemies(ctx.caster.teamId, unit.teamId)) continue;
-            const dist = Math.hypot(unit.x - point.x, unit.y - point.y) - unit.radius;
-            if (dist > radius || dist >= bestDist) continue;
-            best = unit;
-            bestDist = dist;
-        }
-        return best;
+        return { unit: findNearestEnemyInArea(ctx.engine.units, ctx.caster, anchor, this._areaRadius), point: anchor };
     }
 
     /** A point `reach` px from the target along (dirX, dirY), pulled in toward the target until passable. */

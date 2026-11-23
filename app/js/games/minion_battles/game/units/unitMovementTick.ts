@@ -16,6 +16,7 @@ import { updateHoverFlight } from './hoverFlight';
 import { updateUnitNudge } from './unitNudge';
 import { tickWallUnstick } from './unitWallUnstick';
 import { localNow } from '../time/actorClock';
+import { shouldEphemeralUnitExpire } from './ephemeralExpiry';
 import { slideAlongTethers, type TetherUnitLookup } from '../tethers/tether';
 
 function clearWaitLockout(unit: Unit): void {
@@ -400,8 +401,9 @@ export function tickUnitFrozenUpkeep(unit: Unit, worldDt: number, engine: Engine
     tickUnitEphemeralExpiry(unit, engine);
 }
 
+/** Ephemeral expiry (`ephemeralExpiry.ts`): dies on time, or once its cast is done under `'finishCast'`. */
 function tickUnitEphemeralExpiry(unit: Unit, engine: EngineContext): void {
-    if (unit.ephemeralDespawnAtGameTime != null && engine.gameTime >= unit.ephemeralDespawnAtGameTime) {
+    if (unit.isAlive() && shouldEphemeralUnitExpire(unit, engine)) {
         unit.hp = 0;
         unit.active = false;
         engine.eventBus.emit('unit_died', { unitId: unit.id, killerUnitId: null });

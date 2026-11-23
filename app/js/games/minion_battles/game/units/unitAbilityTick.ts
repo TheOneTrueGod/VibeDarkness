@@ -249,10 +249,12 @@ function startCastBehaviourEntry(
         windowSeconds: Math.max(0, (resolvedEnd ?? interval.end) - resolvedStart),
     };
     if (!active.setupFiredBehaviourKeys) active.setupFiredBehaviourKeys = new Set();
-    if (!active.setupFiredBehaviourKeys.has(behaviourKey)) {
-        active.setupFiredBehaviourKeys.add(behaviourKey);
-        entry.behaviour.onSetup?.(setupCtx);
-    }
+    // Each entry starts once per cast. `+= dt` drift can make one tick's prevElapsed land a ULP below the
+    // previous tick's nextElapsed, so an interval starting exactly there "enters" on two ticks running; without
+    // this, a one-shot entry (e.g. a SpawnUnits batch) would fire twice.
+    if (active.setupFiredBehaviourKeys.has(behaviourKey)) return;
+    active.setupFiredBehaviourKeys.add(behaviourKey);
+    entry.behaviour.onSetup?.(setupCtx);
 
     if (resolvedEnd !== null) {
         unit.activeCastBehaviours.set(behaviourKey, {

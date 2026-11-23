@@ -106,12 +106,15 @@ export function isPlayerCampaignDataPath(pathname: string): boolean {
 }
 
 /** Sub-tabs of the admin Ideas tab, in tab-bar order. */
-export const IDEAS_VIEW_IDS = ['plans', 'ideas', 'storybook'] as const;
+export const IDEAS_VIEW_IDS = ['plans', 'ideas', 'glossary', 'storybook'] as const;
 export type IdeasViewId = (typeof IDEAS_VIEW_IDS)[number];
 
 export const DEFAULT_IDEAS_VIEW: IdeasViewId = 'plans';
 
-/** `/campaign/ideas/:view/:itemId` — `itemId` is an idea category, plan id (e.g. `0001`) or storybook entry id. */
+/**
+ * `/campaign/ideas/:view/:itemId` — `itemId` is an idea category, plan id (e.g. `0001`) or storybook entry id.
+ * The Glossary is one page with no items (`/campaign/ideas/glossary`).
+ */
 export function ideasPath(view: IdeasViewId, itemId?: string | null): string {
     const base = `${campaignPathForTab('ideas')}/${view}`;
     return itemId ? `${base}/${itemId}` : base;

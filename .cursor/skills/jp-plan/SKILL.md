@@ -12,12 +12,13 @@ Create a plan file and break the work down into individual changes. Keep changes
 
 Include an **Agent Instructions** section that says the plan is executed by `/jp-implement-plan`: the **invoking agent is the sole orchestrator** — it spawns one worker per step **synchronously** (never background), waits for each to finish, then reports plan completion to the user. Each worker implements exactly one step, checks items off with a one-line summary, and **stops without spawning the next agent**. Reference `.cursor/skills/jp-implement-plan/SKILL.md` rather than restating its workflow, and list the project skills relevant to this plan.
 
-## Verification cadence — keep steps cheap
+## Verification cadence — tests run once, at the end
 
-Plans were taking too long because every step re-ran broad test suites. Follow this split:
+Plans were taking too long because every step re-ran test suites. Follow this split:
 
-- **Per step:** at most `npm run lint:changed` (and `npx tsc --noEmit` when the step crosses interface boundaries) plus **only the specific test files the step touches or creates**. Never instruct a full-suite (`npm run test:all`), whole-directory, or AbilityTest/E2E run inside a regular step.
-- **Final step:** one dedicated verification step at the end. Run `npm run test:sim` only when the plan needs a full scenario run; do **not** make Completion run `npm run test:all`. Prefer naming specific test files. Include any manual browser checklist when needed.
+- **Per step:** write the step's test files, but **do not run Vitest**. Run only `npm run lint:changed`, plus `npx tsc --noEmit` when the step crosses interface boundaries. Each step still ends with a `Verify:` line naming its test files; those are what the final step runs.
+- **Final step:** one dedicated verification step at the end runs every test file the steps listed, once, then `npm run test:sim` when the plan needs a scenario run, and fixes failures (in the files of the step that owns them). Never `npm run test:all`. Include any manual browser checklist when needed.
+- Say this in the plan's **Agent Instructions** so workers follow it.
 
 ## AbilityTest coverage
 

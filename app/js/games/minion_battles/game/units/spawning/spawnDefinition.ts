@@ -12,7 +12,7 @@
 import type { TeamId } from '../../teams';
 import type { UnitTag } from '../unitTag';
 import type { SentryPatrolConfig } from '../unitAI/sentryPatrol/context';
-import type { AISettings, UnitCombatSettings } from '../unitTypes';
+import type { AISettings, EphemeralExpiryPolicy, UnitCombatSettings } from '../unitTypes';
 import type {
     LanterniteNestMissionConfig,
     SwarmNestMissionConfig,
@@ -104,6 +104,8 @@ export interface SpawnDefinition {
     combatSettings?: UnitCombatSettings;
     /** Absolute gameTime after which this unit despawns (ephemeral summons). */
     ephemeralDespawnAtGameTime?: number | null;
+    /** What happens at `ephemeralDespawnAtGameTime` (default `'immediate'`; see `ephemeralExpiry.ts`). */
+    ephemeralExpiryPolicy?: EphemeralExpiryPolicy;
     invulnerabilityGenerations?: number;
     /** Stable checkpoint id (e.g. nests referenced by lanternite patrol/hookup fields). */
     unitId?: string;

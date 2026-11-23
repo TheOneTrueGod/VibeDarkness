@@ -8,6 +8,14 @@ import type { Unit } from './Unit';
 import type { ItemRoundStartRecoveryCharge } from '../../character_defs/items/types';
 import type { PassiveBonuses } from '../../../../researchTrees/types';
 
+/**
+ * What an ephemeral unit does when its `ephemeralDespawnAtGameTime` arrives (see `ephemeralExpiry.ts`):
+ * - `'immediate'` — dies on time, even mid-cast (default).
+ * - `'finishCast'` — a cast still in action (before its last non-cooldown window ends) runs to that point
+ *   first; meanwhile the unit is **lingering**: it thinks no new casts and commands never pick it.
+ */
+export type EphemeralExpiryPolicy = 'immediate' | 'finishCast';
+
 /** AI behavior settings for enemy units. */
 export interface AISettings {
     /** Minimum desired distance (px) to target. AI backs away if closer. */
@@ -157,6 +165,8 @@ export interface UnitConfig {
     /** Item passives: recovery charges granted at every round start (copied from equipped items). */
     roundStartRecoveryCharges?: ItemRoundStartRecoveryCharge[];
     ephemeralDespawnAtGameTime?: number | null;
+    /** What happens at `ephemeralDespawnAtGameTime` (default `'immediate'`). */
+    ephemeralExpiryPolicy?: EphemeralExpiryPolicy;
     /** Number of units in this stack (default 1). */
     stackSize?: number;
 }

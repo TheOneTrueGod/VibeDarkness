@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { BLEED_STACKS_PER_DAMAGE } from '../../buffs/BleedBuff';
 import { BLEED_TICKS_PER_ROUND } from '../../game/dotTick';
-import { formatKeywordLine, formatKeywordText, getKeyword, keywordGlossaryEntries, registerKeyword } from './keywordRegistry';
+import {
+    formatKeywordLine,
+    formatKeywordText,
+    getKeyword,
+    keywordGlossaryEntries,
+    listGlossaryEntries,
+    registerKeyword,
+} from './keywordRegistry';
 import { resolveTooltipLine } from '../tooltipTokens';
 
 describe('keywordRegistry', () => {
@@ -58,5 +65,24 @@ describe('keywordRegistry', () => {
         getKeyword('bright')!.resolve!({ engine, caster, abilityId: '0000' } as never, 3);
         expect(added).toHaveLength(1);
         expect(added[0]).toMatchObject({ ownerUnitId: 'u1', ownerAbilityId: '0000', teamId: 'player' });
+    });
+
+    it('registers pack as a tooltip-only keyword with a reminder card', () => {
+        expect(formatKeywordText('pack', 2)).toBe('Pack 2');
+        expect(getKeyword('pack')?.resolve).toBeUndefined();
+        expect(keywordGlossaryEntries(['Pack 2'])).toEqual([{
+            title: 'Pack 2',
+            description: 'Up to {2} other spirits near the commanded one repeat this command.',
+        }]);
+    });
+
+    it('lists every glossary term and described keyword, sorted by title', () => {
+        const entries = listGlossaryEntries();
+        const titles = entries.map((e) => e.title);
+        expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b)));
+        expect(entries).toContainEqual(expect.objectContaining({ kind: 'keyword', title: 'Pack' }));
+        expect(entries).toContainEqual(expect.objectContaining({ kind: 'keyword', title: 'Rend' }));
+        expect(entries).toContainEqual(expect.objectContaining({ kind: 'term', title: 'Bleed' }));
+        expect(titles).not.toContain('Devour Light');
     });
 });

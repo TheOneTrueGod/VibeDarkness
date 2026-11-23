@@ -3,6 +3,7 @@
  * Covers the spirit animal: guarding (anchored on the owner, never auto-engaging), Sic 'em / Pounce
  * (0704/0702) locking on into Spirit Flurry (0711), and cast priority (`game/units/castPriority.ts`):
  * a commanded (Major) cast replacing a bite, and a spirit held by Spirit Storm refusing a command.
+ * Displacement Strike (0715 → 0716): clones hunt then fade, and a clone past its time finishes its cast.
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -20,7 +21,10 @@ import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses'
 import type { StunnedBuff } from '../../../buffs/StunnedBuff';
 import { petStateOf } from '../../../game/units/components/petComponent';
 import { getPetDef } from '../../../game/units/pet_defs/petDef';
-import { SPIRIT_FLURRY_ANGLES } from '../../../card_defs/07_command_core/0711_SpiritFlurry/0711Ability';
+import {
+    SPIRIT_FLURRY_ABILITY_ID,
+    SPIRIT_FLURRY_ANGLES,
+} from '../../../card_defs/07_command_core/0711_SpiritFlurry/0711Ability';
 import { SPIRIT_STRIKE_DAMAGE } from '../../../card_defs/07_command_core/0710_SpiritStrike/0710Ability';
 import { FLING_THORN_ABILITY_ID } from '../../../card_defs/07_command_core/0705_FlingThorn/0705Ability';
 import {
@@ -32,6 +36,17 @@ import {
     SPIRIT_STORM_REPOSITION_LABEL,
 } from '../../../card_defs/07_command_core/0713_SpiritStorm/0713Ability';
 import { CAST_PRIORITY } from '../../../game/units/castPriority';
+import { DISPLACEMENT_STRIKE_AIM_LABEL } from '../../../card_defs/07_command_core/0715_DisplacementStrike/0715Ability';
+import {
+    DISPLACEMENT_STRIKE_CARD_ID,
+    DISPLACEMENT_STRIKE_CLONE_COUNT,
+    DISPLACEMENT_STRIKE_CLONE_SECONDS,
+    DISPLACEMENT_STRIKE_PET_ABILITY_ID,
+} from '../../../card_defs/07_command_core/0716_DisplacementStrikePet/0716Constants';
+import { spawnPetForOwner } from '../../../game/units/petSpawn';
+import { getLivingPetsOfUnit } from '../../../game/units/petHelpers';
+import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
+import type { Unit } from '../../../game/units/Unit';
 
 /** Pounce only stuns: all of Sic 'em's damage comes from the Spirit Flurry strikes. */
 const POUNCE_HIT_DAMAGE = 0;
@@ -518,6 +533,251 @@ export const petBusyBlocksCommandScenario: ScenarioDefinition = {
             `thorn projectile=${t.sawThornProjectile} ` +
             `dog at storm end=${d ? `(${d.x.toFixed(0)},${d.y.toFixed(0)})` : 'none'} ` +
             `storm point=(${sp.x.toFixed(0)},${sp.y.toFixed(0)})`
+        );
+    },
+};
+
+// ---- Displacement Strike (0715 → 0716): spirit clones ----
+
+/** What the Displacement Strike scenarios saw (one tracker per engine, so reruns start clean). */
+interface CloneTracker {
+    spiritId: string;
+    /** Every Clone-tagged pet of the owner seen alive. */
+    cloneIds: Set<string>;
+    /** Every damage instance: who hit whom, when, and whether the source was mid Spirit Flurry. */
+    hits: { target: string; source: string | null; time: number; inFlurry: boolean }[];
+    /** Death gameTime per unit id. */
+    deaths: Map<string, number>;
+    /** The first clone that started Pounce (from Sic 'em), if any. */
+    pounceCloneId: string | null;
+    /** That clone's despawn time when it started its flurry. */
+    pounceCloneDespawnAt: number | null;
+}
+
+const cloneTrackers = new WeakMap<GameEngine, CloneTracker>();
+
+function trackClones(engine: GameEngine, spiritId: string): CloneTracker {
+    const t: CloneTracker = {
+        spiritId,
+        cloneIds: new Set(),
+        hits: [],
+        deaths: new Map(),
+        pounceCloneId: null,
+        pounceCloneDespawnAt: null,
+    };
+    engine.eventBus.on('damage_taken', (e) => {
+        const src = e.sourceUnitId ? engine.getUnit(e.sourceUnitId) : undefined;
+        const inFlurry = src?.activeAbilities.some((a) => a.abilityId === SPIRIT_FLURRY_ABILITY_ID) ?? false;
+        t.hits.push({ target: e.unitId, source: e.sourceUnitId, time: engine.gameTime, inFlurry });
+    });
+    engine.eventBus.on('unit_died', (e) => {
+        if (!t.deaths.has(e.unitId)) t.deaths.set(e.unitId, engine.gameTime);
+    });
+    engine.eventBus.on('ability_used', (e) => {
+        const unit = engine.getUnit(e.unitId);
+        if (!unit || !hasUnitTag(unit, UnitTag.Clone)) return;
+        if (e.abilityId === POUNCE_ABILITY_ID && t.pounceCloneId === null) t.pounceCloneId = e.unitId;
+        if (e.abilityId === SPIRIT_FLURRY_ABILITY_ID && e.unitId === t.pounceCloneId) {
+            t.pounceCloneDespawnAt = unit.ephemeralDespawnAtGameTime ?? null;
+        }
+    });
+    cloneTrackers.set(engine, t);
+    return t;
+}
+
+function cloneTrackerOf(engine: GameEngine): CloneTracker {
+    return cloneTrackers.get(engine)!;
+}
+
+function livingClonesOf(engine: GameEngine): Unit[] {
+    const owner = engine.getLocalPlayerUnit();
+    if (!owner) return [];
+    return getLivingPetsOfUnit(owner, engine.units).filter((u) => hasUnitTag(u, UnitTag.Clone));
+}
+
+/** Record the clones alive this tick (called from `assertPass`, which runs every tick). */
+function noteClones(engine: GameEngine): Unit[] {
+    const t = cloneTrackerOf(engine);
+    const clones = livingClonesOf(engine);
+    for (const c of clones) t.cloneIds.add(c.id);
+    return clones;
+}
+
+const POUNCE_ABILITY_ID = '0702';
+const SIC_EM_CARD_ID = '0704';
+const DS_OWNER_POS = { x: 200, y: 200 };
+/** The real spirit: 60 px east of its owner. */
+const DS_SPIRIT_POS = { x: 260, y: 200 };
+/** Strike target: 120 px from the spirit (inside the card's 150 px), 180 px from the owner (outside guard range). */
+const DS_TARGET_POS = { x: 380, y: 200 };
+
+/** Owner with the given cards, a guarding spirit that owns Displacement Strike, and the strike target dummy. */
+function buildDisplacementBattle(cards: string[], targetHp: number): GameEngine {
+    const engine = buildTinyBattleEngine({ gridW: 16, gridH: 11, localPlayerId: P, grass: true });
+    const player = spawnTinyPlayerUnit(engine, { playerId: P, x: DS_OWNER_POS.x, y: DS_OWNER_POS.y, abilities: cards });
+    const spirit = spawnPetForOwner(engine, player, {
+        petDefId: 'dog',
+        at: DS_SPIRIT_POS,
+        abilityIds: [...getPetDef('dog')!.abilityIds, DISPLACEMENT_STRIKE_PET_ABILITY_ID],
+        maxHp: 30,
+        spawnSource: 'initialGameSpawn',
+    })!;
+    trackClones(engine, spirit.id);
+    const target = createTargetDummyAtWorld(engine, DS_TARGET_POS.x, DS_TARGET_POS.y, { id: 'target', hp: targetHp });
+    initializeAbilityRuntimeForUnit(target);
+    engine.addUnit(target, 'initialGameSpawn');
+    return engine;
+}
+
+function displacementOrder(engine: GameEngine) {
+    const aim = pixel(DS_TARGET_POS);
+    return {
+        unitId: engine.getLocalPlayerUnit()!.id,
+        abilityId: DISPLACEMENT_STRIKE_CARD_ID,
+        targets: [aim],
+        targetsByLabel: { [DISPLACEMENT_STRIKE_AIM_LABEL]: aim },
+    };
+}
+
+function queuePlayerWaits(engine: GameEngine, untilTick: number): void {
+    const unitId = engine.getLocalPlayerUnit()!.id;
+    for (let tick = 60; tick <= untilTick; tick += 60) {
+        engine.state.orderMgr.queueOrder(tick, { unitId, abilityId: 'wait', targets: [] });
+    }
+}
+
+// ---- Scenario 5: Displacement Strike clones hunt, then fade ----
+
+/**
+ * The player plays Displacement Strike (0715) at a fragile dummy; the spirit casts 0716 and three clones appear round
+ * it and open on it. The fragile dummy dies quickly, so the clones (autoEngage, 400 px engage leash round the owner)
+ * hunt the two sturdy dummies beyond it. After their 6 s they fade; the real spirit stays.
+ *
+ * Assertions:
+ *   1. Exactly 3 clones ever existed.
+ *   2. A clone hit the strike target, and a clone hit one of the other dummies (hunting).
+ *   3. Past 6 s no clones are alive (the 7.5 s cap fails a lingering clone) and the real spirit is alive.
+ */
+export const petDisplacementStrikeClonesHuntScenario: ScenarioDefinition = {
+    id: 'pet_displacement_strike_clones_hunt',
+    title: 'Displacement Strike (0715 + 0716): three spirit clones strike the target, hunt other enemies, then fade',
+    category: 'general',
+    generalSection: 'Pets',
+    maxDurationMs: 7500,
+
+    buildEngine() {
+        // The spirit's strike (3) plus two clone bites (1 each) kill it, so the clones must hunt the others.
+        const engine = buildDisplacementBattle([DISPLACEMENT_STRIKE_CARD_ID], 5);
+        for (const [id, pos] of [['dummyN', { x: 460, y: 100 }], ['dummyS', { x: 460, y: 300 }]] as const) {
+            const d = createTargetDummyAtWorld(engine, pos.x, pos.y, { id, hp: 1000 });
+            initializeAbilityRuntimeForUnit(d);
+            engine.addUnit(d, 'initialGameSpawn');
+        }
+        queuePlayerWaits(engine, 480);
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        return [displacementOrder(engine)];
+    },
+
+    assertPass(engine) {
+        const t = cloneTrackerOf(engine);
+        const living = noteClones(engine);
+        const spirit = engine.getUnit(t.spiritId);
+        const cloneHit = (target: string) =>
+            t.hits.some((h) => h.target === target && h.source !== null && t.cloneIds.has(h.source));
+        return (
+            t.cloneIds.size === DISPLACEMENT_STRIKE_CLONE_COUNT &&
+            cloneHit('target') &&
+            (cloneHit('dummyN') || cloneHit('dummyS')) &&
+            living.length === 0 &&
+            engine.gameTime >= DISPLACEMENT_STRIKE_CLONE_SECONDS &&
+            (spirit?.isAlive() ?? false)
+        );
+    },
+
+    failureMessage(engine) {
+        const t = cloneTrackerOf(engine);
+        const cloneHits = (target: string) =>
+            t.hits.filter((h) => h.target === target && h.source !== null && t.cloneIds.has(h.source)).length;
+        return (
+            `clones seen=${t.cloneIds.size} living=${livingClonesOf(engine).length} ` +
+            `clone hits: target=${cloneHits('target')} N=${cloneHits('dummyN')} S=${cloneHits('dummyS')} ` +
+            `spirit alive=${engine.getUnit(t.spiritId)?.isAlive() ?? false} t=${engine.gameTime.toFixed(2)}`
+        );
+    },
+};
+
+// ---- Scenario 6: a lingering clone finishes its cast ----
+
+/**
+ * Tick the player plays Sic 'em (5.4 s): the clones appear about 0.3 s in and last 6 s, so the commanded clone's
+ * Pounce (0.5 s) into Spirit Flurry (1.0 s) is still running when its time is up.
+ */
+const DS_SIC_EM_TICK = 324;
+
+/**
+ * After Displacement Strike, the clones bite the (sturdy) target. Near the end of their lifetime the player plays
+ * Sic 'em (0704) at the target: the nearest free pet there is a clone (the real spirit went back to guard its owner),
+ * so a clone pounces and locks on into Spirit Flurry. Its 6 s run out mid-flurry; with the `'finishCast'` expiry
+ * policy it lingers until the flurry is over, then fades.
+ *
+ * Assertions:
+ *   1. A clone (not the real spirit) cast Pounce, so clones are orderable.
+ *   2. Every Spirit Flurry strike landed, the last one after the clone's despawn time.
+ *   3. It died after its despawn time and within 0.5 s of its last flurry strike.
+ */
+export const petDisplacementCloneFinishesCastScenario: ScenarioDefinition = {
+    id: 'pet_displacement_clone_finishes_cast',
+    title: "Displacement Strike: a clone ordered by Sic 'em finishes its Spirit Flurry past its 6 s, then fades",
+    category: 'general',
+    generalSection: 'Pets',
+    maxDurationMs: 9000,
+
+    buildEngine() {
+        const engine = buildDisplacementBattle([DISPLACEMENT_STRIKE_CARD_ID, SIC_EM_CARD_ID], 1000);
+        engine.state.orderMgr.queueOrder(DS_SIC_EM_TICK, {
+            unitId: engine.getLocalPlayerUnit()!.id,
+            abilityId: SIC_EM_CARD_ID,
+            targets: [pixel(DS_TARGET_POS)],
+        });
+        queuePlayerWaits(engine, 480);
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        return [displacementOrder(engine)];
+    },
+
+    assertPass(engine) {
+        const t = cloneTrackerOf(engine);
+        noteClones(engine);
+        const id = t.pounceCloneId;
+        if (!id || t.pounceCloneDespawnAt === null) return false;
+        const died = t.deaths.get(id);
+        if (died === undefined) return false;
+        const strikes = t.hits.filter((h) => h.source === id && h.inFlurry);
+        if (strikes.length < SPIRIT_FLURRY_ANGLES.length) return false;
+        const lastStrike = Math.max(...strikes.map((h) => h.time));
+        return (
+            id !== t.spiritId &&
+            died > t.pounceCloneDespawnAt &&
+            lastStrike > t.pounceCloneDespawnAt &&
+            died - lastStrike <= 0.5
+        );
+    },
+
+    failureMessage(engine) {
+        const t = cloneTrackerOf(engine);
+        const id = t.pounceCloneId;
+        const strikes = id ? t.hits.filter((h) => h.source === id && h.inFlurry) : [];
+        const died = id ? t.deaths.get(id) : undefined;
+        return (
+            `pounce clone=${id ?? 'none'} despawnAt=${t.pounceCloneDespawnAt?.toFixed(2) ?? '?'} ` +
+            `died=${died !== undefined ? died.toFixed(2) : 'alive'} ` +
+            `flurry strikes=[${strikes.map((h) => h.time.toFixed(2)).join(',')}] clones seen=${t.cloneIds.size} ` +
+            `t=${engine.gameTime.toFixed(2)}`
         );
     },
 };

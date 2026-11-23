@@ -87,6 +87,10 @@ export interface DeathRemnantEffectData {
     dissolve?: 'wipe' | 'fade';
     /** Drawn sprite size in px. Default 42. */
     sizePx?: number;
+    /** Starting opacity of the whole remnant (e.g. a translucent illusion). Default 1. */
+    startAlpha?: number;
+    /** Darken the sprite with the dark-creature corruption tint. Default true. */
+    corruptionTint?: boolean;
 }
 
 /** Dying unit's sprite shaking and dissolving in place; used by death sequences. */
@@ -114,6 +118,7 @@ export const deathRemnantEffectDef: IEffectDef = {
         tint.blendMode = 'multiply';
         tint.tint = DARK_CREATURE_CORRUPTION_TINT;
         tint.alpha = DARK_CREATURE_ICON_TINT_ALPHA;
+        tint.visible = data.corruptionTint !== false;
         tint.label = 'storyRemnantTint';
         masked.addChild(base, tint);
         const maskG = new Graphics();
@@ -121,6 +126,7 @@ export const deathRemnantEffectDef: IEffectDef = {
         masked.mask = maskG;
         shake.addChild(masked, maskG);
         root.addChild(shake);
+        root.alpha = data.startAlpha ?? 1;
         return root;
     },
     updateVisual(visual: Container, effect: Effect, context: IEffectRenderContext): void {
