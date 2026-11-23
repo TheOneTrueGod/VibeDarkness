@@ -1,5 +1,5 @@
 import type { ResearchTreeDef } from './types';
-import { getThemeById } from '../games/minion_battles/themes/abilityTheme';
+import { getThemeById, luminance } from '../games/minion_battles/themes/abilityTheme';
 import weaponIcon from './assets/tree-weapon.png';
 import genericIcon from './assets/tree-generic.png';
 import earthIcon from './assets/tree-earth.png';
@@ -48,9 +48,19 @@ export const RESEARCH_TREE_COLOUR_STORM = getThemeById('storm').primary;
 export interface ResearchTreeChrome {
     colour: string;
     icon: string;
+    /** Circle drawn behind the icon (the tree's `iconBackdrop`). */
+    iconBackdrop?: string;
     secondaryColour?: string;
     fontColour?: string;
+    /**
+     * True when the card fill is light (luminance at or above {@link RESEARCH_LIGHT_SURFACE_LUMINANCE}).
+     * Cards then draw their description on a black backdrop so highlights (amber) stay readable.
+     */
+    lightSurface?: boolean;
 }
+
+/** Fill luminance (0..1) at which a research card counts as a light surface. */
+export const RESEARCH_LIGHT_SURFACE_LUMINANCE = 0.5;
 
 /**
  * Chrome for a tree, from its theme. Primary is the border; secondary (card and pill fill) and font
@@ -58,14 +68,18 @@ export interface ResearchTreeChrome {
  * border-only look.
  */
 export function resolveResearchTreeChrome(
-    tree: Pick<ResearchTreeDef, 'theme' | 'icon'> | undefined,
+    tree: Pick<ResearchTreeDef, 'theme' | 'icon' | 'iconBackdrop'> | undefined,
 ): ResearchTreeChrome {
     const theme = getThemeById(tree?.theme ?? 'generic');
     const chrome: ResearchTreeChrome = {
         colour: theme.primary,
         icon: tree?.icon ?? RESEARCH_TREE_ICON_GENERIC,
     };
-    if (theme.source.secondary !== undefined) chrome.secondaryColour = theme.secondary;
+    if (tree?.iconBackdrop !== undefined) chrome.iconBackdrop = tree.iconBackdrop;
+    if (theme.source.secondary !== undefined) {
+        chrome.secondaryColour = theme.secondary;
+        chrome.lightSurface = luminance(theme.secondaryNum) >= RESEARCH_LIGHT_SURFACE_LUMINANCE;
+    }
     if (theme.font !== undefined) chrome.fontColour = theme.font;
     return chrome;
 }

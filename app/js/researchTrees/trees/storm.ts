@@ -49,6 +49,8 @@ export const stormTree: ResearchTreeDef = {
     title: 'Storm Core',
     theme: 'storm',
     icon: RESEARCH_TREE_ICON_STORM,
+    // The blue storm icon disappears on the pale cyan card fill.
+    iconBackdrop: '#000000',
     tags: ['core'],
     accessRequirements: [],
     nodes: [

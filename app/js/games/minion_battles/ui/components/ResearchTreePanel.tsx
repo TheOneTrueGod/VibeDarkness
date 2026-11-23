@@ -56,6 +56,7 @@ import {
 } from './researchNodeGrid';
 import { TestIds } from '../../../../testing/testIds';
 import { formatOwnedResearchSourcesLabel, hasResearchOfSource } from '../../../../researchTrees/researchSources';
+import ResearchTreeIcon from '../../../../components/ResearchTreeIcon';
 
 function accountKnowledgeKeys(requirements: Requirement[]): string[] {
 	const keys: string[] = [];
@@ -349,12 +350,11 @@ export function ResearchTreeList({
 								}`}
 						>
 							<span className="flex min-w-0 items-center gap-2">
-								<img
-									src={t.icon}
-									alt=""
+								<ResearchTreeIcon
+									source={t}
 									data-testid={TestIds.researchTreeListIcon}
 									title={t.title}
-									className="h-4 w-4 shrink-0 rounded-sm object-cover"
+									className="h-4 w-4"
 								/>
 								<span className="truncate">
 									{t.title} ({purchasedCount})

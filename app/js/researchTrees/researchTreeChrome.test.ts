@@ -97,6 +97,7 @@ describe('research tree appearance', () => {
             colour: '#4f6d8c',
             secondaryColour: '#e7e5e4',
             fontColour: '#000000',
+            lightSurface: true,
             icon: RESEARCH_TREE_ICON_ARMORY,
         });
         expect(researchChromeSurfaceStyle(chrome)).toEqual({
@@ -117,6 +118,7 @@ describe('research tree appearance', () => {
             colour: '#d9f99d',
             secondaryColour: '#0f766e',
             fontColour: '#ffffff',
+            lightSurface: false,
             icon: RESEARCH_TREE_ICON_COMMAND,
         });
     });

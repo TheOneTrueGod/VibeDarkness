@@ -6,6 +6,7 @@ import React, { useRef } from 'react';
 import type { ResearchNodeDef, ResearchTreeDef } from '../researchTrees/types';
 import { getResearchNodeChromeTree, getResearchTreeContainingNode } from '../researchTrees/list';
 import { researchChromeSurfaceStyle, resolveResearchTreeChrome } from '../researchTrees/researchTreeChrome';
+import ResearchTreeIcon from './ResearchTreeIcon';
 import {
     ResearchNodePreviewPortal,
     useResearchNodePreviewHover,
@@ -38,12 +39,7 @@ export default function ResearchRewardTinyChip({
                 onMouseLeave={hover.scheduleClose}
                 title={node.title}
             >
-                <img
-                    src={treeChrome.icon}
-                    alt=""
-                    className="h-4 w-4 shrink-0 self-center rounded-sm object-cover"
-                    title={owningTree?.title}
-                />
+                <ResearchTreeIcon source={treeChrome} className="h-4 w-4 self-center" title={owningTree?.title} />
                 <span className="min-w-0 flex-1 truncate leading-snug">{node.title}</span>
             </span>
             <ResearchNodePreviewPortal

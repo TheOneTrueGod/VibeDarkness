@@ -93,7 +93,7 @@ export function getTwoToneAbilityTheme(abilityId: string): ResolvedAbilityTheme 
 }
 
 /** Relative luminance (0..1) of a 0xRRGGBB colour, by the usual Rec. 709 weights (no gamma). */
-function luminance(n: number): number {
+export function luminance(n: number): number {
     return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
 }
 

@@ -21,6 +21,7 @@ import { arrangeStoryChoiceGridSlots, isStoryChoiceSkipOption } from './storyCho
 import { createStoryChoiceSkipOption } from '../../../storylines/storyChoiceOptions';
 import { ITEM_ICON_URLS } from '../../../character_defs/items';
 import StoryChoiceDescriptionRow from './StoryChoiceDescriptionRow';
+import ResearchTreeIcon from '../../../../../components/ResearchTreeIcon';
 
 /** Badge on reward options flagged {@link StoryChoiceOptionRow.forYou}. */
 export const FOR_YOU_BADGE_LABEL = 'For you';
@@ -141,11 +142,10 @@ export default function PostMissionChoicePanel({
                             >
                                 <div className="flex w-full min-w-0 shrink-0 items-center justify-center gap-1">
                                     {!isSkip && researchTree ? (
-                                        <img
-                                            src={researchTree.icon}
-                                            alt=""
+                                        <ResearchTreeIcon
+                                            source={researchTree}
                                             data-testid={TestIds.storyChoiceResearchTreeIcon}
-                                            className="h-5 w-5 shrink-0 rounded-sm object-cover"
+                                            className="h-5 w-5"
                                         />
                                     ) : null}
                                     {!isSkip && opt.action?.type === 'equip_item' && ITEM_ICON_URLS[opt.action.itemId] ? (

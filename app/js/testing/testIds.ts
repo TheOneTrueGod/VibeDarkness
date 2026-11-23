@@ -30,6 +30,7 @@ export const TestIds = {
     /** Suffix with node id */
     researchNodeCardPrefix: 'research-node-card-',
     researchNodeRequirements: 'research-node-requirements',
+    researchNodeDescription: 'research-node-description',
     researchNodeSource: 'research-node-source',
     /** Admin Remove button on a research node card; suffix is the node id. */
     researchNodeRemovePrefix: 'research-node-remove-',

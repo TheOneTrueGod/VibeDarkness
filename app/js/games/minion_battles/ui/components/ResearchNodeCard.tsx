@@ -10,6 +10,7 @@ import ResourcePill, {
     RESOURCE_PILL_SIZE_SMALL,
 } from '../../../../components/ResourcePill';
 import StatPill from '../../../../components/StatPill';
+import ResearchTreeIcon from '../../../../components/ResearchTreeIcon';
 import { formatStatPillText, parseStatPillToken, statRemindersInText, type CharacterStatKey } from '../../../../characterStats';
 import { TestIds } from '../../../../testing/testIds';
 import ResearchAbilityPreview from './ResearchAbilityPreview';
@@ -342,7 +343,9 @@ export default function ResearchNodeCard({
     const treeChrome = resolveResearchTreeChrome(chromeTree);
     const usesThemeFill = Boolean(treeChrome.secondaryColour);
     const usesThemeText = Boolean(treeChrome.fontColour || treeChrome.secondaryColour);
-    const bodyTextClass = usesThemeText ? '' : 'text-gray-300';
+    // Light fills (e.g. Armory's stone) put the description on a black backdrop, like the requirements strip.
+    const descOnBackdrop = Boolean(treeChrome.lightSurface);
+    const bodyTextClass = usesThemeText && !descOnBackdrop ? '' : 'text-gray-300';
 
     const stateClasses =
         tone === 'muted'
@@ -423,12 +426,11 @@ export default function ResearchNodeCard({
     const content = (
         <div className="flex h-full min-h-0 w-full flex-col gap-1 overflow-hidden">
             <div className="flex min-w-0 shrink-0 items-center gap-1.5">
-                <img
-                    src={treeChrome.icon}
-                    alt=""
+                <ResearchTreeIcon
+                    source={treeChrome}
                     data-testid={TestIds.researchNodeTreeIcon}
                     title={chromeTree?.title}
-                    className={`${layout === 'comfortable' ? 'h-4 w-4' : 'h-3.5 w-3.5'} shrink-0 rounded-sm object-cover`}
+                    className={layout === 'comfortable' ? 'h-4 w-4' : 'h-3.5 w-3.5'}
                 />
                 <span className={`${titleClass} min-w-0 truncate`}>{node.title}</span>
                 {levelPill}
@@ -438,6 +440,10 @@ export default function ResearchNodeCard({
                     </span>
                 )}
             </div>
+            <div
+                data-testid={TestIds.researchNodeDescription}
+                className={descOnBackdrop ? 'min-w-0 shrink-0 rounded bg-black px-2 py-1.5' : 'contents'}
+            >
             <div
                 className={`${descSizeClass} shrink-0 ${bodyTextClass} line-clamp-3`}
                 // Full text on hover when the clamp cuts the description short.
@@ -456,6 +462,7 @@ export default function ResearchNodeCard({
                 }}
             >
                 <DescriptionText text={node.description} keyPrefix={`${node.id}-desc`} textClass={bodyTextClass} />
+            </div>
             </div>
             {showCost && (
                 <div className={`${RESEARCH_NODE_COST_ROW_MIN_HEIGHT_CLASS} shrink-0 text-[10px] text-muted flex flex-wrap items-center gap-1`}>

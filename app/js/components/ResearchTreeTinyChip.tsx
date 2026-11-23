@@ -10,6 +10,7 @@ import type { ResearchTreeDef } from '../researchTrees/types';
 import { researchChromeSurfaceStyle, resolveResearchTreeChrome } from '../researchTrees/researchTreeChrome';
 import ResearchNodeCard from './ResearchNodeCard';
 import { MISSION_REWARD_CHIP_CLASSNAME } from './ResearchRewardTinyChip';
+import ResearchTreeIcon from './ResearchTreeIcon';
 
 const PREVIEW_HIDE_MS = 180;
 
@@ -119,7 +120,7 @@ export default function ResearchTreeTinyChip({ tree }: { tree: ResearchTreeDef }
                 title={`Unlocks ${tree.title} research tree`}
             >
                 {chrome.secondaryColour ? (
-                    <img src={chrome.icon} alt="" className="h-4 w-4 shrink-0 self-center rounded-sm object-cover" />
+                    <ResearchTreeIcon source={chrome} className="h-4 w-4 self-center" />
                 ) : (
                     <BookOpen className="h-4 w-4 shrink-0 self-center text-violet-400" strokeWidth={2} aria-hidden />
                 )}

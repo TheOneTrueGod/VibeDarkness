@@ -318,6 +318,11 @@ export interface ResearchTreeDef {
     theme: string;
     /** Small icon shown on this tree's cards and sidebar row. */
     icon: string;
+    /**
+     * CSS colour of a circle drawn behind {@link icon} wherever it shows (cards, chips, sidebar).
+     * Set it when the icon would otherwise blend into the tree's card fill.
+     */
+    iconBackdrop?: string;
     /** Tree-level requirements to show/allow (unless it has any node researched). */
     accessRequirements: Requirement[];
     /** Tags inherited by every node in this tree (see {@link ResearchTag}). */
