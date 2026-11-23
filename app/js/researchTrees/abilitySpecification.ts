@@ -7,7 +7,7 @@ import { isDisabledResearchNode, isDraftResearchNode, type AbilitySpecification 
 
 /**
  * Abilities a spec names without needing the unit's abilities: the one id for `abilityId`, the tree's
- * modified abilities for `researchTreeTier`. Returns null for `tag`, which depends on the unit
+ * modified abilities for `researchTreeTier`, the ability and its replacements for `abilityLine`. Returns null for `tag`, which depends on the unit
  * (use {@link resolveSpecifiedAbilityIds}).
  */
 export function staticSpecifiedAbilityIds(spec: AbilitySpecification): string[] | null {
@@ -28,9 +28,29 @@ export function staticSpecifiedAbilityIds(spec: AbilitySpecification): string[] 
             }
             return ids;
         }
+        case 'abilityLine':
+            return abilityLineIds(spec.abilityId);
         case 'tag':
             return null;
     }
+}
+
+/** `abilityId`, then every ability a live `replaceCard` turns a line member into (breadth first). */
+function abilityLineIds(abilityId: string): string[] {
+    const ids = [abilityId];
+    for (let i = 0; i < ids.length; i++) {
+        for (const tree of RESEARCH_TREES) {
+            for (const node of tree.nodes) {
+                if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;
+                for (const effect of node.effects) {
+                    if (effect.type === 'replaceCard' && effect.fromCardId === ids[i] && !ids.includes(effect.toCardId)) {
+                        ids.push(effect.toCardId);
+                    }
+                }
+            }
+        }
+    }
+    return ids;
 }
 
 /**

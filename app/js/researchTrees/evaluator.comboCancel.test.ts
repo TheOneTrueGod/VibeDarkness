@@ -114,6 +114,13 @@ describe('Flurry (knife combo research node)', () => {
         }
     });
 
+    it('Flurry grants unlimited Combo to Punch and every punch that replaces it', () => {
+        const modifiers = computeAbilityModifiersFromResearch({ [WEAPONS_TREE_ID]: [NODE_KNIFE_COMBO] });
+        for (const abilityId of ['0120', '0116', '0117', '0118', '0119']) {
+            expect(modifiers[abilityId]?.comboUnlimited, abilityId).toBe(true);
+        }
+    });
+
     it('Flurry stops at the basic abilities: higher-tier weapon nodes do not add their abilities', () => {
         const higherTier = weaponsTree.nodes.filter((n) => (n.tier ?? 0) > 1 && n.modifiesAbility);
         const rootAbilityIds = new Set(weaponsTree.nodes.filter(isVirtualRootNode).map((n) => n.modifiesAbility!.to));

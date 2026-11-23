@@ -67,7 +67,13 @@ export type AbilitySpecification =
      * unit's abilities. Weapons with `maxTier: 1` is each weapon's basic ability (its virtual root).
      * Resolve with `resolveSpecifiedAbilityIds` (`abilitySpecification.ts`).
      */
-    | { type: 'researchTreeTier'; treeId: string; maxTier: number; minTier?: number };
+    | { type: 'researchTreeTier'; treeId: string; maxTier: number; minTier?: number }
+    /**
+     * `abilityId` and every ability research swaps it for (`replaceCard` chains from it, followed through
+     * every tree), e.g. Punch and Double / Strong / Sneaky / Charging Punch. Resolved from the tree
+     * definitions alone (`abilitySpecification.ts`).
+     */
+    | { type: 'abilityLine'; abilityId: string };
 
 /** Aggregated per-ability modifier passed to ability logic at runtime. */
 export interface AbilityModifier {

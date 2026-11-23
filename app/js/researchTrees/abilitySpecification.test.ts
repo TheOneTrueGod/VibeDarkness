@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveSpecifiedAbilityIds, staticSpecifiedAbilityIds } from './abilitySpecification';
-import { weaponsTree, WEAPON_BASIC_ABILITIES_SPEC } from './trees/weapons';
+import { PUNCH_LINE_SPEC, weaponsTree, WEAPON_BASIC_ABILITIES_SPEC } from './trees/weapons';
 import { isVirtualRootNode } from './types';
 
 describe('resolveSpecifiedAbilityIds', () => {
@@ -18,6 +18,11 @@ describe('resolveSpecifiedAbilityIds', () => {
     it("researchTreeTier on weapons up to tier 1 is each weapon's basic ability", () => {
         const roots = weaponsTree.nodes.filter(isVirtualRootNode).map((n) => n.modifiesAbility!.to);
         expect(staticSpecifiedAbilityIds(WEAPON_BASIC_ABILITIES_SPEC)).toEqual([...new Set(roots)]);
+    });
+
+    it('abilityLine is the ability plus every replaceCard chain from it', () => {
+        expect(staticSpecifiedAbilityIds(PUNCH_LINE_SPEC)).toEqual(['0120', '0116', '0117', '0118', '0119']);
+        expect(staticSpecifiedAbilityIds({ type: 'abilityLine', abilityId: 'nothing_replaces_me' })).toEqual(['nothing_replaces_me']);
     });
 
     it('researchTreeTier honours minTier and names nothing for an unknown tree', () => {

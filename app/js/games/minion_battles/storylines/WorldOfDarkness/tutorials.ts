@@ -17,7 +17,7 @@ import { TOWARDS_THE_LIGHT } from './missions/002_towards_the_light';
 import { LIGHT_EMPOWERED } from './missions/003_light_empowered';
 import { TRAINING_GROUNDS_MISSION_ID } from './missions/017_training_grounds';
 import { staticSpecifiedAbilityIds } from '../../../../researchTrees/abilitySpecification';
-import { WEAPON_BASIC_ABILITIES_SPEC } from '../../../../researchTrees/trees/weapons';
+import { PUNCH_LINE_SPEC, WEAPON_BASIC_ABILITIES_SPEC } from '../../../../researchTrees/trees/weapons';
 
 const PUNCH_ABILITY_ID = '0120';
 const THROW_TORCH_ABILITY_ID = '0601';
@@ -181,8 +181,14 @@ export const TUTORIAL_COMBOS: TutorialDef = {
     trigger: { type: 'battleStart', missionId: TRAINING_GROUNDS_MISSION_ID },
     steps: [
         {
-            text: "Your weapon's basic ability now has {Combo}.",
-            pointAt: { type: 'abilityCard', abilityIds: staticSpecifiedAbilityIds(WEAPON_BASIC_ABILITIES_SPEC) ?? [] },
+            text: "Your weapon's basic ability and your punch now have {Combo}.",
+            pointAt: {
+                type: 'abilityCard',
+                abilityIds: [
+                    ...(staticSpecifiedAbilityIds(WEAPON_BASIC_ABILITIES_SPEC) ?? []),
+                    ...(staticSpecifiedAbilityIds(PUNCH_LINE_SPEC) ?? []),
+                ],
+            },
             advance: { type: 'next' },
         },
         {

@@ -36,6 +36,12 @@ export { WEAPONS_TREE_ID };
 /** Weapons-tree tiers 0-1 hold only the virtual roots: each weapon's basic ability. */
 export const WEAPON_BASIC_ABILITY_MAX_TIER = 1;
 
+/** Punch (`0120`), the core's unarmed attack; literal id to keep card defs out of the tree imports. */
+export const PUNCH_ABILITY_ID = '0120';
+
+/** Punch and every Training punch that replaces it (Flurry's second target). */
+export const PUNCH_LINE_SPEC: AbilitySpecification = { type: 'abilityLine', abilityId: PUNCH_ABILITY_ID };
+
 /** Every weapon's basic ability (Flurry's target). Resolve with `staticSpecifiedAbilityIds`. */
 export const WEAPON_BASIC_ABILITIES_SPEC: AbilitySpecification = {
     type: 'researchTreeTier',
@@ -140,12 +146,12 @@ export const weaponsTree: ResearchTreeDef = {
             abilityId: 'throw_knife',
         }),
         {
-            // Every weapon's basic ability (its tier 1 virtual root) gains Combo. Depends on no root, so
+            // Every weapon's basic ability (its tier 1 virtual root) and Punch (any version) gain Combo. Depends on no root, so
             // it sits in the tree's trailing row and stays active whatever weapon is equipped. Granted at
             // the start of The Training Grounds.
             id: NODE_KNIFE_COMBO,
             title: 'Flurry',
-            description: "Each weapon's basic ability gains {Combo}.",
+            description: "Each weapon's basic ability and your punch gain {Combo}.",
             flavorText: 'The next strike is already on its way.',
             order: 25,
             tier: 13,
@@ -156,6 +162,7 @@ export const weaponsTree: ResearchTreeDef = {
             effects: [],
             abilityResearchModifiers: [
                 { abilitySpecification: WEAPON_BASIC_ABILITIES_SPEC, comboUnlimited: true },
+                { abilitySpecification: PUNCH_LINE_SPEC, comboUnlimited: true },
             ],
         },
 
