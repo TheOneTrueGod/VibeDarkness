@@ -49,7 +49,9 @@ const COOLDOWN_SECONDS = 0.6;
 const PROJECTILE_SPEED = 650;
 export const FLING_THORN_MAX_DISTANCE = 200;
 /** Damage per thorn. */
-export const FLING_THORN_DAMAGE = 2;
+export const FLING_THORN_DAMAGE = 3;
+/** Each thorn goes through this many enemies after the first (`{Pierce N}`). */
+export const FLING_THORN_PIERCE = 1;
 /** A small circle, sized to the spirit rather than a hero cast. */
 const SPELL_CIRCLE_RADIUS = 0.8 * CELL_SIZE;
 /** The spirit's lime (the lighter Command colour). */
@@ -61,6 +63,7 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 
 const TOOLTIP_LINES = [
     'Fling {{COUNT}} thorns dealing {{DAMAGE}} damage',
+    `{Pierce ${FLING_THORN_PIERCE}}`,
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -118,6 +121,7 @@ function buildFlingThornTimings(thornCount: number): AbilityTimingInterval[] {
                     .withMaxRange(FLING_THORN_MAX_DISTANCE)
                     .withTravelFullRange()
                     .withBaseDamage(FLING_THORN_DAMAGE)
+                    .withPierce(FLING_THORN_PIERCE)
                     .withRandomAimSpread(FLING_THORN_SPREAD_DEG)
                     .withParticleTrail(PROJECTILE_PARTICLE_TRAIL_PRESETS.spiritMotes()),
             })),

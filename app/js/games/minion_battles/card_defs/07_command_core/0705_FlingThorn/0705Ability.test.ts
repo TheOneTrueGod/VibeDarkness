@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { getAbility } from '../../../abilities/AbilityRegistry';
-import { FLING_THORN_ABILITY_ID, FLING_THORN_COUNT, FLING_THORN_DAMAGE, FLING_THORN_SPREAD_DEG } from './0705Ability';
+import {
+    FLING_THORN_ABILITY_ID,
+    FLING_THORN_COUNT,
+    FLING_THORN_DAMAGE,
+    FLING_THORN_PIERCE,
+    FLING_THORN_SPREAD_DEG,
+} from './0705Ability';
 import { ProjectileLaunchBehaviour } from '../../../abilities/CastBehaviours/ProjectileLaunchBehaviour';
 import { SpellCircleBehaviour } from '../../../abilities/CastBehaviours/SpellCircleBehaviour';
 import {
@@ -18,7 +24,8 @@ describe('Fling Thorns 0705', () => {
         expect(ability!.name).toBe('Fling Thorns');
         expect(ability!.aiSettings).toBeUndefined();
         expect(ability!.recoveries).toEqual([{ chargeType: 'commandCharge', chargesPerRecovery: 1, usesRecovered: 1 }]);
-        expect(FLING_THORN_DAMAGE).toBe(2);
+        expect(FLING_THORN_DAMAGE).toBe(3);
+        expect(FLING_THORN_PIERCE).toBe(1);
         expect(FLING_THORN_COUNT).toBe(5);
     });
 
@@ -35,6 +42,8 @@ describe('Fling Thorns 0705', () => {
         for (const entry of launches) {
             expect(entry.behaviour).toBeInstanceOf(ProjectileLaunchBehaviour);
             expect((entry.behaviour as unknown as { randomSpreadDeg: number }).randomSpreadDeg).toBe(FLING_THORN_SPREAD_DEG);
+            // Each thorn goes through one enemy and hits the next.
+            expect((entry.behaviour as unknown as { pierce: number }).pierce).toBe(FLING_THORN_PIERCE);
         }
         // A visible recovery after the last thorn.
         expect(cooldown!.end - cooldown!.start).toBeGreaterThanOrEqual(0.5);

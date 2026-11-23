@@ -74,6 +74,14 @@ describe('keywordRegistry', () => {
         expect(added[0]).toMatchObject({ ownerUnitId: 'u1', ownerAbilityId: '0000', teamId: 'player' });
     });
 
+    it('registers pierce as a tooltip-only keyword with a reminder card', () => {
+        expect(formatKeywordText('pierce', 1)).toBe('Pierce 1');
+        expect(getKeyword('pierce')?.resolve).toBeUndefined();
+        expect(keywordGlossaryEntries(['Pierce 1'])).toEqual([
+            { title: 'Pierce 1', description: 'Passes through and hits up to {1} more enemy' },
+        ]);
+    });
+
     it('registers pack as a tooltip-only keyword with a reminder card', () => {
         expect(formatKeywordText('pack', 2)).toBe('Pack 2');
         expect(getKeyword('pack')?.resolve).toBeUndefined();

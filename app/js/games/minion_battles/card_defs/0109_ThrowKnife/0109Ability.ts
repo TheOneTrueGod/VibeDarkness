@@ -1,7 +1,7 @@
 ﻿/**
  * ThrowKnife - Research-upgraded Throw Rock variant.
  *
- * Base version throws one knife for more damage than Throw Rock; knives pierce 2 enemies.
+ * Base version throws one knife for more damage than Throw Rock; knives pierce 1 enemy (`{Pierce 1}`: 2 hits).
  * If both Throwing Knives and More Rock are researched, throws a second knife.
  */
 
@@ -130,13 +130,13 @@ export const ThrowKnife: AbilityStatic = {
         const ctx = resolveTooltipContext(gameState, { ability: { id: ABILITY_ID } });
         if (hasKnifeMultiThrow(research)) {
             return formatTooltipLegacyLines(
-                ['Throw {{HIT_COUNT}} knives that pierce 2 enemies, dealing {{DAMAGE}} damage each and inflicting {Bleed}.'],
+                ['Throw {{HIT_COUNT}} knives dealing {{DAMAGE}} damage and inflicting {Bleed}', `{Pierce ${KNIFE_PIERCE}}`],
                 bindings,
                 ctx,
             );
         }
         return formatTooltipLegacyLines(
-            ['Throw a knife that pierces 2 enemies, dealing {{DAMAGE}} damage and inflicting {Bleed}.'],
+            ['Throw a knife dealing {{DAMAGE}} damage and inflicting {Bleed}', `{Pierce ${KNIFE_PIERCE}}`],
             bindings,
             ctx,
         );

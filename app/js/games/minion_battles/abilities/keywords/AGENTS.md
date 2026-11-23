@@ -10,6 +10,7 @@ Reusable ability keywords: a keyword is a named definition (`id`, display name, 
 | `keywordRegistry.ts` | Registers every keyword def and glossary term; `getKeyword` / `formatKeywordText` / `formatKeywordLine` lookups, `keywordGlossaryEntries` (tooltip reminder cards) and `listGlossaryEntries` (every term + described keyword, for the Ideas **Glossary** sub-tab). A def not registered here is invisible to tooltips, the glossary and the runner. |
 | `runAbilityKeywords.ts` | `runAbilityKeywords` (resolves uses in order, runs `effect` only when triggered) and `formatKeywordUseTooltip` (`{Name N}` or `{Name N}: effect`). |
 | `rendKeyword.ts` / `rendRuntime.ts` | `rend` def (tooltip + `describe`; type imports only, so tooltips can load it) and, in the runtime file, `applyRend` (returns the units it damaged), Rend's `resolve` (registered with `registerKeywordResolver`; centre from `KeywordContext.center`, `count` = hits) and `perRendHit` for "per enemy hit" follow-up effects (Blood Mend). |
+| `pierceKeyword.ts` | `pierce` def: tooltip + `describe` only. The behaviour is the projectile's `pierce` (`ProjectileLaunchBehaviour.withPierce`). |
 | `packKeyword.ts` | `pack` def (name provisional): tooltip + `describe` only. The behaviour is `PetAbilitySource.pack` + `AbilityModifier.packCountFlat`, resolved in `abilities/abilitySourceUnits.ts`. |
 | `devourLightKeyword.ts` | `devourLight` def: destroys the N nearest positive light sources near the caster, all-or-nothing. Finds targets with `findDeployables` (own-team `lightEmitter` deployables within the 5x5 reach) and consumes them via `consumeDeployable`; see `game/deployables/AGENTS.md`. |
 
@@ -20,6 +21,7 @@ Reusable ability keywords: a keyword is a named definition (`id`, display name, 
 | `bright` | Spawns a bright light source via `abilities/brightKeyword.ts`. |
 | `knockback` | Tooltip only; tier logic stays in `crowdControl/knockbackKeywords.ts`. |
 | `devourLight` | Consumes nearby own-team light-emitter deployables; triggers only if enough exist. |
+| `pierce` | Tooltip only (`{Pierce N}` reminder card). Used by Fling Thorns, Throw Knife and Ice Shards. |
 | `pack` | Tooltip only (`{Pack N}` reminder card). A command repeats on up to N other free pets near the picked one via `abilitySource.pack`; no card uses it yet. |
 | `rend` | `resolve` attached by `rendRuntime.ts` (import that module, e.g. for `perRendHit`, to enable it); damages bleeding enemies around `ctx.center`, `count` = enemies hit. Has a `describe` reminder. |
 

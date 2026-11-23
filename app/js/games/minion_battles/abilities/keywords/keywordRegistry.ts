@@ -5,6 +5,7 @@ import { BRIGHT_DEFS, BRIGHT_ROUND_END_DECAY, spawnBrightLight, type EngineWithL
 import { devourLightKeyword } from './devourLightKeyword';
 import { rendKeyword } from './rendKeyword';
 import { packKeyword } from './packKeyword';
+import { pierceKeyword } from './pierceKeyword';
 import { CONDUCTIVE_MARK_DEF } from '../../buffs/marks/conductiveMark';
 import type { AbilityKeywordUse, KeywordDef, KeywordId, KeywordResolve } from './keywordTypes';
 
@@ -164,6 +165,7 @@ registerKeyword({
 registerKeyword(devourLightKeyword);
 registerKeyword(rendKeyword);
 registerKeyword(packKeyword);
+registerKeyword(pierceKeyword);
 
 registerGlossaryTerm({
     title: 'Bleed',

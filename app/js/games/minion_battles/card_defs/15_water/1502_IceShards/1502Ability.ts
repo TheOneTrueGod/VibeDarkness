@@ -100,14 +100,14 @@ function buildIceShardsTimings(withSplinters: boolean) {
 }
 
 const TOOLTIP_LINES = [
-    'Throw {{THROWS}} shards of ice, each at its own target, dealing {{DAMAGE}} damage to the first {{HITS}} enemies hit.',
+    'Throw {{THROWS}} shards of ice, each at its own target, dealing {{DAMAGE}} damage',
+    `{Pierce ${ICE_SHARDS_PIERCE}}`,
     "When you can't pay for it, the slot casts Blood Shard instead.",
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: ICE_SHARDS_DAMAGE },
     THROWS: { kind: 'plain', value: 2 },
-    HITS: { kind: 'plain', value: ICE_SHARDS_PIERCE + 1 },
     ...BLOOD_SPLINTER_TOOLTIP_BINDINGS,
 };
 
