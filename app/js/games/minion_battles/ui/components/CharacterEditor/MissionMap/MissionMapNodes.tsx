@@ -76,21 +76,24 @@ export function MissionNode({
                     const isDisabled = isMissionDisabled(def);
                     const viewable = canPlayerViewMission({ isAdmin, isUnlocked });
                     const missionType = def?.missionType ?? DEFAULT_MISSION_TYPE;
+                    // How the node looks (fill and icon); `mapNodeType` overrides the mission's own type.
+                    const nodeType = def?.mapNodeType ?? missionType;
+                    const showSideStar = isSide && !def?.mapNodeType;
                     // Only a win finishes a mission; a defeat alone leaves it open.
                     const finished = hasVictoryResult(id, missionResults);
                     // Every completed main-path node (battle, boss, story, campsite, training) gets the green outline.
                     const completedNode = !isSide && finished;
                     const completedCombat = completedNode && missionType === 'battle';
-                    const color = getMissionNodeFill(id, missionType, missionResults, isDisabled);
+                    const color = getMissionNodeFill(id, nodeType, missionResults, isDisabled);
                     const glowColor = completedNode
                         ? COMPLETED_MISSION_ACCENT
-                        : getMissionGlowColor(id, missionType, missionResults, isDisabled);
+                        : getMissionGlowColor(id, nodeType, missionResults, isDisabled);
                     const dimmed = !isSide && !isUnlocked && !isAdmin;
                     const isHovered = hoveredId === id;
                     const isPressed = pressedId === id;
                     const isPinned = tooltip?.pinned && tooltip.id === id;
                     const r = CIRCLE_R;
-                    const MissionIcon = MISSION_TYPE_ICONS[missionType];
+                    const MissionIcon = MISSION_TYPE_ICONS[nodeType];
                     const showBattleHalo = !isSide && missionType === 'battle' && !completedCombat && !isDisabled;
 
                     const nodeScale = isPressed ? 0.92 : (isHovered || isPinned) ? 1.1 : 1;
@@ -184,7 +187,7 @@ export function MissionNode({
                                     strokeOpacity={(isHovered || isPinned) && !showBattleHalo ? 0.7 : 1}
                                 />
                                 {/* Checkmark / star for side missions; checkmark for completed combat; type icon otherwise */}
-                                {isSide || completedCombat ? (
+                                {showSideStar || completedCombat ? (
                                     <text
                                         textAnchor="middle"
                                         dominantBaseline="central"

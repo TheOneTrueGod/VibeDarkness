@@ -133,7 +133,7 @@ describe('groupMissionsByChapter', () => {
     });
 
     it("places quest missions in the chapter whose quest banks accept the quest", () => {
-        expect(groupOf('quest_castle_guardhouse')).toBe('world_of_darkness/wod_ch3');
+        expect(groupOf('quest_castle_herb_beds')).toBe('world_of_darkness/wod_ch3');
         expect(groupOf('quest_push_north')).toBe('world_of_darkness/wod_ch2');
         expect(groupOf('swarm_pressure')).toBe('bunker_at_the_end/bunker_ch1');
         const last = groups[groups.length - 1];

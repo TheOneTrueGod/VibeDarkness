@@ -245,6 +245,11 @@ export interface IBaseMissionDef extends MissionBattleConfig {
     /** Mission Map node category (battle / story / boss icon). */
     missionType: MissionType;
     /**
+     * Draw the Mission Map node as this type (fill colour and icon) instead of `missionType`, e.g. a
+     * battle that reads as a Training node. A side mission with this set shows the icon, not the star.
+     */
+    mapNodeType?: MissionType;
+    /**
      * Fewest Darkness Upgrades the host must apply (capped by how many they own). Absent = 0.
      * See `researchTrees/darknessUpgradeSelection.ts`.
      */
@@ -330,6 +335,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     mapPosition?: { x: number; y: number };
     /** Render as a side quest on the Mission Map (star / label) even without a side edge. */
     isSideMission?: boolean;
+    /** Mission Map node look override; see {@link IBaseMissionDef.mapNodeType}. */
+    mapNodeType?: MissionType;
     /** Optional image URL or asset path shown inside the mission circle on the Mission Map. */
     image?: string;
     /** Short flavour description shown in the Mission Map tooltip. */

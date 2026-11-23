@@ -34,7 +34,6 @@ import {
     WOD_POST_CORE_QUEST_BANK_3_ID,
     WOD_SOUTH_GATE_SWARM_BANK,
     WOD_CRYSTAL_CORRUPTION_BANK,
-    WOD_RAID_THE_LARDER_BANK,
     WOD_FORAGE_THE_GARDEN_BANK,
     WOD_SURFACE_QUEST_FILTERS,
     WorldOfDarknessStoryline,
@@ -106,7 +105,6 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
             WOD_EXAMPLE_QUEST_BANK,
             WOD_POST_CORE_QUEST_BANK_2,
             WOD_POST_CORE_QUEST_BANK_3,
-            WOD_RAID_THE_LARDER_BANK,
             WOD_FORAGE_THE_GARDEN_BANK,
         ]);
         expect(WOD_EXAMPLE_QUEST_BANK.requiredClears).toBe(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS);

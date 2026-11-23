@@ -28,6 +28,7 @@ import type {
     EnemySpawnDef,
     LevelEvent,
     MissionMapLayout,
+    MissionType,
     PlayerSpawnPoint,
     SpecialTilePlacement,
 } from '../../../types';
@@ -97,6 +98,8 @@ export interface CastleMissionConfig {
      */
     mapNode?: GridCell | null;
     isSideMission?: boolean;
+    /** Draw the Mission Map node as this type (fill and icon); see `IBaseMissionDef.mapNodeType`. */
+    mapNodeType?: MissionType;
     /** Story shown before the battle (copy lives in the chapter or quest script). */
     preMissionStory?: PreMissionStoryDef;
     /** Story shown after victory, e.g. a scavenging quest's Hunger recovery and reward choice. */
@@ -244,6 +247,7 @@ export class CastleMission extends BaseMissionDef {
         this.name = config.name;
         this.description = config.description;
         this.isSideMission = config.isSideMission;
+        this.mapNodeType = config.mapNodeType;
         this.preMissionStory = config.preMissionStory;
         this.postMissionStory = config.postMissionStory;
         this.startRewards = config.startRewards;

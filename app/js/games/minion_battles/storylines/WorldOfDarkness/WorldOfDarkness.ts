@@ -62,7 +62,6 @@ import {
     CRYSTAL_CORRUPTION_QUEST,
     CRYSTAL_CORRUPTION_QUEST_ID,
 } from './quests/crystal_corruption';
-import { RAID_THE_LARDER, RAID_THE_LARDER_QUEST_ID } from './quests/raid_the_larder';
 import { FORAGE_THE_GARDEN, FORAGE_THE_GARDEN_QUEST_ID } from './quests/forage_the_garden';
 
 /** Quest slot bank after Core Awakening (side-quest picker on the Mission Map). */
@@ -88,9 +87,6 @@ export const WOD_SOUTH_GATE_SWARM_BANK_ID = 'wod_south_gate_swarm';
 
 /** Dedicated map node for Crystal Corruption. */
 export const WOD_CRYSTAL_CORRUPTION_BANK_ID = 'wod_crystal_corruption';
-
-/** Dedicated chapter 3 castle node for Raid the Larder. */
-export const WOD_RAID_THE_LARDER_BANK_ID = 'wod_raid_the_larder';
 
 /** Dedicated chapter 3 castle node for Forage the Garden. */
 export const WOD_FORAGE_THE_GARDEN_BANK_ID = 'wod_forage_the_garden';
@@ -231,23 +227,6 @@ export const WOD_CRYSTAL_CORRUPTION_BANK: QuestSlotBank = {
     questDefId: CRYSTAL_CORRUPTION_QUEST_ID,
 };
 
-/**
- * Map node that starts Raid the Larder: between the west guardhouse and the storerooms (59.5_49),
- * after The Castle Courtyard (both rooms open only onto the training ring, west of the courtyard).
- * Clearing it opens Kennels and Range, north of the storerooms.
- */
-export const WOD_RAID_THE_LARDER_BANK: QuestSlotBank = {
-    id: WOD_RAID_THE_LARDER_BANK_ID,
-    title: RAID_THE_LARDER.title,
-    unlockAfterMissionId: THE_CASTLE_COURTYARD_MISSION_ID,
-    requiredClears: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
-    filters: {},
-    displaySlotCount: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
-    mapPosition: castleMapPosition(59.5, 49),
-    isSideQuest: true,
-    questDefId: RAID_THE_LARDER_QUEST_ID,
-};
-
 /** Map node that starts Forage the Garden: on the ice house (63_49), after The Overgrown Garden. */
 export const WOD_FORAGE_THE_GARDEN_BANK: QuestSlotBank = {
     id: WOD_FORAGE_THE_GARDEN_BANK_ID,
@@ -305,15 +284,10 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: GREAT_HALL_MISSION_ID, result: 'victory', toMissionId: THE_KINGS_COURT_MISSION_ID },
         // Listed after the great hall edge, so Continue after the crossroads goes on to the great hall.
         { fromMissionId: CASTLE_CROSSROADS_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_CROSSROADS_MISSION_ID },
-        // Optional training branch: Raid the Larder (off the courtyard) -> Kennels and Range, which forks
-        // to The Training Grounds (where Combos unlock) and a campsite on the archery green's campfires.
+        // Optional training branch: the courtyard -> Kennels and Range, which forks to The Training
+        // Grounds (where Combos unlock) and a campsite on the archery green's campfires.
         // Listed after the crossroads edge, so Continue after the courtyard still goes to the crossroads.
-        {
-            fromMissionId: THE_CASTLE_COURTYARD_MISSION_ID,
-            result: 'victory',
-            toMissionId: KENNELS_AND_RANGE_MISSION_ID,
-            requiresQuestBankId: WOD_RAID_THE_LARDER_BANK_ID,
-        },
+        { fromMissionId: THE_CASTLE_COURTYARD_MISSION_ID, result: 'victory', toMissionId: KENNELS_AND_RANGE_MISSION_ID },
         // Training Grounds first, so Continue after the kennels goes on into the training ring.
         { fromMissionId: KENNELS_AND_RANGE_MISSION_ID, result: 'victory', toMissionId: TRAINING_GROUNDS_MISSION_ID },
         { fromMissionId: KENNELS_AND_RANGE_MISSION_ID, result: 'victory', toMissionId: CAMPSITE_CH3_TRAINING_MISSION_ID },
@@ -350,7 +324,6 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         WOD_POST_CORE_QUEST_BANK,
         WOD_POST_CORE_QUEST_BANK_2,
         WOD_POST_CORE_QUEST_BANK_3,
-        WOD_RAID_THE_LARDER_BANK,
         WOD_FORAGE_THE_GARDEN_BANK,
     ],
     chapters: [
@@ -392,7 +365,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             description:
                 'Campsite missions in this chapter should generally grant tier 11 or 12 research (new first abilities, or upgrades to the ones chosen in chapter 2).',
             unlockAfterMissionId: 'displacer',
-            questBankIds: [WOD_RAID_THE_LARDER_BANK_ID, WOD_FORAGE_THE_GARDEN_BANK_ID],
+            questBankIds: [WOD_FORAGE_THE_GARDEN_BANK_ID],
             missionIds: [
                 TRAINING_CH3_MISSION_ID, THE_LONELY_CASTLE_MISSION_ID, THE_CASTLE_COURTYARD_MISSION_ID,
                 CASTLE_CROSSROADS_MISSION_ID, CAMPSITE_CH3_CROSSROADS_MISSION_ID,

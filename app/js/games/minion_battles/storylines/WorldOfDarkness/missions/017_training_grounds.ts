@@ -49,4 +49,6 @@ export const TRAINING_GROUNDS = defineCastleMission({
     exitLabel: SCRIPT.objectives.reach_exit,
     spawnPreset: 'castle_standard',
     isSideMission: true,
+    // Reads as a Training node on the map: the mission where Combos unlock.
+    mapNodeType: 'training',
 });

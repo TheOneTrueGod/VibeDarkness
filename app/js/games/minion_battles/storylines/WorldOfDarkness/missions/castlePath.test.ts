@@ -5,7 +5,6 @@
 
 import { describe, it, expect } from 'vitest';
 import type { MissionResult } from '../../../../../types';
-import type { QuestResult } from '../../questTypes';
 import { KNOWLEDGE_COMBOS } from '../../../../../accountKnowledge';
 import { NODE_KNIFE_COMBO, WEAPONS_TREE_ID } from '../../../../../researchTrees/trees/weaponTreeIds';
 import { GameEngine } from '../../../game/GameEngine';
@@ -18,8 +17,7 @@ import { chapter3Scripts } from '../../../../../storylines/worldOfDarkness/chapt
 import { MISSION_MAP } from '../../index';
 import { getUnlockedMissionIds, getNextVictoryMissionId, getSideMissionIds } from '../../unlock';
 import { registerWorldOfDarknessSegments } from '../registerSegments';
-import { WOD_RAID_THE_LARDER_BANK_ID, WorldOfDarknessStoryline } from '../WorldOfDarkness';
-import { RAID_THE_LARDER_QUEST_ID } from '../quests/raid_the_larder';
+import { WorldOfDarknessStoryline } from '../WorldOfDarkness';
 import { TUTORIAL_COMBOS } from '../tutorials';
 import { castleMapPosition, sideBySideMapPositions, WOD_CH3_MIN_NODE_GAP_PX } from '../chapter3Map';
 import { SEGMENT_59_48_KENNEL_YARD } from '../MapSegments/castle/59_48_kennel_yard';
@@ -258,33 +256,23 @@ describe('chapter 3 castle main path', () => {
         expect(getNextVictoryMissionId(KENNELS_AND_RANGE_MISSION_ID, [WorldOfDarknessStoryline])).toBe(TRAINING_GROUNDS_MISSION_ID);
     });
 
-    it('unlocks raid the larder -> kennels and range -> the training grounds and the training campsite', () => {
-        const larderCleared: QuestResult[] = [
-            { questDefId: RAID_THE_LARDER_QUEST_ID, result: 'victory', placement: 'bank', bankId: WOD_RAID_THE_LARDER_BANK_ID },
-        ];
-        const unlockedAfter = (results: MissionResult[], quests: QuestResult[] = []) =>
-            getUnlockedMissionIds(WorldOfDarknessStoryline, results, quests);
+    it('unlocks the courtyard -> kennels and range -> the training grounds and the training campsite', () => {
+        const unlockedAfter = (results: MissionResult[]) => getUnlockedMissionIds(WorldOfDarknessStoryline, results, []);
         const fork = [TRAINING_GROUNDS_MISSION_ID, CAMPSITE_CH3_TRAINING_MISSION_ID];
 
-        // The courtyard alone opens nothing on the branch: Kennels and Range waits on Raid the Larder.
         let unlocked = unlockedAfter(THROUGH_COURTYARD);
-        for (const id of [KENNELS_AND_RANGE_MISSION_ID, ...fork]) expect(unlocked.has(id), id).toBe(false);
-
-        unlocked = unlockedAfter(THROUGH_COURTYARD, larderCleared);
         expect(unlocked.has(KENNELS_AND_RANGE_MISSION_ID)).toBe(true);
         for (const id of fork) expect(unlocked.has(id), id).toBe(false);
 
-        unlocked = unlockedAfter([...THROUGH_COURTYARD, victory(KENNELS_AND_RANGE_MISSION_ID)], larderCleared);
+        unlocked = unlockedAfter([...THROUGH_COURTYARD, victory(KENNELS_AND_RANGE_MISSION_ID)]);
         for (const id of fork) expect(unlocked.has(id), id).toBe(true);
         // The training branch does not open the main path.
         expect(unlocked.has(GREAT_HALL_MISSION_ID)).toBe(false);
     });
 
-    it('draws the gate line from the Raid the Larder node to Kennels and Range', () => {
+    it('opens Kennels and Range straight from the courtyard, with no quest gate', () => {
         const gates = (WorldOfDarknessStoryline.edges ?? []).filter((e) => e.toMissionId === KENNELS_AND_RANGE_MISSION_ID);
-        expect(gates).toEqual([
-            expect.objectContaining({ fromMissionId: 'the_castle_courtyard', requiresQuestBankId: WOD_RAID_THE_LARDER_BANK_ID }),
-        ]);
+        expect(gates).toEqual([{ fromMissionId: 'the_castle_courtyard', result: 'victory', toMissionId: KENNELS_AND_RANGE_MISSION_ID }]);
     });
 
     it('kennels and range starts at the south door by the storerooms; the training grounds runs from the green to the west door', () => {

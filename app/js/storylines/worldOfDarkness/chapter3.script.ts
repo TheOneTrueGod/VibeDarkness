@@ -25,7 +25,7 @@ export function trainingStationChoiceId(pick: number): string {
 
 const trainingStationScript: MissionScript = {
     name: 'Training',
-    description: `A place to drill. Pick ${TRAINING_STATION_PICKS} free Training upgrades, one after the other.`,
+    description: 'Pause to reflect.  To grow stronger.',
 };
 
 /** One narrator line before the battle. */

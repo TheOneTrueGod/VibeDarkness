@@ -1,8 +1,7 @@
 /**
- * Chapter 3 scavenging quests (Raid the Larder, Forage the Garden): each resolves its two quest
- * missions, each mission builds its castle terrain with no gaps, its objectives can be walked to,
- * the last mission of each ends in Hunger recovery plus a reward pick, and both quests have a
- * dedicated chapter 3 bank on the castle map.
+ * Chapter 3 scavenging quest (Forage the Garden): it resolves its two quest missions, each mission
+ * builds its castle terrain with no gaps, its objectives can be walked to, the last mission ends in
+ * Hunger recovery plus a reward pick, and the quest has a dedicated chapter 3 bank on the castle map.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -22,27 +21,20 @@ import {
     WOD_FORAGE_THE_GARDEN_BANK,
     WOD_FORAGE_THE_GARDEN_BANK_ID,
     WOD_POST_CORE_QUEST_BANK,
-    WOD_RAID_THE_LARDER_BANK,
-    WOD_RAID_THE_LARDER_BANK_ID,
     WorldOfDarknessStoryline,
 } from '../WorldOfDarkness';
 import { castleMapPosition } from '../chapter3Map';
-import { CASTLE_EXIT_OBJECTIVE_ID, CASTLE_REACH_RADIUS_TILES, type CastleMission } from '../missions/castle/castleMission';
+import { CASTLE_REACH_RADIUS_TILES, type CastleMission } from '../missions/castle/castleMission';
 import { CASTLE_SPAWN_PRESETS } from '../missions/castle/castleSpawnPresets';
 import { THE_CASTLE_COURTYARD_MISSION_ID } from '../missions/012_the_castle_courtyard';
 import { OVERGROWN_GARDEN_MISSION_ID } from '../missions/019_overgrown_garden';
 import { FORAGE_THE_GARDEN, FORAGE_THE_GARDEN_QUEST_ID } from '../quests/forage_the_garden';
-import { RAID_THE_LARDER, RAID_THE_LARDER_QUEST_ID } from '../quests/raid_the_larder';
-import { QUEST_CASTLE_GUARDHOUSE } from './quest_castle_guardhouse';
 import { QUEST_CASTLE_HERB_BEDS } from './quest_castle_herb_beds';
 import { QUEST_CASTLE_ICE_HOUSE } from './quest_castle_ice_house';
-import { QUEST_CASTLE_STOREROOMS } from './quest_castle_storerooms';
 import {
     CASTLE_ICE_HOUSE_HUNGER_RECOVERY,
-    CASTLE_STOREROOMS_HUNGER_RECOVERY,
     FORAGE_THE_GARDEN_COMPLETION_VIGOR,
     LOCATION_CASTLE_TAG,
-    RAID_THE_LARDER_COMPLETION_METAL,
 } from './questMissionConstants';
 
 registerWorldOfDarknessSegments();
@@ -50,7 +42,6 @@ registerWorldOfDarknessSegments();
 type Cell = { col: number; row: number };
 
 const QUESTS = [
-    { quest: RAID_THE_LARDER, missions: [QUEST_CASTLE_GUARDHOUSE, QUEST_CASTLE_STOREROOMS] },
     { quest: FORAGE_THE_GARDEN, missions: [QUEST_CASTLE_HERB_BEDS, QUEST_CASTLE_ICE_HOUSE] },
 ];
 const MISSIONS: CastleMission[] = QUESTS.flatMap((q) => q.missions);
@@ -141,23 +132,12 @@ describe('chapter 3 scavenging quests', () => {
         }
     });
 
-    it('fights through the guardhouse to the storeroom door, then scavenges', () => {
-        expect(QUEST_CASTLE_GUARDHOUSE.rooms.layout.flat()).toEqual([
-            { kind: 'segment', id: '60_48_sparring_pit' },
-            { kind: 'segment', id: '60_49_west_guardhouse' },
-        ]);
-        expect(QUEST_CASTLE_GUARDHOUSE.spawnPreset).toBe(CASTLE_SPAWN_PRESETS.castle_standard);
-        expect(QUEST_CASTLE_GUARDHOUSE.battleObjectives.map((o) => o.id)).toEqual([CASTLE_EXIT_OBJECTIVE_ID]);
-        expect(QUEST_CASTLE_STOREROOMS.segmentIds).toEqual(['59_49_storerooms']);
+    it('forages the herb beds, then scavenges the ice house', () => {
         expect(QUEST_CASTLE_HERB_BEDS.segmentIds).toEqual(['62_48_herb_garden', '63_48_orchard']);
         expect(QUEST_CASTLE_ICE_HOUSE.segmentIds).toEqual(['63_49_ice_house']);
-        for (const m of [QUEST_CASTLE_STOREROOMS, QUEST_CASTLE_HERB_BEDS, QUEST_CASTLE_ICE_HOUSE]) {
+        for (const m of [QUEST_CASTLE_HERB_BEDS, QUEST_CASTLE_ICE_HOUSE]) {
             expect(m.spawnPreset, m.missionId).toBe(CASTLE_SPAWN_PRESETS.castle_explore);
         }
-        // The guardhouse exit and the storerooms entry face each other across the 60_49 / 59_49 door.
-        const exitWorld = { col: 60 * 22 + (QUEST_CASTLE_GUARDHOUSE.exitCell!.col % 22), row: 49 * 22 + (QUEST_CASTLE_GUARDHOUSE.exitCell!.row % 22) };
-        const entryWorld = { col: 59 * 22 + QUEST_CASTLE_STOREROOMS.entryCell.col, row: 49 * 22 + QUEST_CASTLE_STOREROOMS.entryCell.row };
-        expect(Math.hypot(exitWorld.col - entryWorld.col, exitWorld.row - entryWorld.row)).toBeLessThanOrEqual(4);
     });
 
     it('starts the party and the opening enemies on open ground', () => {
@@ -176,9 +156,8 @@ describe('chapter 3 scavenging quests', () => {
         }
     });
 
-    it('ends each quest with a Hunger recovery beat and a food-or-resource pick', () => {
+    it('ends the quest with a Hunger recovery beat and a food-or-resource pick', () => {
         const finales = [
-            { mission: QUEST_CASTLE_STOREROOMS, hunger: CASTLE_STOREROOMS_HUNGER_RECOVERY, resource: 'metal' },
             { mission: QUEST_CASTLE_ICE_HOUSE, hunger: CASTLE_ICE_HOUSE_HUNGER_RECOVERY, resource: 'vigor' },
         ] as const;
         for (const { mission, hunger, resource } of finales) {
@@ -191,36 +170,30 @@ describe('chapter 3 scavenging quests', () => {
             expect(actions.some((a) => a.type === 'recover_hunger'), mission.missionId).toBe(true);
             expect(actions.some((a) => a.type === 'grant_resources' && (a[resource] ?? 0) > 0), mission.missionId).toBe(true);
         }
-        // The first mission of each quest has no reward beat.
-        expect(QUEST_CASTLE_GUARDHOUSE.postMissionStory).toBeUndefined();
+        // The first mission of the quest has no reward beat.
         expect(QUEST_CASTLE_HERB_BEDS.postMissionStory).toBeUndefined();
     });
 
     it('gives a small completion reward and keeps the quests out of the plains Surface Quests', () => {
-        expect(RAID_THE_LARDER.completionRewards).toEqual({ resourceDelta: { metal: RAID_THE_LARDER_COMPLETION_METAL } });
         expect(FORAGE_THE_GARDEN.completionRewards).toEqual({ resourceDelta: { vigor: FORAGE_THE_GARDEN_COMPLETION_VIGOR } });
-        for (const amount of [RAID_THE_LARDER_COMPLETION_METAL, FORAGE_THE_GARDEN_COMPLETION_VIGOR]) {
+        for (const amount of [FORAGE_THE_GARDEN_COMPLETION_VIGOR]) {
             expect(amount).toBeGreaterThan(0);
             expect(amount).toBeLessThanOrEqual(5);
         }
-        for (const quest of [RAID_THE_LARDER, FORAGE_THE_GARDEN]) {
+        for (const quest of [FORAGE_THE_GARDEN]) {
             expect(quest.tags).toEqual([LOCATION_CASTLE_TAG]);
             expect(bankAcceptsQuest(WOD_POST_CORE_QUEST_BANK, quest), quest.id).toBe(false);
         }
     });
 
-    it('places a dedicated bank for each on the chapter 3 castle map, unlocked by the courtyard and the garden', () => {
+    it('places a dedicated bank on the chapter 3 castle map, unlocked by the garden', () => {
         const ch3 = WorldOfDarknessStoryline.chapters!.find((c) => c.id === 'wod_ch3')!;
-        expect(ch3.questBankIds).toEqual([WOD_RAID_THE_LARDER_BANK_ID, WOD_FORAGE_THE_GARDEN_BANK_ID]);
-        expect(WOD_RAID_THE_LARDER_BANK.questDefId).toBe(RAID_THE_LARDER_QUEST_ID);
+        expect(ch3.questBankIds).toEqual([WOD_FORAGE_THE_GARDEN_BANK_ID]);
         expect(WOD_FORAGE_THE_GARDEN_BANK.questDefId).toBe(FORAGE_THE_GARDEN_QUEST_ID);
-        expect(WOD_RAID_THE_LARDER_BANK.mapPosition).toEqual(castleMapPosition(59.5, 49));
         expect(WOD_FORAGE_THE_GARDEN_BANK.mapPosition).toEqual(castleMapPosition(63, 49));
 
         const banks = WorldOfDarknessStoryline.questSlotBanks ?? [];
         const victory = (missionId: string): MissionResult => ({ missionId, result: 'victory' });
-        expect(isQuestSlotBankUnlocked(WOD_RAID_THE_LARDER_BANK, [], [], banks)).toBe(false);
-        expect(isQuestSlotBankUnlocked(WOD_RAID_THE_LARDER_BANK, [victory(THE_CASTLE_COURTYARD_MISSION_ID)], [], banks)).toBe(true);
         expect(isQuestSlotBankUnlocked(WOD_FORAGE_THE_GARDEN_BANK, [victory(THE_CASTLE_COURTYARD_MISSION_ID)], [], banks)).toBe(false);
         expect(isQuestSlotBankUnlocked(WOD_FORAGE_THE_GARDEN_BANK, [victory(OVERGROWN_GARDEN_MISSION_ID)], [], banks)).toBe(true);
     });
