@@ -38,9 +38,8 @@ const SPIRIT_FLURRY_ABILITY_ID = '0711';
 const FLING_THORN_ABILITY_ID = '0705';
 const BRAMBLE_PATCH_ABILITY_ID = '0706';
 
-/** Max levels for Empower Pet; each level grants +20 pet HP and +2 Dog Bite damage. */
+/** Max levels for Empower Pet; each level grants +2 Dog Bite (pet basic attack) damage. */
 export const EMPOWER_PET_LEVELS = 5;
-export const EMPOWER_PET_MAX_HEALTH_ADD = 100;
 export const EMPOWER_PET_MAX_BITE_DAMAGE_ADD = 10;
 
 export const COMMAND_LOYAL_ATTUNEMENT_COST = 10;

@@ -13,7 +13,6 @@ import {
     commandCoreTree,
     EMPOWER_PET_LEVELS,
     EMPOWER_PET_MAX_BITE_DAMAGE_ADD,
-    EMPOWER_PET_MAX_HEALTH_ADD,
 } from './trees/command_core';
 
 describe('command core research', () => {
@@ -61,7 +60,7 @@ describe('command core research', () => {
         expect(getPetAbilitiesFromResearch(research).get('dog')).toEqual(['0705', '0706']);
     });
 
-    it('Empower Pet (now in Training) scales pet HP and Dog Bite damage per level', () => {
+    it('Empower Pet (now in Training) scales Dog Bite damage per level and no longer adds pet HP', () => {
         const trees = {
             [COMMAND_CORE_TREE_ID]: [COMMAND_CORE_NODE_LOYAL_COMPANION],
             [TRAINING_TREE_ID]: [COMMAND_CORE_NODE_EMPOWER_PET],
@@ -69,9 +68,7 @@ describe('command core research', () => {
         const level1 = computePassiveBonuses(trees, {
             [TRAINING_TREE_ID]: { [COMMAND_CORE_NODE_EMPOWER_PET]: 1 },
         });
-        expect(level1[PassiveStatKey.PetMaxHealth]?.add).toBe(
-            EMPOWER_PET_MAX_HEALTH_ADD / EMPOWER_PET_LEVELS,
-        );
+        expect(level1[PassiveStatKey.PetMaxHealth]).toBeUndefined();
         expect(level1[PassiveStatKey.Ability0701Damage]?.add).toBe(
             EMPOWER_PET_MAX_BITE_DAMAGE_ADD / EMPOWER_PET_LEVELS,
         );
@@ -79,7 +76,6 @@ describe('command core research', () => {
         const levelMax = computePassiveBonuses(trees, {
             [TRAINING_TREE_ID]: { [COMMAND_CORE_NODE_EMPOWER_PET]: EMPOWER_PET_LEVELS },
         });
-        expect(levelMax[PassiveStatKey.PetMaxHealth]?.add).toBe(EMPOWER_PET_MAX_HEALTH_ADD);
         expect(levelMax[PassiveStatKey.Ability0701Damage]?.add).toBe(EMPOWER_PET_MAX_BITE_DAMAGE_ADD);
     });
 });

@@ -19,7 +19,6 @@ import {
     COMMAND_EMPOWER_VIGOR_COST,
     EMPOWER_PET_LEVELS,
     EMPOWER_PET_MAX_BITE_DAMAGE_ADD,
-    EMPOWER_PET_MAX_HEALTH_ADD,
 } from './command_core';
 // Plain data: `senses.ts` only imports `darknessLevels.ts` at runtime, so no engine code comes along.
 import { DARKVISION_GRANT, TREMORSENSE_GRANT } from '../../games/minion_battles/game/visibility/senses';
@@ -267,7 +266,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: TRAINING_NODE_EMPOWER_PET,
             title: 'Empower Pet',
-            description: `+{${EMPOWER_PET_MAX_HEALTH_ADD / EMPOWER_PET_LEVELS}} pet max HP and +{${EMPOWER_PET_MAX_BITE_DAMAGE_ADD / EMPOWER_PET_LEVELS}} Dog Bite damage per level.`,
+            description: `+{${EMPOWER_PET_MAX_BITE_DAMAGE_ADD / EMPOWER_PET_LEVELS}} Pet Basic Attack Damage`,
             flavorText: 'Stronger paws. Sharper teeth.',
             order: 81,
             tier: TRAINING_STATION_TIER,
@@ -286,7 +285,6 @@ export const trainingTree: ResearchTreeDef = {
             effects: [],
             levels: EMPOWER_PET_LEVELS,
             passiveBonus: {
-                [PassiveStatKey.PetMaxHealth]: { add: EMPOWER_PET_MAX_HEALTH_ADD },
                 [PassiveStatKey.Ability0701Damage]: { add: EMPOWER_PET_MAX_BITE_DAMAGE_ADD },
             },
         },
