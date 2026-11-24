@@ -18,6 +18,8 @@ export interface TutorialUnitView {
     hostile: boolean;
     /** Its juggernaut border is showing (it is inside a juggernaut window). */
     inJuggernautWindow: boolean;
+    /** It is enraged (`UnitTag.Enraged`). */
+    enraged: boolean;
 }
 
 /** Where a battle is when tutorials are checked. */
@@ -42,6 +44,7 @@ export function unitMatchesTutorialFilter(unit: TutorialUnitView, filter: Tutori
     if (filter.minStackSize != null && unit.stackSize < filter.minStackSize) return false;
     if (filter.hostile != null && unit.hostile !== filter.hostile) return false;
     if (filter.inJuggernautWindow != null && unit.inJuggernautWindow !== filter.inJuggernautWindow) return false;
+    if (filter.enraged != null && unit.enraged !== filter.enraged) return false;
     return true;
 }
 

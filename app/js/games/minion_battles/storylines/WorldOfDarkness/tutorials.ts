@@ -107,15 +107,33 @@ export const TUTORIAL_CC_RESISTANCE: TutorialDef = {
     steps: [
         {
             text:
-                'This boss is resistant to stuns, knockbacks, and similar effects.\n' +
-                "Weak knockbacks and stuns won't affect it at all, and it will shrug off the first 2 strong effects.",
+                'Stuns, knockbacks and similar effects can crack this boss open.\n' +
+                'Land 3 strong ones and it is exposed, taking double damage. Until then it shrugs off the first 2 strong effects, and weak ones bounce right off.',
             pointAt: { type: 'hudAnchor', anchorId: 'bossCcArmour' },
             advance: { type: 'next' },
         },
         {
-            text: 'Once you hit it with the third crowd control effect, it will be exposed, taking double damage.',
+            text: 'Each strong effect you land fills a circle, so you can see exactly how close you are to the exposed window.',
             pointAt: { type: 'hudAnchor', anchorId: 'bossCcArmour' },
             advance: { type: 'next' },
+        },
+    ],
+};
+
+/** The first time the alpha wolf (mission 005) enrages at low health. Holds the game for this player until dismissed. */
+export const TUTORIAL_ALPHA_ENRAGE: TutorialDef = {
+    id: 'alpha_enrage',
+    knowledgeKey: KNOWLEDGE_TUTORIAL_CC_RESISTANCE,
+    title: 'Enrage',
+    trigger: { type: 'unitOnScreen', unit: { characterId: ENEMY_ALPHA_WOLF.characterId, hostile: true, enraged: true } },
+    pauseGame: true,
+    steps: [
+        {
+            text:
+                'The alpha is nearly beaten, and it has gone into a frenzy! You have it on the ropes.\n' +
+                'It now charges three times in quick succession, so keep moving and finish it off.',
+            pointAt: { type: 'unit', characterId: ENEMY_ALPHA_WOLF.characterId, hostile: true, enraged: true },
+            advance: { type: 'next', label: 'Got it' },
         },
     ],
 };
@@ -206,6 +224,7 @@ export const WORLD_OF_DARKNESS_TUTORIALS: readonly TutorialDef[] = [
     TUTORIAL_CRYSTALS,
     TUTORIAL_STACKED_UNITS,
     TUTORIAL_CC_RESISTANCE,
+    TUTORIAL_ALPHA_ENRAGE,
     TUTORIAL_JUGGERNAUT_FRAMES,
     TUTORIAL_REACTIONS,
     TUTORIAL_COMBOS,

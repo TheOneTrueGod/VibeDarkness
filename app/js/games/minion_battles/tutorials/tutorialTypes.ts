@@ -20,6 +20,8 @@ export interface TutorialUnitFilter {
     hostile?: boolean;
     /** Only units whose juggernaut border is showing now (inside a juggernaut window). */
     inJuggernautWindow?: boolean;
+    /** Only units that are enraged (`UnitTag.Enraged`). */
+    enraged?: boolean;
 }
 
 /** When a tutorial starts. */

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ENEMY_ALPHA_WOLF } from '../constants/enemyConstants';
 import { readTutorialProgress } from '../../../accountKnowledge';
 import {
     findTriggeredTutorial,
@@ -12,6 +13,7 @@ import {
 } from './tutorialLogic';
 import { ABILITY_TIMING_TAG_COLORS } from '../abilities/abilityTimings';
 import {
+    TUTORIAL_ALPHA_ENRAGE,
     TUTORIAL_CC_RESISTANCE,
     TUTORIAL_JUGGERNAUT_FRAMES,
     TUTORIAL_REACTIONS,
@@ -126,9 +128,9 @@ describe('unitOnScreen trigger', () => {
         trigger: { type: 'unitOnScreen', unit: { minStackSize: 2, hostile: true } },
         steps: [{ text: 'A stack of {stackSize}.', advance: { type: 'next' } }],
     };
-    const lone = { characterId: 'wolf', stackSize: 1, hostile: true, inJuggernautWindow: false };
-    const stack = { characterId: 'wolf', stackSize: 3, hostile: true, inJuggernautWindow: false };
-    const alliedStack = { characterId: 'wolf', stackSize: 3, hostile: false, inJuggernautWindow: false };
+    const lone = { characterId: 'wolf', stackSize: 1, hostile: true, inJuggernautWindow: false, enraged: false };
+    const stack = { characterId: 'wolf', stackSize: 3, hostile: true, inJuggernautWindow: false, enraged: false };
+    const alliedStack = { characterId: 'wolf', stackSize: 3, hostile: false, inJuggernautWindow: false, enraged: false };
     const ctx = (unitsOnScreen: typeof lone[]) => ({ missionId: 'any', gameTimeSeconds: 40, unitsOnScreen });
 
     it('fires in any mission, at any time, once a matching unit is on screen', () => {
@@ -163,7 +165,7 @@ describe('juggernaut frames and pauseGame', () => {
         pauseGame: true,
         steps: [{ text: 'This enemy has {Juggernaut} armour.', advance: { type: 'next' } }],
     };
-    const calm = { characterId: 'alpha_wolf', stackSize: 1, hostile: true, inJuggernautWindow: false };
+    const calm = { characterId: 'alpha_wolf', stackSize: 1, hostile: true, inJuggernautWindow: false, enraged: false };
     const braced = { ...calm, inJuggernautWindow: true };
     const ctx = (unitsOnScreen: (typeof calm)[]) => ({ missionId: 'any', gameTimeSeconds: 40, unitsOnScreen });
 
@@ -171,6 +173,14 @@ describe('juggernaut frames and pauseGame', () => {
         expect(findTriggeredTutorial([JUGGERNAUT], {}, ctx([calm]))).toBeNull();
         expect(findTriggeredTutorial([JUGGERNAUT], {}, ctx([calm, braced]))).toEqual({ def: JUGGERNAUT, step: 0 });
         expect(findTriggeredTutorial([JUGGERNAUT], {}, ctx([{ ...braced, hostile: false }]))).toBeNull();
+    });
+
+    it('fires the alpha enrage tutorial only once the alpha is enraged', () => {
+        const alpha = { ...calm, characterId: ENEMY_ALPHA_WOLF.characterId };
+        expect(findTriggeredTutorial([TUTORIAL_ALPHA_ENRAGE], {}, ctx([alpha]))).toBeNull();
+        expect(findTriggeredTutorial([TUTORIAL_ALPHA_ENRAGE], {}, ctx([{ ...alpha, enraged: true }]))?.def).toBe(
+            TUTORIAL_ALPHA_ENRAGE,
+        );
     });
 
     it('can be limited to pauseGame tutorials', () => {

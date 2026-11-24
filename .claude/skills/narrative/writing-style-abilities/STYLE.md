@@ -24,6 +24,18 @@ Good:
 
 Avoid: `Hurl the conjured sword. It spins into the first enemy along its path...` (imagery, and longer than the mechanic needs).
 
+### Keep it positive [Canon]
+
+Keep a positive gaming experience. Focus on the good first, and frame things in terms of positives and bonuses. This applies to tutorials, tooltips and any text that teaches a mechanic.
+
+- Lead with what the player gains or can do, then give the limit.
+- Say what a mechanic rewards ("land 3 strong effects to expose it, taking double damage"), not only what it blocks.
+- Frame a threat as a window of opportunity where it is true ("it is nearly beaten and has gone into a frenzy").
+
+| Before | After |
+|--------|-------|
+| `This boss is resistant to stuns and knockbacks. It shrugs off the first 2 strong effects.` | `Stuns and knockbacks can crack this boss open. Land 3 strong ones and it takes double damage.` |
+
 ### Cut list [Canon]
 
 Delete these on sight:

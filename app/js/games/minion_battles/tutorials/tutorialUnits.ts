@@ -5,6 +5,7 @@
 import type { Camera } from '../game/Camera';
 import type { GameEngine } from '../game/GameEngine';
 import type { Unit } from '../game/units/Unit';
+import { hasUnitTag, UnitTag } from '../game/units/unitTag';
 import { areEnemies, type TeamId } from '../game/teams';
 import { getUnitDetection, isDetectionVisible } from '../game/visibility/teamPerception';
 import { shouldShowJuggernautRing } from '../game/GameRenderer/renderers/juggernautRing';
@@ -24,6 +25,7 @@ export function tutorialUnitView(unit: Unit, localTeamId: TeamId, gameTime: numb
         hostile,
         // The same condition the renderer draws the juggernaut border on.
         inJuggernautWindow: shouldShowJuggernautRing(unit, gameTime, hostile),
+        enraged: hasUnitTag(unit, UnitTag.Enraged),
     };
 }
 
