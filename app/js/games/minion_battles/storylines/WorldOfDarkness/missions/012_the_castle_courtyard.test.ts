@@ -92,6 +92,17 @@ describe('The Castle Courtyard (012)', () => {
         engine.destroy();
     });
 
+    it('spreads dormant wall crystals along the walls', () => {
+        const engine = initMission();
+        const crystals = engine.specialTiles.filter((t) => t.defId === 'WallCrystal');
+        expect(crystals.length).toBeGreaterThan(5);
+        for (const c of crystals) {
+            expect(c.dormant).toBe(true);
+            expect(engine.terrainManager!.grid.isPassable(c.col * CELL_SIZE + 1, c.row * CELL_SIZE + 1)).toBe(false);
+        }
+        engine.destroy();
+    });
+
     it('has both spawners in the courtyard from the start; destroying them wins', () => {
         const engine = initMission();
         step(engine, 2);

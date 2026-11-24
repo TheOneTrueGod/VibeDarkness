@@ -32,6 +32,12 @@ Beyond `radius`: linear falloff contributes to **FireLight** only (same falloff 
 
 A "light emitter" that abilities can target (Devour Light, Lay Hands) is a deployable tagged `lightEmitter`, found via `findDeployables` (see `game/deployables/AGENTS.md`). Light sources carry owner/team; only the caster's team can consume them. Campfires and crystals are listed by `SpecialTileManager` but are ownerless story objects, so abilities never find them. World-modifier lights are likewise ownerless.
 
+## Proximity-activated tiles (wall crystals)
+
+A special tile def with `proximityActivation` (`storylines/specialTileDefs.ts`) starts `dormant`: it emits no light, is not an AI light, defend point or active emitter. `SpecialTileManager.tickProximityActivations` fills `activationProgress` (world time) while a living player-controlled unit is within `radiusTiles` (Chebyshev) and drains it otherwise; at full the tile wakes for good, its `emitsLight` takes over and `special_tile_activated` fires. `SpecialTileRenderer` draws the progress ring for any such tile. A def with `visibleInDarkness` (wall crystals) is drawn above the darkness and fog overlays, so unlit crystals still show in the dark.
+
+`WallCrystal` is the first user: FireLight (lights the way, no DayLight damage), 2 s within 2 tiles. Castle missions spread them along walls with `terrain/mapTools/wallLightSpots.ts` (see `missions/castle/AGENTS.md`).
+
 ## Two-grid design — critical distinction
 
 There are **two separate light grids** with different semantics:

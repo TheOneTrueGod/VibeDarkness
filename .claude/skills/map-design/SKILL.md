@@ -52,6 +52,8 @@ Segments form one large, connected world. A mission picks a few segments out of 
 
 Segments never place lights. They mark **light spots** as `crystal` / `campfire` [points of interest](#points-of-interest); each mission reads those POIs and decides whether to light them, so placement stays consistent across missions.
 
+Exception: chapter 3 castle missions generate dormant wall crystals from the terrain (`terrain/mapTools/wallLightSpots.ts`, see `missions/castle/AGENTS.md`), so castle segments need no light POIs for them.
+
 Keep light spots **sparse** — only where the segment's own feature needs them (a cave, a boss arena).
 
 | Light | Meaning | Use |

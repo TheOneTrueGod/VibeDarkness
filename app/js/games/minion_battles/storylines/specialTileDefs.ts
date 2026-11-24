@@ -5,28 +5,59 @@
  * Each def describes the tile type (image, HP, etc.).
  */
 
-/** Campfire: a tile with hit points and optional light. Light and maxHp are set per placement. */
-export interface CampfireDef {
-    id: 'Campfire';
+import type { SpecialTilePlacement } from './types';
+
+/**
+ * Proximity activation: the tile starts dormant and wakes once player-controlled units have stood
+ * within `radiusTiles` (Chebyshev, grid cells) of it for `durationSeconds` of world time. While
+ * dormant it emits no light (the placement's `emitsLight` waits) and shows a progress ring.
+ * Progress drains at `drainPerSecond` (fraction of the full bar per world second) when nobody is in
+ * range. Activation is one-way and emits `special_tile_activated`.
+ */
+export interface ProximityActivationSpec {
+    radiusTiles: number;
+    durationSeconds: number;
+    /** Fraction of the bar lost per world second with nobody in range. Default: the fill rate. */
+    drainPerSecond?: number;
+}
+
+/** Fields every special tile def may carry. */
+interface SpecialTileDefBase {
     /** SVG image URL (data URL or file URL). */
     image: string;
+    /**
+     * Draw above the darkness and fog overlays, so the tile is seen even where it is unlit
+     * (a landmark the players can find in the dark). Render-only; no effect on light or AI.
+     */
+    visibleInDarkness?: boolean;
+    /** Starts dormant and activates when players stand near it (see `ProximityActivationSpec`). */
+    proximityActivation?: ProximityActivationSpec;
+}
+
+/** Campfire: a tile with hit points and optional light. Light and maxHp are set per placement. */
+export interface CampfireDef extends SpecialTileDefBase {
+    id: 'Campfire';
 }
 
 /** Crystal: indestructible tile; light and maxHp are set per placement in the mission. */
-export interface CrystalDef {
+export interface CrystalDef extends SpecialTileDefBase {
     id: 'Crystal';
-    /** SVG image URL (data URL or file URL). */
-    image: string;
 }
 
 /** Dark Crystal: emits DarkLight; colorFilter creates arena effect. */
-export interface DarkCrystalDef {
+export interface DarkCrystalDef extends SpecialTileDefBase {
     id: 'DarkCrystal';
-    /** SVG image URL (data URL or file URL). */
-    image: string;
 }
 
-export type SpecialTileDef = CampfireDef | CrystalDef | DarkCrystalDef;
+/**
+ * Wall Crystal: a dim crystal set into a wall that lights up once a hero lingers near it
+ * (proximity activation). Its light is FireLight, so it lights the way without hurting dark creatures.
+ */
+export interface WallCrystalDef extends SpecialTileDefBase {
+    id: 'WallCrystal';
+}
+
+export type SpecialTileDef = CampfireDef | CrystalDef | DarkCrystalDef | WallCrystalDef;
 
 /** Inline campfire SVG: two logs and a small flame. */
 const CAMPFIRE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
@@ -70,11 +101,44 @@ const DARK_CRYSTAL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3
 </svg>`;
 const DARK_CRYSTAL_DATA_URL = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(DARK_CRYSTAL_SVG)))}`;
 
+/** Wall crystal SVG (pale amber, matching its FireLight). */
+const WALL_CRYSTAL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <polygon points="16,3 24,14 16,29 8,14" fill="#f5d08a" stroke="#c99a3c" stroke-width="1"/>
+  <polygon points="16,7 20,14 16,23 12,14" fill="#fff1c9" opacity="0.7"/>
+</svg>`;
+const WALL_CRYSTAL_DATA_URL = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(WALL_CRYSTAL_SVG)))}`;
+
+/** Proximity activation for wall crystals: 2 s within 2 tiles. */
+export const WALL_CRYSTAL_ACTIVATION: ProximityActivationSpec = {
+    radiusTiles: 2,
+    durationSeconds: 2,
+};
+
+/** Light a wall crystal gives once awake (full strength within `radius`, then falls off 1 per tile). */
+export const WALL_CRYSTAL_LIGHT_AMOUNT = 6;
+export const WALL_CRYSTAL_LIGHT_RADIUS = 3;
+
+/** Placement fields for a wall crystal (add `col` / `row`). */
+export const WALL_CRYSTAL_TILE_DEFAULTS: Omit<SpecialTilePlacement, 'col' | 'row'> = {
+    defId: 'WallCrystal',
+    emitsLight: {
+        lightAmount: WALL_CRYSTAL_LIGHT_AMOUNT,
+        radius: WALL_CRYSTAL_LIGHT_RADIUS,
+        lightType: 'FireLight',
+    },
+};
+
 /** Registry of special tile definitions by ID. Light and maxHp come from mission placement. */
 export const SPECIAL_TILE_DEFS: Record<string, SpecialTileDef> = {
     Campfire: { id: 'Campfire', image: CAMPFIRE_DATA_URL },
     Crystal: { id: 'Crystal', image: CRYSTAL_DATA_URL },
     DarkCrystal: { id: 'DarkCrystal', image: DARK_CRYSTAL_DATA_URL },
+    WallCrystal: {
+        id: 'WallCrystal',
+        image: WALL_CRYSTAL_DATA_URL,
+        proximityActivation: WALL_CRYSTAL_ACTIVATION,
+        visibleInDarkness: true,
+    },
 };
 
 export function getSpecialTileDef(id: string): SpecialTileDef | undefined {

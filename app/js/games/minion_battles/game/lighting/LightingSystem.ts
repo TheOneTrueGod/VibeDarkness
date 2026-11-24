@@ -155,7 +155,7 @@ export class LightingSystem {
     getLightSourcesForAI(): AILightSource[] {
         const out: AILightSource[] = [];
         for (const tile of this.engine.specialTiles) {
-            if (tile.hp <= 0) continue;
+            if (tile.hp <= 0 || tile.dormant) continue;
             const light = tile.emitsLight;
             if (light != null && tile.maxHp > 0) {
                 const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);

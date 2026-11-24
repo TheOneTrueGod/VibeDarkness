@@ -103,6 +103,17 @@ describe('The Lonely Castle (011)', () => {
         engine.destroy();
     });
 
+    it('spreads dormant wall crystals along the walls', () => {
+        const engine = initMission();
+        const crystals = engine.specialTiles.filter((t) => t.defId === 'WallCrystal');
+        expect(crystals.length).toBeGreaterThan(5);
+        for (const c of crystals) {
+            expect(c.dormant).toBe(true);
+            expect(engine.terrainManager!.grid.isPassable(c.col * CELL_SIZE + 1, c.row * CELL_SIZE + 1)).toBe(false);
+        }
+        engine.destroy();
+    });
+
     it('holds the darkness spawn while the party stays in the cave; leaving onto the road scatters the ambush across the hillside east of the cave', () => {
         const engine = initMission();
         const ofType = (id: string) => engine.units.filter((u) => u.characterId === id && u.isAlive());

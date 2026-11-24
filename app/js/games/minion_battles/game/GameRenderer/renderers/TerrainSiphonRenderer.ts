@@ -6,6 +6,7 @@ import { getUnitDetection, isDetectionVisible } from '../../visibility/teamPerce
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { cssHexToNumber, darkenCssHex, mixCssHex } from '../../../themes/colorUtils';
 import { drawMote } from '../../effects/motes';
+import { strokeClockwiseArc } from './castStateRingVisual';
 import {
     SIPHON_DROPLETS_PER_TILE,
     siphonDrainedFraction,
@@ -78,12 +79,14 @@ export class TerrainSiphonRenderer {
                     const drained = siphonDrainedFraction(terrain.getFloorTile(tile.col, tile.row)?.destructible);
                     g.circle(cx, cy, RING_RADIUS);
                     g.stroke({ color: mass, width: RING_WIDTH + 1.5, alpha: 0.7 });
-                    if (drained > 0.001) {
-                        const start = -Math.PI / 2;
-                        g.moveTo(cx + Math.cos(start) * RING_RADIUS, cy + Math.sin(start) * RING_RADIUS);
-                        g.arc(cx, cy, RING_RADIUS, start, start + drained * Math.PI * 2);
-                        g.stroke({ color: event, width: RING_WIDTH, alpha: 0.95, cap: 'round' });
-                    }
+                    strokeClockwiseArc(
+                        g,
+                        RING_RADIUS,
+                        drained,
+                        { color: event, width: RING_WIDTH, alpha: 0.95, cap: 'round' },
+                        cx,
+                        cy,
+                    );
 
                     for (let k = 0; k < SIPHON_DROPLETS_PER_TILE; k++) {
                         const pose = siphonDropletPose(cx, cy, unit.x, unit.y, wallTimeSec, k, seed);

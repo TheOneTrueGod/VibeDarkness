@@ -12,6 +12,8 @@
  *   that needs all of them;
  * - spawn cadence from a `castleSpawnPresets` preset (waves stop when the exit is reached) and its
  *   opening enemies at the rooms' `enemySpawn` POIs;
+ * - dormant wall crystals spread along the walls (`CASTLE_WALL_CRYSTAL_SPOTS`, placed from the
+ *   composed terrain at battle start; heroes wake them by standing near);
  * - full darkness, and the Mission Map position (the centre of the rooms, or `mapNode`; none for
  *   `mapNode: null`, as quest missions use).
  *
@@ -38,6 +40,8 @@ import type { MapSegmentPOI } from '../../../../terrain/segmentSchema';
 import { CELL_SIZE, type TerrainGrid } from '../../../../terrain/TerrainGrid';
 import { DarknessLevel } from '../../../../game/darknessLevels';
 import { openCellsNear, PARTY_BLOCK_OFFSETS } from '../../../missionSpawnHelpers';
+import { WALL_CRYSTAL_LIGHT_RADIUS, WALL_CRYSTAL_TILE_DEFAULTS } from '../../../specialTileDefs';
+import { wallLightSpots, type WallLightSpotOptions } from '../../../../terrain/mapTools/wallLightSpots';
 import { castleCellMapPosition, castleMapPosition } from '../../chapter3Map';
 import { placeholderBossSetup, type CastleBossSetup } from './castleBosses';
 import {
@@ -108,10 +112,40 @@ export interface CastleMissionConfig {
     startRewards?: { knowledgeKeys?: string[] };
     /** Special tiles (lights, crystals) on mission-global cells, e.g. from `mirrorFourWays`. */
     specialTiles?: readonly SpecialTilePlacement[];
+    /**
+     * Dormant wall crystals along the walls (heroes wake them by standing near). Default
+     * `CASTLE_WALL_CRYSTAL_SPOTS`; pass options to override parts of it, or `false` for none.
+     */
+    wallCrystals?: Partial<WallLightSpotOptions> | false;
     /** Level events added after the preset's waves and before the victory check (e.g. a trigger-gated continuous spawn). */
     levelEvents?: readonly LevelEvent[];
     /** Mission triggers (see `game/triggers/`); level events can gate on them with `afterTrigger`. */
     triggers?: readonly TriggerDef[];
+}
+
+/**
+ * Wall crystal spread for castle rooms: most of the floor lit at full strength, small dark pockets
+ * left between crystals (their falloff still dimly reaches into them).
+ */
+export const CASTLE_WALL_CRYSTAL_SPOTS: Omit<WallLightSpotOptions, 'existingLights'> = {
+    radius: WALL_CRYSTAL_LIGHT_RADIUS,
+    targetCoverage: 0.7,
+    minSpacing: 6,
+    minNewCells: 6,
+};
+
+/** Wall crystal placements for a composed castle map (`wallLightSpots` over its terrain). */
+export function castleWallCrystals(
+    grid: TerrainGrid,
+    options: Omit<WallLightSpotOptions, 'existingLights'> = CASTLE_WALL_CRYSTAL_SPOTS,
+    existing: readonly SpecialTilePlacement[] = [],
+): SpecialTilePlacement[] {
+    const existingLights = existing.filter((t) => t.emitsLight).map((t) => ({ col: t.col, row: t.row }));
+    return wallLightSpots(grid, { ...options, existingLights }).map((cell) => ({
+        ...WALL_CRYSTAL_TILE_DEFAULTS,
+        col: cell.col,
+        row: cell.row,
+    }));
 }
 
 export const CASTLE_EXIT_OBJECTIVE_ID = 'reach_exit';
@@ -240,6 +274,9 @@ export class CastleMission extends BaseMissionDef {
     readonly exitCell: GridCell | null;
     readonly bossCell: GridCell | null;
     private readonly bossSetup: CastleBossSetup | null;
+    /** Special tiles from the config; wall crystals are added to these at battle start. */
+    private readonly configSpecialTiles: readonly SpecialTilePlacement[];
+    private readonly wallCrystalSpots: Omit<WallLightSpotOptions, 'existingLights'> | null;
 
     constructor(config: CastleMissionConfig) {
         super();
@@ -251,7 +288,10 @@ export class CastleMission extends BaseMissionDef {
         this.preMissionStory = config.preMissionStory;
         this.postMissionStory = config.postMissionStory;
         this.startRewards = config.startRewards;
-        if (config.specialTiles?.length) this.specialTiles = [...config.specialTiles];
+        this.configSpecialTiles = config.specialTiles ?? [];
+        if (this.configSpecialTiles.length) this.specialTiles = [...this.configSpecialTiles];
+        this.wallCrystalSpots =
+            config.wallCrystals === false ? null : { ...CASTLE_WALL_CRYSTAL_SPOTS, ...config.wallCrystals };
 
         this.rooms = castleRoomLayout(config.rooms);
         this.mapLayout = this.rooms.layout;
@@ -308,6 +348,12 @@ export class CastleMission extends BaseMissionDef {
     override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
         const grid = params.terrainManager?.grid ?? this.createTerrain();
         this.playerSpawnPoints = openCellsNear(grid, this.entryCell, CASTLE_PARTY_SPAWN_COUNT, PARTY_BLOCK_OFFSETS);
+        // Rebuilt every battle from the composed terrain (the mission def is shared across battles).
+        const wallCrystals = this.wallCrystalSpots
+            ? castleWallCrystals(grid, this.wallCrystalSpots, this.configSpecialTiles)
+            : [];
+        const tiles = [...this.configSpecialTiles, ...wallCrystals];
+        this.specialTiles = tiles.length ? tiles : undefined;
         const pois = params.terrainSegmentPOIs ?? this.composeMap()?.pois ?? [];
         const spawnCells = pois.filter((p) => p.type === 'enemySpawn').map((p) => ({ col: p.col, row: p.row }));
         this.enemies = onOpenGround(grid, [

@@ -248,3 +248,46 @@ describe('defineCastleMission', () => {
     });
 });
 
+describe('castle wall crystals', () => {
+    const wallCrystals = (engine: GameEngine) => engine.specialTiles.filter((t) => t.defId === 'WallCrystal');
+
+    it('spreads dormant wall crystals along the walls, the same every battle', () => {
+        const engine = initMission(WALK);
+        const crystals = wallCrystals(engine);
+        expect(crystals.length).toBeGreaterThan(5);
+        for (const c of crystals) {
+            expect(c.dormant).toBe(true);
+            expect(engine.terrainManager!.grid.isPassable(c.col * CELL_SIZE + 1, c.row * CELL_SIZE + 1)).toBe(false);
+        }
+        const again = initMission(WALK);
+        expect(wallCrystals(again).map((c) => c.id)).toEqual(crystals.map((c) => c.id));
+        engine.destroy();
+        again.destroy();
+    });
+
+    it('wallCrystals: false places none', () => {
+        const engine = initMission(defineCastleMission({ ...WALK_CONFIG_FOR_ERRORS, wallCrystals: false }));
+        expect(wallCrystals(engine)).toEqual([]);
+        engine.destroy();
+    });
+
+    it('a hero standing beside a wall crystal wakes it within a few seconds', () => {
+        const engine = initMission(WALK);
+        const hero = engine.units.find((u) => u.isPlayerControlled())!;
+        const grid = engine.terrainManager!.grid;
+        const centre = (col: number, row: number) => ({ x: col * CELL_SIZE + CELL_SIZE / 2, y: row * CELL_SIZE + CELL_SIZE / 2 });
+        const besideFloor = (c: { col: number; row: number }) =>
+            [[1, 0], [-1, 0], [0, 1], [0, -1]]
+                .map(([dc, dr]) => centre(c.col + dc!, c.row + dr!))
+                .find((p) => grid.isPassable(p.x, p.y));
+        const near = wallCrystals(engine).find((c) => besideFloor(c))!;
+        const spot = besideFloor(near)!;
+        hero.x = spot.x;
+        hero.y = spot.y;
+        expect(near.dormant).toBe(true);
+        for (let i = 0; i < 400 && near.dormant; i++) step(engine, 1);
+        expect(near.dormant).toBe(false);
+        expect(engine.gameTime).toBeGreaterThan(1.95);
+        engine.destroy();
+    });
+});

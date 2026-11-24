@@ -49,7 +49,8 @@ export type GameEventType =
     | 'time_stop_ended'
     | 'world_pace_changed'
     | 'fused_body_telegraph_started'
-    | 'fused_body_reaction_frame';
+    | 'fused_body_reaction_frame'
+    | 'special_tile_activated';
 
 /** Optional combat VFX hint — does not change damage rules. */
 export const DAMAGE_VISUAL_KIND_DAYLIGHT = 'daylight' as const;
@@ -412,6 +413,14 @@ export interface FusedBodyTelegraphStartedEvent {
     secondsLeft: number;
 }
 
+/** A dormant special tile finished its proximity activation (see `ProximityActivationSpec`). */
+export interface SpecialTileActivatedEvent {
+    tileId: string;
+    defId: string;
+    col: number;
+    row: number;
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
     unit_healed: UnitHealedEvent;
@@ -453,6 +462,7 @@ export type GameEventDataMap = {
     fused_body_telegraph_started: FusedBodyTelegraphStartedEvent;
     /** A Reactable fused body's reaction frame opened (`reactionLeadSeconds` before the burst). */
     fused_body_reaction_frame: FusedBodyTelegraphStartedEvent;
+    special_tile_activated: SpecialTileActivatedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

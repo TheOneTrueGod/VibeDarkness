@@ -3,6 +3,7 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { GameEngine } from '../../GameEngine';
 import { getUnitDetection, isDetectionVisible, isPerceptionActive } from '../../visibility/teamPerception';
 import { enemyUnitAlpha } from './visibilityRenderRules';
+import { strokeClockwiseArc } from './castStateRingVisual';
 import type { AssetRegistry } from '../AssetRegistry';
 import type { OverlayRenderer } from './OverlayRenderer';
 import type { TeamId } from '../../teams';
@@ -447,14 +448,10 @@ export class UnitRenderer {
                     const arcR = unit.radius + 8;
                     const remaining = nestState!.nextSpawnAtGameTime - gameTime;
                     const arcProgress = Math.min(1, Math.max(0, 1 - remaining / Math.max(0.1, nestCfg!.spawnIntervalSec)));
-                    const startAngle = -Math.PI / 2;
                     nestSpawnArc.clear();
-                    nestSpawnArc.arc(0, 0, arcR, 0, Math.PI * 2);
+                    nestSpawnArc.circle(0, 0, arcR);
                     nestSpawnArc.stroke({ color: 0x064e3b, width: 2, alpha: 0.5 });
-                    if (arcProgress > 0.01) {
-                        nestSpawnArc.arc(0, 0, arcR, startAngle, startAngle + arcProgress * Math.PI * 2);
-                        nestSpawnArc.stroke({ color: 0x34d399, width: 2 });
-                    }
+                    strokeClockwiseArc(nestSpawnArc, arcR, arcProgress, { color: 0x34d399, width: 2 });
                 } else {
                     if (nestSpawnArc) nestSpawnArc.visible = false;
                 }
@@ -519,15 +516,10 @@ export class UnitRenderer {
             if (arcG) {
                 arcG.clear();
                 const arcRadius = nestRadius + 8;
-                const startAngle = -Math.PI / 2;
 
-                arcG.arc(0, 0, arcRadius, 0, Math.PI * 2);
+                arcG.circle(0, 0, arcRadius);
                 arcG.stroke({ color: 0x064e3b, width: 3, alpha: 0.5 });
-
-                if (progress > 0.01) {
-                    arcG.arc(0, 0, arcRadius, startAngle, startAngle + progress * Math.PI * 2);
-                    arcG.stroke({ color: 0x34d399, width: 3 });
-                }
+                strokeClockwiseArc(arcG, arcRadius, progress, { color: 0x34d399, width: 3 });
             }
         }
 

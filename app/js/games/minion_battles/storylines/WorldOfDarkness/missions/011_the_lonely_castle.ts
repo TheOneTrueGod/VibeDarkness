@@ -27,6 +27,7 @@ import type {
 } from '../../types';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { DarknessLevel } from '../../../game/darknessLevels';
+import { castleWallCrystals } from './castle/castleMission';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
 import { SLIME } from '../../../game/units/dark_animals/slime';
 import {
@@ -258,7 +259,10 @@ export class TheLonelyCastleMission extends BaseMissionDef {
 
     override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
         this.enemies = openingEnemies(engine);
-        this.specialTiles = homeLights(params);
+        const home = homeLights(params);
+        // Dormant wall crystals along the cave, road and gate walls (counting the home lights as lit).
+        const grid = params.terrainManager?.grid ?? this.createTerrain();
+        this.specialTiles = [...home, ...castleWallCrystals(grid, undefined, home)];
         super.initializeGameState(engine, params);
     }
 }

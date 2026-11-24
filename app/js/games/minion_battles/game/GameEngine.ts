@@ -1466,6 +1466,7 @@ export class GameEngine implements EngineContext {
             this.state.unitManager.tickExiledUnits();
             this.state.unitManager.processCrystalAura();
             this.state.specialTileManager.gameTick(this.units, this);
+            this.state.specialTileManager.tickProximityActivations(this.units, worldDt);
         }
     }
 

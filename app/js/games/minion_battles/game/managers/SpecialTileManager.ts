@@ -27,6 +27,11 @@ export class SpecialTileManager implements DeployableProvider {
     }
 
     addSpecialTile(tile: SpecialTile): void {
+        // Tiles whose def has proximity activation start dormant (restored tiles keep their state).
+        if (tile.dormant === undefined && getSpecialTileDef(tile.defId)?.proximityActivation) {
+            tile.dormant = true;
+            tile.activationProgress = 0;
+        }
         this.specialTiles.push(normalizeSpecialTile(tile));
         // Bump navEpoch if this is a crystal (blocks enemy pathfinding).
         if (tile.defId === 'Crystal' && tile.hp > 0) {
@@ -113,6 +118,7 @@ export class SpecialTileManager implements DeployableProvider {
         const sources: LightSource[] = [];
         for (const tile of this.specialTiles) {
             if (tile.hp <= 0) continue;
+            if (tile.dormant) continue; // Dormant tiles give no light until they activate.
             const light = tile.emitsLight;
             if (light != null && tile.maxHp > 0) {
                 const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);
@@ -127,6 +133,46 @@ export class SpecialTileManager implements DeployableProvider {
             }
         }
         return sources;
+    }
+
+    /**
+     * Proximity activation (`ProximityActivationSpec` on the def): each dormant tile fills while a
+     * living player-controlled unit is within `radiusTiles` (Chebyshev) and drains otherwise; at full
+     * it wakes (`dormant` cleared, `emitsLight` takes over) and emits `special_tile_activated`.
+     * `worldDt` is world seconds this tick.
+     */
+    tickProximityActivations(units: readonly Unit[], worldDt: number): void {
+        if (worldDt <= 0) return;
+        const grid = this.ctx.terrainManager?.grid;
+        if (!grid) return;
+        let heroes: { col: number; row: number }[] | null = null;
+        for (const tile of this.specialTiles) {
+            if (!tile.dormant || tile.hp <= 0) continue;
+            const spec = getSpecialTileDef(tile.defId)?.proximityActivation;
+            if (!spec || spec.durationSeconds <= 0) continue;
+            heroes ??= units
+                .filter((u) => u.isAlive() && u.isPlayerControlled())
+                .map((u) => grid.worldToGrid(u.x, u.y));
+            const near = heroes.some(
+                (h) => Math.max(Math.abs(h.col - tile.col), Math.abs(h.row - tile.row)) <= spec.radiusTiles,
+            );
+            const progress = tile.activationProgress ?? 0;
+            const fill = worldDt / spec.durationSeconds;
+            const drain = worldDt * (spec.drainPerSecond ?? 1 / spec.durationSeconds);
+            const next = near ? progress + fill : Math.max(0, progress - drain);
+            if (next >= 1 - 1e-9) {
+                tile.dormant = false;
+                tile.activationProgress = undefined;
+                this.ctx.eventBus.emit('special_tile_activated', {
+                    tileId: tile.id,
+                    defId: tile.defId,
+                    col: tile.col,
+                    row: tile.row,
+                });
+            } else {
+                tile.activationProgress = next;
+            }
+        }
     }
 
     /** Decay special tiles' emitsLight using decayRate + decayInterval (both in rounds). */
@@ -250,7 +296,7 @@ export class SpecialTileManager implements DeployableProvider {
                 kind: 'specialTile',
                 x: pos.x,
                 y: pos.y,
-                active: tile.hp > 0,
+                active: tile.hp > 0 && !tile.dormant,
                 tags: ['lightEmitter'],
             });
         }

@@ -27,6 +27,7 @@ import type {
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { ROUND_DURATION } from '../../../game/gameConstants';
 import { DarknessLevel } from '../../../game/darknessLevels';
+import { castleWallCrystals } from './castle/castleMission';
 import { ENEMY_DARK_WOLF, ENEMY_HUSK, ENEMY_IRON_WARDEN, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
 import { SLIME } from '../../../game/units/dark_animals/slime';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
@@ -237,6 +238,12 @@ export class TheCastleCourtyardMission extends BaseMissionDef {
             swarmNest(NORTHEAST_NEST_CELL),
             ...castleHusks(),
             castleWarden(),
+        ];
+        // Dormant wall crystals along the gate and courtyard walls (the bridge campfire counts as lit).
+        const grid = params.terrainManager?.grid ?? this.createTerrain();
+        this.specialTiles = [
+            ...THE_CASTLE_COURTYARD_SPECIAL_TILES,
+            ...castleWallCrystals(grid, undefined, THE_CASTLE_COURTYARD_SPECIAL_TILES),
         ];
         super.initializeGameState(engine, params);
     }

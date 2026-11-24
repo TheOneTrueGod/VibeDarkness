@@ -27,14 +27,19 @@ export function strokeClockwiseArc(
     g: Graphics,
     radius: number,
     fraction: number,
-    style: { color: number; width: number; alpha?: number },
+    style: { color: number; width: number; alpha?: number; cap?: 'butt' | 'round' | 'square' },
+    cx = 0,
+    cy = 0,
 ): void {
     const f = Math.min(1, Math.max(0, fraction));
     if (f <= 0.005) return;
     if (f >= 0.995) {
-        g.circle(0, 0, radius);
+        g.circle(cx, cy, radius);
     } else {
-        g.arc(0, 0, radius, START_ANGLE, START_ANGLE + f * Math.PI * 2);
+        // Pixi's arc() connects the pen's current point to the arc start; move the pen there first so no
+        // straight "spoke" is drawn from the origin / previous shape to 12 o'clock.
+        g.moveTo(cx + Math.cos(START_ANGLE) * radius, cy + Math.sin(START_ANGLE) * radius);
+        g.arc(cx, cy, radius, START_ANGLE, START_ANGLE + f * Math.PI * 2);
     }
     g.stroke(style);
 }

@@ -48,6 +48,13 @@ export interface SpecialTile {
     protectRadius?: number;
     /** For DarkCrystal: purple color filter. Set from mission placement. */
     colorFilter?: { color: number; alpha: number; filterRadius: number };
+    /**
+     * Waiting for proximity activation (the def's `proximityActivation`): emits no light (its
+     * `emitsLight` waits). Set on add for defs with the spec; cleared when it activates.
+     */
+    dormant?: boolean;
+    /** Proximity activation progress, 0..1, while `dormant`. */
+    activationProgress?: number;
 }
 
 /**
@@ -71,6 +78,8 @@ export function specialTileToJSON(t: SpecialTile): Record<string, unknown> {
     if (t.lightDecayNextAtRound !== undefined) out.lightDecayNextAtRound = t.lightDecayNextAtRound;
     if (t.protectRadius !== undefined) out.protectRadius = t.protectRadius;
     if (t.colorFilter !== undefined) out.colorFilter = t.colorFilter;
+    if (t.dormant !== undefined) out.dormant = t.dormant;
+    if (t.activationProgress !== undefined) out.activationProgress = t.activationProgress;
     return out;
 }
 
@@ -121,6 +130,8 @@ export function specialTileFromJSON(
         lightDecayNextAtRound: data.lightDecayNextAtRound as number | undefined,
         protectRadius: data.protectRadius as number | undefined,
         colorFilter: data.colorFilter as { color: number; alpha: number; filterRadius: number } | undefined,
+        dormant: data.dormant as boolean | undefined,
+        activationProgress: data.activationProgress as number | undefined,
     };
 }
 
@@ -133,6 +144,7 @@ export function specialTileFromJSON(
 export function isTileDefendPoint(tile: SpecialTile): boolean {
     if (tile.defendPoint !== true) return false;
     if (tile.hp <= 0) return false;
+    if (tile.dormant === true) return false;
     if (!tile.emitsLight) return true;
 
     const maxHp = tile.maxHp > 0 ? tile.maxHp : 1;
