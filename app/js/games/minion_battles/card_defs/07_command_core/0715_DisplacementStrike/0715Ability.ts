@@ -1,6 +1,6 @@
 /**
  * Displacement Strike - player command card. The player picks a point round the spirit (an anchored select,
- * `anchorUnit: 'casterPet'`); the spirit splits there into three clones that dash through the enemy at that
+ * `anchorUnit: 'casterPet'`); the spirit splits there into two clones that dash through the enemy at that
  * point, then hunt on their own for a few seconds (pet ability 0716). Same pattern as Fling Thorns (0714 → 0705).
  * Only a free pet that owns 0716 (the real spirit, never a clone) is commanded; with none the cast fizzles.
  */

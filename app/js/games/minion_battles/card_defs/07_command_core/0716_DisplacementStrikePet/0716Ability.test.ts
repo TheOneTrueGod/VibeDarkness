@@ -1,5 +1,5 @@
 /**
- * Displacement Strike (spirit side, 0716): the spirit splits into three clones round the target, which dash
+ * Displacement Strike (spirit side, 0716): the spirit splits into two clones round the target, which dash
  * through it with the spirit, then hunt for their lifetime and fade. A recast replaces the earlier clones.
  */
 import { describe, expect, it } from 'vitest';

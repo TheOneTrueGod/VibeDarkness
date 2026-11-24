@@ -1,7 +1,7 @@
 /**
  * Displacement Strike (spirit side) - the pet ability behind the player's Displacement Strike card (0715).
  *
- * The spirit flickers apart (`CasterSplitFlicker`), then three clones of it appear round the target and the
+ * The spirit flickers apart (`CasterSplitFlicker`), then two clones of it appear round the target and the
  * spirit dashes through it (`DashStrike`). Each clone opens with a Dog Bite (0701, a dash-through strike) on a
  * living enemy target, then hunts on its own: clones are ordinary `spirit_clone` pets of the spirit's owner
  * (`spawnPetForOwner`), with the spirit's abilities and modifiers, so commands can pick them too. They last

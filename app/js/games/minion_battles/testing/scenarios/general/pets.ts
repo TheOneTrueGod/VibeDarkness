@@ -670,24 +670,24 @@ function queuePlayerWaits(engine: GameEngine, untilTick: number): void {
 // ---- Scenario 5: Displacement Strike clones hunt, then fade ----
 
 /**
- * The player plays Displacement Strike (0715) at a fragile dummy; the spirit casts 0716 and three clones appear round
+ * The player plays Displacement Strike (0715) at a fragile dummy; the spirit casts 0716 and two clones appear round
  * it and open on it. The fragile dummy dies quickly, so the clones (autoEngage, 400 px engage leash round the owner)
  * hunt the two sturdy dummies beyond it. After their 6 s they fade; the real spirit stays.
  *
  * Assertions:
- *   1. Exactly 3 clones ever existed.
+ *   1. Exactly 2 clones ever existed.
  *   2. A clone hit the strike target, and a clone hit one of the other dummies (hunting).
  *   3. Past 6 s no clones are alive (the 7.5 s cap fails a lingering clone) and the real spirit is alive.
  */
 export const petDisplacementStrikeClonesHuntScenario: ScenarioDefinition = {
     id: 'pet_displacement_strike_clones_hunt',
-    title: 'Displacement Strike (0715 + 0716): three spirit clones strike the target, hunt other enemies, then fade',
+    title: 'Displacement Strike (0715 + 0716): two spirit clones strike the target, hunt other enemies, then fade',
     category: 'general',
     generalSection: 'Pets',
     maxDurationMs: 7500,
 
     buildEngine() {
-        // The spirit's strike (3) plus two clone bites (1 each) kill it, so the clones must hunt the others.
+        // The spirit's strike (3) plus the two clone bites (1 each) kill it, so the clones must hunt the others.
         const engine = buildDisplacementBattle([DISPLACEMENT_STRIKE_CARD_ID], 5);
         for (const [id, pos] of [['dummyN', { x: 460, y: 100 }], ['dummyS', { x: 460, y: 300 }]] as const) {
             const d = createTargetDummyAtWorld(engine, pos.x, pos.y, { id, hp: 1000 });
