@@ -1,6 +1,6 @@
 /*
  * Miasma — passive gas trail. Every time the Husk steps into a new cell it exhales one cell of
- * `miasma` on the air layer, lasting about a round: on its own cell, or — when that cell already
+ * `miasma` on the air layer, lasting `MIASMA_DURATION_SEC`: on its own cell, or — when that cell already
  * holds miasma — on a random adjacent cell that doesn't. With every neighbour gassed, nothing spawns. The cloud itself (damage, who it hurts) is defined
  * by the `miasma` terrain effect def; this ability only decides where and when it appears.
  */
@@ -8,17 +8,16 @@
 import type { AbilityStatic, AbilityStateEntry } from '../../../abilities/Ability';
 import type { PassiveDef } from '../../../abilities/passiveDef';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
-import { ROUND_DURATION } from '../../../game/gameConstants';
 import {
     MIASMA_DAMAGE,
+    MIASMA_DURATION_SEC,
     MIASMA_EFFECT_TYPE,
     MIASMA_INTERVAL_SEC,
 } from '../../../game/terrainEffects/terrainEffectDefs';
 
 export const MIASMA_ABILITY_ID = `${formatGroupId(AbilityGroupId.EnemyHusk)}02`;
 
-/** How long each exhaled cell lingers, in seconds (one round). */
-export const MIASMA_DURATION_SEC = ROUND_DURATION;
+export { MIASMA_DURATION_SEC };
 /** Neighbourhood searched (Chebyshev cells) when the Husk's own cell already holds miasma. */
 export const MIASMA_SPILLOVER_CELL_RADIUS = 1;
 

@@ -673,7 +673,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         bestiary: { abilityIds: ['1101', '1102', '1103'] },
         baseSpawn: ENEMY_HUSK,
         characterSpriteKey: 'husk',
-        hp: 90,
+        hp: 24,
         speed: 40,
         size: 'Large',
         stamina: 1,

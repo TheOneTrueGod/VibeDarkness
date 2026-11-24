@@ -118,6 +118,8 @@ export interface StandingDamageDef {
 export const MIASMA_DAMAGE = 1;
 /** Seconds between Miasma pulses. */
 export const MIASMA_INTERVAL_SEC = 1;
+/** How long a cell of Miasma lingers, in seconds, whichever Husk ability placed it. */
+export const MIASMA_DURATION_SEC = 4;
 
 /** Frozen Field: damage per pulse to the owner's enemies standing on the ice (fallback; see `damageFromRecord`). */
 export const FROZEN_FIELD_DAMAGE = 4;

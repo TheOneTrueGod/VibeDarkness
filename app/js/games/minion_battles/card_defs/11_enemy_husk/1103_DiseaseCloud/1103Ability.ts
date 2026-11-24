@@ -32,8 +32,7 @@ import type { EngineContext } from '../../../game/EngineContext';
 import type { Projectile } from '../../../game/projectiles/Projectile';
 import type { ResolvedTarget } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
-import { ROUND_DURATION } from '../../../game/gameConstants';
-import { MIASMA_EFFECT_TYPE } from '../../../game/terrainEffects/terrainEffectDefs';
+import { MIASMA_DURATION_SEC, MIASMA_EFFECT_TYPE } from '../../../game/terrainEffects/terrainEffectDefs';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
@@ -50,8 +49,8 @@ export const DISEASE_CLOUD_CELL_RADIUS = 1;
 export const DISEASE_CLOUD_SPACING = CELL_SIZE * (2 * DISEASE_CLOUD_CELL_RADIUS + 1);
 /** How far the line is turned away from the target, so the middle patch lands beside it, not on it. */
 export const DISEASE_CLOUD_ANGLE_RAD = (35 * Math.PI) / 180;
-/** Patches linger longer than the Husk's walking trail (one round) so repeat casts accumulate. */
-export const DISEASE_CLOUD_DURATION_SEC = ROUND_DURATION * 1.5;
+/** Same lifetime as the Husk's walking trail: all miasma lasts `MIASMA_DURATION_SEC`. */
+export const DISEASE_CLOUD_DURATION_SEC = MIASMA_DURATION_SEC;
 export const DISEASE_CLOUD_TARGETING_RANGE = 280;
 /** Inside this the Husk is better off grasping; the cloud is for keeping distance. */
 export const DISEASE_CLOUD_MIN_AI_RANGE = 90;
