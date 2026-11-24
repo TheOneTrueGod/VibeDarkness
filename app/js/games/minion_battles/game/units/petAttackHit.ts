@@ -22,5 +22,6 @@ export function emitPetAttackHit(
         petUnitId: pet.id,
         targetUnitId: target.id,
         abilityId: event.abilityId,
+        temporaryPet: pet.ephemeralDespawnAtGameTime != null,
     });
 }

@@ -335,6 +335,8 @@ export interface PetAttackHitEvent {
     petUnitId: string;
     targetUnitId: string;
     abilityId: string;
+    /** The pet is temporary (it has a despawn time, e.g. a Displacement Strike clone). */
+    temporaryPet: boolean;
 }
 
 export interface UnitSlamLandedEvent {

@@ -1,8 +1,8 @@
 /**
  * Kinship - Command Core resource: how in touch the character is with their spirit companion.
  *
- * Gains {@link KINSHIP_PER_SPIRIT_HIT} each time one of the unit's pets (the spirit, or a
- * Displacement Strike clone) hits an enemy (`pet_attack_hit`, emitted from `attack_hit` in
+ * Gains {@link KINSHIP_PER_SPIRIT_HIT} each time one of the unit's permanent pets (the spirit; not a
+ * temporary pet such as a Displacement Strike clone) hits an enemy (`pet_attack_hit`, emitted from `attack_hit` in
  * `game/units/petAttackHit.ts`). Guard trickles some back over its duration (`ShieldBuff.resourceTrickle`).
  * The Command Core item attaches it with its own max and starting amount (`resourceGrants`).
  * Spent by the Command Core's player command cards (never by the pet's copies of their abilities).
@@ -43,7 +43,8 @@ export class Kinship extends Resource {
 
     protected subscribe(_unit: Unit, eventBus: EventBus): void {
         this.boundOnPetAttackHit = (data: PetAttackHitEvent) => {
-            if (data.ownerUnitId !== this.unitId) return;
+            // Only permanent pets deepen the bond; temporary ones (clones) do not.
+            if (data.ownerUnitId !== this.unitId || data.temporaryPet) return;
             this.add(KINSHIP_PER_SPIRIT_HIT);
         };
         eventBus.on('pet_attack_hit', this.boundOnPetAttackHit);

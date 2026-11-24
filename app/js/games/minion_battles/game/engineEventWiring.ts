@@ -28,6 +28,10 @@ import { registerGuardReturnListener } from '../card_defs/07_command_core/0712_G
 
 export function wireCoreEventListeners(engine: GameEngine): void {
     engine.eventBus.clear();
+    // Clearing drops the listeners resources subscribed when their units were added or restored; re-attach them.
+    for (const unit of [...engine.units, ...engine.state.unitManager.getExiledUnits().map((r) => r.unit)]) {
+        for (const resource of unit.resources) resource.attach(unit, engine.eventBus);
+    }
     engine.state.unitManager.registerListeners();
     engine.state.interruptSystem.registerListeners(engine.eventBus);
     engine.state.worldModifierManager.registerListeners(engine.eventBus);

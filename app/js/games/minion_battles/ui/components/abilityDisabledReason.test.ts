@@ -9,6 +9,8 @@ import { CAST_PRIORITY } from '../../game/units/castPriority';
 import { FLING_THORN_ABILITY_ID } from '../../card_defs/07_command_core/0705_FlingThorn/0705Ability';
 import { FLING_THORN_COMMAND_ID } from '../../card_defs/07_command_core/0714_FlingThornCommand/0714Ability';
 import type { ActiveAbility } from '../../game/types';
+import { EventBus } from '../../game/EventBus';
+import { Kinship } from '../../resources/Kinship';
 
 const THROW_CHARGED_ROCK_ID = 'throw_charged_rock';
 
@@ -58,6 +60,10 @@ describe('no uses remaining on a charge-recovered ability', () => {
 describe('requireFree pet-sourced abilities', () => {
     function scene(withPet = true) {
         const owner = makePlayer(0);
+        // Command cards cost Kinship; a full bar keeps affordability out of these cases.
+        const kinship = new Kinship();
+        kinship.current = kinship.max;
+        owner.attachResource(kinship, new EventBus());
         const units: Unit[] = [owner];
         let pet: Unit | null = null;
         if (withPet) {
