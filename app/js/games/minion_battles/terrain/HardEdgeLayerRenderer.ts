@@ -1,5 +1,7 @@
 import { TerrainLayerRenderer } from './TerrainLayerRenderer';
 import { TerrainType, TERRAIN_PROPERTIES, type HardEdgePatternId } from './TerrainType';
+import { isHardEdgeFamily, resolveVertexOwner } from './cornerOwner';
+import { GRAVEL_CHIP_COLORS, GRAVEL_MAX_TINT_ALPHA, GRAVEL_VARIANTS, gravelCellLook } from './gravelSpeckle';
 
 /** Neighbour terrain visible at rock edges (pixels). */
 const ROCK_BLEED_PX = 2;
@@ -73,7 +75,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
 
     /** Returns true if t should be treated as the same material (no bleed/chamfer/border at shared edge). */
     private isSameFamily(t: TerrainType): boolean {
-        return t === this.terrainType || TERRAIN_PROPERTIES[this.terrainType].hardEdgeFamily.includes(t);
+        return isHardEdgeFamily(this.terrainType, t);
     }
 
     /** Pass 1 — solid base and neighbour bleed strips (drawn for all cells before chamfers). */
@@ -115,16 +117,16 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         }
 
         if (!this.isSameFamily(north) && !this.isSameFamily(west) && north !== west) {
-            this.fillSplitCorner(ctx, x, y, b, TERRAIN_PROPERTIES[west].color, TERRAIN_PROPERTIES[north].color);
+            this.fillSplitCorner(ctx, x, y, b, TERRAIN_PROPERTIES[west].color, TERRAIN_PROPERTIES[north].color, 'main');
         }
         if (!this.isSameFamily(north) && !this.isSameFamily(east) && north !== east) {
-            this.fillSplitCorner(ctx, x + size - b, y, b, TERRAIN_PROPERTIES[north].color, TERRAIN_PROPERTIES[east].color);
+            this.fillSplitCorner(ctx, x + size - b, y, b, TERRAIN_PROPERTIES[north].color, TERRAIN_PROPERTIES[east].color, 'anti');
         }
         if (!this.isSameFamily(south) && !this.isSameFamily(west) && south !== west) {
-            this.fillSplitCorner(ctx, x, y + size - b, b, TERRAIN_PROPERTIES[west].color, TERRAIN_PROPERTIES[south].color);
+            this.fillSplitCorner(ctx, x, y + size - b, b, TERRAIN_PROPERTIES[west].color, TERRAIN_PROPERTIES[south].color, 'anti');
         }
         if (!this.isSameFamily(south) && !this.isSameFamily(east) && south !== east) {
-            this.fillSplitCorner(ctx, x + size - b, y + size - b, b, TERRAIN_PROPERTIES[south].color, TERRAIN_PROPERTIES[east].color);
+            this.fillSplitCorner(ctx, x + size - b, y + size - b, b, TERRAIN_PROPERTIES[south].color, TERRAIN_PROPERTIES[east].color, 'main');
         }
     }
 
@@ -166,7 +168,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
             chamferW, chamferH,
         );
 
-        this.fillChamferUnderlays(ctx, chamferX, chamferY, chamferW, chamferH, chamfer, northWest, northEast, southWest, southEast);
+        this.fillChamferUnderlays(ctx, chamferX, chamferY, chamferW, chamferH, chamfer, col, row, getTypeAt);
 
         ctx.fillStyle = rockColor;
         this.fillChamferedRect(ctx, chamferX, chamferY, chamferW, chamferH, chamfer);
@@ -175,7 +177,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
 
         const pattern = TERRAIN_PROPERTIES[rock].hardEdgePattern;
         if (pattern) {
-            this.drawSurfacePattern(ctx, pattern, x, y, size, row, chamferX, chamferY, chamferW, chamferH, chamfer);
+            this.drawSurfacePattern(ctx, pattern, x, y, size, col, row, chamferX, chamferY, chamferW, chamferH, chamfer);
         }
 
         this.strokeBorders(ctx, x, y, size, chamferX, chamferY, chamferW, chamferH, chamfer, north, south, west, east, northWest, northEast, southWest, southEast);
@@ -228,6 +230,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         tileX: number,
         tileY: number,
         size: number,
+        col: number,
         row: number,
         coreX: number,
         coreY: number,
@@ -236,6 +239,13 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         ch: { nw: number; ne: number; se: number; sw: number },
     ): void {
         switch (pattern) {
+            case 'speckle':
+                ctx.save();
+                this.traceChamferedRect(ctx, coreX, coreY, coreW, coreH, ch);
+                ctx.clip();
+                this.drawSpeckle(ctx, tileX, tileY, size, col, row);
+                ctx.restore();
+                break;
             case 'running-bond':
                 ctx.save();
                 this.traceChamferedRect(ctx, coreX, coreY, coreW, coreH, ch);
@@ -244,6 +254,47 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
                 ctx.restore();
                 break;
         }
+    }
+
+    /**
+     * Gravel speckle: a faint light or dark cell tint, then the cell's chip layout (picked and mirrored by
+     * world cell, see `gravelCellLook`). Chips are round pebbles or five-sided shards.
+     */
+    private drawSpeckle(
+        ctx: CanvasRenderingContext2D,
+        tileX: number,
+        tileY: number,
+        size: number,
+        col: number,
+        row: number,
+    ): void {
+        const look = gravelCellLook(col, row);
+        if (look.tint !== 0) {
+            ctx.fillStyle = look.tint > 0 ? '#ffffff' : '#000000';
+            ctx.globalAlpha = Math.abs(look.tint) * GRAVEL_MAX_TINT_ALPHA;
+            ctx.fillRect(tileX, tileY, size, size);
+        }
+        for (const chip of GRAVEL_VARIANTS[look.variant]) {
+            const cx = tileX + (look.flipX ? 1 - chip.x : chip.x) * size;
+            const cy = tileY + (look.flipY ? 1 - chip.y : chip.y) * size;
+            const radius = chip.r * size;
+            ctx.fillStyle = GRAVEL_CHIP_COLORS[chip.color];
+            ctx.globalAlpha = chip.alpha;
+            ctx.beginPath();
+            if (chip.shard) {
+                chip.shard.forEach((p, i) => {
+                    const px = cx + (look.flipX ? -p.dx : p.dx) * radius;
+                    const py = cy + (look.flipY ? -p.dy : p.dy) * radius;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                });
+                ctx.closePath();
+            } else {
+                ctx.arc(cx, cy, radius * 0.85, 0, Math.PI * 2);
+            }
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
     }
 
     /** Running-bond mortar: a course line every 1/3 cell, joints offset half a brick on alternate courses. */
@@ -536,7 +587,13 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         ctx.stroke();
     }
 
-    /** Paint each chamfer cut-out with the diagonal neighbour colour. */
+    /**
+     * Fill each chamfer cut-out. A cut touches two edge strips (north or south, and west or east).
+     * When those two neighbours differ, the cut is split along the diagonal running out from the
+     * corner, and each half takes the colour of the strip it touches, so the corner reads as one clean
+     * diagonal edge between them. When they match, the whole cut takes the terrain that owns the grid
+     * vertex (`resolveVertexOwner`), e.g. the gravel wrapping a rock, not the grass diagonal behind it.
+     */
     private fillChamferUnderlays(
         ctx: CanvasRenderingContext2D,
         coreX: number,
@@ -544,88 +601,95 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         coreW: number,
         coreH: number,
         ch: { nw: number; ne: number; se: number; sw: number },
-        northWest: TerrainType,
-        northEast: TerrainType,
-        southWest: TerrainType,
-        southEast: TerrainType,
+        col: number,
+        row: number,
+        getTypeAt: (c: number, r: number) => TerrainType,
     ): void {
-        if (ch.nw > 0) this.fillCornerTriangle(ctx, coreX, coreY, ch.nw, TERRAIN_PROPERTIES[northWest].color, 'nw');
-        if (ch.ne > 0) this.fillCornerTriangle(ctx, coreX, coreY, ch.ne, TERRAIN_PROPERTIES[northEast].color, 'ne', coreW);
-        if (ch.se > 0) this.fillCornerTriangle(ctx, coreX, coreY, ch.se, TERRAIN_PROPERTIES[southEast].color, 'se', coreW, coreH);
-        if (ch.sw > 0) this.fillCornerTriangle(ctx, coreX, coreY, ch.sw, TERRAIN_PROPERTIES[southWest].color, 'sw', undefined, coreH);
+        const left = coreX;
+        const top = coreY;
+        const right = coreX + coreW;
+        const bottom = coreY + coreH;
+        const north = getTypeAt(col, row - 1);
+        const south = getTypeAt(col, row + 1);
+        const west = getTypeAt(col - 1, row);
+        const east = getTypeAt(col + 1, row);
+        // dx/dy point from the corner into the core.
+        if (ch.nw > 0) this.fillCornerCut(ctx, left, top, 1, 1, ch.nw, north, west, col, row, getTypeAt);
+        if (ch.ne > 0) this.fillCornerCut(ctx, right, top, -1, 1, ch.ne, north, east, col + 1, row, getTypeAt);
+        if (ch.se > 0) this.fillCornerCut(ctx, right, bottom, -1, -1, ch.se, south, east, col + 1, row + 1, getTypeAt);
+        if (ch.sw > 0) this.fillCornerCut(ctx, left, bottom, 1, -1, ch.sw, south, west, col, row + 1, getTypeAt);
     }
 
-    private fillCornerTriangle(
+    /**
+     * One chamfer cut: the right triangle at core corner (px, py) with legs of `size` running into the
+     * core (dx, dy). The horizontal leg borders the north/south strip (`stripAbove`), the vertical leg the
+     * west/east strip (`stripBeside`). See `fillChamferUnderlays`.
+     */
+    private fillCornerCut(
         ctx: CanvasRenderingContext2D,
-        coreX: number,
-        coreY: number,
+        px: number,
+        py: number,
+        dx: 1 | -1,
+        dy: 1 | -1,
         size: number,
+        stripAbove: TerrainType,
+        stripBeside: TerrainType,
+        vx: number,
+        vy: number,
+        getTypeAt: (c: number, r: number) => TerrainType,
+    ): void {
+        const hx = px + dx * size;
+        const vyEnd = py + dy * size;
+        if (stripAbove === stripBeside) {
+            this.fillTriangle(ctx, TERRAIN_PROPERTIES[resolveVertexOwner(vx, vy, getTypeAt)].color, px, py, hx, py, px, vyEnd);
+            return;
+        }
+        const mx = px + (dx * size) / 2;
+        const my = py + (dy * size) / 2;
+        this.fillTriangle(ctx, TERRAIN_PROPERTIES[stripAbove].color, px, py, hx, py, mx, my);
+        this.fillTriangle(ctx, TERRAIN_PROPERTIES[stripBeside].color, px, py, px, vyEnd, mx, my);
+    }
+
+    private fillTriangle(
+        ctx: CanvasRenderingContext2D,
         color: string,
-        corner: 'nw' | 'ne' | 'se' | 'sw',
-        coreW?: number,
-        coreH?: number,
+        ax: number,
+        ay: number,
+        bx: number,
+        by: number,
+        cx: number,
+        cy: number,
     ): void {
         ctx.fillStyle = color;
         ctx.beginPath();
-        switch (corner) {
-            case 'nw':
-                ctx.moveTo(coreX, coreY);
-                ctx.lineTo(coreX + size, coreY);
-                ctx.lineTo(coreX, coreY + size);
-                break;
-            case 'ne': {
-                const right = coreX + (coreW ?? 0);
-                ctx.moveTo(right, coreY);
-                ctx.lineTo(right - size, coreY);
-                ctx.lineTo(right, coreY + size);
-                break;
-            }
-            case 'se': {
-                const right = coreX + (coreW ?? 0);
-                const bottom = coreY + (coreH ?? 0);
-                ctx.moveTo(right, bottom);
-                ctx.lineTo(right - size, bottom);
-                ctx.lineTo(right, bottom - size);
-                break;
-            }
-            case 'sw': {
-                const bottom = coreY + (coreH ?? 0);
-                ctx.moveTo(coreX, bottom);
-                ctx.lineTo(coreX + size, bottom);
-                ctx.lineTo(coreX, bottom - size);
-                break;
-            }
-        }
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.lineTo(cx, cy);
         ctx.closePath();
         ctx.fill();
     }
 
     /**
-     * Fill a corner bleed square with two triangles when neighbours differ.
-     * Upper-left triangle = colorA, lower-right triangle = colorB.
+     * Fill a corner bleed square with two triangles when neighbours differ. The split runs along the
+     * diagonal through the tile corner (so it lines up with the chamfer split): `'anti'` for the NE and SW
+     * corners, `'main'` for NW and SE. `leftColor` fills the triangle touching the square's left edge,
+     * `rightColor` the one touching its right edge.
      */
     private fillSplitCorner(
         ctx: CanvasRenderingContext2D,
         cx: number,
         cy: number,
         b: number,
-        colorA: string,
-        colorB: string,
+        leftColor: string,
+        rightColor: string,
+        diagonal: 'anti' | 'main',
     ): void {
-        ctx.fillStyle = colorA;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + b, cy);
-        ctx.lineTo(cx, cy + b);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = colorB;
-        ctx.beginPath();
-        ctx.moveTo(cx + b, cy);
-        ctx.lineTo(cx + b, cy + b);
-        ctx.lineTo(cx, cy + b);
-        ctx.closePath();
-        ctx.fill();
+        if (diagonal === 'anti') {
+            this.fillTriangle(ctx, leftColor, cx, cy, cx + b, cy, cx, cy + b);
+            this.fillTriangle(ctx, rightColor, cx + b, cy, cx + b, cy + b, cx, cy + b);
+        } else {
+            this.fillTriangle(ctx, leftColor, cx, cy, cx, cy + b, cx + b, cy + b);
+            this.fillTriangle(ctx, rightColor, cx, cy, cx + b, cy, cx + b, cy + b);
+        }
     }
 }

@@ -3,6 +3,7 @@
  * `terrain_stone_damaged` event, e.g. rock raised by `createOrMarkRock` (Rock Slide landing,
  * Stone Tomb) or rock removed by a checkpoint restore.
  */
+import { GRAVEL_CHIP_COLORS } from './gravelSpeckle';
 import { describe, expect, it, vi, beforeAll, afterAll } from 'vitest';
 
 const textureUpdate = vi.fn();
@@ -184,6 +185,23 @@ function jointsAt(strokes: StrokeRecord[], top: number): number[] {
         .map((seg) => seg[0]);
 }
 
+describe('Gravel rendering', () => {
+    const cs = CELL_SIZE;
+
+    it('fills Gravel in its own colour and draws speckle chips; Rock has none', () => {
+        const getTypeAt = typeMap([[1, 1, TerrainType.Gravel], [3, 1, TerrainType.Rock]]);
+
+        const gravel = makeRecordingContext();
+        new HardEdgeLayerRenderer(TerrainType.Gravel).drawCell(gravel.ctx, cs, cs, cs, 1, 1, getTypeAt);
+        expect(gravel.fills).toContain(TERRAIN_PROPERTIES[TerrainType.Gravel].color);
+        expect(gravel.fills.filter((f) => GRAVEL_CHIP_COLORS.includes(f)).length).toBeGreaterThanOrEqual(5);
+
+        const rock = makeRecordingContext();
+        new HardEdgeLayerRenderer(TerrainType.Rock).drawCell(rock.ctx, 3 * cs, cs, cs, 3, 1, getTypeAt);
+        expect(rock.fills.some((f) => GRAVEL_CHIP_COLORS.includes(f))).toBe(false);
+    });
+});
+
 describe('Brick rendering', () => {
     const cs = CELL_SIZE;
 
@@ -264,5 +282,127 @@ describe('Brick rendering', () => {
         const relevant = [TerrainType.Gravel, TerrainType.Rock, TerrainType.Brick];
         expect(drawnTypes.filter((t) => relevant.includes(t))).toEqual(relevant);
         draw.mockRestore();
+    });
+});
+
+describe('Hard-edge corner cuts', () => {
+    const cs = CELL_SIZE;
+
+    it('fills a rock corner cut with the gravel wrapping it, not the grass diagonal', () => {
+        // Rock at (1,1) inside a gravel cross; grass on all four diagonals.
+        const getTypeAt = typeMap([
+            [1, 0, TerrainType.Gravel],
+            [0, 1, TerrainType.Gravel],
+            [2, 1, TerrainType.Gravel],
+            [1, 2, TerrainType.Gravel],
+            [1, 1, TerrainType.Rock],
+        ]);
+        const rock = makeRecordingContext();
+        new HardEdgeLayerRenderer(TerrainType.Rock).drawCell(rock.ctx, cs, cs, cs, 1, 1, getTypeAt);
+        expect(rock.fills).not.toContain(TERRAIN_PROPERTIES[TerrainType.Grass].color);
+    });
+
+    it('does not fill a rock corner cut with a diagonal rock that cuts the same corner', () => {
+        const getTypeAt = typeMap([[1, 1, TerrainType.Rock], [2, 2, TerrainType.Rock]]);
+        const rock = makeRecordingContext();
+        new HardEdgeLayerRenderer(TerrainType.Rock).drawCell(rock.ctx, cs, cs, cs, 1, 1, getTypeAt);
+        const rockColor = TERRAIN_PROPERTIES[TerrainType.Rock].color;
+        // Only the base fill, the chamfered core and nothing else is rock-coloured.
+        expect(rock.fills.filter((f) => f === rockColor).length).toBe(2);
+    });
+
+    it('repaints cells two away when a tile changes, since corner owners read that far', () => {
+        const tm = makeTerrainManager();
+        const renderer = new TerrainRenderer();
+        renderer.buildSprite(tm);
+        const repaint = vi.spyOn(renderer as unknown as { repaintCell: () => void }, 'repaintCell');
+
+        tm.createOrMarkRock(3, 2);
+        renderer.update(tm);
+
+        expect(repaintedCells(repaint)).toEqual(expect.arrayContaining(['3,0', '1,2', '5,2', '3,4', '1,1', '5,3']));
+    });
+});
+
+/**
+ * A 2D context that records every fill (rects and paths) so tests can ask which colour ends up
+ * at a point. Clipping, strokes and alpha are ignored.
+ */
+function makeSamplingContext(): { ctx: CanvasRenderingContext2D; colourAt: (px: number, py: number) => string } {
+    const shapes: Array<{ color: string; poly: Array<[number, number]> }> = [];
+    let path: Array<[number, number]> = [];
+    const target: Record<string, unknown> = {
+        fillStyle: '',
+        beginPath: () => {
+            path = [];
+        },
+        moveTo: (x: number, y: number) => path.push([x, y]),
+        lineTo: (x: number, y: number) => path.push([x, y]),
+        fill: () => shapes.push({ color: String(target.fillStyle), poly: path.slice() }),
+        fillRect: (x: number, y: number, w: number, h: number) =>
+            shapes.push({ color: String(target.fillStyle), poly: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]] }),
+    };
+    const ctx = new Proxy(target, {
+        get: (t, prop: string) => (prop in t ? t[prop] : () => {}),
+        set: (t, prop: string, value) => {
+            t[prop] = value;
+            return true;
+        },
+    }) as unknown as CanvasRenderingContext2D;
+    const inside = (poly: Array<[number, number]>, px: number, py: number): boolean => {
+        let hit = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+            const [xi, yi] = poly[i];
+            const [xj, yj] = poly[j];
+            if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) hit = !hit;
+        }
+        return hit;
+    };
+    const colourAt = (px: number, py: number): string => {
+        for (let i = shapes.length - 1; i >= 0; i--) if (inside(shapes[i].poly, px, py)) return shapes[i].color;
+        return '';
+    };
+    return { ctx, colourAt };
+}
+
+describe('Hard-edge corners between two different neighbours', () => {
+    const cs = CELL_SIZE;
+    const grass = TERRAIN_PROPERTIES[TerrainType.Grass].color;
+    const dirt = TERRAIN_PROPERTIES[TerrainType.Dirt].color;
+    // Rock at (2,2): dirt north and east, grass west and south.
+    const rows = ['ggggg', 'ddddg', 'dgrdg', 'ddgdg', 'ggggg'];
+    const getTypeAt = (c: number, r: number): TerrainType => {
+        const ch = rows[r]?.[c];
+        return ch === 'd' ? TerrainType.Dirt : ch === 'r' ? TerrainType.Rock : TerrainType.Grass;
+    };
+
+    function drawRock(): (px: number, py: number) => string {
+        const { ctx, colourAt } = makeSamplingContext();
+        new HardEdgeLayerRenderer(TerrainType.Rock).drawCell(ctx, 2 * cs, 2 * cs, cs, 2, 2, getTypeAt);
+        return colourAt;
+    }
+
+    it('splits a mixed corner cut: each half matches the edge strip it touches', () => {
+        const colourAt = drawRock();
+        const x = 2 * cs;
+        const y = 2 * cs;
+        // Top-left cut (inner corner at x+2, y+2): west strip is grass, north strip is dirt.
+        expect(colourAt(x + 2.5, y + 4.5)).toBe(grass);
+        expect(colourAt(x + 4.5, y + 2.5)).toBe(dirt);
+        // Bottom-right cut (inner corner at x+38, y+38): south strip is grass, east strip is dirt.
+        expect(colourAt(x + 35.5, y + 37.5)).toBe(grass);
+        expect(colourAt(x + 37.5, y + 35.5)).toBe(dirt);
+    });
+
+    it('splits the 2px strip corner square along the same diagonal as the cut', () => {
+        const colourAt = drawRock();
+        const x = 2 * cs;
+        const y = 2 * cs;
+        // Top-left square: above the diagonal touches the north strip, below it the west strip.
+        expect(colourAt(x + 1.2, y + 0.4)).toBe(dirt);
+        expect(colourAt(x + 0.4, y + 1.2)).toBe(grass);
+        // Bottom-right square: above the diagonal touches the east strip, below it the south strip.
+        expect(colourAt(x + cs - 0.8, y + cs - 1.6)).toBe(dirt);
+        expect(colourAt(x + cs - 1.6, y + cs - 0.8)).toBe(grass);
     });
 });

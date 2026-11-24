@@ -1,5 +1,6 @@
 import { TerrainLayerRenderer } from './TerrainLayerRenderer';
 import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
+import { LAYER_ORDER } from './terrainLayerOrder';
 
 /** Four cells that share vertex (vx, vy): NW, NE, SW, SE. */
 const VERTEX_CELL_OFFSETS = [
@@ -55,6 +56,10 @@ function cellTouchesBlocker(
  * vertex is ignored so the grass/dirt triangle sits on the open side of the cell
  * (horizontally opposite the wall), not against the rock face.
  *
+ * Wrap: at a vertex on a rock corner, if both of this cell's sides at that vertex are
+ * `terrainType`, the layer wraps around the rock and covers the corner. Without this, a
+ * tile diagonal to the rock keeps a sliver of its own terrain pointing at the rock.
+ *
  * Out-of-bounds cells are neither a type match nor a wall (the map edge is not a
  * rendered rock face). Pass `isInBounds` so OOB Rock from TerrainGrid.get is ignored.
  */
@@ -69,6 +74,18 @@ export function marchingSquareCase(
 
     const huggingBlocker =
         getTypeAt(col, row) !== terrainType && cellTouchesBlocker(col, row, getTypeAt, inGrid);
+
+    /** Both of this cell's sides at vertex (vx, vy) are `terrainType`. */
+    const wrapsRockCorner = (vx: number, vy: number): boolean => {
+        const sideCol = vx === col ? col - 1 : col + 1;
+        const sideRow = vy === row ? row - 1 : row + 1;
+        return (
+            inGrid(col, sideRow) &&
+            inGrid(sideCol, row) &&
+            getTypeAt(col, sideRow) === terrainType &&
+            getTypeAt(sideCol, row) === terrainType
+        );
+    };
 
     const vertexInside = (vx: number, vy: number): boolean => {
         let hasType = false;
@@ -93,6 +110,7 @@ export function marchingSquareCase(
             }
         }
 
+        if (hasBlocker && wrapsRockCorner(vx, vy)) return true;
         if (huggingBlocker) {
             // Ignore dirt that shares a vertex with the rock so the triangle is
             // the horizontal mirror of a rock-adjacent corner (open side of the cell).
@@ -112,6 +130,32 @@ export function marchingSquareCase(
     const bl = vertexInside(col, row + 1) ? MARCHING_SQUARE_BL : 0;
     return tl | tr | br | bl;
 }
+
+/**
+ * True when soft layers above the cell's own type would cover all four of its corners between
+ * them. Such a cell (a lone shallow tile in water, a one-tile strip of grass between dirt rows)
+ * would vanish, so `drawCellCase` paints those layers as separate corner triangles instead,
+ * leaving the cell's own terrain as a diamond between its edge midpoints.
+ */
+export function isCellFullyCoveredByHigherLayers(
+    col: number,
+    row: number,
+    getTypeAt: (c: number, r: number) => TerrainType,
+    isInBounds?: (c: number, r: number) => boolean,
+): boolean {
+    const ownRank = LAYER_ORDER.indexOf(getTypeAt(col, row));
+    if (ownRank < 0) return false;
+    let covered = MARCHING_SQUARE_NONE;
+    for (let i = ownRank + 1; i < LAYER_ORDER.length; i++) {
+        const layer = LAYER_ORDER[i];
+        if (TERRAIN_PROPERTIES[layer].renderStrategy !== 'marching-squares') continue;
+        covered |= marchingSquareCase(col, row, layer, getTypeAt, isInBounds);
+        if (covered === MARCHING_SQUARE_ALL) return true;
+    }
+    return false;
+}
+
+const SINGLE_CORNER_CASES = [MARCHING_SQUARE_TL, MARCHING_SQUARE_TR, MARCHING_SQUARE_BR, MARCHING_SQUARE_BL] as const;
 
 export class MarchingSquaresLayerRenderer extends TerrainLayerRenderer {
     override readonly blocksBleed = false;
@@ -142,7 +186,7 @@ export class MarchingSquaresLayerRenderer extends TerrainLayerRenderer {
                 if (TERRAIN_PROPERTIES[getTypeAt(col, row)].blocksBleed) continue;
                 const caseIdx = marchingSquareCase(col, row, terrainType, getTypeAt, isInBounds);
                 if (caseIdx === MARCHING_SQUARE_NONE) continue;
-                this.drawMarchingCase(ctx, col * cs, row * cs, cs, caseIdx);
+                this.drawCellCase(ctx, col * cs, row * cs, cs, col, row, caseIdx, getTypeAt, isInBounds);
             }
         }
     }
@@ -173,7 +217,34 @@ export class MarchingSquaresLayerRenderer extends TerrainLayerRenderer {
         if (caseIdx === MARCHING_SQUARE_NONE) return;
 
         ctx.fillStyle = TERRAIN_PROPERTIES[this.terrainType].color;
-        this.drawMarchingCase(ctx, x, y, _cellSize, caseIdx);
+        this.drawCellCase(ctx, x, y, _cellSize, col, row, caseIdx, getTypeAt, isInBounds);
+    }
+
+    /**
+     * Draw this layer's case on a cell. On a cell of another type that higher layers would cover
+     * completely, draw each corner as its own triangle so the cell keeps its own diamond.
+     */
+    private drawCellCase(
+        ctx: CanvasRenderingContext2D,
+        x: number,
+        y: number,
+        s: number,
+        col: number,
+        row: number,
+        caseIdx: number,
+        getTypeAt: (c: number, r: number) => TerrainType,
+        isInBounds: (c: number, r: number) => boolean,
+    ): void {
+        if (
+            getTypeAt(col, row) !== this.terrainType &&
+            isCellFullyCoveredByHigherLayers(col, row, getTypeAt, isInBounds)
+        ) {
+            for (const corner of SINGLE_CORNER_CASES) {
+                if (caseIdx & corner) this.drawMarchingCase(ctx, x, y, s, corner);
+            }
+            return;
+        }
+        this.drawMarchingCase(ctx, x, y, s, caseIdx);
     }
 
     /**

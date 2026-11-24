@@ -19,25 +19,15 @@ import type { TerrainManager } from './TerrainManager';
 import type { TerrainLayerRenderer } from './TerrainLayerRenderer';
 import { MarchingSquaresLayerRenderer } from './MarchingSquaresLayerRenderer';
 import { HardEdgeLayerRenderer } from './HardEdgeLayerRenderer';
+import { LAYER_ORDER } from './terrainLayerOrder';
+
+export { LAYER_ORDER };
 
 /**
- * Render order: layers are drawn bottom to top so higher-priority
- * terrain types paint over lower ones.
- * Rock and its variants last so grass/thick grass edges do not paint over stone.
+ * Cells around a changed tile that are repainted. Corner owners (`cornerOwner.ts`) read a vertex's four
+ * cells and each of their sides, so a change can alter corner cuts up to two cells away.
  */
-export const LAYER_ORDER: readonly TerrainType[] = [
-    TerrainType.Grass,
-    TerrainType.ThickGrass,
-    TerrainType.Tangle,
-    TerrainType.Dirt,
-    TerrainType.ShallowWater,
-    TerrainType.Water,
-    TerrainType.DeepWater,
-    TerrainType.Gravel,
-    TerrainType.Rock,
-    TerrainType.Brick,
-    TerrainType.Briar,
-];
+const REPAINT_RADIUS = 2;
 
 function cellKey(col: number, row: number): string {
     return `${col},${row}`;
@@ -145,12 +135,12 @@ export class TerrainRenderer {
     }
 
     /**
-     * Mark a tile and its 3×3 neighbourhood as needing a redraw.
+     * Mark a tile and its neighbourhood (`REPAINT_RADIUS`) as needing a redraw.
      * Call when a floor tile changes effective terrain (e.g. rock → rubble).
      */
     invalidateTile(col: number, row: number): void {
-        for (let dr = -1; dr <= 1; dr++) {
-            for (let dc = -1; dc <= 1; dc++) {
+        for (let dr = -REPAINT_RADIUS; dr <= REPAINT_RADIUS; dr++) {
+            for (let dc = -REPAINT_RADIUS; dc <= REPAINT_RADIUS; dc++) {
                 const nc = col + dc;
                 const nr = row + dr;
                 if (nc >= 0 && nc < this.gridWidth && nr >= 0 && nr < this.gridHeight) {

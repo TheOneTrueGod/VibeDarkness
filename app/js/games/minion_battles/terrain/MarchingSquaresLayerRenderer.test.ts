@@ -8,6 +8,8 @@ import {
     MARCHING_SQUARE_NONE,
     MARCHING_SQUARE_TL,
     MARCHING_SQUARE_TR,
+    MarchingSquaresLayerRenderer,
+    isCellFullyCoveredByHigherLayers,
     marchingSquareCase,
 } from './MarchingSquaresLayerRenderer';
 
@@ -100,5 +102,89 @@ describe('marchingSquareCase dirt bleed', () => {
             [R, R, R],
         ];
         expect(dirtCase(southRock, 0, 1)).toBe(MARCHING_SQUARE_TR);
+    });
+});
+
+describe('marchingSquareCase wrap around a rock corner', () => {
+    const W = TerrainType.Water;
+    const S = TerrainType.ShallowWater;
+
+    it('covers the corner of a tile diagonal to a rock when the layer is on both of its sides there', () => {
+        const cells = [
+            [W, W, W],
+            [W, S, W],
+            [R, W, W],
+        ];
+        const { getTypeAt, isInBounds } = gridLookup(cells);
+        expect(marchingSquareCase(1, 1, W, getTypeAt, isInBounds)).toBe(MARCHING_SQUARE_ALL);
+    });
+
+    it('does not wrap when only one side of the tile at the rock corner is that layer', () => {
+        const cells = [
+            [W, W, W],
+            [S, S, W],
+            [R, W, W],
+        ];
+        const { getTypeAt, isInBounds } = gridLookup(cells);
+        expect(marchingSquareCase(1, 1, W, getTypeAt, isInBounds) & MARCHING_SQUARE_BL).toBe(0);
+    });
+});
+
+describe('lone soft tiles stay visible', () => {
+    const W = TerrainType.Water;
+    const S = TerrainType.ShallowWater;
+
+    /** Counts fill() calls; everything else is a no-op. */
+    function countingContext(): { ctx: CanvasRenderingContext2D; fills: () => number } {
+        let fills = 0;
+        const target: Record<string, unknown> = { fill: () => fills++ };
+        const ctx = new Proxy(target, {
+            get: (t, prop: string) => (prop in t ? t[prop] : () => {}),
+            set: (t, prop: string, value) => {
+                t[prop] = value;
+                return true;
+            },
+        }) as unknown as CanvasRenderingContext2D;
+        return { ctx, fills: () => fills };
+    }
+
+    it('reports a tile whose four corners all go to higher layers', () => {
+        const lone = gridLookup([
+            [W, W, W],
+            [W, S, W],
+            [W, W, W],
+        ]);
+        expect(isCellFullyCoveredByHigherLayers(1, 1, lone.getTypeAt, lone.isInBounds)).toBe(true);
+
+        const pair = gridLookup([
+            [W, W, W, W],
+            [W, S, S, W],
+            [W, S, S, W],
+            [W, W, W, W],
+        ]);
+        expect(isCellFullyCoveredByHigherLayers(1, 1, pair.getTypeAt, pair.isInBounds)).toBe(false);
+    });
+
+    it('paints a fully covered tile as four corner triangles, leaving its own diamond', () => {
+        const lone = gridLookup([
+            [W, W, W],
+            [W, S, W],
+            [W, W, W],
+        ]);
+        const { ctx, fills } = countingContext();
+        new MarchingSquaresLayerRenderer(W).drawCell(ctx, 40, 40, 40, 1, 1, lone.getTypeAt, 3, 3);
+        expect(fills()).toBe(4);
+    });
+
+    it('paints a tile in a 2x2 patch as one shape, as before', () => {
+        const pair = gridLookup([
+            [W, W, W, W],
+            [W, S, S, W],
+            [W, S, S, W],
+            [W, W, W, W],
+        ]);
+        const { ctx, fills } = countingContext();
+        new MarchingSquaresLayerRenderer(W).drawCell(ctx, 40, 40, 40, 1, 1, pair.getTypeAt, 4, 4);
+        expect(fills()).toBe(1);
     });
 });

@@ -63,9 +63,10 @@ export type TerrainRenderStrategy = 'marching-squares' | 'hard-edge';
 
 /**
  * Surface pattern a `hard-edge` layer draws over its fill, inside the cell core (drawn by
- * `HardEdgeLayerRenderer`). `running-bond`: brick courses with joints offset half a brick.
+ * `HardEdgeLayerRenderer`). `running-bond`: brick courses with joints offset half a brick. `speckle`: stone
+ * chips and a faint per-cell tint, varied by world cell so the tile grid does not repeat (`gravelSpeckle.ts`).
  */
-export type HardEdgePatternId = 'running-bond';
+export type HardEdgePatternId = 'running-bond' | 'speckle';
 
 /** Health of one Briar tile. */
 export const BRIAR_HEALTH = 30;
@@ -232,7 +233,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
     },
     [TerrainType.Gravel]: {
         name: 'Gravel',
-        color: '#6b5b4f',
+        // Pale limestone: a warm sandy base, with the speckle pattern below adding lighter and darker chips.
+        color: '#9a8c72',
         passable: true,
         forcedMovementPassable: true,
         speedMultiplier: 0.85,
@@ -244,6 +246,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         renderStrategy: 'hard-edge',
         blocksBleed: true,
         hardEdgeFamily: [TerrainType.Rock, TerrainType.Brick],
+        hardEdgePattern: 'speckle',
     },
     [TerrainType.Impassable]: {
         name: 'Impassable',

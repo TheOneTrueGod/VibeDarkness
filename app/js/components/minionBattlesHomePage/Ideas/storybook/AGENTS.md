@@ -26,6 +26,6 @@ Use a link like this to check a visual change, instead of a throwaway preview pa
 
 ## Entries
 
-Current entries: **Resources** (cost badges and in-game bars at several fills; `resource` search), **Research Cards** (tree colours, Upgrades nameplates, node cards; `node` search over title, id and description text, `pin` draws each card's tooltip open beside it via `ResearchNodeCard`'s `tooltipMode="pinned"`, `level`) and **Garden Heart** (every look option from the garden boss artbook, with the selected palette and Heart style marked; the option lists live in `fxArt/gardenHeartArt.tsx`, so a plan can keep only the chosen option).
+Current entries: **Resources** (cost badges and in-game bars at several fills; `resource` search), **Research Cards** (tree colours, Upgrades nameplates, node cards; `node` search over title, id and description text, `pin` draws each card's tooltip open beside it via `ResearchNodeCard`'s `tooltipMode="pinned"`, `level`) **Terrain** (gravel, dirt, grass, rock and brick on the real `HardEdgeLayerRenderer`; `layout`, `zoom`) and **Garden Heart** (every look option from the garden boss artbook, with the selected palette and Heart style marked; the option lists live in `fxArt/gardenHeartArt.tsx`, so a plan can keep only the chosen option).
 
 Good next entries: ability cards (`AbilitySlot` / hand cards, modes, costs), research-tree effects (`ResearchAbilityPreview`, node states), tooltips, and any new reusable component. Add a file under `entries/` and list it in `storybookEntries.ts`.

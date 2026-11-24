@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TerrainType } from '../../terrain/TerrainType';
 import { floorTileFromBedrock } from '../../terrain/FloorTile';
-import { floorTileVisualFor, ROCK_FLOOR_VISUAL_TIERS, RUBBLE_FLOOR_VISUAL } from './floorTileVisualDefs';
+import { floorTileVisualFor, ROCK_FLOOR_VISUAL_TIERS } from './floorTileVisualDefs';
 
 function damaged(type: TerrainType, fraction: number) {
     const tile = floorTileFromBedrock(type);
@@ -26,8 +26,8 @@ describe('floorTileVisualFor', () => {
         }
     });
 
-    it('shows rubble on Gravel and nothing on other floors', () => {
-        expect(floorTileVisualFor(0, 0, { terrainType: TerrainType.Gravel })?.def).toBe(RUBBLE_FLOOR_VISUAL);
+    it('shows no overlay on Gravel (its speckle is drawn by the terrain layer) or other floors', () => {
+        expect(floorTileVisualFor(0, 0, { terrainType: TerrainType.Gravel })).toBeNull();
         expect(floorTileVisualFor(0, 0, { terrainType: TerrainType.Dirt })).toBeNull();
     });
 });

@@ -62,20 +62,6 @@ export const ROCK_FLOOR_VISUAL_TIERS: FloorTileVisualDef[] = [
     },
 ];
 
-export const RUBBLE_FLOOR_VISUAL: FloorTileVisualDef = {
-    svgString: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
-  <polygon points="6,9 11,8 12,13 7,14" fill="#8a7a6a" opacity="0.7"/>
-  <polygon points="23,6 28,8 27,12 22,11" fill="#7a6a5a" opacity="0.65"/>
-  <polygon points="4,23 9,21 10,27 5,28" fill="#5a4a3a" opacity="0.7"/>
-  <polygon points="28,19 33,18 34,24 29,25" fill="#9a8a7a" opacity="0.6"/>
-  <polygon points="16,29 21,27 22,33 17,34" fill="#6a5a4a" opacity="0.7"/>
-  <polygon points="17,12 22,11 23,16 18,17" fill="#7a6b5b" opacity="0.6"/>
-  <polygon points="30,29 35,27 36,32 31,33" fill="#8a7a6a" opacity="0.65"/>
-  <polygon points="10,19 14,18 15,22 11,23" fill="#5a4a3a" opacity="0.55"/>
-  <polygon points="25,31 29,30 30,35 26,36" fill="#7a6a5a" opacity="0.6"/>
-</svg>`,
-};
-
 /** The overlay a floor tile shows, keyed so a changed type or tier swaps the sprite. */
 export interface FloorTileVisual {
     /** Cache/label key per cell, terrain type and tier. */
@@ -84,13 +70,9 @@ export interface FloorTileVisual {
 }
 
 /**
- * Overlay for a floor tile, or null when it shows none: rubble on Gravel, and crack tiers on
- * damaged rock and its variants (Brick cracks the same as Rock; the key keeps each type apart).
+ * Overlay for a floor tile, or null when it shows none: crack tiers on damaged rock and its variants (Brick cracks the same as Rock; the key keeps each type apart).
  */
 export function floorTileVisualFor(col: number, row: number, tile: FloorTile): FloorTileVisual | null {
-    if (tile.terrainType === TerrainType.Gravel) {
-        return { cacheKey: `${col},${row}:${TerrainType.Gravel}:0`, def: RUBBLE_FLOOR_VISUAL };
-    }
     if (baseTerrainOf(tile.terrainType) !== TerrainType.Rock) return null;
     if (tile.destructible?.kind !== DEFAULT_ROCK_DESTRUCTIBLE_KIND) return null;
     const tier = getDamageTier(tile.destructible);
