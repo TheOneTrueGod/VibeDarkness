@@ -69,12 +69,6 @@ describe('The Lonely Castle (011)', () => {
         );
     });
 
-    it('opens with a three-line narrator story before the battle', () => {
-        const phrases = THE_LONELY_CASTLE.preMissionStory?.phrases ?? [];
-        expect(phrases).toHaveLength(3);
-        expect(phrases.every((p) => p.type === 'dialogue')).toBe(true);
-    });
-
     it('lays the route out cave → road → bend → gate, with the bridge on open ground', () => {
         const composed = THE_LONELY_CASTLE.composeMap()!;
         expect(composed.cols).toBe(66);

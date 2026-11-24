@@ -47,7 +47,7 @@ export const chapter3Scripts = {
         name: 'The Lonely Castle',
         description:
             'A second way out of the cave leads east along an old road, toward a castle standing alone in the dark.',
-        preMissionStory: preMissionLine('The cave opens in an unfamiliar direction.', 'What happened while you were resting?', 'As you explore, you feel a resonance with the crystals in the area.'),
+        preMissionStory: preMissionLine(['The cave opens in an unfamiliar direction.  What happened while you were resting?', 'As you explore, you feel a resonance with the crystals in the area.'].join('\n')),
         objectives: {
             reach_bridge: 'Explore the new cave exit',
         },
