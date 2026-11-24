@@ -17,7 +17,7 @@ const campsiteScript = chapter2Scripts.campsite;
 export const TRAINING_STATION_PICKS = 2;
 /** Offers shown per pick, at most (a slot with nothing left is dropped). */
 export const TRAINING_STATION_OFFERS_PER_PICK = 4;
-export const TRAINING_STATION_INTRO_TEXT = 'You have found an old training ground';
+export const TRAINING_STATION_INTRO_TEXT = 'You take a moment to reflect on what has transpired';
 /** Choice id of the n-th pick (1-based): each pick is its own choice phrase. */
 export function trainingStationChoiceId(pick: number): string {
     return `training_station_choice_${pick}`;
@@ -28,18 +28,16 @@ const trainingStationScript: MissionScript = {
     description: 'Pause to reflect.  To grow stronger.',
 };
 
-/** One narrator line before the battle. */
-function preMissionLine(text: string): PreMissionStoryDef {
+/** Narrator lines before the battle, one dialogue phrase per line. */
+function preMissionLine(...lines: string[]): PreMissionStoryDef {
     return {
-        phrases: [
-            {
-                type: 'dialogue',
-                speakerId: '1',
-                text,
-                portraitSide: 'left',
-                backgroundImage: STORY_BACKGROUNDS.campfire,
-            },
-        ],
+        phrases: lines.map((text) => ({
+            type: 'dialogue' as const,
+            speakerId: '1',
+            text,
+            portraitSide: 'left' as const,
+            backgroundImage: STORY_BACKGROUNDS.campfire,
+        })),
     };
 }
 
@@ -49,6 +47,7 @@ export const chapter3Scripts = {
         name: 'The Lonely Castle',
         description:
             'A second way out of the cave leads east along an old road, toward a castle standing alone in the dark.',
+        preMissionStory: preMissionLine('The cave opens in an unfamiliar direction.', 'What happened while you were resting?', 'As you explore, you feel a resonance with the crystals in the area.'),
         objectives: {
             reach_bridge: 'Explore the new cave exit',
         },

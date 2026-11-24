@@ -235,6 +235,7 @@ export class TheLonelyCastleMission extends BaseMissionDef {
     mapPosition = castleMapPosition(60.5, 50); // the 60_50 / 61_50 cave road
     missionType = 'battle' as const;
     description = chapter3Scripts.the_lonely_castle.description;
+    preMissionStory = chapter3Scripts.the_lonely_castle.preMissionStory;
 
     mapLayout = THE_LONELY_CASTLE_LAYOUT;
     spawnSegmentId = EAST_CAVE_SEGMENT_ID;
