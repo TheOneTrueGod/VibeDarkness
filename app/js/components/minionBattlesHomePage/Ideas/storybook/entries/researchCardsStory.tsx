@@ -125,7 +125,7 @@ function toggledCollapsed(values: StorybookControlValues, treeId: string): strin
     return RESEARCH_TREES.map((t) => t.id).filter((id) => ids.has(id)).join(COLLAPSED_SEPARATOR);
 }
 
-/** Chevron left of the focus button: collapses a tree to its header row, or expands it again. */
+/** Chevron left of the tree name: collapses a tree to its header row, or expands it again. */
 function CollapseTreeButton({ tree, collapsed, onToggle }: { tree: ResearchTreeDef; collapsed: boolean; onToggle: () => void }) {
     const Icon = collapsed ? ChevronRight : ChevronDown;
     const label = `${collapsed ? 'Expand' : 'Collapse'} ${tree.title}`;
@@ -143,7 +143,7 @@ function CollapseTreeButton({ tree, collapsed, onToggle }: { tree: ResearchTreeD
     );
 }
 
-/** Target button left of a tree's name: puts the tree in the Tree search, or clears it when already focused. */
+/** Target button at the right end of a tree's header: puts the tree in the Tree search, or clears it when already focused. */
 function FocusTreeButton({ tree, focused, setValue }: { tree: ResearchTreeDef; focused: boolean; setValue: StorybookSetValue }) {
     return (
         <button
@@ -194,12 +194,14 @@ function TreeSection({
                         collapsed={collapsed}
                         onToggle={() => setValue('collapsed', toggledCollapsed(values, tree.id))}
                     />
-                    <FocusTreeButton tree={tree} focused={isFocusedTree(tree, treeSearch)} setValue={setValue} />
                     <h4 className="text-base font-semibold text-white">
                         {tree.title} <span className="font-mono text-xs text-muted">{tree.id}</span>
                     </h4>
                 </div>
-                <TreeColours tree={tree} />
+                <div className="flex items-center gap-3">
+                    <TreeColours tree={tree} />
+                    <FocusTreeButton tree={tree} focused={isFocusedTree(tree, treeSearch)} setValue={setValue} />
+                </div>
             </div>
             {!collapsed && (
                 <div className="flex flex-col gap-3">
@@ -255,7 +257,7 @@ export const RESEARCH_CARDS_STORY: StorybookEntry = {
     id: 'research-cards',
     name: 'Research Cards',
     description:
-        'Per research tree: theme colours, the Upgrades sidebar nameplate (ResearchTreeList) purchased and unpurchased, and example ResearchNodeCards. Every control is a URL parameter, e.g. ?node=mighty&pin=1.',
+        'Per research tree: theme colours, the Upgrades sidebar nameplate (ResearchTreeList) purchased and unpurchased, and example ResearchNodeCards.',
     controls: [
         {
             kind: 'search',
