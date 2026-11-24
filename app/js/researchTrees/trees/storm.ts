@@ -47,6 +47,7 @@ const CORE_SWAP_SOURCES = [
 export const stormTree: ResearchTreeDef = {
     id: STORM_TREE_ID,
     title: 'Storm Core',
+    category: 'cores',
     theme: 'storm',
     icon: RESEARCH_TREE_ICON_STORM,
     // The blue storm icon disappears on the pale cyan card fill.

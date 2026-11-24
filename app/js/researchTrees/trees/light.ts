@@ -90,6 +90,7 @@ export const LIGHT_LAY_HANDS_METAL_COST = 9;
 export const lightTree: ResearchTreeDef = {
     id: LIGHT_TREE_ID,
     title: 'Light',
+    category: 'cores',
     theme: 'light',
     icon: RESEARCH_TREE_ICON_LIGHT,
     tags: ['core'],

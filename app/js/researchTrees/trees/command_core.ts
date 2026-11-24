@@ -71,6 +71,7 @@ export const COMMAND_DISPLACEMENT_STRIKE_COST = { attunement: 11, vigor: 10, met
 export const commandCoreTree: ResearchTreeDef = {
     id: COMMAND_CORE_TREE_ID,
     title: 'Command Core',
+    category: 'cores',
     theme: 'command',
     icon: RESEARCH_TREE_ICON_COMMAND,
     tags: ['core'],

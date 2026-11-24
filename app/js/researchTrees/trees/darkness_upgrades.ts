@@ -29,6 +29,7 @@ function bonusPerResource(amount: number): Partial<Record<CampaignResourceKey, n
 export const darknessUpgradesTree: ResearchTreeDef = {
     id: DARKNESS_UPGRADES_TREE_ID,
     title: 'Darkness Upgrades',
+    category: 'darkness',
     theme: 'darkness',
     icon: RESEARCH_TREE_ICON_GENERIC,
     accessRequirements: [

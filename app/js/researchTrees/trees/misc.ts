@@ -9,6 +9,7 @@ export const MISC_NODE_BLINK_CORE = 'blink_core';
 export const miscTree: ResearchTreeDef = {
     id: MISC_TREE_ID,
     title: 'Lightbearer',
+    category: 'weapons',
     theme: 'generic',
     icon: RESEARCH_TREE_ICON_GENERIC,
     accessRequirements: [{ type: 'anyResearched', treeId: MISC_TREE_ID, nodeIds: [MISC_NODE_AIR_CORE, MISC_NODE_CHARGED_CORE, MISC_NODE_BLINK_CORE] }],

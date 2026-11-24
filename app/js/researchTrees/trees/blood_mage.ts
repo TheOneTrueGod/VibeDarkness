@@ -52,6 +52,7 @@ export const FROZEN_FIELD_METAL_COST = 3;
 export const bloodMageTree: ResearchTreeDef = {
     id: BLOOD_MAGE_TREE_ID,
     title: 'Blood Mage',
+    category: 'cores',
     theme: 'blood_mage',
     icon: RESEARCH_TREE_ICON_BLOOD_MAGE,
     tags: ['core'],

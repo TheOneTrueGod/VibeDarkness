@@ -46,6 +46,7 @@ const CORE_SWAP_SOURCES = [
 export const armoryTree: ResearchTreeDef = {
     id: ARMORY_TREE_ID,
     title: 'Armory Core',
+    category: 'cores',
     theme: 'armory',
     icon: RESEARCH_TREE_ICON_ARMORY,
     tags: ['core'],

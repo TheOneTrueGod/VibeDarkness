@@ -318,9 +318,27 @@ export function hasVirtualRootNodes(tree: Pick<ResearchTreeDef, 'nodes'>): boole
     return tree.nodes.some(isVirtualRootNode);
 }
 
+/** Sidebar group a research tree is listed under in the Upgrades tab. */
+export type ResearchTreeCategory = 'training' | 'cores' | 'weapons' | 'darkness';
+
+/** Upgrades-tab sidebar groups, in display order. */
+export const RESEARCH_TREE_CATEGORIES: ReadonlyArray<{ id: ResearchTreeCategory; label: string }> = [
+    { id: 'training', label: 'Training' },
+    { id: 'cores', label: 'Cores' },
+    { id: 'weapons', label: 'Weapons' },
+    { id: 'darkness', label: 'Darkness Upgrades' },
+];
+
+/** Category a tree is grouped under; trees without one (e.g. test fixtures) count as cores. */
+export function getResearchTreeCategory(tree: Pick<ResearchTreeDef, 'category'>): ResearchTreeCategory {
+    return tree.category ?? 'cores';
+}
+
 export interface ResearchTreeDef {
     id: string;
     title: string;
+    /** Sidebar group in the Upgrades tab (see {@link RESEARCH_TREE_CATEGORIES}). Defaults to `'cores'`. */
+    category?: ResearchTreeCategory;
     /**
      * Theme id (`games/minion_battles/themes/abilityThemes.ts`, e.g. `'earth'`, `'armory'`). Primary is
      * the border; an explicit secondary / font give the card and pill fill / text. See

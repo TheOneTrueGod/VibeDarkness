@@ -63,6 +63,7 @@ export const EARTH_STONE_TOMB_METAL_COST = 9;
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
     title: 'Earth',
+    category: 'cores',
     theme: 'earth',
     icon: RESEARCH_TREE_ICON_EARTH,
     tags: ['core'],

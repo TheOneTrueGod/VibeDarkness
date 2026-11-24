@@ -104,6 +104,7 @@ function TreeNameplate({ tree, purchased, selected }: { tree: ResearchTreeDef; p
                     selectedTreeId={selected ? tree.id : ''}
                     onSelectTree={() => {}}
                     researchTrees={{ [tree.id]: purchasedNodeIds }}
+                    showCategoryHeaders={false}
                 />
             </div>
         </div>
@@ -240,6 +241,18 @@ function ResearchCardsPreview({ values, setValue }: { values: StorybookControlVa
         .filter((t) => !nodeQuery || searchedNodes(t, nodeQuery).length > 0);
     return (
         <div className="flex flex-col gap-4">
+            {controlBoolean(values, 'sidebar') && (
+                <section className="w-60 rounded-lg border border-border-custom bg-dark-900/40 p-3">
+                    <ResearchTreeList
+                        availableTrees={trees}
+                        selectedTreeId={null}
+                        onSelectTree={(id) => setValue('tree', RESEARCH_TREES.find((t) => t.id === id)?.title ?? '')}
+                        researchTrees={{}}
+                        showAllOption
+                        onSelectAll={() => setValue('tree', '')}
+                    />
+                </section>
+            )}
             {trees.length === 0 && (
                 <p className="text-sm text-muted">
                     No research tree matches “{search}”{nodeQuery ? ` with a node matching “${nodeQuery}”` : ''}.
@@ -257,7 +270,7 @@ export const RESEARCH_CARDS_STORY: StorybookEntry = {
     id: 'research-cards',
     name: 'Research Cards',
     description:
-        'Per research tree: theme colours, the Upgrades sidebar nameplate (ResearchTreeList) purchased and unpurchased, and example ResearchNodeCards.',
+        'Per research tree: theme colours, the Upgrades sidebar nameplate (ResearchTreeList) purchased and unpurchased, and example ResearchNodeCards. Full sidebar shows the grouped tree list.',
     controls: [
         {
             kind: 'search',
@@ -276,6 +289,8 @@ export const RESEARCH_CARDS_STORY: StorybookEntry = {
             defaultValue: '',
         },
         { kind: 'toggle', id: 'pin', label: 'Pin tooltips open', defaultValue: false },
+        // The whole Upgrades sidebar (ResearchTreeList grouped by category) for the listed trees.
+        { kind: 'toggle', id: 'sidebar', label: 'Full sidebar', defaultValue: false },
         { kind: 'range', id: 'level', label: 'Level', min: 0, max: 5, defaultValue: 0 },
         { kind: 'toggle', id: 'selected', label: 'Nameplate selected', defaultValue: false },
         {

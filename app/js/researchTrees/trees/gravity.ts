@@ -45,6 +45,7 @@ export const GRAVITY_COLLAPSE_METAL_COST = 1;
 export const gravityTree: ResearchTreeDef = {
     id: GRAVITY_TREE_ID,
     title: 'Gravity',
+    category: 'cores',
     theme: 'gravity',
     icon: RESEARCH_TREE_ICON_GRAVITY,
     tags: ['core'],

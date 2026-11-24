@@ -94,6 +94,7 @@ export const TRAINING_MIGHTY_VIGOR_COST = 5;
 export const trainingTree: ResearchTreeDef = {
     id: TRAINING_TREE_ID,
     title: 'Training',
+    category: 'training',
     theme: 'generic',
     icon: RESEARCH_TREE_ICON_GENERIC,
     tags: ['stat'],

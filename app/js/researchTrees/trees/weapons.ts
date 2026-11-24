@@ -86,6 +86,7 @@ function weaponRoot({ id, itemId, title, description, abilityId, flavorText }: W
 export const weaponsTree: ResearchTreeDef = {
     id: WEAPONS_TREE_ID,
     title: 'Weapons',
+    category: 'weapons',
     theme: 'weapon',
     icon: RESEARCH_TREE_ICON_WEAPON,
     tags: ['weapon', 'equipment'],

@@ -7,6 +7,8 @@ import {
 	MISSION_REWARD_MISSING,
 	MISSION_REWARD_REQUIREMENT_LABEL,
 	ResearchSource,
+	RESEARCH_TREE_CATEGORIES,
+	getResearchTreeCategory,
 	type ResearchTreeDef,
 	type ResearchNodeDef,
 	type Requirement,
@@ -291,6 +293,8 @@ export interface ResearchTreeListProps {
 	showAllOption?: boolean;
 	/** Called when the “All” button is clicked (only relevant when showAllOption=true). */
 	onSelectAll?: () => void;
+	/** When false, trees are listed without their category headers (e.g. a single-row preview). Defaults to true. */
+	showCategoryHeaders?: boolean;
 }
 
 export function ResearchTreeList({
@@ -304,9 +308,15 @@ export function ResearchTreeList({
 	onResetResearchTree,
 	showAllOption = false,
 	onSelectAll,
+	showCategoryHeaders = true,
 }: ResearchTreeListProps) {
 	const firstTreeId = availableTrees[0]?.id ?? null;
 	const activeTreeId = showAllOption ? selectedTreeId : (selectedTreeId ?? firstTreeId);
+	// One group per category (display order), keeping the incoming tree order within each; empty groups are skipped.
+	const groups = RESEARCH_TREE_CATEGORIES.map((category) => ({
+		...category,
+		trees: availableTrees.filter((t) => getResearchTreeCategory(t) === category.id),
+	})).filter((group) => group.trees.length > 0);
 
 	return (
 		<div data-className="ResearchTreeList" className="flex flex-col gap-1 overflow-y-auto">
@@ -323,59 +333,68 @@ export function ResearchTreeList({
 					All
 				</button>
 			)}
-			{availableTrees.map((t) => {
-				const purchasedCount = (researchTrees[t.id] ?? []).length;
-				const isSelected = t.id === activeTreeId;
-				const hasPurchases = purchasedCount >= 1;
-				const dimmed = dimmedTreeIds?.has(t.id) ?? false;
-				const resolvedChrome = resolveResearchTreeChrome(t);
-				// Secondary background (and its paired font colour) only once the character has points in the tree.
-				const chrome = hasPurchases
-					? resolvedChrome
-					: { ...resolvedChrome, secondaryColour: undefined, fontColour: undefined };
-				const showRowReset =
-					canResetResearch && hasPurchases && typeof onResetResearchTree === 'function';
-				return (
-					<div key={t.id} className="flex gap-1 items-stretch shrink-0 min-w-0">
-						<button
-							type="button"
-							onClick={() => onSelectTree(t.id)}
-							style={researchChromeSurfaceStyle(chrome, isSelected)}
-							className={`min-w-0 flex-1 rounded-lg border-2 px-3 py-2 text-left text-sm font-medium transition-colors ${dimmed ? 'opacity-80 ' : ''}${chrome.secondaryColour ? 'hover:brightness-95 ' : ''
-								}${isSelected
-									? 'bg-surface-light text-white'
-									: hasPurchases
-										? 'bg-surface text-gray-200 hover:bg-surface-light'
-										: 'bg-surface text-muted hover:bg-surface-light hover:text-gray-300'
-								}`}
-						>
-							<span className="flex min-w-0 items-center gap-2">
-								<ResearchTreeIcon
-									source={t}
-									data-testid={TestIds.researchTreeListIcon}
-									title={t.title}
-									className="h-4 w-4"
-								/>
-								<span className="truncate">
-									{t.title} ({purchasedCount})
-								</span>
-							</span>
-						</button>
-						{showRowReset && (
-							<button
-								type="button"
-								onClick={() => onResetResearchTree(t.id)}
-								disabled={resetSaving}
-								title={`Reset research in “${t.title}”`}
-								aria-label={`Reset research in ${t.title}`}
-								className="shrink-0 rounded-lg border border-border-custom bg-surface-light px-2 py-2 text-xs font-semibold text-white hover:bg-border-custom disabled:opacity-60"
-							>
-								Reset
-							</button>
-						)}
-					</div>
-				);
-			})}
+			{groups.map((group) => (
+				<div key={group.id} data-testid={`research-tree-category-${group.id}`} className="flex flex-col gap-1">
+					{showCategoryHeaders && (
+						<div className="mt-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted">
+							{group.label}
+						</div>
+					)}
+					{group.trees.map((t) => {
+						const purchasedCount = (researchTrees[t.id] ?? []).length;
+						const isSelected = t.id === activeTreeId;
+						const hasPurchases = purchasedCount >= 1;
+						const dimmed = dimmedTreeIds?.has(t.id) ?? false;
+						const resolvedChrome = resolveResearchTreeChrome(t);
+						// Secondary background (and its paired font colour) only once the character has points in the tree.
+						const chrome = hasPurchases
+							? resolvedChrome
+							: { ...resolvedChrome, secondaryColour: undefined, fontColour: undefined };
+						const showRowReset =
+							canResetResearch && hasPurchases && typeof onResetResearchTree === 'function';
+						return (
+							<div key={t.id} className="flex gap-1 items-stretch shrink-0 min-w-0">
+								<button
+									type="button"
+									onClick={() => onSelectTree(t.id)}
+									style={researchChromeSurfaceStyle(chrome, isSelected)}
+									className={`min-w-0 flex-1 rounded-lg border-2 px-3 py-2 text-left text-sm font-medium transition-colors ${dimmed ? 'opacity-80 ' : ''}${chrome.secondaryColour ? 'hover:brightness-95 ' : ''
+										}${isSelected
+											? 'bg-surface-light text-white'
+											: hasPurchases
+												? 'bg-surface text-gray-200 hover:bg-surface-light'
+												: 'bg-surface text-muted hover:bg-surface-light hover:text-gray-300'
+										}`}
+								>
+									<span className="flex min-w-0 items-center gap-2">
+										<ResearchTreeIcon
+											source={t}
+											data-testid={TestIds.researchTreeListIcon}
+											title={t.title}
+											className="h-4 w-4"
+										/>
+										<span className="truncate">
+											{t.title} ({purchasedCount})
+										</span>
+									</span>
+								</button>
+								{showRowReset && (
+									<button
+										type="button"
+										onClick={() => onResetResearchTree(t.id)}
+										disabled={resetSaving}
+										title={`Reset research in “${t.title}”`}
+										aria-label={`Reset research in ${t.title}`}
+										className="shrink-0 rounded-lg border border-border-custom bg-surface-light px-2 py-2 text-xs font-semibold text-white hover:bg-border-custom disabled:opacity-60"
+									>
+										Reset
+									</button>
+								)}
+							</div>
+						);
+					})}
+				</div>
+			))}
 		</div>
 	);
 }
