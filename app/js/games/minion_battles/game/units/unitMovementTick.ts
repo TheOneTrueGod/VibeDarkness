@@ -466,7 +466,15 @@ export function setUnitMovement(
     }
     unit.pathInvalidated = false;
     unit.pathFailedEpoch = null;
-    unit.walkIntent = walkIntentFromPath(path, targetUnitId, targetPixel, stopRange);
+    const prevIntent = unit.walkIntent;
+    const nextIntent = walkIntentFromPath(path, targetUnitId, targetPixel, stopRange)!;
+    // Same destination re-sent (e.g. the standing walk the order UI attaches to every order): keep when it was
+    // first ordered, so a later cast can tell it apart from a walk ordered alongside the cast.
+    nextIntent.issuedTick = prevIntent && !prevIntent.managed && sameWalkDestination(prevIntent, nextIntent)
+        ? prevIntent.issuedTick
+        : pathfindingTick;
+    if (nextIntent.issuedTick === undefined) delete nextIntent.issuedTick;
+    unit.walkIntent = nextIntent;
     unit.movement = {
         path: path.map((p) => ({ ...p })),
         targetUnitId,
@@ -474,6 +482,34 @@ export function setUnitMovement(
         pathfindingTick,
         ...(stopRange !== undefined ? { stopRange } : {}),
     };
+}
+
+function sameWalkDestination(a: UnitWalkIntent, b: UnitWalkIntent): boolean {
+    return a.dest.col === b.dest.col
+        && a.dest.row === b.dest.row
+        && a.targetUnitId === b.targetUnitId
+        && a.targetPixel?.x === b.targetPixel?.x
+        && a.targetPixel?.y === b.targetPixel?.y;
+}
+
+/**
+ * A cast that moves its own caster (dash, lunge, leap, slide) ends any walk ordered before that cast, so the
+ * unit does not head back to an old destination once the ability lets go of its body. A walk ordered in the
+ * same order as the cast, or re-input during it (`movementByLabel`), is newer than the cast and is kept.
+ * The reference is the caster's most recently started cast (`ActiveAbility.castTick`). AI-managed goals are
+ * left alone: their controller re-plans them. Called from `Unit.claimAbilityMovement` / `claimFlight`.
+ */
+export function endWalkQueuedBeforeCast(unit: Unit): void {
+    const intent = unit.walkIntent;
+    if (!intent || intent.managed) return;
+    let latestCastTick: number | undefined;
+    for (const active of unit.activeAbilities) {
+        if (active.castTick !== undefined && (latestCastTick === undefined || active.castTick > latestCastTick)) {
+            latestCastTick = active.castTick;
+        }
+    }
+    if (latestCastTick === undefined) return;
+    if (intent.issuedTick === undefined || intent.issuedTick < latestCastTick) clearUnitMovement(unit);
 }
 
 /** Clear live path and durable walk intent. */

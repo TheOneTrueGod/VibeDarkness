@@ -83,7 +83,7 @@ import { moveUnitToward } from './unitCellSlide';
 import { applyKnockbackToUnit } from './unitKnockback';
 import { applyNudgeToUnit } from './unitNudge';
 import { getUnitEffectiveSpeed, unitHasIFrames, isUnitInJuggernautWindow, getUnitLungeDistance } from './unitAbilityQueries';
-import { updateUnit, tickUnitMovement, type UnitMovementTickOptions, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath, setUnitWalkGoal } from './unitMovementTick';
+import { updateUnit, tickUnitMovement, type UnitMovementTickOptions, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath, setUnitWalkGoal, endWalkQueuedBeforeCast } from './unitMovementTick';
 import type { DamageTakenMultiplier, FlatDamageReduction } from './flatDamageReduction';
 import { applyDamageToUnit, applyDamageToUnitDetailed, tickUnitDarknessCorruption, type DamageBreakdown, type PendingFrozenHit } from './unitDamage';
 import type { FrozenHitPolicy } from '../time/timeConstants';
@@ -576,15 +576,20 @@ export class Unit extends GameObject {
     /**
      * Claim exclusive movement for this tick. Walk / occupancy shove / CrowdSpacing
      * treat the unit as ability-controlled until UnitManager clears the flag next tick.
+     * By default the claim is the unit's own cast moving it, which ends a walk ordered before that cast
+     * (`endWalkQueuedBeforeCast`). Pass `{ external: true }` when another unit's ability moves this one
+     * (Arrange, pet commands): like knockback, that keeps the walk.
      */
-    claimAbilityMovement(): void {
+    claimAbilityMovement(opts?: { external?: boolean }): void {
         this.abilityOwnsMovementThisTick = true;
+        if (!opts?.external) endWalkQueuedBeforeCast(this);
     }
 
-    /** Claim movement and airborne travel for this tick (see `inFlightThisTick`). */
-    claimFlight(): void {
+    /** Claim movement and airborne travel for this tick (see `inFlightThisTick`). Same `external` rule. */
+    claimFlight(opts?: { external?: boolean }): void {
         this.abilityOwnsMovementThisTick = true;
         this.inFlightThisTick = true;
+        if (!opts?.external) endWalkQueuedBeforeCast(this);
     }
 
     /**

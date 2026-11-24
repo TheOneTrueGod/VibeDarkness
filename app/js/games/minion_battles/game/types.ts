@@ -446,6 +446,12 @@ export interface ActiveAbility {
      * `getCastElapsed(unit, active, engine)`; never subtract it from `engine.gameTime`. See `game/time/AGENTS.md`.
      */
     startTime: number;
+    /**
+     * `engine.gameTick` when the cast started. Compared with `UnitWalkIntent.issuedTick` to tell a walk ordered
+     * before this cast from one ordered with it (see `endWalkQueuedBeforeCast`). Serialized; absent on casts
+     * from older checkpoints.
+     */
+    castTick?: number;
     /** Resolved targets for this ability. */
     targets: ResolvedTarget[];
     /**

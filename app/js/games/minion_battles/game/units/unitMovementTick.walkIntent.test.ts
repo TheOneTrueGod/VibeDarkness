@@ -44,13 +44,13 @@ describe('Unit.walkIntent', () => {
             undefined,
             engine.gameTick,
         );
-        expect(player.walkIntent).toEqual({ dest: { col: 8, row: 4 } });
+        expect(player.walkIntent).toEqual({ dest: { col: 8, row: 4 }, issuedTick: engine.gameTick });
         expect(player.movement).not.toBeNull();
 
         invalidateUnitMovementPath(player);
         expect(player.movement).toBeNull();
         expect(player.pathInvalidated).toBe(true);
-        expect(player.walkIntent).toEqual({ dest: { col: 8, row: 4 } });
+        expect(player.walkIntent).toEqual({ dest: { col: 8, row: 4 }, issuedTick: engine.gameTick });
 
         clearUnitMovement(player);
         expect(player.walkIntent).toBeNull();

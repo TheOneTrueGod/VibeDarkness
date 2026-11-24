@@ -97,8 +97,8 @@ export class ArrangeBehaviour implements CastBehaviour {
             }
             unit.x = m.fromX + (m.toX - m.fromX) * t;
             unit.y = m.fromY + (m.toY - m.fromY) * t;
-            if (this.config.flight && !ctx.isLastTick) unit.claimFlight();
-            else unit.claimAbilityMovement();
+            if (this.config.flight && !ctx.isLastTick) unit.claimFlight({ external: true });
+            else unit.claimAbilityMovement({ external: true });
             if (ctx.isLastTick) this.config.onArrive?.(ctx, unit);
         }
     }

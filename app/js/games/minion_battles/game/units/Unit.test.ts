@@ -497,6 +497,7 @@ describe('Unit', () => {
                 "col": 3,
                 "row": 4,
               },
+              "issuedTick": 42,
               "targetPixel": {
                 "x": 130,
                 "y": 170,

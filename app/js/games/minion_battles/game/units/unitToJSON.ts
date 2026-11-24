@@ -38,6 +38,9 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             ? {
                 walkIntent: {
                     dest: { ...unit.walkIntent.dest },
+                    ...(unit.walkIntent.issuedTick !== undefined
+                        ? { issuedTick: unit.walkIntent.issuedTick }
+                        : {}),
                     ...(unit.walkIntent.targetUnitId !== undefined
                         ? { targetUnitId: unit.walkIntent.targetUnitId }
                         : {}),
@@ -58,6 +61,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         activeAbilities: unit.activeAbilities.map((a) => ({
             abilityId: a.abilityId,
             startTime: a.startTime,
+            ...(a.castTick !== undefined ? { castTick: a.castTick } : {}),
             targets: a.targets.map((t) => ({ ...t })),
             fired: a.fired,
             castPayload:

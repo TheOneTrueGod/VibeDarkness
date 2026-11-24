@@ -36,7 +36,7 @@ function getPet(ctx: CastBehaviourBaseContext, petId: string | undefined): Unit 
 
 function holdPet(pet: Unit): void {
     pet.clearMovement();
-    pet.claimAbilityMovement();
+    pet.claimAbilityMovement({ external: true });
     pet.invalidateMovementPath();
 }
 

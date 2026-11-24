@@ -47,11 +47,18 @@ export interface UnitMovement {
 }
 
 /**
- * Durable walk destination. Survives `invalidateMovementPath` (lunge, dash, knockback);
- * cleared only by `clearMovement`, empty `setMovement`, or arrival at the destination.
+ * Durable walk destination. Survives `invalidateMovementPath` (knockback, nudge, wall recovery);
+ * cleared by `clearMovement`, empty `setMovement`, arrival at the destination, or a cast that moves its
+ * own caster when the walk was ordered before that cast (`endWalkQueuedBeforeCast`).
  */
 export interface UnitWalkIntent {
     dest: { col: number; row: number };
+    /**
+     * `gameTick` when this destination was first ordered. Re-sending the same destination (the order UI
+     * re-attaches the standing walk to every order) keeps the original tick. Absent on AI-managed goals and
+     * on intents from legacy checkpoints.
+     */
+    issuedTick?: number;
     targetUnitId?: string;
     targetPixel?: { x: number; y: number };
     /** Stop pursuing when within this distance of the target unit (overrides the default `radius + radius + MIN_FOLLOW_RADIUS`). */

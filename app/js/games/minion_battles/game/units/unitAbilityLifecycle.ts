@@ -331,6 +331,7 @@ export function executeUnitAbility(
     const active: ActiveAbility = {
         abilityId: ability.id,
         startTime: localNow(unit, engine.gameTime),
+        castTick: engine.gameTick,
         targets: targets.map((t) => ({ ...t })),
         castBehaviourPayloads: {},
         evadeFired: false,

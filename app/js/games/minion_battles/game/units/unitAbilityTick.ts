@@ -549,7 +549,8 @@ export function tickUnitActiveAbilities(
                     }
                 }
                 // Lunge: apply queued ITS movement when cooldown begins (movement lock releases).
-                // Pre-cast walk resumes via Unit.walkIntent + auto-repath once speed > 0.
+                // A walk from the same order resumes via Unit.walkIntent + auto-repath once speed > 0
+                // (an older walk already ended on the first displaced tick: endWalkQueuedBeforeCast).
                 if (
                     ability.lunge != null
                     && interval.abilityPhase === AbilityPhase.Cooldown

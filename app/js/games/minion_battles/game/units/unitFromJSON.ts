@@ -86,6 +86,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
 
     const walkIntentData = data.walkIntent as {
         dest: { col: number; row: number };
+        issuedTick?: number;
         targetUnitId?: string;
         targetPixel?: { x: number; y: number };
         stopRange?: number;
@@ -94,6 +95,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     if (walkIntentData?.dest) {
         unit.walkIntent = {
             dest: { ...walkIntentData.dest },
+            ...(typeof walkIntentData.issuedTick === 'number' ? { issuedTick: walkIntentData.issuedTick } : {}),
             ...(walkIntentData.targetUnitId !== undefined ? { targetUnitId: walkIntentData.targetUnitId } : {}),
             ...(walkIntentData.targetPixel ? { targetPixel: { ...walkIntentData.targetPixel } } : {}),
             ...(walkIntentData.stopRange !== undefined ? { stopRange: walkIntentData.stopRange } : {}),

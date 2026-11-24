@@ -5,8 +5,9 @@
  * Lunge abilities defer until cooldown entry and repath from the post-lunge cell
  * so a destination chosen during deferred targeting stays valid after the slide.
  *
- * Pre-cast walk (order movePath) is preserved via `Unit.walkIntent` across any
- * `invalidateMovementPath` (lunge / dash / knockback) — not via this module.
+ * A walk from the same order (order movePath) is preserved via `Unit.walkIntent` across any
+ * `invalidateMovementPath` (lunge / dash / knockback) — not via this module. A walk ordered before
+ * the cast ends when the cast first displaces its caster (`endWalkQueuedBeforeCast`).
  */
 
 import type { EngineContext } from '../EngineContext';
