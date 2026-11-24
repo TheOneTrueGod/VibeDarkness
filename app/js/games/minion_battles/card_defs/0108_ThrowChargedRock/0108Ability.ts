@@ -1,5 +1,4 @@
 ﻿import type {
-    AbilityRecoveryRule,
     AbilityStatic,
     AttackBlockedInfo,
 } from '../../abilities/Ability';
@@ -56,9 +55,6 @@ const THROW_CHARGED_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.
 
 const CARD_ID = 'throw_charged_rock';
 const MAX_USES = 3;
-const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'lightCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-];
 const BASE_EXPLOSION_RADIUS = 50;
 export const THROW_CHARGED_ROCK_BASE_EXPLOSION_DAMAGE = 5;
 const BASE_EXPLOSION_DAMAGE = THROW_CHARGED_ROCK_BASE_EXPLOSION_DAMAGE;
@@ -158,7 +154,7 @@ export const ThrowChargedRock: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 1,
     maxUses: MAX_USES,
-    recoveries: RECOVERIES,
+    // No recovery rules: uses refill each round (default), with no Light Charge cost.
     prefireTime: ROCK_THROW_PROFILE.prefireTime,
     abilityTimings: THROW_CHARGED_ROCK_BASE_TIMINGS,
     getAbilityTimings(caster, gameState) {

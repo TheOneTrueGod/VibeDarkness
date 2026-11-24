@@ -24,7 +24,13 @@ export async function itsRestoreToMark(
     if (!its.mark) return;
     const diagFromEngineTick = session.getEngineTick();
     // Capture-frame signal for the DOM rewind overlay (must fire before engine teardown).
-    const presentationDone = session.emitSequentialTargetingRewind(opts?.reason ?? 'rollback');
+    // A rewind that goes back zero frames (selection on the first frame, e.g. Punch / Swing Bat) has
+    // nothing to present: skip the overlay and "Rewinding" banner and proceed as if it completed.
+    const markTick = its.mark.gameTick;
+    const zeroFrameRewind = typeof markTick === 'number' && markTick === diagFromEngineTick;
+    const presentationDone = zeroFrameRewind
+        ? Promise.resolve()
+        : session.emitSequentialTargetingRewind(opts?.reason ?? 'rollback');
     // Discard preview timeline if one is active (use owned previewRunId, not session's current timeline).
     if (its.previewRunId !== null) {
         const timeline = session.getTimeline();

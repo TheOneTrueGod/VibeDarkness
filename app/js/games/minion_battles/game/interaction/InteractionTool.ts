@@ -108,6 +108,8 @@ export interface InteractionTool {
         ctrlKey: boolean,
         ctx: PlayerInteractionContext,
         manager: IPlayerInteractionManager,
+        /** Right-button drag: update the local movement preview only; submit no order. */
+        previewOnly?: boolean,
     ): boolean;
     onCanvasMouseMove?(
         screenX: number,

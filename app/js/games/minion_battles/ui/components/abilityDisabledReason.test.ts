@@ -12,7 +12,7 @@ import type { ActiveAbility } from '../../game/types';
 import { EventBus } from '../../game/EventBus';
 import { Kinship } from '../../resources/Kinship';
 
-const THROW_CHARGED_ROCK_ID = 'throw_charged_rock';
+const CHARGE_RECOVERED_ABILITY_ID = '0114'; // Energy Blast: uses come back via Energy charges
 
 function makePlayer(lightChargesPerRound: number): Unit {
     return new Unit({
@@ -26,10 +26,10 @@ function makePlayer(lightChargesPerRound: number): Unit {
         ownerId: 'p1',
         characterId: 'player',
         name: 'Player',
-        abilities: [THROW_CHARGED_ROCK_ID],
+        abilities: [CHARGE_RECOVERED_ABILITY_ID],
         radius: DEFAULT_UNIT_RADIUS,
         roundStartRecoveryCharges: lightChargesPerRound > 0
-            ? [{ chargeType: 'lightCharge', amount: lightChargesPerRound }]
+            ? [{ chargeType: 'energyCharge', amount: lightChargesPerRound }]
             : [],
     });
 }
@@ -37,8 +37,8 @@ function makePlayer(lightChargesPerRound: number): Unit {
 function noUsesText(player: Unit): string {
     const reason = getAbilityDisabledReason({
         playerUnit: player,
-        ability: getAbility(THROW_CHARGED_ROCK_ID)!,
-        abilityId: THROW_CHARGED_ROCK_ID,
+        ability: getAbility(CHARGE_RECOVERED_ABILITY_ID)!,
+        abilityId: CHARGE_RECOVERED_ABILITY_ID,
         currentUses: 0,
         isMyTurn: true,
         allUnits: [player],
@@ -48,12 +48,12 @@ function noUsesText(player: Unit): string {
 }
 
 describe('no uses remaining on a charge-recovered ability', () => {
-    it('names the Light charge needed and the Light charges gained per round', () => {
-        expect(noUsesText(makePlayer(1))).toBe('Requires 1 Light charge. You gain 1 per round.');
+    it('names the charge needed and the charges gained per round', () => {
+        expect(noUsesText(makePlayer(1))).toBe('Requires 3 Energy charges. You gain 1 per round.');
     });
 
     it('reports zero per-round gain when no equipment grants the charge', () => {
-        expect(noUsesText(makePlayer(0))).toBe('Requires 1 Light charge. You gain 0 per round.');
+        expect(noUsesText(makePlayer(0))).toBe('Requires 3 Energy charges. You gain 0 per round.');
     });
 });
 

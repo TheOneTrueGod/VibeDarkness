@@ -66,7 +66,7 @@ function AppInner() {
     const [clicks, setClicks] = useState<Record<string, ClickData>>({});
 
     // Connection status
-    const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+    const [, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
 
     // Game state
     const [lobbyPageState, setLobbyPageState] = useState<'home' | 'in_game'>('home');
@@ -434,7 +434,6 @@ function AppInner() {
                         account={currentAccount}
                         players={players}
                         chatMessages={chatMessages}
-                        connectionStatus={connectionStatus}
                         chatEnabled={chatEnabled}
                         clicks={clicks}
                         lobbyPageState={lobbyPageState}

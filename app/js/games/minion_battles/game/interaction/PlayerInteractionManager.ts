@@ -256,15 +256,21 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         dt?.onCanvasClick?.(screenX, screenY, this.ctx, this);
     }
 
-    onCanvasRightClick(screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean): void {
+    onCanvasRightClick(
+        screenX: number,
+        screenY: number,
+        shiftKey: boolean,
+        ctrlKey: boolean,
+        previewOnly = false,
+    ): void {
         if (!this.ctx) return;
         const tool = this.activeTool;
         if (tool?.onCanvasRightClick) {
-            const handled = tool.onCanvasRightClick(screenX, screenY, shiftKey, ctrlKey, this.ctx, this);
+            const handled = tool.onCanvasRightClick(screenX, screenY, shiftKey, ctrlKey, this.ctx, this, previewOnly);
             if (handled) return;
         }
         const dt = this.defaultTool as InteractionTool | null;
-        dt?.onCanvasRightClick?.(screenX, screenY, shiftKey, ctrlKey, this.ctx, this);
+        dt?.onCanvasRightClick?.(screenX, screenY, shiftKey, ctrlKey, this.ctx, this, previewOnly);
     }
 
     onCanvasMouseMove(screenX: number, screenY: number): void {

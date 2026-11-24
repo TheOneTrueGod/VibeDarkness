@@ -8,7 +8,6 @@ import type { MessageEntry } from '../Chat';
 
 interface ColumnSlotChatProps {
     messages: MessageEntry[];
-    connectionStatus: 'disconnected' | 'connecting' | 'connected';
     enabled: boolean;
     onSend: (message: string) => void;
     topContent?: React.ReactNode;

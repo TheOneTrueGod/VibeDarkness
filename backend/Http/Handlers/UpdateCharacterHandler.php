@@ -9,6 +9,9 @@ use App\SessionHelper;
 
 class UpdateCharacterHandler
 {
+    /** Mirrors MAX_CHARACTER_NAME_LENGTH in CharacterNameSection.tsx. */
+    private const MAX_NAME_LENGTH = 15;
+
     public static function handle(\App\LobbyManager $manager, AccountService $accountService, array $matches): array
     {
         $accountId = SessionHelper::getAccountId();
@@ -49,6 +52,19 @@ class UpdateCharacterHandler
         }
 
         $updates = self::updatesFromBody($data);
+
+        // Owners may rename their own characters; same rules as the Character Editor name field.
+        if (array_key_exists('name', $updates)) {
+            $name = trim($updates['name']);
+            if ($name === '' || preg_match('/^[A-Za-z0-9]{1,' . self::MAX_NAME_LENGTH . '}$/', $name) !== 1) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Name must be 1-' . self::MAX_NAME_LENGTH . ' letters or numbers',
+                ];
+            }
+            $updates['name'] = $name;
+        }
 
         $updated = $characterManager->updateCharacter($characterId, $updates);
         if ($updated === null) {

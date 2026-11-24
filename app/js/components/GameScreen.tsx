@@ -115,7 +115,6 @@ interface GameScreenProps {
     account: AccountState | null;
     players: Record<string, PlayerState>;
     chatMessages: MessageEntry[];
-    connectionStatus: 'disconnected' | 'connecting' | 'connected';
     chatEnabled: boolean;
     clicks: Record<string, ClickData>;
     lobbyPageState: 'home' | 'in_game';
@@ -171,7 +170,6 @@ export default function GameScreen({
     player,
     players,
     chatMessages,
-    connectionStatus,
     chatEnabled,
     clicks,
     lobbyPageState,
@@ -638,7 +636,6 @@ export default function GameScreen({
     const chatPanel = (
         <Chat
             messages={chatMessages}
-            connectionStatus={connectionStatus}
             enabled={chatEnabled}
             onSend={onSendChat}
             topContent={chatTopContent}
@@ -649,7 +646,6 @@ export default function GameScreen({
     const chatSlot = (
         <ColumnSlotChat
             messages={chatMessages}
-            connectionStatus={connectionStatus}
             enabled={chatEnabled}
             onSend={onSendChat}
             topContent={chatTopContent}
@@ -702,7 +698,6 @@ export default function GameScreen({
                     >
                         <Chat
                             messages={chatMessages}
-                            connectionStatus={connectionStatus}
                             enabled={chatEnabled}
                             onSend={onSendChat}
                             isSlideOver

@@ -184,7 +184,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: TRAINING_NODE_CHARGING_PUNCH,
             title: 'Charging Punch',
-            description: 'On hit: Punch grants {1} Light Charge.',
+            description: 'Recovers a use of your basic weapon skill.',
             flavorText: 'Momentum feeds the next move.',
             order: 50,
             tier: 3,
@@ -195,7 +195,7 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_DOUBLE_PUNCH },
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_STRONG_PUNCH },
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_SNEAKY_PUNCH },
-                // Its hit grants a Light Charge to Throw Charged Rock, so it is pointless without Charged Rocks equipped.
+                // Kept from when its hit fed Throw Charged Rock; still gated on Charged Rocks being equipped.
                 { type: 'characterHasEquippedItem', itemId: WEAPON_ITEM_CHARGED_ROCKS },
             ],
             cost: { vigor: 20 },

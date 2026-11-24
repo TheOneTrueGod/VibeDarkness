@@ -1,6 +1,6 @@
 import React, { useEffect, useReducer, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Undo2, RotateCw, Check } from 'lucide-react';
+import { Undo2, Check } from 'lucide-react';
 import type { BattleSession } from '../../game/BattleSession';
 import { ONLY_UNDO_AT_START } from '../../game/gameConstants';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -164,7 +164,7 @@ function readAbilityTimelineMeta(sessionRef: React.RefObject<BattleSession | nul
 }
 
 /**
- * ITS Reset / Replay / timeline / Done row that replaces “Your Turn” text in the turn indicator.
+ * ITS Undo / timeline / Done row that replaces “Your Turn” text in the turn indicator.
  * Height is fixed so the plaque layout does not shift.
  */
 export default function ITSTimelineControls({
@@ -359,18 +359,6 @@ export default function ITSTimelineControls({
                 iconClassName="text-red-300"
                 disabled={undoDisabled}
                 onClick={performUndo}
-            />
-            <ItsIconButton
-                label="Replay"
-                icon={RotateCw}
-                className="border-sky-700 bg-sky-900/60"
-                iconClassName="text-sky-300"
-                disabled={isRewindCrossfade}
-                onClick={() => {
-                    setOrderSubmitFailed(false);
-                    const s = sessionRef.current;
-                    if (s) void s.interactiveTargeting.replay(s);
-                }}
             />
             <ITSTimelineFrameStepper
                 startTick={startTick}

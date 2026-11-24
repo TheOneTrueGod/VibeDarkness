@@ -1,7 +1,7 @@
 /**
  * Charging Punch - Warrior melee ability.
  *
- * On hit: grants 1 Light Charge to a random ability.
+ * On hit: restores a use of the caster's basic weapon skill.
  * Exclusive upgrade to Punch via the Training research tree.
  */
 
@@ -9,10 +9,11 @@ import type { AbilityRecoveryRule } from '../../abilities/Ability';
 import { AbilityEventType } from '../../abilities/Ability';
 import { defineMeleeStrike } from '../../abilities/archetypes/defineMeleeStrike';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
+import { BASIC_WEAPON_ABILITY_IDS } from '../basicWeaponFamily';
 import { type CardDef } from '../types';
 
 export const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}19`;
-const MAX_USES = 4;
+const MAX_USES = 3;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
@@ -69,7 +70,7 @@ export const ChargingPunchAbility = defineMeleeStrike({
             {
                 conditions: [{ type: 'hitResultIs', result: 'hit' }],
                 effects: [
-                    { type: 'recoverCharge', chargeType: 'lightCharge', amount: 1, recipient: 'randomAbility' },
+                    { type: 'restoreUses', abilityIds: BASIC_WEAPON_ABILITY_IDS, amount: 1 },
                 ],
             },
         ],
@@ -78,7 +79,7 @@ export const ChargingPunchAbility = defineMeleeStrike({
     getTooltipText(): string[] {
         return [
             'Hit {1} enemy for {{DAMAGE}} damage',
-            'On hit: grant {1} Light Charge to a random ability',
+            'Recovers a use of your basic weapon skill.',
         ];
     },
 });

@@ -3,6 +3,8 @@ import { AbilityEventType, type AbilityStatic } from '../Ability';
 import { ensureAbilityRuntimeState } from '../abilityUses';
 import { CARD_ID as PUNCH_ABILITY_ID } from '../../card_defs/0120_PunchNEW/0120Ability';
 import { CARD_ID as DOUBLE_PUNCH_ABILITY_ID } from '../../card_defs/0116_DoublePunch/0116Ability';
+import { ChargingPunchAbility } from '../../card_defs/0119_ChargingPunch/0119Ability';
+import { BASIC_WEAPON_ABILITY_IDS } from '../../card_defs/basicWeaponFamily';
 import { Unit } from '../../game/units/Unit';
 import { EventBus } from '../../game/EventBus';
 import { triggerAbilityEvent, type AbilityEventRuntimeContext } from './AbilityEventRuntime';
@@ -28,9 +30,9 @@ function createUnit(config?: Partial<{ id: string; ownerId: string; abilities: s
 
 describe('AbilityEventRuntime', () => {
     it('evaluates built-in AND conditions and executes built-in effects', () => {
-        const caster = createUnit({ id: 'caster', abilities: ['throw_charged_rock'] });
-        ensureAbilityRuntimeState(caster, 'throw_charged_rock');
-        const runtime = caster.abilityRuntime.throw_charged_rock;
+        const caster = createUnit({ id: 'caster', abilities: ['0301'] });
+        ensureAbilityRuntimeState(caster, '0301');
+        const runtime = caster.abilityRuntime['0301'];
         expect(runtime).toBeDefined();
         if (runtime) runtime.currentUses = 0;
 
@@ -58,7 +60,7 @@ describe('AbilityEventRuntime', () => {
                         ],
                         effects: [
                             { type: 'setFlag', flag: 'didHit', value: true },
-                            { type: 'recoverCharge', chargeType: 'lightCharge', amount: 1, recipient: 'randomAbility' },
+                            { type: 'recoverCharge', chargeType: 'roundCharge', amount: 1, recipient: 'randomAbility' },
                         ],
                     },
                 ],
@@ -86,13 +88,13 @@ describe('AbilityEventRuntime', () => {
 
         const matchedRuleIds = triggerAbilityEvent(context);
         expect(matchedRuleIds).toEqual(['combo_rule']);
-        expect(caster.abilityRuntime.throw_charged_rock?.currentUses).toBe(1);
+        expect(caster.abilityRuntime['0301']?.currentUses).toBe(1);
     });
 
     it('evaluates rules in deterministic priority order and applies OR semantics across rules', () => {
-        const caster = createUnit({ id: 'caster', ownerId: 'p1', abilities: ['throw_charged_rock'] });
-        ensureAbilityRuntimeState(caster, 'throw_charged_rock');
-        const runtime = caster.abilityRuntime.throw_charged_rock;
+        const caster = createUnit({ id: 'caster', ownerId: 'p1', abilities: ['0301'] });
+        ensureAbilityRuntimeState(caster, '0301');
+        const runtime = caster.abilityRuntime['0301'];
         if (runtime) runtime.currentUses = 0;
 
         const activeAbility = { abilityId: 'test_ability', startTime: 0, targets: [{ type: 'pixel' as const }] };
@@ -150,9 +152,9 @@ describe('AbilityEventRuntime', () => {
     });
 
     it('honors maxTriggers condition caps while preserving rule evaluation semantics', () => {
-        const caster = createUnit({ id: 'caster', ownerId: 'p1', abilities: ['throw_charged_rock'] });
-        ensureAbilityRuntimeState(caster, 'throw_charged_rock');
-        const runtime = caster.abilityRuntime.throw_charged_rock;
+        const caster = createUnit({ id: 'caster', ownerId: 'p1', abilities: ['0301'] });
+        ensureAbilityRuntimeState(caster, '0301');
+        const runtime = caster.abilityRuntime['0301'];
         if (runtime) runtime.currentUses = 0;
 
         const activeAbility = { abilityId: 'test_ability', startTime: 0, targets: [{ type: 'pixel' as const }] };
@@ -173,7 +175,7 @@ describe('AbilityEventRuntime', () => {
                     {
                         id: 'single_trigger_recover',
                         conditions: [{ type: 'maxTriggers', count: 1 }],
-                        effects: [{ type: 'recoverCharge', chargeType: 'lightCharge', amount: 1 }],
+                        effects: [{ type: 'recoverCharge', chargeType: 'roundCharge', amount: 1 }],
                     },
                 ],
             },
@@ -202,7 +204,7 @@ describe('AbilityEventRuntime', () => {
         const secondMatchedRuleIds = triggerAbilityEvent(context);
         expect(firstMatchedRuleIds).toEqual(['single_trigger_recover']);
         expect(secondMatchedRuleIds).toEqual([]);
-        expect(caster.abilityRuntime.throw_charged_rock?.currentUses).toBe(1);
+        expect(caster.abilityRuntime['0301']?.currentUses).toBe(1);
     });
 
     it('keeps declaration order when priorities tie', () => {
@@ -392,5 +394,35 @@ describe('AbilityEventRuntime', () => {
 
         expect(caster.abilityRuntime[DOUBLE_PUNCH_ABILITY_ID]!.currentUses).toBe(1);
         expect(caster.abilityRuntime[PUNCH_ABILITY_ID]!.currentUses).toBe(0);
+    });
+
+    it('Charging Punch restores a use of the basic weapon skill on hit', () => {
+        const [basicWeaponId] = BASIC_WEAPON_ABILITY_IDS;
+        const caster = createUnit({ abilities: [ChargingPunchAbility.id, basicWeaponId] });
+        ensureAbilityRuntimeState(caster, basicWeaponId);
+        caster.abilityRuntime[basicWeaponId]!.currentUses = 0;
+
+        const run = (hitResult: 'hit' | 'blocked') => triggerAbilityEvent({
+            engine: {
+                gameTime: 0,
+                roundNumber: 1,
+                getUnit: () => caster,
+                eventBus: new EventBus(),
+                generateRandomInteger: (min) => min,
+            },
+            caster,
+            ability: ChargingPunchAbility,
+            activeAbility: { abilityId: ChargingPunchAbility.id, startTime: 0, targets: [] },
+            targets: [],
+            eventType: AbilityEventType.ON_ATTACK_HIT,
+            currentTime: 0,
+            prevTime: 0,
+            hitResult,
+        });
+
+        run('blocked');
+        expect(caster.abilityRuntime[basicWeaponId]!.currentUses).toBe(0);
+        run('hit');
+        expect(caster.abilityRuntime[basicWeaponId]!.currentUses).toBe(1);
     });
 });

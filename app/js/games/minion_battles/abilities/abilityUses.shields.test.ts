@@ -52,12 +52,11 @@ describe('migrated ability use configs', () => {
         ]);
     });
 
-    it('gives Throw Charged Rock light-charge recovery', () => {
+    it('gives Throw Charged Rock three uses that refill each round, with no charge cost', () => {
         const config = getAbilityUseConfig('throw_charged_rock');
         expect(config.maxUses).toBe(3);
-        expect(config.recoveries).toEqual([
-            { chargeType: 'lightCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-        ]);
+        expect(config.refillsEachRound).toBe(true);
+        expect(config.recoveries).toEqual([]);
     });
 
     it("gives Sic 'em two uses that refill each round", () => {

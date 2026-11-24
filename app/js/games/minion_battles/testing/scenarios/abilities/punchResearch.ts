@@ -123,7 +123,7 @@ export const punchNEWBaselineScenario: ScenarioDefinition = {
 
 export const punchChargingScenario: ScenarioDefinition = {
     id: 'punch_research_charging',
-    title: 'Charging Punch (0119) grants a Light Charge to throw_charged_rock on hit',
+    title: 'Charging Punch (0119) restores a use of the basic weapon skill (Stick) on hit',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine: () => {
@@ -132,11 +132,11 @@ export const punchChargingScenario: ScenarioDefinition = {
             playerId: P,
             playerWorld: PLAYER_START,
             dummyWorld: DUMMY_START,
-            abilities: ['0119', 'throw_charged_rock'],
+            abilities: ['0119', '0103'],
         });
         const u = engine.getLocalPlayerUnit();
-        const rt = u?.abilityRuntime['throw_charged_rock'];
-        // Deplete uses so recoverCharge can apply; the runtime converts light charge into a use.
+        const rt = u?.abilityRuntime['0103'];
+        // End-to-end hit check; round-start refill can also top this up, so the exact-use assertion lives in AbilityEventRuntime.test.ts.
         if (rt) rt.currentUses = 0;
         return engine;
     },
@@ -144,13 +144,14 @@ export const punchChargingScenario: ScenarioDefinition = {
     assertPass: (e) => {
         const u = e.getLocalPlayerUnit();
         if (!u) return false;
-        const rt = u.abilityRuntime['throw_charged_rock'];
+        const rt = u.abilityRuntime['0103'];
         return Boolean(rt && rt.currentUses >= 1);
     },
     failureMessage: (e) => {
         const u = e.getLocalPlayerUnit();
-        const rt = u?.abilityRuntime['throw_charged_rock'];
-        return `throw_charged_rock uses=${rt?.currentUses ?? 'â€”'} (expected â‰¥1 after hit)`;
+        const rt = u?.abilityRuntime['0103'];
+        const d = e.getUnit('target_dummy');
+        return `0103 uses=${rt?.currentUses ?? '?'} (expected >=1 after hit) dummyLost=${d ? d.maxHp - d.hp : '?'}`;
     },
 };
 

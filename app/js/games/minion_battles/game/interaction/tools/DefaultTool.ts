@@ -53,6 +53,7 @@ export class DefaultTool implements InteractionTool {
         ctrlKey: boolean,
         ctx: PlayerInteractionContext,
         manager: IPlayerInteractionManager,
+        previewOnly = false,
     ): boolean {
         if (!manager.canUseOrderUi || !manager.waitingForOrders) return false;
 
@@ -73,7 +74,7 @@ export class DefaultTool implements InteractionTool {
             targetUnitId: string | undefined,
             targetPixel: { x: number; y: number } | undefined,
         ): void => {
-            if (!atConditionalCancelDecision) manager.updateNonconfirmedMovement(path, targetUnitId, targetPixel);
+            if (!atConditionalCancelDecision && !previewOnly) manager.updateNonconfirmedMovement(path, targetUnitId, targetPixel);
         };
 
         const grid = engine.terrainManager.grid;

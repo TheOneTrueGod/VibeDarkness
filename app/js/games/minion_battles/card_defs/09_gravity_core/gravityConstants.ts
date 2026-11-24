@@ -79,8 +79,8 @@ export const GRAVITY_SHIELD_DURATION_ROUNDS = 1;
 /** Undamaged shield fades to 0 across GRAVITY_SHIELD_DURATION_ROUNDS of battle time. */
 export const GRAVITY_SHIELD_DRAIN_PER_SECOND =
     GRAVITY_SHIELD_HP / (GRAVITY_SHIELD_DURATION_ROUNDS * ROUND_DURATION);
-/** Medium spend: twice the spine abilities' cost of 5. */
-export const GRAVITY_SHIELD_GRAVITY_COST = 10;
+/** Cheap peel: less than the spine abilities' cost of 5. */
+export const GRAVITY_SHIELD_GRAVITY_COST = 3;
 /** Gravity the caster regains the first time the shield absorbs an attack. */
 export const GRAVITY_SHIELD_FIRST_BLOCK_GRAVITY_REFUND = 5;
 export const GRAVITY_SHIELD_TARGET_LABEL = 'Ally';

@@ -255,7 +255,12 @@ describe('GameEngine', () => {
         engine.destroy();
     });
 
-    it('grants one lightCharge at round_start from the Charged Rocks item passive', () => {
+    it('Charged Rocks item passive still collects a round-start Light Charge', () => {
+        expect(collectRoundStartRecoveryCharges(['011'])).toEqual([{ chargeType: 'lightCharge', amount: 1 }]);
+        expect(collectRoundStartRecoveryCharges([])).toEqual([]);
+    });
+
+    it('Throw Charged Rock refills to max uses at round_start without any Light Charge', () => {
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
         const unit = new Unit({
@@ -269,7 +274,6 @@ describe('GameEngine', () => {
             characterId: 'player',
             name: 'Charged Rocks Tester',
             abilities: ['throw_charged_rock'],
-            roundStartRecoveryCharges: collectRoundStartRecoveryCharges(['011']),
         });
         initializeAbilityRuntimeForUnit(unit);
         const runtime = unit.abilityRuntime.throw_charged_rock;
@@ -278,44 +282,11 @@ describe('GameEngine', () => {
             engine.destroy();
             return;
         }
-        runtime.currentUses = Math.max(0, runtime.currentUses - 1);
-        expect(runtime.currentUses).toBe(2);
+        runtime.currentUses = 0;
         engine.addUnit(unit);
 
         engine.stepSimulationFixedTicks(1);
         expect(unit.abilityRuntime.throw_charged_rock?.currentUses).toBe(3);
-
-        engine.destroy();
-    });
-
-    it('grants no lightCharge at round_start without the Charged Rocks item passive', () => {
-        const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
-        const unit = new Unit({
-            id: 'unit_charged_rocks',
-            x: 100,
-            y: 100,
-            hp: 100,
-            speed: 100,
-            teamId: 'player',
-            ownerId: 'p1',
-            characterId: 'player',
-            name: 'Charged Rocks Tester',
-            abilities: ['throw_charged_rock'],
-        });
-        initializeAbilityRuntimeForUnit(unit);
-        const runtime = unit.abilityRuntime.throw_charged_rock;
-        expect(runtime).toBeDefined();
-        if (!runtime) {
-            engine.destroy();
-            return;
-        }
-        runtime.currentUses = Math.max(0, runtime.currentUses - 1);
-        expect(runtime.currentUses).toBe(2);
-        engine.addUnit(unit);
-
-        engine.stepSimulationFixedTicks(1);
-        expect(unit.abilityRuntime.throw_charged_rock?.currentUses).toBe(2);
 
         engine.destroy();
     });

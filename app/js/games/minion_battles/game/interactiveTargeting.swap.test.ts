@@ -138,6 +138,34 @@ describe('ITS swap to another ability during a preview', () => {
         expect(engine).toBe(engineBefore);
     });
 
+    it('emits no rewind when the swap goes back zero frames, but does for a real rewind', async () => {
+        const { session: s, mgr } = await mountSwapFixture();
+        const rewinds: string[] = [];
+        s.subscribe((ev) => {
+            if (ev.type === 'sequential_targeting_rewind') rewinds.push(ev.reason);
+        });
+        const its = s.interactiveTargeting;
+
+        // Real rewind: the preview ticked past the mark before the swap.
+        mgr.activateAbilityTargeting(0, getAbility(THROW_ROCK_ID)!);
+        await flush();
+        const e = s.getEngine()!;
+        stepUntil(e, () => e.gameTick > its.savedLocalTick! + 3, 20);
+        expect(e.gameTick).toBeGreaterThan(its.savedLocalTick!);
+        (s.getInteractionManager() ?? mgr).activateAbilityTargeting(1, getAbility(PUNCH_ID)!);
+        await flush();
+        expect(its.abilityId).toBe(PUNCH_ID);
+        expect(rewinds).toEqual(['swap']);
+
+        // Zero-frame rewind: the new preview has not ticked, so swapping back announces nothing.
+        expect(s.getEngine()!.gameTick).toBe(its.savedLocalTick);
+        rewinds.length = 0;
+        (s.getInteractionManager() ?? mgr).activateAbilityTargeting(0, getAbility(THROW_ROCK_ID)!);
+        await flush();
+        expect(its.abilityId).toBe(THROW_ROCK_ID);
+        expect(rewinds).toEqual([]);
+    });
+
     it('does not swap while a swap is already rewinding', async () => {
         const { session: s, mgr } = await mountSwapFixture();
         const its = s.interactiveTargeting;

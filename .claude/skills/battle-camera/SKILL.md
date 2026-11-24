@@ -79,8 +79,8 @@ this.gameContainer.y = -camera.y * camera.zoom + camera.viewportHeight / 2;
 | Input | Action |
 |-------|--------|
 | Scroll wheel (on canvas) | `zoomIn` / `zoomOut` pivoted on the player unit's screen position |
-| T key | `zoomIn` pivoted on the player unit's screen position |
-| G key | `zoomOut` pivoted on the player unit's screen position |
+| T / F key | `zoomIn` pivoted on the player unit's screen position |
+| G / R key | `zoomOut` pivoted on the player unit's screen position |
 | Home / H key | `snapTo` player unit + `setZoomLevel(1.0)` + resume auto-follow |
 | WASD / arrows | `panBy` at `PAN_SPEED` world px/frame |
 | Left-drag | `panBy(-dx/zoom, -dy/zoom)` per pointer-move event |

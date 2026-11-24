@@ -22,7 +22,14 @@ interface BattleCanvasProps {
     /** Called when the user left-clicks on the canvas (screen-space coords). */
     onCanvasClick?: (screenX: number, screenY: number) => void;
     /** Called when the user right-clicks on the canvas (screen-space coords). */
-    onCanvasRightClick?: (screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean) => void;
+    onCanvasRightClick?: (
+        screenX: number,
+        screenY: number,
+        shiftKey: boolean,
+        ctrlKey: boolean,
+        /** True while the right button is held and dragged: update the movement preview, submit no order. */
+        previewOnly?: boolean,
+    ) => void;
     /** Called when the mouse moves on the canvas (screen-space coords). */
     onCanvasMouseMove?: (screenX: number, screenY: number) => void;
     /**
@@ -54,8 +61,20 @@ export default function BattleCanvas({
         lastY: number;
         dragging: boolean;
     } | null>(null);
-    /** Set while the right button is held; the repeat effect below re-issues the move order from it. */
-    const rightHoldRef = useRef<{ x: number; y: number; shiftKey: boolean; ctrlKey: boolean } | null>(null);
+    /**
+     * Set while the right button is held. One order is submitted on press and one on release; the repeat
+     * effect below only refreshes the (non-submitting) preview at the cursor in between.
+     */
+    const rightHoldRef = useRef<{
+        downX: number;
+        downY: number;
+        x: number;
+        y: number;
+        shiftKey: boolean;
+        ctrlKey: boolean;
+    } | null>(null);
+    /** Right press already ordered; the trailing contextmenu event must not submit a duplicate. */
+    const rightDownHandledRef = useRef(false);
     const onCanvasRightClickRef = useRef(onCanvasRightClick);
     onCanvasRightClickRef.current = onCanvasRightClick;
     const suppressClickRef = useRef(false);
@@ -218,14 +237,16 @@ export default function BattleCanvas({
                 e.preventDefault();
                 keysHeldRef.current.add(e.code);
             }
-            if (e.code === 'KeyT') {
+            // F / R are plain hotkeys: leave Ctrl/Cmd/Alt combos (e.g. Ctrl+R reload) to the browser.
+            const plainKey = !e.ctrlKey && !e.metaKey && !e.altKey;
+            if (e.code === 'KeyT' || (e.code === 'KeyF' && plainKey)) {
                 e.preventDefault();
                 const pu = followLocalPlayer ? engine.getLocalPlayerUnit() : null;
                 const piv = pu ? camera.worldToScreen(pu.x, pu.y) : { x: camera.viewportWidth / 2, y: camera.viewportHeight / 2 };
                 camera.zoomIn(piv.x, piv.y);
                 autoFollowPausedUntilRef.current = Date.now() + 5000;
             }
-            if (e.code === 'KeyG') {
+            if (e.code === 'KeyG' || (e.code === 'KeyR' && plainKey)) {
                 e.preventDefault();
                 const pu = followLocalPlayer ? engine.getLocalPlayerUnit() : null;
                 const piv = pu ? camera.worldToScreen(pu.x, pu.y) : { x: camera.viewportWidth / 2, y: camera.viewportHeight / 2 };
@@ -270,9 +291,9 @@ export default function BattleCanvas({
         return () => canvas.removeEventListener('wheel', handleWheel);
     }, [camera, engine, followLocalPlayer]);
 
-    // Holding the right button keeps re-setting the move target at the cursor. The interval (not just
-    // pointermove) also covers a stationary cursor while the camera scrolls under it. Shift is excluded:
-    // it appends a waypoint per call, so repeating it would flood the path.
+    // Holding the right button keeps the move PREVIEW at the cursor (no order submitted). The interval
+    // (not just pointermove) also covers a stationary cursor while the camera scrolls under it. Shift is
+    // excluded: it appends a waypoint per call, so repeating it would flood the path.
     useEffect(() => {
         const REPEAT_MS = 60;
         const refresh = (e: PointerEvent | MouseEvent): void => {
@@ -284,10 +305,22 @@ export default function BattleCanvas({
             hold.y = e.clientY - rect.top;
             hold.shiftKey = e.shiftKey;
             hold.ctrlKey = e.ctrlKey;
+            if (hold.shiftKey) return;
+            onCanvasRightClickRef.current?.(hold.x, hold.y, hold.shiftKey, hold.ctrlKey, true);
         };
         const release = (e: PointerEvent): void => {
             if (e.type === 'pointerup' && e.button !== 2) return;
+            const hold = rightHoldRef.current;
             rightHoldRef.current = null;
+            const canvas = canvasRef.current;
+            // Shift appends a waypoint per call: the press already added it, so no release order.
+            if (e.type !== 'pointerup' || !hold || !canvas || hold.shiftKey || e.shiftKey) return;
+            // Second (final) order at the release position; skipped when the cursor never moved.
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            if (x === hold.downX && y === hold.downY) return;
+            onCanvasRightClickRef.current?.(x, y, e.shiftKey, e.ctrlKey);
         };
         const releaseOnBlur = (): void => {
             rightHoldRef.current = null;
@@ -295,7 +328,7 @@ export default function BattleCanvas({
         const timer = setInterval(() => {
             const hold = rightHoldRef.current;
             if (!hold || hold.shiftKey) return;
-            onCanvasRightClickRef.current?.(hold.x, hold.y, hold.shiftKey, hold.ctrlKey);
+            onCanvasRightClickRef.current?.(hold.x, hold.y, hold.shiftKey, hold.ctrlKey, true);
         }, REPEAT_MS);
         window.addEventListener('pointermove', refresh);
         window.addEventListener('pointerup', release);
@@ -314,6 +347,12 @@ export default function BattleCanvas({
     const handleContextMenu = useCallback(
         (e: React.MouseEvent<HTMLCanvasElement>) => {
             e.preventDefault();
+            // The right press/release pair already ordered; only submit here for a contextmenu with no
+            // preceding right pointerdown (e.g. keyboard menu key, ctrl-click).
+            if (rightDownHandledRef.current) {
+                rightDownHandledRef.current = false;
+                return;
+            }
             const rect = e.currentTarget.getBoundingClientRect();
             const screenX = e.clientX - rect.left;
             const screenY = e.clientY - rect.top;
@@ -335,7 +374,8 @@ export default function BattleCanvas({
         // instant can include it (contextmenu often waits until mouseup).
         if (e.button === 2) {
             const { x, y } = getScreenPoint(e);
-            rightHoldRef.current = { x, y, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey };
+            rightHoldRef.current = { downX: x, downY: y, x, y, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey };
+            rightDownHandledRef.current = true;
             onCanvasRightClick?.(x, y, e.shiftKey, e.ctrlKey);
             return;
         }

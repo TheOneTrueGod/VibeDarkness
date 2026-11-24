@@ -899,7 +899,6 @@ export default function CharactersPanel({
                     api={api}
                     onSaved={() => void loadPlayerCharacters()}
                     editMode={false}
-                    allowNameEdit={false}
                     showInventoryPanel={false}
                     account={user ?? null}
                     viewerAccount={user ?? null}

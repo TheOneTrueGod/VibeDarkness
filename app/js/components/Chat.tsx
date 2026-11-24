@@ -30,26 +30,18 @@ function formatTime(timestamp: number): string {
 
 interface ChatProps {
     messages: MessageEntry[];
-    connectionStatus: 'disconnected' | 'connecting' | 'connected';
     enabled: boolean;
     onSend: (message: string) => void;
     isSlideOver?: boolean;
     onClose?: () => void;
     topContent?: React.ReactNode;
     bottomContent?: React.ReactNode;
-    /** Rendered in the header to the right of the connection status */
+    /** Rendered in the header, right-aligned */
     headerRightContent?: React.ReactNode;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-    connected: 'bg-success text-secondary',
-    disconnected: 'bg-danger text-white',
-    connecting: 'bg-warning text-secondary',
-};
-
 export default function Chat({
     messages,
-    connectionStatus,
     enabled,
     onSend,
     isSlideOver = false,
@@ -91,11 +83,6 @@ export default function Chat({
             <div className="flex shrink-0 items-center justify-between border-b border-border-custom p-4">
                 <h3 className="text-base font-semibold">Chat</h3>
                 <div className="flex items-center gap-2">
-                    <span
-                        className={`text-xs px-2 py-1 rounded capitalize ${STATUS_STYLES[connectionStatus] ?? ''}`}
-                    >
-                        {connectionStatus}
-                    </span>
                     {headerRightContent}
                     {isSlideOver && onClose && (
                         <button

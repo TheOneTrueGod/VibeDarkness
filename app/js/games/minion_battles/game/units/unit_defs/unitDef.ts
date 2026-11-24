@@ -1277,7 +1277,7 @@ class DefaultUnitDef implements IUnitDef {
 
         if (hpBarSize === 'large') {
             const style = new TextStyle({ fontSize: 8, fontWeight: 'bold', fill: 0x000000 });
-            const label = new Text({ text: unit.name.slice(0, 6).toUpperCase(), style });
+            const label = new Text({ text: unit.name.slice(0, 7).toUpperCase(), style });
             label.anchor.set(0.5, 0.5);
             label.x = 0;
             label.y = -unit.radius - 9;

@@ -442,12 +442,14 @@ export default function BattlePhase({
         session?.getInteractionManager()?.onCanvasClick(screenX, screenY);
     }, []);
 
-    const handleCanvasRightClick = useCallback((screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean) => {
+    const handleCanvasRightClick = useCallback((screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean, previewOnly = false) => {
         const session = sessionRef.current;
-        if (session && handleItsCanvasRightClick(session, screenX, screenY, shiftKey, ctrlKey)) {
+        // ITS right-click resolves (commits) a movement pause, so a drag preview never reaches it.
+        if (session && !previewOnly && handleItsCanvasRightClick(session, screenX, screenY, shiftKey, ctrlKey)) {
             return;
         }
-        session?.getInteractionManager()?.onCanvasRightClick(screenX, screenY, shiftKey, ctrlKey);
+        if (previewOnly && session?.interactiveTargeting.isActive) return;
+        session?.getInteractionManager()?.onCanvasRightClick(screenX, screenY, shiftKey, ctrlKey, previewOnly);
     }, []);
 
     const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
