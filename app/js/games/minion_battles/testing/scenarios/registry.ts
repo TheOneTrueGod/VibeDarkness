@@ -319,8 +319,6 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     petGuardShieldReducesHitsScenario,
     petGuardTwoSpiritsStackScenario,
     petDisplacementCloneFinishesCastScenario,
-    petGuardShieldReducesHitsScenario,
-    petGuardTwoSpiritsStackScenario,
     aiPlanHoldStabilityScenario,
     aiTerrainInterruptScenario,
     aiReplanStaggerScenario,

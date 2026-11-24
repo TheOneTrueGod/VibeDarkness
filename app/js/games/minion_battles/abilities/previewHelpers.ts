@@ -18,7 +18,7 @@ import type { ActivePreviewEngineContext, IAbilityPreviewGraphics, PetAbilitySou
 import type { Unit } from '../game/units/Unit';
 import type { ResolvedTarget } from '../game/types';
 import { getUnitAtPosition, petAnchorOptionsOf, resolveCasterPetAnchor } from './targeting';
-import { findNearestEnemyInArea } from './targetHelpers';
+import { findNearestEnemyInArea } from './nearestEnemyInArea';
 import { areEnemies } from '../game/teams';
 import { getDistanceBasedInaccuracy } from './gunInaccuracy';
 import { computeForcedDisplacement, type ForcedDisplacement } from '../game/forceMove';
