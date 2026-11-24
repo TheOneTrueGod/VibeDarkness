@@ -11,7 +11,7 @@ import { AdminMoveDebugTool } from './tools/AdminMoveDebugTool';
 import { getDebugState } from '../../debugState';
 import { resolveClick, getInteractiveTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAutoEndTurn } from '../autoEndTurnSetting';
-import { USE_SEQUENTIAL_TARGETING } from '../../featureFlags';
+import { isSequentialTargetingEnabled } from '../../featureFlags';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { resolveModeAbilityId, resolveSlotMode } from '../../abilities/resolveAbilityMode';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
@@ -538,7 +538,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
 
         // Specials never enter ITS (zero-frame; no select timings). Combo / Entombed follow-ups do:
         // submitPlayerOrder commits any open ITS at its pause, then begins a new preview.
-        if (ability.actionChannel !== 'special' && USE_SEQUENTIAL_TARGETING) {
+        if (ability.actionChannel !== 'special' && isSequentialTargetingEnabled()) {
             const interactiveDefs = getInteractiveTargetDefsFromTimings(ability, caster, this.ctx.engine);
             if (interactiveDefs.length > 0) {
                 this.submitOrder(ability.id, []);

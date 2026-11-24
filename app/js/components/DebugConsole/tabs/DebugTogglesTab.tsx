@@ -47,6 +47,11 @@ import {
     setRenderLayerVisible,
     subscribeRenderVisibility,
 } from '../../../debug/renderVisibilityStore';
+import {
+    isSequentialTargetingEnabled,
+    setSequentialTargetingEnabled,
+    subscribeSequentialTargetingEnabled,
+} from '../../../games/minion_battles/featureFlags';
 
 interface DebugTogglesTabProps {
     isActive: boolean;
@@ -120,6 +125,12 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
         subscribeResourceBarDebug,
         getResourceBarDebugFill,
         getResourceBarDebugFill,
+    );
+
+    const sequentialTargetingEnabled = useSyncExternalStore(
+        subscribeSequentialTargetingEnabled,
+        isSequentialTargetingEnabled,
+        isSequentialTargetingEnabled,
     );
 
     const subscribeDebugLog = useCallback((onStoreChange: () => void) => debugLogState.subscribe(onStoreChange), []);
@@ -220,6 +231,22 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                     />
                     <span className="leading-snug">Log user state to server</span>
                 </label>
+            </div>
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mt-8 mb-2">Targeting</h3>
+            <div className="flex flex-col gap-1 max-w-xl">
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border border-border-custom bg-surface text-primary focus:ring-primary shrink-0"
+                        checked={sequentialTargetingEnabled}
+                        onChange={(e) => setSequentialTargetingEnabled(e.target.checked)}
+                    />
+                    <span className="leading-snug">Playahead targeting (ITS)</span>
+                </label>
+                <p className="text-[11px] text-muted pl-6">
+                    On: an ability plays ahead and asks for each target when the cast reaches it. Off: clicking an
+                    ability asks for every target at once. Only affects you; takes effect on your next ability click.
+                </p>
             </div>
             {jsPerformanceTracking && (
                 <p className="text-xs text-muted mt-2 max-w-xl">

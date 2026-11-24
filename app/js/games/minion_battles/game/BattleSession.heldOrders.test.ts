@@ -85,7 +85,7 @@ function makeWaitOrder(unitId: string, moveCol: number, moveRow: number): Battle
  * Activate the InteractiveTargetingSession by seeding appliedRemoteOrderKeys with a key
  * that was already applied, then starting the ITS (using the p2 remote waiter order).
  *
- * Since USE_SEQUENTIAL_TARGETING controls begin(), we activate it directly via the
+ * Since isSequentialTargetingEnabled() controls begin(), we activate it directly via the
  * internal `interactiveTargeting` field when the flag is off, so the hold-path is always
  * exercised regardless of feature flag state.
  */

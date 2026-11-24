@@ -8,7 +8,7 @@ import type { ApplyRemoteOrdersResult, RemoteOrderWireRow } from './battlenet';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogSummary';
 import { type HeldRemoteOrder } from './interaction/InteractiveTargetingSession';
-import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
+import { isSequentialTargetingEnabled } from '../featureFlags';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { canUseAbilityNow } from '../abilities/abilityUses';
 import { getInteractiveTargetDefsFromTimings } from '../abilities/targeting';
@@ -249,7 +249,7 @@ export async function submitPlayerOrderFor(
     }
 
     // Combo / Entombed follow-ups enter ITS too; the preview order resolves the paused cast.
-    if (USE_SEQUENTIAL_TARGETING) {
+    if (isSequentialTargetingEnabled()) {
         if (ability && caster && getInteractiveTargetDefsFromTimings(ability, caster, engine).length > 0) {
             if (session.interactiveTargeting.begin(order, session)) {
                 return;

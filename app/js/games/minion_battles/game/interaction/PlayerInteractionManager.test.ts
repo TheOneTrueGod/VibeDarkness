@@ -26,6 +26,7 @@ import {
 } from '../../testing/harness/buildTinyBattleEngine';
 import type { DefaultTool } from './tools/DefaultTool';
 import { AbilityTargetingTool } from './tools/AbilityTargetingTool';
+import { setSequentialTargetingEnabled } from '../../featureFlags';
 import { ensureAbilityRuntimeState } from '../../abilities/abilityUses';
 import type { GameEngine } from '../GameEngine';
 
@@ -386,6 +387,21 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
         expect(submitted).toHaveLength(1);
         expect(submitted[0]).toMatchObject({ abilityId: THROW_ROCK_ABILITY_ID, targets: [] });
         expect(manager.getUIState().selectedAbility).toBeNull();
+    });
+
+    it('with playahead off, the card opens the upfront targeting tool and submits nothing yet', async () => {
+        setSequentialTargetingEnabled(false);
+        try {
+            const { manager, submitted } = mountCanonicalThrowRockComboPause();
+
+            manager.activateAbilityTargeting(0, getAbility(THROW_ROCK_ABILITY_ID)!);
+            await Promise.resolve();
+
+            expect(submitted).toHaveLength(0);
+            expect(manager.getUIState().selectedAbility?.id).toBe(THROW_ROCK_ABILITY_ID);
+        } finally {
+            setSequentialTargetingEnabled(true);
+        }
     });
 
     it('ignores the card in Charged mode when Charged Rock has no uses left', async () => {

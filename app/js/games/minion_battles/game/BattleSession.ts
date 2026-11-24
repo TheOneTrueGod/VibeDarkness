@@ -754,7 +754,7 @@ export class BattleSession implements BattleSessionHandle {
      * Caller clears movement preview; session validates against the live engine.
      * Does not advance the engine until BattleNet submit resolves.
      *
-     * When USE_SEQUENTIAL_TARGETING is on and the ability has SelectTargetDefs,
+     * When ITS playahead is on (`isSequentialTargetingEnabled`) and the ability has SelectTargetDefs,
      * delegates to InteractiveTargetingSession.begin() instead of submitting immediately.
      */
     async submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void> {
