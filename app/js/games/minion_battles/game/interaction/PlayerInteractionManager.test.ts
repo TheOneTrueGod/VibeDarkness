@@ -17,7 +17,8 @@ import { Camera } from '../Camera';
 import type { GameRenderer } from '../GameRenderer/GameRenderer';
 import type { BattleOrder } from '../types';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
-import { getAbility } from '../../abilities/AbilityRegistry';
+import { getAbility, registerAbilityForTest } from '../../abilities/AbilityRegistry';
+import { CARD_ID as DOUBLE_PUNCH_ABILITY_ID } from '../../card_defs/0116_DoublePunch/0116Ability';
 import { setAutoEndTurn, getAutoEndTurn } from '../autoEndTurnSetting';
 import {
     buildTinyBattleEngine,
@@ -692,5 +693,117 @@ describe('PlayerInteractionManager Pass at an ended-early preview stop (Undo all
         manager.handleWait();
         manager.onKeyDown(spaceKey());
         expect(commit).not.toHaveBeenCalled();
+    });
+});
+
+describe('PlayerInteractionManager with playahead off (upfront targeting)', () => {
+    let engineToDestroy: GameEngine | null = null;
+    let managerToDestroy: PlayerInteractionManager | null = null;
+
+    beforeEach(() => setSequentialTargetingEnabled(false));
+    afterEach(() => {
+        setSequentialTargetingEnabled(true);
+        managerToDestroy?.destroy();
+        managerToDestroy = null;
+        engineToDestroy?.destroy();
+        engineToDestroy = null;
+    });
+
+    function mountUpfront(abilityIds: string[]) {
+        const submitted: BattleOrder[] = [];
+        const engine = buildTinyBattleEngine({
+            gridW: GRID_W,
+            gridH: GRID_H,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const start = playerCellCenter(2, 4);
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: start.x,
+            y: start.y,
+            abilities: abilityIds,
+        });
+        engine.waitingForOrders = {
+            atTick: engine.gameTick,
+            waiters: [{ unitId: player.id, ownerId: TINY_BATTLE_PLAYER_ID }],
+        };
+        const camera = new Camera(800, 600, engine.getWorldWidth(), engine.getWorldHeight());
+        camera.x = player.x;
+        camera.y = player.y;
+        const manager = new PlayerInteractionManager();
+        const ctx = {
+            engine,
+            camera,
+            renderer: { setDebugUnitOutline: () => {} } as unknown as GameRenderer,
+            session: {
+                submitPlayerOrder: async (order: BattleOrder) => {
+                    submitted.push(order);
+                },
+                interactiveTargeting: {
+                    isActive: false,
+                    previewOrderQueued: false,
+                    shouldForceItsCommitAtComboWindow: () => false,
+                    isResumeMode: false,
+                    reset: async () => {},
+                    commit: async () => {},
+                },
+            },
+            playerId: TINY_BATTLE_PLAYER_ID,
+        };
+        manager.setContext(ctx);
+        manager.setCanUseOrderUi(true);
+        manager.setMyAbilityIds(abilityIds);
+        manager.setWaitingForOrders(engine.waitingForOrders);
+        engineToDestroy = engine;
+        managerToDestroy = manager;
+        // Drive the active tool directly (PlayerInteractionManager.onCanvasClick reads window debug state).
+        const clickWorld = (x: number, y: number): void => {
+            const screen = camera.worldToScreen(x, y);
+            const tool = (manager as unknown as { activeTool: AbilityTargetingTool | null }).activeTool;
+            expect(tool).toBeInstanceOf(AbilityTargetingTool);
+            tool!.onCanvasClick(screen.x, screen.y, ctx as never, manager);
+        };
+        return { manager, submitted, player, engine, clickWorld };
+    }
+
+    it('a multi-select ability sends one positional target per label, like an ITS commit', async () => {
+        const doublePunch = getAbility(DOUBLE_PUNCH_ABILITY_ID)!;
+        const { manager, submitted, player, clickWorld } = mountUpfront([DOUBLE_PUNCH_ABILITY_ID]);
+
+        manager.activateAbilityTargeting(0, doublePunch);
+        clickWorld(player.x + 30, player.y);
+        clickWorld(player.x, player.y + 30);
+        await Promise.resolve();
+
+        expect(submitted).toHaveLength(1);
+        const order = submitted[0]!;
+        expect(order.abilityId).toBe(DOUBLE_PUNCH_ABILITY_ID);
+        expect(order.targets).toHaveLength(2);
+        // Labels point at their own positional entry (what survives toJSON).
+        expect(order.targetsByLabel?.['Target 1']).toBe(order.targets[0]);
+        expect(order.targetsByLabel?.['Target 2']).toBe(order.targets[1]);
+        expect(order.targets[0]).not.toEqual(order.targets[1]);
+    });
+
+    it('an ability with nothing to pick submits on the card click, without a canvas click', async () => {
+        // Double Punch with its select steps stripped: nothing to pick.
+        const base = getAbility(DOUBLE_PUNCH_ABILITY_ID)!;
+        const selfCast = {
+            ...base,
+            id: 'test_upfront_self_cast',
+            targets: [],
+            getTargets: undefined,
+            getAbilityTimings: undefined,
+            abilityTimings: base.abilityTimings.map((t) => ({ ...t, targetDef: undefined })),
+        } as typeof base;
+        registerAbilityForTest(selfCast);
+        const { manager, submitted } = mountUpfront([selfCast!.id]);
+
+        manager.activateAbilityTargeting(0, selfCast!);
+        await Promise.resolve();
+
+        expect(submitted).toHaveLength(1);
+        expect(submitted[0]).toMatchObject({ abilityId: selfCast!.id, targets: [] });
     });
 });

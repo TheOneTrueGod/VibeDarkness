@@ -10,6 +10,7 @@ import {
     resolveSelectTargetLockOnCandidates,
 } from '../../../abilities/targeting';
 import { getAbilityTargets } from '../../../abilities/Ability';
+import { buildFinalizedSequentialTargetingOrder } from '../itsOrderBuilders';
 import type { ResolvedTarget } from '../../types';
 import type { InteractionTool, PlayerInteractionContext, IPlayerInteractionManager } from '../InteractionTool';
 import type { AbilityStatic } from '../../../abilities/Ability';
@@ -116,7 +117,18 @@ export class AbilityTargetingTool implements InteractionTool {
             }
 
             if (newTargets.length >= selectTargetDefs.length) {
-                manager.submitOrder(this.ability.id, stepOrderTargets, newTargetsByLabel);
+                // Same order shape as an ITS commit: one positional entry per select label (a lone
+                // melee select keeps its full lock-on + aim array). Positional `targets` is what
+                // survives toJSON, so a last-step-only array resolves "Target 1" to the wrong pick
+                // on any engine rebuilt from a snapshot.
+                const order = buildFinalizedSequentialTargetingOrder(
+                    selectTargetDefs.map((d) => d.label),
+                    newTargetsByLabel,
+                    { unitId: this.casterUnitId, abilityId: this.ability.id, targets: [] },
+                    undefined,
+                    stepOrderTargets,
+                );
+                manager.submitOrder(this.ability.id, order.targets, order.targetsByLabel);
                 manager.deactivateTool();
             }
             return true;

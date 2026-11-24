@@ -9,7 +9,7 @@ import { AbilityTargetingTool } from './tools/AbilityTargetingTool';
 import { UnitSelectorDebugTool } from './tools/UnitSelectorDebugTool';
 import { AdminMoveDebugTool } from './tools/AdminMoveDebugTool';
 import { getDebugState } from '../../debugState';
-import { resolveClick, getInteractiveTargetDefsFromTimings } from '../../abilities/targeting';
+import { resolveClick, getInteractiveTargetDefsFromTimings, getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAutoEndTurn } from '../autoEndTurnSetting';
 import { isSequentialTargetingEnabled } from '../../featureFlags';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -538,15 +538,21 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
 
         // Specials never enter ITS (zero-frame; no select timings). Combo / Entombed follow-ups do:
         // submitPlayerOrder commits any open ITS at its pause, then begins a new preview.
-        if (ability.actionChannel !== 'special' && isSequentialTargetingEnabled()) {
-            const interactiveDefs = getInteractiveTargetDefsFromTimings(ability, caster, this.ctx.engine);
-            if (interactiveDefs.length > 0) {
+        if (ability.actionChannel !== 'special') {
+            if (
+                isSequentialTargetingEnabled()
+                && getInteractiveTargetDefsFromTimings(ability, caster, this.ctx.engine).length > 0
+            ) {
                 this.submitOrder(ability.id, []);
                 return;
             }
-            // Self-cast abilities with no select steps submit immediately (e.g. Gather Light).
-            const staticTargets = getAbilityTargets(ability, caster, this.ctx.engine);
-            if (staticTargets.length === 0) {
+            // Nothing to click (e.g. Gather Light) submits immediately, with or without playahead.
+            // Confirm-radius steps only ask "are you sure" inside ITS, so they do not count here;
+            // select steps do (their abilities often have empty static `targets`).
+            if (
+                getSelectTargetDefsFromTimings(ability, caster, this.ctx.engine).length === 0
+                && getAbilityTargets(ability, caster, this.ctx.engine).length === 0
+            ) {
                 this.submitOrder(ability.id, []);
                 return;
             }
