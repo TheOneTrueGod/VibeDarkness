@@ -88,7 +88,7 @@ export default function StorybookView({ entry }: { entry: StorybookEntry | null 
                     <h3 className="text-lg font-semibold text-white">{entry.name}</h3>
                     {entry.description && <p className="text-sm text-muted">{entry.description}</p>}
                 </div>
-                {entry.render(values)}
+                {entry.render(values, setValue)}
             </div>
             <StorybookControlPanel controls={entry.controls} values={values} onChange={setValue} onReset={reset} />
         </div>

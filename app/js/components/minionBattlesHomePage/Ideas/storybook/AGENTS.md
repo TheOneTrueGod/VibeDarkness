@@ -4,7 +4,7 @@ The Storybook view of the Ideas tab (`/campaign/ideas/storybook/:entryId`): a we
 
 | File / folder | Owns |
 |---------------|------|
-| `storybookTypes.ts` | The entry and control contracts (`select`, `range`, `toggle`, typeahead `search`), helpers for reading control values, and the URL mapping (`storybookValuesFromSearchParams` / `storybookSearchParams`). |
+| `storybookTypes.ts` | The entry and control contracts (`select`, `range`, `toggle`, typeahead `search`, and `state`: a URL-only string the preview sets itself, not drawn in the panel), helpers for reading control values, and the URL mapping (`storybookValuesFromSearchParams` / `storybookSearchParams`). |
 | `storybookEntries.ts` | The registry: entry order in the left list. |
 | `entries/` | One file per entry. Each renders the real game components, never copies. |
 | `StorybookView.tsx` | Entry list, preview area, and control values kept in the URL query (each entry's last query is remembered when switching away and back). |
@@ -17,8 +17,10 @@ The Storybook view of the Ideas tab (`/campaign/ideas/storybook/:entryId`): a we
 Every control is a query parameter named after its `id`, so a link opens the page already set up. Only values that differ from the default are written, and bad values fall back to the default (a `select` must name an option, a `range` is clamped, a toggle is `1` or `0`). Give controls short, readable ids since they are the URL.
 
 - `/campaign/ideas/storybook/research-cards?node=mighty&pin=1&level=2`: one node, its tooltip and reminder cards pinned open beside it, at level 2/5.
-- `/campaign/ideas/storybook/research-cards?tree=training`: one tree.
+- `/campaign/ideas/storybook/research-cards?tree=training`: one tree, every visible node (with no `tree` set each tree shows a `count`-card sample). The target button beside a tree's name sets or clears `tree`. The chevron left of it collapses the tree to its header; collapsed tree ids are kept as `collapsed=training,gravity`.
 - `/campaign/ideas/storybook/resources?resource=water&fill=25`: one resource row.
+
+An entry's `render(values, setValue)` can change its own controls from the preview (e.g. that focus button); it goes through the URL like the panel.
 
 Use a link like this to check a visual change, instead of a throwaway preview page. If no entry can show the case, add a control or an entry.
 

@@ -641,7 +641,7 @@ export default function ResearchNodeCard({
 
     if (!pinned || !hasTooltipContent) return cardElement;
     return (
-        <div className="flex items-start gap-2" data-testid={`research-node-pinned-${node.id}`}>
+        <div className="flex items-center gap-2" data-testid={`research-node-pinned-${node.id}`}>
             {cardElement}
             {tooltipGroup}
         </div>

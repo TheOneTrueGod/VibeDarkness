@@ -7,6 +7,7 @@
  */
 
 import { campaignResourceDef } from '../../../campaignResources';
+import type { CharacterStatKey } from '../../../characterStats';
 import {
     applyPassiveBonusToBase,
     computePassiveBonuses,
@@ -58,7 +59,22 @@ export interface ResearchPreviewUpgrade {
 export type ResearchPreviewStat =
     | { id: string; label: string; kind: 'text'; before: string; after: string }
     | { id: string; label: string; kind: 'battle'; resourceId: string; before: string; after: string }
-    | { id: string; label: string; kind: 'campaign'; resource: CampaignResourceKey; before: string; after: string };
+    | { id: string; label: string; kind: 'campaign'; resource: CampaignResourceKey; before: string; after: string }
+    | {
+        id: string;
+        label: string;
+        /** A character value drawn as its `StatPill` (the same pill as the node card's description). */
+        kind: 'stat';
+        stat: CharacterStatKey;
+        before: string;
+        after: string;
+        /**
+         * What the value means in play, drawn on its own line under the pill in place of the label
+         * (Attack: "All Damage +20%"). Omit and the label sits beside the pill ("[heart 70] Max Health").
+         */
+        detailBefore?: string;
+        detailAfter?: string;
+    };
 
 export interface ResearchNodePreview {
     stats: ResearchPreviewStat[];
@@ -88,6 +104,7 @@ export interface BuildResearchNodePreviewInput {
 
 const HANDLED_PASSIVE_KEYS = new Set<PassiveStatKey>([
     PassiveStatKey.MaxHealth,
+    PassiveStatKey.Attack,
     PassiveStatKey.MaxHunger,
     PassiveStatKey.AllDamage,
     PassiveStatKey.EarthDamage,
@@ -274,6 +291,7 @@ function upgradeCovers(upgrades: readonly ResearchPreviewUpgrade[], abilityId: s
 
 interface StatSheet {
     maxHealth: number;
+    attack: number;
     maxHunger: number;
     maxMovement: number;
     movementRegen: number;
@@ -294,6 +312,7 @@ function readStatSheet(view: ResearchView): StatSheet {
     const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
     return {
         maxHealth: applyPassiveBonusToBase(baseHp, passives[PassiveStatKey.MaxHealth]),
+        attack: passives[PassiveStatKey.Attack]?.add ?? 0,
         maxHunger: getCharacterMaxHunger(view.researchTrees, view.researchNodeLevels),
         maxMovement: applyPassiveBonusToBase(MOVEMENT_BASE_MAX, passives[PassiveStatKey.MaxMovementPoints]),
         movementRegen: applyPassiveBonusToBase(
@@ -341,7 +360,16 @@ function collectBonusRewards(view: ResearchView): Partial<Record<CampaignResourc
 
 function diffStatSheets(before: StatSheet, after: StatSheet): ResearchPreviewStat[] {
     const rows: ResearchPreviewStat[] = [];
-    pushBattle(rows, 'maxHealth', PassiveStatKey.MaxHealth, 'hp', before.maxHealth, after.maxHealth);
+    if (before.maxHealth !== after.maxHealth) {
+        rows.push({
+            id: 'maxHealth',
+            label: PASSIVE_STAT_LABELS[PassiveStatKey.MaxHealth],
+            kind: 'stat',
+            stat: 'health',
+            before: String(before.maxHealth),
+            after: String(after.maxHealth),
+        });
+    }
     pushCampaign(rows, 'maxHunger', PassiveStatKey.MaxHunger, 'hunger', before.maxHunger, after.maxHunger);
     pushBattle(rows, 'maxMovement', PassiveStatKey.MaxMovementPoints, 'movement_points', before.maxMovement, after.maxMovement);
     pushBattle(
@@ -373,7 +401,19 @@ function diffStatSheets(before: StatSheet, after: StatSheet): ResearchPreviewSta
         after.allDamageFlat,
         after.allDamageMult,
     );
-    if (beforeDamage !== afterDamage) {
+    if (before.attack !== after.attack) {
+        // Attack's effect is all damage, so the damage line rides under the Attack pill instead of its own row.
+        rows.push({
+            id: 'attack',
+            label: PASSIVE_STAT_LABELS[PassiveStatKey.Attack],
+            kind: 'stat',
+            stat: 'attack',
+            before: formatSigned(before.attack),
+            after: formatSigned(after.attack),
+            detailBefore: beforeDamage,
+            detailAfter: afterDamage,
+        });
+    } else if (beforeDamage !== afterDamage) {
         rows.push({ id: 'allDamage', label: PASSIVE_STAT_LABELS[PassiveStatKey.AllDamage], kind: 'text', before: beforeDamage, after: afterDamage });
     }
     const beforeEarth = formatDamagePhrase(PassiveStatKey.EarthDamage, before.earthDamageAdd, before.earthDamageMult);

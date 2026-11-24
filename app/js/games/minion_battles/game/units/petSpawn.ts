@@ -10,7 +10,7 @@ import type { EphemeralExpiryPolicy, Unit } from './Unit';
 import type { SpawnDefinition } from './spawning/spawnDefinition';
 import type { UnitTag } from './unitTag';
 import { getPetDef } from './pet_defs/petDef';
-import { inheritOwnerAbilityModifiers } from './petHelpers';
+import { inheritOwnerAbilityModifiers, inheritOwnerAttack } from './petHelpers';
 
 /** Default pet AI ranges (melee pets). */
 const DEFAULT_PET_AI_SETTINGS = { minRange: 0, maxRange: 50 };
@@ -47,7 +47,7 @@ export interface PetSpawnEngine {
 }
 
 /**
- * Spawn a pet of `owner` at `at`: pet AI hooked to the owner, owner's modifiers inherited, extra modifiers
+ * Spawn a pet of `owner` at `at`: pet AI hooked to the owner, owner's modifiers and Attack inherited, extra modifiers
  * applied, hp set and ability runtime initialized. Returns the pet, or undefined when the def is unknown or
  * placement failed.
  */
@@ -76,6 +76,8 @@ export function spawnPetForOwner(engine: PetSpawnEngine, owner: Unit, options: S
     if (!pet) return undefined;
     // Research on the pet's abilities (e.g. Thorn Volley, Frenzied Flurry) lives on the owner.
     if (options.inheritOwnerModifiers !== false) inheritOwnerAbilityModifiers(pet, owner);
+    // The owner's Attack (Mighty, Core Training) scales every pet's damage. Always from the owner, never a copy.
+    inheritOwnerAttack(pet, owner);
     if (options.abilityModifiers) {
         const merged: Record<string, AbilityModifier> = { ...pet.abilityModifiers };
         for (const [abilityId, modifier] of Object.entries(options.abilityModifiers)) {

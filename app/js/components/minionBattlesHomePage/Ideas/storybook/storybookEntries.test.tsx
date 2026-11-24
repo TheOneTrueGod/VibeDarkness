@@ -21,7 +21,7 @@ function renderEntry(id: string, overrides: StorybookControlValues = {}): string
     return renderToStaticMarkup(
         <MemoryRouter>
             <UserDataProvider user={null} loading={false} refetch={async () => {}}>
-                {entry.render(values)}
+                {entry.render(values, () => {})}
             </UserDataProvider>
         </MemoryRouter>,
     );

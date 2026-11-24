@@ -87,6 +87,9 @@ function ControlField({
                     {control.label}
                 </label>
             );
+        case 'state':
+            // Set from the preview itself; only the URL carries it.
+            return null;
     }
 }
 

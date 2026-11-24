@@ -8,6 +8,7 @@ import {
 } from '../../research/researchNodePreview';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import ResourcePill, { RESOURCE_PILL_SIZE_SMALL } from '../../../../components/ResourcePill';
+import StatPill from '../../../../components/StatPill';
 import { AbilitySlotPreview } from './AbilitySlotPreview';
 import { ResourceIcon } from './resources/ResourceIcon';
 
@@ -28,6 +29,23 @@ function StatValue({ row, side }: { row: ResearchPreviewStat; side: 'before' | '
     const value = side === 'before' ? row.before : row.after;
     if (row.kind === 'text') {
         return <p className="text-[11px] leading-snug text-gray-200">{value}</p>;
+    }
+    if (row.kind === 'stat') {
+        const detail = side === 'before' ? row.detailBefore : row.detailAfter;
+        if (detail !== undefined) {
+            return (
+                <div className="flex flex-col items-start gap-1" title={row.label}>
+                    <StatPill stat={row.stat} amount={value} />
+                    <span className="text-[11px] leading-snug text-gray-200">{detail}</span>
+                </div>
+            );
+        }
+        return (
+            <div className="flex items-center gap-1.5" title={row.label}>
+                <StatPill stat={row.stat} amount={value} />
+                <span className="text-[11px] text-gray-200">{row.label}</span>
+            </div>
+        );
     }
     if (row.kind === 'campaign') {
         return (

@@ -1,6 +1,11 @@
 import type { Unit } from './Unit';
 import { peekPetState } from './components/petComponent';
-import type { AbilityModifier } from '../../../../researchTrees/types';
+import {
+    ATTACK_DAMAGE_MULT_PER_POINT,
+    PassiveStatKey,
+    type AbilityModifier,
+} from '../../../../researchTrees/types';
+import { DEFAULT_PASSIVE_MULT } from '../../../../researchTrees/passiveBonuses';
 import { mergeAbilityModifierInto } from '../../../../researchTrees/abilityModifierMerge';
 import { isUnitLingering } from './ephemeralExpiry';
 import { isCloneUnit } from './unitTag';
@@ -69,4 +74,24 @@ export function inheritOwnerAbilityModifiers(pet: Unit, owner: Unit): void {
         merged[abilityId] = entry;
     }
     pet.abilityModifiers = merged;
+}
+
+/**
+ * Give a pet its owner's Attack stat (e.g. from Mighty), added to any Attack the pet has. Each point raises the
+ * pet's outgoing damage multiplier by `ATTACK_DAMAGE_MULT_PER_POINT`, the same as on the owner. Read once when the
+ * pet spawns: a later change to the owner's Attack does not reach pets already on the field.
+ */
+export function inheritOwnerAttack(pet: Unit, owner: Unit): void {
+    const attack = owner.passiveBonuses?.[PassiveStatKey.Attack]?.add ?? 0;
+    if (attack === 0) return;
+    const own = pet.passiveBonuses?.[PassiveStatKey.Attack];
+    pet.passiveBonuses = {
+        ...pet.passiveBonuses,
+        [PassiveStatKey.Attack]: { add: (own?.add ?? 0) + attack, mult: own?.mult ?? DEFAULT_PASSIVE_MULT },
+    };
+    const current = pet.getDamageModifier();
+    pet.combatSettings = {
+        ...pet.combatSettings,
+        damageModifier: { ...current, multiplier: current.multiplier + attack * ATTACK_DAMAGE_MULT_PER_POINT },
+    };
 }

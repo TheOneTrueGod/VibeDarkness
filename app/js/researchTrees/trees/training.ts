@@ -205,7 +205,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: TRAINING_NODE_HEALTHY,
             title: 'Healthy',
-            description: `${statPillToken('health', `+${Math.floor(TRAINING_HEALTHY_MAX_HEALTH_ADD / TRAINING_HEALTHY_LEVELS)}`)} per level.`,
+            description: `${statPillToken('health', `+${Math.floor(TRAINING_HEALTHY_MAX_HEALTH_ADD / TRAINING_HEALTHY_LEVELS)}`)}`,
             flavorText: 'Endure a little longer each outing.',
             order: 60,
             tier: 11,

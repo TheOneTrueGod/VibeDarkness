@@ -19,10 +19,17 @@ export type StorybookControl =
           placeholder?: string;
           suggestions?: readonly string[];
           defaultValue: string;
-      };
+      }
+    /**
+     * A string kept in the URL but not drawn in the control panel: state the preview sets itself through
+     * `setValue` (e.g. which sections are collapsed), so a link reopens the page the same way.
+     */
+    | { kind: 'state'; id: string; defaultValue: string };
 
 export type StorybookControlValue = string | number | boolean;
 export type StorybookControlValues = Readonly<Record<string, StorybookControlValue>>;
+/** Sets one control by `id` (and so the URL). */
+export type StorybookSetValue = (id: string, value: StorybookControlValue) => void;
 
 /**
  * One entry in the admin Ideas tab's Storybook view. Add an entry to `STORYBOOK_ENTRIES`
@@ -35,8 +42,11 @@ export interface StorybookEntry {
     /** One line under the name in the preview header. */
     description?: string;
     controls: readonly StorybookControl[];
-    /** Renders the examples for the current control values. */
-    render: (values: StorybookControlValues) => ReactNode;
+    /**
+     * Renders the examples for the current control values. `setValue` changes a control from inside the preview
+     * (e.g. a "focus this tree" button), the same as editing it in the control panel.
+     */
+    render: (values: StorybookControlValues, setValue: StorybookSetValue) => ReactNode;
 }
 
 export function defaultStorybookValues(controls: readonly StorybookControl[]): Record<string, StorybookControlValue> {
@@ -82,6 +92,7 @@ export function storybookValuesFromSearchParams(
         if (raw == null) continue;
         switch (c.kind) {
             case 'search':
+            case 'state':
                 values[c.id] = raw;
                 break;
             case 'select':

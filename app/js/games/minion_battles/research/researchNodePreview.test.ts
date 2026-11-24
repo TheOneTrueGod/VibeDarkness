@@ -26,6 +26,7 @@ import {
     EARTHEN_STRIDE_MOVEMENT_ADD,
     TRAINING_HEALTHY_LEVELS,
     TRAINING_HEALTHY_MAX_HEALTH_ADD,
+    TRAINING_MIGHTY_ATTACK_ADD,
     TRAINING_MIGHTY_DAMAGE_MULT_AT_MAX,
     TRAINING_MIGHTY_LEVELS,
     TRAINING_NODE_CORE,
@@ -92,7 +93,7 @@ describe('buildResearchNodePreview', () => {
         expect(tremorsense.stats.filter((row) => row.id.startsWith('sense:'))).toHaveLength(1);
     });
 
-    it('shows a health icon delta for a max-health passive', () => {
+    it('shows a Max Health stat pill delta for a max-health passive', () => {
         const preview = buildResearchNodePreview({
             treeId: TRAINING_TREE_ID,
             node: nodeById(trainingTree, TRAINING_NODE_HEALTHY),
@@ -100,8 +101,8 @@ describe('buildResearchNodePreview', () => {
         const add = getAddAtLevel(TRAINING_HEALTHY_MAX_HEALTH_ADD, 1, TRAINING_HEALTHY_LEVELS);
         const base = getDefaultHp(PLAYER_CHARACTER_ID);
         expect(stat(preview, 'maxHealth')).toMatchObject({
-            kind: 'battle',
-            resourceId: 'hp',
+            kind: 'stat',
+            stat: 'health',
             before: String(base),
             after: String(base + add),
         });
@@ -109,19 +110,24 @@ describe('buildResearchNodePreview', () => {
         expect(preview.upgrades).toEqual([]);
     });
 
-    it('phrases an all-damage percent with no icon', () => {
+    it('shows Mighty as an Attack pill with the all-damage percent under it', () => {
         const preview = buildResearchNodePreview({
             treeId: TRAINING_TREE_ID,
             node: nodeById(trainingTree, TRAINING_NODE_MIGHTY),
         });
         const pct = Math.round((MIGHTY_ONE_LEVEL_MULT - 1) * 100);
-        expect(stat(preview, 'allDamage')).toEqual({
-            id: 'allDamage',
-            label: ALL_DAMAGE,
-            kind: 'text',
-            before: `${ALL_DAMAGE} +0%`,
-            after: `${ALL_DAMAGE} +${pct}%`,
+        expect(stat(preview, 'attack')).toEqual({
+            id: 'attack',
+            label: PASSIVE_STAT_LABELS[PassiveStatKey.Attack],
+            kind: 'stat',
+            stat: 'attack',
+            before: '+0',
+            after: `+${getAddAtLevel(TRAINING_MIGHTY_ATTACK_ADD, 1, TRAINING_MIGHTY_LEVELS)}`,
+            detailBefore: `${ALL_DAMAGE} +0%`,
+            detailAfter: `${ALL_DAMAGE} +${pct}%`,
         });
+        expect(stat(preview, 'allDamage')).toBeUndefined();
+        expect(stat(preview, 'passive:attack')).toBeUndefined();
     });
 
     it('Core Training adds Max Health and an Attack point on top of Mighty', () => {
@@ -134,9 +140,9 @@ describe('buildResearchNodePreview', () => {
         const pct = Math.round((MIGHTY_ONE_LEVEL_MULT - 1) * 100);
         const corePct = Math.round(TRAINING_CORE_ATTACK_ADD * ATTACK_DAMAGE_MULT_PER_POINT * 100);
         const base = getDefaultHp(PLAYER_CHARACTER_ID);
-        expect(stat(preview, 'allDamage')).toMatchObject({
-            before: `${ALL_DAMAGE} +${pct}%`,
-            after: `${ALL_DAMAGE} +${pct + corePct}%`,
+        expect(stat(preview, 'attack')).toMatchObject({
+            detailBefore: `${ALL_DAMAGE} +${pct}%`,
+            detailAfter: `${ALL_DAMAGE} +${pct + corePct}%`,
         });
         expect(stat(preview, 'maxHealth')).toMatchObject({
             before: String(base),

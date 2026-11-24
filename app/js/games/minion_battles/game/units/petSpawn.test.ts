@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 // AbilityRegistry first (avoids the CastBehaviours import cycle).
 import '../../abilities/AbilityRegistry';
 import { CORE_ITEM_IDS } from '../../character_defs/items';
+import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
+import { ATTACK_DAMAGE_MULT_PER_POINT, PassiveStatKey } from '../../../../researchTrees/types';
 import {
     buildTinyBattleEngine,
     placePlayerFromLoadout,
@@ -73,6 +75,39 @@ describe('spawnPetForOwner', () => {
 
         expect(inheriting!.abilityModifiers['0701']?.damageFlat).toBe(5);
         expect(copied!.abilityModifiers['0701']?.damageFlat).toBe(5);
+    });
+
+    it("carries the owner's Attack, so each point raises the pet's damage too", () => {
+        const { engine, player } = battle();
+        const ownerAttack = 3;
+        const petBase = 10;
+        player.passiveBonuses = { ...player.passiveBonuses, [PassiveStatKey.Attack]: { add: ownerAttack, mult: 1 } };
+        const pet = spawnPetForOwner(engine, player, {
+            petDefId: 'spirit_clone',
+            at: { x: 260, y: 200 },
+            abilityIds: ['0701'],
+            maxHp: 30,
+            spawnSource: 'abilitySpawn',
+        });
+
+        expect(pet!.passiveBonuses?.[PassiveStatKey.Attack]?.add).toBe(ownerAttack);
+        expect(pet!.getDamageModifier().multiplier).toBeCloseTo(1 + ownerAttack * ATTACK_DAMAGE_MULT_PER_POINT);
+        expect(getModifiedAbilityDamage(pet!, petBase)).toBe(
+            Math.round(petBase * (1 + ownerAttack * ATTACK_DAMAGE_MULT_PER_POINT)),
+        );
+    });
+
+    it('leaves a pet of an owner with no Attack unmodified', () => {
+        const { engine, player } = battle();
+        player.passiveBonuses = undefined;
+        const pet = spawnPetForOwner(engine, player, {
+            petDefId: 'spirit_clone',
+            at: { x: 260, y: 200 },
+            abilityIds: ['0701'],
+            maxHp: 30,
+            spawnSource: 'abilitySpawn',
+        });
+        expect(pet!.getDamageModifier().multiplier).toBe(1);
     });
 
     it('returns undefined for an unknown pet def', () => {

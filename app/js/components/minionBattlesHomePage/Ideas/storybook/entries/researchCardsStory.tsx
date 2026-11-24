@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronDown, ChevronRight, Target } from 'lucide-react';
 import { RESEARCH_TREES } from '../../../../../researchTrees/list';
 import {
     isDisabledResearchNode,
@@ -19,16 +20,27 @@ import {
     matchesSearch,
     type StorybookControlValues,
     type StorybookEntry,
+    type StorybookSetValue,
 } from '../storybookTypes';
 
 type NodeState = NonNullable<ResearchNodeCardProps['state']>;
 
 /** Nodes a player could see as a card: no drafts, disabled nodes or free weapon roots; lowest tier first. */
-function exampleNodes(tree: ResearchTreeDef, count: number): ResearchNodeDef[] {
+function visibleNodes(tree: ResearchTreeDef): ResearchNodeDef[] {
     return tree.nodes
         .filter((n) => !isDraftResearchNode(n) && !isDisabledResearchNode(n) && !isVirtualRootNode(n))
-        .sort(compareResearchNodesByTier)
-        .slice(0, count);
+        .sort(compareResearchNodesByTier);
+}
+
+/** The first `count` of {@link visibleNodes}: a sample when no tree is picked. */
+function exampleNodes(tree: ResearchTreeDef, count: number): ResearchNodeDef[] {
+    return visibleNodes(tree).slice(0, count);
+}
+
+/** Whether the `tree` search names exactly this tree (what the focus button sets). */
+function isFocusedTree(tree: ResearchTreeDef, search: string): boolean {
+    const q = search.trim().toLowerCase();
+    return q !== '' && (q === tree.title.toLowerCase() || q === tree.id.toLowerCase());
 }
 
 /** Most cards one tree shows for a node search, so a broad query stays readable. */
@@ -45,13 +57,21 @@ function searchedNodes(tree: ResearchTreeDef, query: string): ResearchNodeDef[] 
         .slice(0, MAX_NODE_MATCHES_PER_TREE);
 }
 
-function ColourSwatch({ role, hex, note }: { role: string; hex: string; note?: string }) {
+/** One theme colour: swatch, role and hex. With no `hex` (the theme leaves it unset) it reads "Role: none". */
+function ColourSwatch({ role, hex }: { role: string; hex?: string }) {
+    if (hex === undefined) {
+        return (
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-200">
+                <span className="font-semibold">{role}:</span>
+                <span className="text-muted italic">none</span>
+            </span>
+        );
+    }
     return (
         <span className="inline-flex items-center gap-1.5 text-xs text-gray-200">
             <span className="h-4 w-4 shrink-0 rounded border border-border-custom" style={{ backgroundColor: hex }} />
             <span className="font-semibold">{role}</span>
             <span className="font-mono text-muted">{hex}</span>
-            {note && <span className="text-muted italic">({note})</span>}
         </span>
     );
 }
@@ -63,7 +83,8 @@ function TreeColours({ tree }: { tree: ResearchTreeDef }) {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span className="font-mono text-[11px] text-muted">theme: {theme.id}</span>
             <ColourSwatch role="Primary" hex={theme.primary} />
-            <ColourSwatch role="Secondary" hex={theme.secondary} note={hasSecondary ? undefined : 'falls back to primary'} />
+            {/* An unset secondary resolves to the primary; say so plainly rather than show the primary twice. */}
+            <ColourSwatch role="Secondary" hex={hasSecondary ? theme.secondary : undefined} />
             {theme.font !== undefined && <ColourSwatch role="Font" hex={theme.font} />}
         </div>
     );
@@ -89,51 +110,127 @@ function TreeNameplate({ tree, purchased, selected }: { tree: ResearchTreeDef; p
     );
 }
 
-function TreeSection({ tree, values }: { tree: ResearchTreeDef; values: StorybookControlValues }) {
+/** `collapsed` control: tree ids joined by commas (`?collapsed=training,gravity`). */
+const COLLAPSED_SEPARATOR = ',';
+
+function collapsedTreeIds(values: StorybookControlValues): Set<string> {
+    return new Set(controlString(values, 'collapsed').split(COLLAPSED_SEPARATOR).filter((id) => id !== ''));
+}
+
+/** The `collapsed` value with `treeId` toggled, ids in tree-list order so the URL stays stable. */
+function toggledCollapsed(values: StorybookControlValues, treeId: string): string {
+    const ids = collapsedTreeIds(values);
+    if (ids.has(treeId)) ids.delete(treeId);
+    else ids.add(treeId);
+    return RESEARCH_TREES.map((t) => t.id).filter((id) => ids.has(id)).join(COLLAPSED_SEPARATOR);
+}
+
+/** Chevron left of the focus button: collapses a tree to its header row, or expands it again. */
+function CollapseTreeButton({ tree, collapsed, onToggle }: { tree: ResearchTreeDef; collapsed: boolean; onToggle: () => void }) {
+    const Icon = collapsed ? ChevronRight : ChevronDown;
+    const label = `${collapsed ? 'Expand' : 'Collapse'} ${tree.title}`;
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            className="inline-flex h-6 w-6 items-center justify-center self-center rounded text-muted transition-colors hover:bg-white/10 hover:text-white"
+            title={label}
+            aria-label={label}
+            aria-expanded={!collapsed}
+        >
+            <Icon className="h-4 w-4" aria-hidden />
+        </button>
+    );
+}
+
+/** Target button left of a tree's name: puts the tree in the Tree search, or clears it when already focused. */
+function FocusTreeButton({ tree, focused, setValue }: { tree: ResearchTreeDef; focused: boolean; setValue: StorybookSetValue }) {
+    return (
+        <button
+            type="button"
+            onClick={() => setValue('tree', focused ? '' : tree.title)}
+            className={`inline-flex h-6 w-6 items-center justify-center self-center rounded transition-colors hover:bg-white/10 ${
+                focused ? 'text-primary' : 'text-muted hover:text-white'
+            }`}
+            title={focused ? 'Show every tree' : `Focus ${tree.title}`}
+            aria-label={focused ? 'Show every tree' : `Focus ${tree.title}`}
+            aria-pressed={focused}
+        >
+            <Target className="h-4 w-4" aria-hidden />
+        </button>
+    );
+}
+
+function TreeSection({
+    tree,
+    values,
+    setValue,
+}: {
+    tree: ResearchTreeDef;
+    values: StorybookControlValues;
+    setValue: StorybookSetValue;
+}) {
     const selected = controlBoolean(values, 'selected');
     const state = controlString(values, 'state') as NodeState;
     const layout = controlString(values, 'layout') as 'comfortable' | 'compact';
     const nodeQuery = controlString(values, 'node').trim();
-    const nodes = nodeQuery ? searchedNodes(tree, nodeQuery) : exampleNodes(tree, controlNumber(values, 'count'));
+    const treeSearch = controlString(values, 'tree').trim();
+    // A node search lists its matches; a tree search lists the whole tree; neither shows a small sample.
+    const nodes = nodeQuery
+        ? searchedNodes(tree, nodeQuery)
+        : treeSearch
+            ? visibleNodes(tree)
+            : exampleNodes(tree, controlNumber(values, 'count'));
     const level = controlNumber(values, 'level');
     const pinned = controlBoolean(values, 'pin');
+    const collapsed = collapsedTreeIds(values).has(tree.id);
 
     return (
         <section className="rounded-lg border border-border-custom bg-dark-900/40 p-3">
-            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                <h4 className="text-base font-semibold text-white">
-                    {tree.title} <span className="font-mono text-xs text-muted">{tree.id}</span>
-                </h4>
+            <div className={`flex flex-wrap items-center justify-between gap-2 ${collapsed ? '' : 'mb-3'}`}>
+                <div className="flex items-center gap-1.5">
+                    <CollapseTreeButton
+                        tree={tree}
+                        collapsed={collapsed}
+                        onToggle={() => setValue('collapsed', toggledCollapsed(values, tree.id))}
+                    />
+                    <FocusTreeButton tree={tree} focused={isFocusedTree(tree, treeSearch)} setValue={setValue} />
+                    <h4 className="text-base font-semibold text-white">
+                        {tree.title} <span className="font-mono text-xs text-muted">{tree.id}</span>
+                    </h4>
+                </div>
                 <TreeColours tree={tree} />
             </div>
-            <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap gap-3">
-                    <TreeNameplate tree={tree} purchased selected={selected} />
-                    <TreeNameplate tree={tree} purchased={false} selected={selected} />
+            {!collapsed && (
+                <div className="flex flex-col gap-3">
+                    <div className="flex flex-wrap gap-3">
+                        <TreeNameplate tree={tree} purchased selected={selected} />
+                        <TreeNameplate tree={tree} purchased={false} selected={selected} />
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                        {nodes.length === 0 && <p className="text-sm text-muted">No visible nodes.</p>}
+                        {nodes.map((node) => (
+                            <ResearchNodeCard
+                                key={node.id}
+                                node={node}
+                                tree={tree}
+                                variant="display"
+                                state={state}
+                                layout={layout}
+                                showCost
+                                showRequirements
+                                currentLevel={Math.min(level, getNodeMaxLevels(node))}
+                                tooltipMode={pinned ? 'pinned' : 'hover'}
+                            />
+                        ))}
+                    </div>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                    {nodes.length === 0 && <p className="text-sm text-muted">No visible nodes.</p>}
-                    {nodes.map((node) => (
-                        <ResearchNodeCard
-                            key={node.id}
-                            node={node}
-                            tree={tree}
-                            variant="display"
-                            state={state}
-                            layout={layout}
-                            showCost
-                            showRequirements
-                            currentLevel={Math.min(level, getNodeMaxLevels(node))}
-                            tooltipMode={pinned ? 'pinned' : 'hover'}
-                        />
-                    ))}
-                </div>
-            </div>
+            )}
         </section>
     );
 }
 
-function ResearchCardsPreview({ values }: { values: StorybookControlValues }) {
+function ResearchCardsPreview({ values, setValue }: { values: StorybookControlValues; setValue: StorybookSetValue }) {
     const search = controlString(values, 'tree');
     const nodeQuery = controlString(values, 'node').trim();
     const trees = RESEARCH_TREES.filter((t) => matchesSearch(search, t.title, t.id, t.theme))
@@ -147,7 +244,7 @@ function ResearchCardsPreview({ values }: { values: StorybookControlValues }) {
                 </p>
             )}
             {trees.map((tree) => (
-                <TreeSection key={tree.id} tree={tree} values={values} />
+                <TreeSection key={tree.id} tree={tree} values={values} setValue={setValue} />
             ))}
         </div>
     );
@@ -201,8 +298,10 @@ export const RESEARCH_CARDS_STORY: StorybookEntry = {
             ],
             defaultValue: 'comfortable',
         },
-        // Ignored while a Node search is set: then every matching node shows.
+        // Only used with no Tree or Node search: a Tree search shows the whole tree, a Node search every match.
         { kind: 'range', id: 'count', label: 'Cards per tree', min: 1, max: 6, defaultValue: 2 },
+        // Set by each tree's chevron: comma-separated ids of the trees shown as just their header row.
+        { kind: 'state', id: 'collapsed', defaultValue: '' },
     ],
-    render: (values) => <ResearchCardsPreview values={values} />,
+    render: (values, setValue) => <ResearchCardsPreview values={values} setValue={setValue} />,
 };
