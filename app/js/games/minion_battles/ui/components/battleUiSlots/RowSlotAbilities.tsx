@@ -450,6 +450,14 @@ export default function RowSlotAbilities({
         const availableModes = getAvailableModes(playerUnit, card.slotAbility);
         // The strip highlights the mode the card is showing (the pick, or the default / its fallback).
         const currentAbilityMode = card.effectiveMode;
+        // During an ITS preview (e.g. a Combo follow-up) a mode that shows a different ability is a swap:
+        // clicking it rewinds to the mark and plays forward with that ability (same rule as clicking a card).
+        const modeSwapTarget = (mode: string): AbilityStatic | null => {
+            if (isMyTurn || !canSwapToAbility) return null;
+            const target = getAbility(resolveModeAbilityId(card.slotAbility, mode));
+            return target && target.id !== card.ability.id && canSwapToAbility(target) ? target : null;
+        };
+        const canSwapViaMode = availableModes.some((mode) => mode !== currentAbilityMode && modeSwapTarget(mode) != null);
         const modeUnavailableReasons: Record<string, string> = {};
         // Only cards with a fallback mode explain an unusable mode (in the segment tooltip).
         for (const mode of abilityModes?.fallbackMode !== undefined ? availableModes : []) {
@@ -508,10 +516,15 @@ export default function RowSlotAbilities({
                     modeUnavailableReasons={modeUnavailableReasons}
                     onSetAbilityMode={
                         abilityModes && onSetAbilityMode
-                            ? (mode) => onSetAbilityMode(card.slotAbilityId, mode)
+                            ? (mode) => {
+                                // Record the pick first: the swapped-in preview reads it for its order's mode.
+                                onSetAbilityMode(card.slotAbilityId, mode);
+                                const target = modeSwapTarget(mode);
+                                if (target) onSelectCard(index, target);
+                            }
                             : undefined
                     }
-                    modeStripInteractive={isModeStripInteractive({ isMyTurn, isSwapTarget })}
+                    modeStripInteractive={isModeStripInteractive({ isMyTurn, isSwapTarget: isSwapTarget || canSwapViaMode })}
                 />
                 {isReactionPause && (
                     <span
@@ -527,7 +540,7 @@ export default function RowSlotAbilities({
 
     return (
         <div
-            data-className="RowSlotAbilities"
+            data-classname="RowSlotAbilities"
             className="flex h-full min-w-0 flex-col"
             style={{
                 paddingTop: BATTLE_BOTTOM_ROW_PADDING_Y_PX,

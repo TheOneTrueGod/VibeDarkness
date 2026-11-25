@@ -174,6 +174,8 @@ export function useInteractionManagerBridge({
     }, [battleInitPhase, sessionRef]);
 
     const handleSetAbilityMode = (abilityId: string, mode: string) => {
+        // Sync the ref now: a mode click can swap the ITS preview, whose order reads the pick from it.
+        abilityModeByAbilityIdRef.current = { ...abilityModeByAbilityIdRef.current, [abilityId]: mode };
         setAbilityModeByAbilityId((prev) => {
             if (prev[abilityId] === mode) return prev;
             return { ...prev, [abilityId]: mode };

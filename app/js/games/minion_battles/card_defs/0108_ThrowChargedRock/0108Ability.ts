@@ -162,10 +162,15 @@ export const ThrowChargedRock: AbilityStatic = {
         return buildChargedRockTimings(research);
     },
     targets: TWO_PIXEL_TARGETS,
-    /** Toggle button swaps this card with Throw Rock (shown only while Charged Rock is unlocked). */
+    /**
+     * Same strip tech as the Ice / Blood cards: the lower tier (Basic) is always the left segment, and the
+     * slot falls back to Basic when Charged can't be cast (no uses left).
+     */
     abilityModes: {
-        modes: ['charged', 'basic'],
+        modes: ['basic', 'charged'],
         defaultMode: 'charged',
+        toggleStyle: 'cycle',
+        fallbackMode: 'basic',
         modeAbilityIds: { basic: 'throw_rock' },
         modeLabels: { charged: 'Charged', basic: 'Basic' },
         modeDescriptions: {

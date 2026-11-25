@@ -59,8 +59,9 @@ export function abilityHandCardFlags(
 /**
  * Whether a card's mode strip (e.g. Blood / Ice) can be toggled: whenever clicking the card would act on it.
  * That is the player's turn, or a card that a click would switch to during an ITS preview (`canSwapToAbility`),
- * which covers the follow-up preview Combo auto-continue starts on its pause. The previewed card itself is
- * not a swap target, so its mode stays fixed while it plays.
+ * which covers the follow-up preview Combo auto-continue starts on its pause. Callers pass `isSwapTarget`
+ * true too when one of the strip's other modes shows a swappable ability (Basic / Charged Rock): clicking
+ * that segment swaps the preview. A previewed card with no swappable mode keeps its mode fixed while it plays.
  */
 export function isModeStripInteractive(input: { isMyTurn: boolean; isSwapTarget: boolean }): boolean {
     return input.isMyTurn || input.isSwapTarget;

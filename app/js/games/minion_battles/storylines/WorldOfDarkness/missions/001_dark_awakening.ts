@@ -183,7 +183,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
 		defendPoint: true,
 		hp: 5,
 		tags: { destructible: true },
-		emitsLight: { lightAmount: 6, radius: 5 },
+		emitsLight: { lightAmount: 6, radius: 2.5 },
 	},
 ];
 

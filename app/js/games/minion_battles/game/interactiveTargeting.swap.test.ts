@@ -166,6 +166,30 @@ describe('ITS swap to another ability during a preview', () => {
         expect(rewinds).toEqual([]);
     });
 
+    it('a mode toggle swaps Throw Rock to Throw Charged Rock (same slot) and back', async () => {
+        const { session: s, engine, mgr } = await mountSwapFixture();
+        const player = engine.getLocalPlayerUnit()!;
+        player.abilities = ['throw_charged_rock', PUNCH_ID];
+        initializeAbilityRuntimeForUnit(player);
+        const its = s.interactiveTargeting;
+        mgr.setAbilityModeResolver(() => 'basic');
+        mgr.activateAbilityTargeting(0, getAbility(THROW_ROCK_ID)!);
+        await flush();
+        expect(its.abilityId).toBe(THROW_ROCK_ID);
+
+        // The strip's Charged segment calls this (RowSlotAbilities `modeSwapTarget`).
+        const cur = s.getInteractionManager() ?? mgr;
+        cur.setAbilityModeResolver(() => 'charged');
+        expect(cur.swapItsPreviewAbility(0, getAbility('throw_charged_rock')!)).toBe(true);
+        await flush();
+        expect(its.abilityId).toBe('throw_charged_rock');
+
+        (s.getInteractionManager() ?? cur).setAbilityModeResolver(() => 'basic');
+        expect((s.getInteractionManager() ?? cur).swapItsPreviewAbility(0, getAbility(THROW_ROCK_ID)!)).toBe(true);
+        await flush();
+        expect(its.abilityId).toBe(THROW_ROCK_ID);
+    });
+
     it('does not swap while a swap is already rewinding', async () => {
         const { session: s, mgr } = await mountSwapFixture();
         const its = s.interactiveTargeting;
