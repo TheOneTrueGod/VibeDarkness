@@ -41,8 +41,17 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // Static: serve built frontend assets from dist/
 if (preg_match('/^\/assets\//', $path)) {
-    $filePath = __DIR__ . '/dist' . $path;
-    if (file_exists($filePath)) {
+    // parse_url() leaves the path percent-encoded; decode it so names with spaces
+    // (e.g. "The Britons-<hash>.mp3" requested as "The%20Britons-...") resolve.
+    $assetsRoot = realpath(__DIR__ . '/dist/assets');
+    $filePath = realpath(__DIR__ . '/dist' . rawurldecode($path));
+    // realpath() also collapses "..", so this rejects traversal outside dist/assets.
+    if (
+        $assetsRoot !== false
+        && $filePath !== false
+        && strpos($filePath, $assetsRoot . DIRECTORY_SEPARATOR) === 0
+        && is_file($filePath)
+    ) {
         $mimeTypes = [
             'html' => 'text/html',
             'css' => 'text/css',
@@ -52,6 +61,7 @@ if (preg_match('/^\/assets\//', $path)) {
             'jpg' => 'image/jpeg',
             'gif' => 'image/gif',
             'svg' => 'image/svg+xml',
+            'mp3' => 'audio/mpeg',
         ];
         $ext = pathinfo($filePath, PATHINFO_EXTENSION);
         $mime = $mimeTypes[$ext] ?? 'text/plain';
