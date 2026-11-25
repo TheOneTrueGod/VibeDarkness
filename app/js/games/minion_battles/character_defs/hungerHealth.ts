@@ -42,21 +42,34 @@ export function getHungerPenalty(hunger: number, maxHunger: number): number {
 
 /** In-battle line such as "Hungry: -25% max health" (with a true minus sign), or null when there is no penalty. */
 export function describeHungerPenalty(penalty: number): string | null {
+    if (!(penalty > 0)) return null;
     const tier = HUNGER_PENALTY_TIERS.find((t) => t.maxHpPenalty === penalty);
-    if (!tier) return null;
-    return `${tier.label}: −${Math.round(tier.maxHpPenalty * 100)}% max health`;
+    // A mission's `lowFoodPenalty` can produce a penalty that matches no tier exactly.
+    const label = tier?.label ?? 'Low food';
+    return `${label}: −${Math.round(penalty * 100)}% max health`;
+}
+
+/**
+ * Cap a Hunger penalty at a mission's `lowFoodPenalty` (the most max HP, as a fraction, a low-food start
+ * may cost on that mission). `undefined` leaves the penalty alone.
+ */
+export function capHungerPenalty(penalty: number, lowFoodPenalty: number | undefined): number {
+    if (lowFoodPenalty === undefined || !Number.isFinite(lowFoodPenalty)) return penalty;
+    return Math.min(penalty, Math.max(0, Math.min(1, lowFoodPenalty)));
 }
 
 /**
  * Lower a freshly built unit's maxHp (and set hp to it) according to the Hunger tier,
  * and record the applied penalty on `unit.hungerPenalty`.
+ * `lowFoodPenalty` (from the mission definition) caps the penalty for gentler early missions.
  */
 export function applyFightStartHunger(
     unit: { maxHp: number; hp: number; hungerPenalty: number },
     hunger: number,
     maxHunger: number,
+    lowFoodPenalty?: number,
 ): void {
-    const penalty = getHungerPenalty(hunger, maxHunger);
+    const penalty = capHungerPenalty(getHungerPenalty(hunger, maxHunger), lowFoodPenalty);
     unit.hungerPenalty = penalty;
     if (penalty <= 0) {
         return;

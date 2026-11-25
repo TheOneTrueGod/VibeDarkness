@@ -35,6 +35,14 @@ import { getResearchNode } from '../../../../researchTrees/list';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
 import PostMissionChoicePanel from './preMissionStory/PostMissionChoicePanel';
+import StoryFloatingActions from './preMissionStory/StoryFloatingActions';
+import {
+    INITIAL_STORY_NAV,
+    advanceStoryNav,
+    canRetreatStoryNav,
+    retreatStoryNav,
+    type StoryNav,
+} from './preMissionStory/storyNavigation';
 import { STORY_CHOICE_BOTTOM_ROW_CLASS } from './preMissionStory/storyChoiceGrid';
 import { storyPhraseBackgroundUrl } from './preMissionStory/storyPhraseBackground';
 import {
@@ -176,7 +184,8 @@ export default function PostMissionStoryPhase({
     chatSlot,
     centerOverlay,
 }: PostMissionStoryPhaseProps) {
-    const [phraseIndex, setPhraseIndex] = useState(0);
+    const [nav, setNav] = useState<StoryNav>(INITIAL_STORY_NAV);
+    const phraseIndex = nav.index;
     const [bgOpacity, setBgOpacity] = useState(1);
     const prevPhraseBackgroundRef = useRef<string | undefined>(undefined);
     /** After a reward choice, hide the VN UI so the victory modal does not sit over changing/disabled options. */
@@ -211,7 +220,7 @@ export default function PostMissionStoryPhase({
         accumulatedHealWoundsRef.current = 0;
         accumulatedHungerChangesRef.current = [];
         appliedHungerPhraseIndicesRef.current = new Set();
-        setPhraseIndex(0);
+        setNav(INITIAL_STORY_NAV);
         setPhantomPostChoiceStep(false);
         hasCompletedRef.current = false;
     }, [missionId]);
@@ -344,14 +353,18 @@ export default function PostMissionStoryPhase({
     }, [onComplete]);
 
     const advancePhrase = useCallback(() => {
-        setPhraseIndex((i) => {
-            const next = Math.min(i + 1, phrases.length);
-            if (next >= phrases.length) {
+        setNav((n) => {
+            const next = advanceStoryNav(n, phrases);
+            if (next.index >= phrases.length) {
                 completeIfNeeded();
             }
             return next;
         });
-    }, [phrases.length, completeIfNeeded]);
+    }, [phrases, completeIfNeeded]);
+
+    const goBack = useCallback(() => {
+        setNav(retreatStoryNav);
+    }, []);
 
     useEffect(() => {
         if (!currentPhrase || !isRecoverHungerAuto(currentPhrase)) return;
@@ -429,7 +442,8 @@ export default function PostMissionStoryPhase({
             if (morePhrasesRemain) {
                 setWaitingForPartyChoiceId(null);
                 pendingPartyChoiceOptionsRef.current = null;
-                setPhraseIndex((i) => i + 1);
+                // A choice was just committed: advancing from a non-dialogue phrase also clears the Back history.
+                setNav((n) => advanceStoryNav(n, phrases));
                 return;
             }
 
@@ -476,7 +490,7 @@ export default function PostMissionStoryPhase({
             characterSelections,
             onComplete,
             phraseIndex,
-            phrases.length,
+            phrases,
             playerId,
             playerStoryChoices,
         ],
@@ -706,15 +720,12 @@ export default function PostMissionStoryPhase({
             }
             bottomRowClassName={showingChoiceInBottomRow ? STORY_CHOICE_BOTTOM_ROW_CLASS : undefined}
             centerFloatingNext={
-                dialoguePhrase ? (
-                    <button
-                        type="button"
-                        onClick={advancePhrase}
-                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg shadow-lg hover:opacity-90"
-                    >
-                        Next
-                    </button>
-                ) : undefined
+                <StoryFloatingActions
+                    canGoBack={canRetreatStoryNav(nav) && waitingForPartyChoiceId == null}
+                    onBack={goBack}
+                    showNext={dialoguePhrase != null}
+                    onNext={advancePhrase}
+                />
             }
         >
             {showingDialogue || showingChoiceInBottomRow ? null : undefined}

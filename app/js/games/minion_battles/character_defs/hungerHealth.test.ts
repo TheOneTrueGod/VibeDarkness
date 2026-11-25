@@ -79,6 +79,24 @@ describe('applyFightStartHunger', () => {
         expect(unit.hungerPenalty).toBe(0.5);
     });
 
+    it('caps the penalty at a mission lowFoodPenalty (50-HP hero at 0 food starts with 40)', () => {
+        const unit = { maxHp: 50, hp: 50, hungerPenalty: 0 };
+        applyFightStartHunger(unit, 0, MAX, 0.2);
+        expect(unit.maxHp).toBe(40);
+        expect(unit.hp).toBe(40);
+        expect(unit.hungerPenalty).toBe(0.2);
+        expect(describeHungerPenalty(unit.hungerPenalty)).toBe('Low food: −20% max health');
+    });
+
+    it('never makes a well-fed unit worse, and a larger cap changes nothing', () => {
+        const fed = makeUnit();
+        applyFightStartHunger(fed, MAX, MAX, 0.2);
+        expect(fed.maxHp).toBe(BASE_HP);
+        const starving = makeUnit();
+        applyFightStartHunger(starving, 0, MAX, 0.9);
+        expect(starving.maxHp).toBe(100);
+    });
+
     it('rounds and never drops below 1 max health', () => {
         const unit = { maxHp: 1, hp: 1, hungerPenalty: 0 };
         applyFightStartHunger(unit, 0, MAX);

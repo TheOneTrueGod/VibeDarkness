@@ -323,6 +323,10 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     playerControl?: PlayerControlDef[];
     /** Per-pool ninjutsu configuration. Absent = NINJUTSU_DEFAULT for the 'shadow' pool. */
     ninjutsuPools?: Partial<Record<string, NinjutsuPoolConfig>>;
+    /** See {@link MissionBattleConfig.lowFoodPenalty}. */
+    lowFoodPenalty?: number;
+    /** See {@link MissionBattleConfig.startingHungerFraction}. */
+    startingHungerFraction?: number;
     /** Optional special tiles (Campfire, Crystal, etc.) placed on the map. */
     specialTiles?: import('./types').SpecialTilePlacement[];
     /** Optional grid-based player spawn points. */
@@ -524,9 +528,10 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 hungerFromDelta(
                     maxHunger,
                     params.playerHungerDeltaByPlayer?.[pu.playerId] ?? 0,
-                    params.playerHungerStartFractionByPlayer?.[pu.playerId],
+                    this.startingHungerFraction ?? params.playerHungerStartFractionByPlayer?.[pu.playerId],
                 ),
                 maxHunger,
+                this.lowFoodPenalty,
             );
             unit.abilityModifiers = computeAbilityModifiersFromResearch(
                 researchByPlayer[pu.playerId],

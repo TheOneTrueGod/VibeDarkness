@@ -92,6 +92,7 @@ export const TestIds = {
 
     characterSelectReady: 'character-select-ready',
     storyNext: 'story-next',
+    storyBack: 'story-back',
     storyChoicePrefix: 'story-choice-',
     storyChoiceDisabledTooltip: 'story-choice-disabled-tooltip',
     headerMissionId: 'header-mission-id',

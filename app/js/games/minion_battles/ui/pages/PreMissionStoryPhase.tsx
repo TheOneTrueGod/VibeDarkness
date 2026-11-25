@@ -19,6 +19,14 @@ import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/Colu
 import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmentSpeakerPortrait';
 import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import StoryPhraseBottomPanel from './preMissionStory/StoryPhraseBottomPanel';
+import StoryFloatingActions from './preMissionStory/StoryFloatingActions';
+import {
+    INITIAL_STORY_NAV,
+    advanceStoryNav,
+    canRetreatStoryNav,
+    retreatStoryNav,
+    type StoryNav,
+} from './preMissionStory/storyNavigation';
 import {
     isChoice,
     isDialogue,
@@ -90,7 +98,8 @@ export default function PreMissionStoryPhase({
     chatSlot,
     centerOverlay,
 }: PreMissionStoryPhaseProps) {
-    const [phraseIndex, setPhraseIndex] = useState(0);
+    const [nav, setNav] = useState<StoryNav>(INITIAL_STORY_NAV);
+    const phraseIndex = nav.index;
     const [bgOpacity, setBgOpacity] = useState(1);
     const prevPhraseBackgroundRef = useRef<string | undefined>(undefined);
     const [isApplyingGroupVote, setIsApplyingGroupVote] = useState(false);
@@ -124,8 +133,12 @@ export default function PreMissionStoryPhase({
     }, [phraseBackgroundUrl]);
 
     const advancePhrase = useCallback(() => {
-        setPhraseIndex((i) => Math.min(i + 1, phrases.length));
-    }, [phrases.length]);
+        setNav((n) => advanceStoryNav(n, phrases));
+    }, [phrases]);
+
+    const goBack = useCallback(() => {
+        setNav(retreatStoryNav);
+    }, []);
 
     // Ensure we only send a grant-equipment message once per phrase index.
     const lastGrantIndexRef = useRef<number | null>(null);
@@ -403,16 +416,13 @@ export default function PreMissionStoryPhase({
             }
             bottomRowClassName={showingChoiceInBottomRow ? STORY_CHOICE_BOTTOM_ROW_CLASS : undefined}
             centerFloatingNext={
-                dialoguePhrase ? (
-                    <button
-                        type="button"
-                        data-testid={TestIds.storyNext}
-                        onClick={advancePhrase}
-                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg shadow-lg hover:opacity-90"
-                    >
-                        Next
-                    </button>
-                ) : undefined
+                <StoryFloatingActions
+                    canGoBack={canRetreatStoryNav(nav) && groupVotePhrase == null}
+                    onBack={goBack}
+                    showNext={dialoguePhrase != null}
+                    onNext={advancePhrase}
+                    nextTestId={TestIds.storyNext}
+                />
             }
         >
             {showingDialogue || showingChoiceInBottomRow ? null : (

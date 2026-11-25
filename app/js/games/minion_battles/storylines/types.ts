@@ -585,6 +585,17 @@ export interface MissionBattleConfig {
      */
     objectivesIntro?: boolean;
     /**
+     * Most max HP (fraction, 0..1) that being Hungry/Starving may cost at fight start on this mission.
+     * The normal tiers take 25% / 50%; with `lowFoodPenalty: 0.2` a 50-HP hero starts with 40.
+     * Omit for the normal penalties. Used by the early missions to ease new players in.
+     */
+    lowFoodPenalty?: number;
+    /**
+     * Fraction (0..1) of max Hunger every player starts this mission with, overriding the character's own
+     * starting fraction. `0` = start at 0% food. Omit to use the character's Hunger as usual.
+     */
+    startingHungerFraction?: number;
+    /**
      * Optional mission-local layout (destination tiles + spawn slot). When set, `createTerrain`
      * may be omitted — {@link BaseMissionDef} composes from this via `composeMissionMap`.
      */

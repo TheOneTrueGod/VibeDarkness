@@ -7,6 +7,10 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import {
+	EARLY_MISSION_LOW_FOOD_PENALTY,
+	EARLY_MISSION_STARTING_HUNGER_FRACTION,
+} from '../earlyMissionFood';
 import { ObjectiveType } from '../../objectiveTypes';
 import { WOD_CH1_MAP_X_COL0, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
@@ -189,6 +193,8 @@ export class DarkAwakeningMission extends BaseMissionDef {
 	missionId = 'dark_awakening';
 	mapPosition = { x: WOD_CH1_MAP_X_COL0, y: WOD_CH1_MAP_Y_ROW0 };
 	missionType = 'battle' as const;
+	startingHungerFraction = EARLY_MISSION_STARTING_HUNGER_FRACTION;
+	lowFoodPenalty = EARLY_MISSION_LOW_FOOD_PENALTY;
 	description = DARK_AWAKENING_SCRIPT.description;
 	campaignId = 'world_of_darkness';
 	name = DARK_AWAKENING_SCRIPT.name;
