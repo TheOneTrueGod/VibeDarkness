@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createDamageTakenEffect, type DamageTakenEffectContext } from './createDamageTakenEffect';
-import { DAMAGE_VISUAL_KIND_DAYLIGHT, type DamageTakenEvent } from './EventBus';
+import { DAMAGE_VISUAL_KIND_DARKNESS, DAMAGE_VISUAL_KIND_DAYLIGHT, type DamageTakenEvent } from './EventBus';
+import { DAMAGE_VISUAL_KIND_DEFS } from './damageVisualKinds';
+import { DARKNESS_RUPTURE_EFFECT_TYPE } from './effect_defs/darknessRuptureEffects';
 import { Unit } from './units/Unit';
 import { RESISTED_DAMAGE_NUMBER_COLOR } from './effect_defs/textEffects';
 import { DAYLIGHT_SEAR_EFFECT_TYPE } from './effect_defs/dayLightEffects';
@@ -75,6 +77,32 @@ describe('createDamageTakenEffect', () => {
         expect(numberFx.effectType).toBe('DamageNumber');
         expect(numberFx.effectData.color).toBe(DAYLIGHT_DAMAGE_NUMBER_COLOR);
         expect(searFx.effectType).toBe(DAYLIGHT_SEAR_EFFECT_TYPE);
+    });
+
+    it('uses violet numbers and a rupture burst for darkness corruption hits', () => {
+        const addEffect = vi.fn();
+        const unit = new Unit({
+            id: 'v1',
+            x: 100,
+            y: 200,
+            hp: 50,
+            speed: 80,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+            name: 'Victim',
+        });
+        const ctx: DamageTakenEffectContext = {
+            addEffect,
+            generateRandomInteger: (a, b) => Math.floor((a + b) / 2),
+            getUnit: (id) => (id === 'v1' ? unit : undefined),
+        };
+        createDamageTakenEffect(ctx, { unitId: 'v1', amount: 10, sourceUnitId: null, visualKind: DAMAGE_VISUAL_KIND_DARKNESS });
+        const [numberFx, burstFx] = addEffect.mock.calls.map((c) => c[0] as { effectType: string; effectRadius?: number; effectData: { color?: number } });
+        expect(addEffect).toHaveBeenCalledTimes(2);
+        expect(numberFx.effectData.color).toBe(DAMAGE_VISUAL_KIND_DEFS[DAMAGE_VISUAL_KIND_DARKNESS].numberColor);
+        expect(burstFx.effectType).toBe(DARKNESS_RUPTURE_EFFECT_TYPE);
+        expect(burstFx.effectRadius).toBe(unit.radius);
     });
 
     it('uses only a grey slow ResistedDamageNumber (instead of DamageNumber) when resisted > 0', () => {

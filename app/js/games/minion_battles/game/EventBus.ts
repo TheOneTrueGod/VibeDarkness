@@ -54,7 +54,9 @@ export type GameEventType =
 
 /** Optional combat VFX hint — does not change damage rules. */
 export const DAMAGE_VISUAL_KIND_DAYLIGHT = 'daylight' as const;
-export type DamageVisualKind = typeof DAMAGE_VISUAL_KIND_DAYLIGHT;
+export const DAMAGE_VISUAL_KIND_DARKNESS = 'darkness' as const;
+/** Each kind's number colour and impact effect live in `DAMAGE_VISUAL_KIND_DEFS` (`damageVisualKinds.ts`). */
+export type DamageVisualKind = typeof DAMAGE_VISUAL_KIND_DAYLIGHT | typeof DAMAGE_VISUAL_KIND_DARKNESS;
 
 export interface DamageApplyOptions {
     visualKind?: DamageVisualKind;

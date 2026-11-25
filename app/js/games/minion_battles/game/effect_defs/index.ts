@@ -52,6 +52,7 @@ import { damageNumberEffectDef, floatingTextEffectDef, resistedDamageNumberEffec
 import { corruptionOrbEffectDef, torchProjectileEffectDef } from './corruptionEffects';
 import { lanterniteConstParticleEffectDef, auraPulseEffectDef } from './lanterniteEffects';
 import { daylightSearEffectDef, DAYLIGHT_SEAR_EFFECT_TYPE } from './dayLightEffects';
+import { darknessRuptureEffectDef, DARKNESS_RUPTURE_EFFECT_TYPE } from './darknessRuptureEffects';
 import { brambleExplosionEffectDef } from './brambleEffects';
 import { spriteEffectDef } from './spriteEffectDefs';
 import {
@@ -142,6 +143,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     LanterniteConstParticle: lanterniteConstParticleEffectDef,
     AuraPulse: auraPulseEffectDef,
     [DAYLIGHT_SEAR_EFFECT_TYPE]: daylightSearEffectDef,
+    [DARKNESS_RUPTURE_EFFECT_TYPE]: darknessRuptureEffectDef,
     BrambleExplosion: brambleExplosionEffectDef,
     SpriteEffect: spriteEffectDef,
     GravityField: gravityFieldEffectDef,

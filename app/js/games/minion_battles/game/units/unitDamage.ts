@@ -1,5 +1,5 @@
 import type { Unit } from './Unit';
-import type { DamageApplyOptions, EventBus } from '../EventBus';
+import { DAMAGE_VISUAL_KIND_DARKNESS, type DamageApplyOptions, type EventBus } from '../EventBus';
 import type { EngineContext } from '../EngineContext';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
@@ -8,7 +8,8 @@ import { applyUnitDamageTakenMultipliers, applyUnitFlatReductions } from './flat
 import type { ShieldBuff } from '../../buffs/ShieldBuff';
 import { applyDamageLinks } from './unitDamageLinks';
 import {
-    DARKNESS_CORRUPTION_RATE,
+    DARKNESS_CORRUPTION_DRAIN_RATE,
+    DARKNESS_CORRUPTION_FILL_RATE,
     DARKNESS_STRIKE_SECONDS,
     darknessCorruptionDamage,
 } from './darknessCorruption';
@@ -192,7 +193,11 @@ export function applyDamageToUnit(
 
 function landDarknessCorruptionHit(unit: Unit, engine: EngineContext): void {
     // Flat corruption damage; return value unused, so no need for the shield/armour breakdown.
-    unit.takeDamage(darknessCorruptionDamage(unit.darknessDamageProcCount), null, engine.eventBus);
+    // Corruption goes through shields (`shieldShare: 0`); only armour and HP take it.
+    unit.takeDamage(darknessCorruptionDamage(unit.darknessDamageProcCount), null, engine.eventBus, {
+        visualKind: DAMAGE_VISUAL_KIND_DARKNESS,
+        shieldShare: 0,
+    });
     unit.darknessDamageProcCount += 1;
 }
 
@@ -206,7 +211,7 @@ export function tickUnitDarknessCorruption(unit: Unit, dt: number, engine: Engin
     const inFullDarkness = light <= DarknessLevel.FULL_DARKNESS;
     if (!inFullDarkness) {
         if (unit.darknessStrikeElapsed != null) unit.darknessStrikeElapsed = null;
-        unit.corruptionProgress = Math.max(0, unit.corruptionProgress - dt * DARKNESS_CORRUPTION_RATE);
+        unit.corruptionProgress = Math.max(0, unit.corruptionProgress - dt * DARKNESS_CORRUPTION_DRAIN_RATE);
         if (unit.corruptionProgress <= 0) unit.darknessDamageProcCount = 0;
         return;
     }
@@ -223,9 +228,9 @@ export function tickUnitDarknessCorruption(unit: Unit, dt: number, engine: Engin
     }
 
     while (remaining > 0) {
-        const secondsUntilFull = (1 - unit.corruptionProgress) / DARKNESS_CORRUPTION_RATE;
+        const secondsUntilFull = (1 - unit.corruptionProgress) / DARKNESS_CORRUPTION_FILL_RATE;
         if (remaining < secondsUntilFull) {
-            unit.corruptionProgress += remaining * DARKNESS_CORRUPTION_RATE;
+            unit.corruptionProgress += remaining * DARKNESS_CORRUPTION_FILL_RATE;
             return;
         }
         remaining -= secondsUntilFull;

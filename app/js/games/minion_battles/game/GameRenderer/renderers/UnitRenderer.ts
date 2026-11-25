@@ -378,7 +378,7 @@ export class UnitRenderer {
             syncCastStateRing(visual, unit.radius, unit.isAlive() ? getCastStateRing(unit, engine) : null);
             if (showHpBar) updateUnitHpBar(visual, unit);
 
-            syncDarknessNeedles(visual, unit);
+            syncDarknessNeedles(visual, unit, nowMs / 1000);
             // Plated shell look (`UnitDefEntry.renderOptions.plated`): closed while a flat reduction is active, open after.
             // Plant forms (`renderOptions.plantForm`) are drawn here too; a turret aims at its AI target.
             syncPlatedLook(visual, unit, nowMs / 1000, resolvePlantAim(unit, (id) => engine.getUnit(id)));

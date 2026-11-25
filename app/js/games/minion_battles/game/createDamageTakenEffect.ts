@@ -3,14 +3,13 @@
  * "+N" numbers for heals that report through `applyHeal`'s feedback.
  */
 
-import { DAMAGE_VISUAL_KIND_DAYLIGHT, type DamageTakenEvent, type UnitHealedEvent } from './EventBus';
+import type { DamageTakenEvent, UnitHealedEvent } from './EventBus';
 import type { Unit } from './units/Unit';
 import { Effect } from './effects/Effect';
 import { buildDamageNumberMotionFields, type DamageNumberMotionData } from './effects/damageNumberMotion';
 import { getCreatureType } from './units/unit_defs/unitDef';
 import { RESISTED_DAMAGE_NUMBER_COLOR, RESISTED_DAMAGE_NUMBER_DURATION_SEC } from './effect_defs/textEffects';
-import { DAYLIGHT_SEAR_EFFECT_TYPE } from './effect_defs/dayLightEffects';
-import { DAYLIGHT_DAMAGE_NUMBER_COLOR, DAYLIGHT_SEAR_DURATION_SEC } from './lighting/dayLightVfx';
+import { DAMAGE_VISUAL_KIND_DEFS } from './damageVisualKinds';
 
 export interface DamageTakenEffectContext {
     addEffect(effect: Effect): void;
@@ -27,7 +26,7 @@ export const HEAL_NUMBER_COLOR = 0x4ade80;
 export const HEAL_NUMBER_PREFIX = '+';
 
 function pickDamageNumberColor(unit: Unit, visualKind?: DamageTakenEvent['visualKind']): number {
-    if (visualKind === DAMAGE_VISUAL_KIND_DAYLIGHT) return DAYLIGHT_DAMAGE_NUMBER_COLOR;
+    if (visualKind) return DAMAGE_VISUAL_KIND_DEFS[visualKind].numberColor;
     const ct = getCreatureType(unit.characterId);
     if (ct === 'dark_creature') return DAMAGE_NUMBER_COLOR_DARK;
     if (ct === 'nature') return DAMAGE_NUMBER_COLOR_NATURE;
@@ -89,13 +88,14 @@ export function createDamageTakenEffect(ctx: DamageTakenEffectContext, ev: Damag
 
     const color = pickDamageNumberColor(unit, ev.visualKind);
     spawnDamageNumberEffect(ctx, unit, ev.amount, color, from);
-    if (ev.visualKind === DAMAGE_VISUAL_KIND_DAYLIGHT) {
+    const impact = ev.visualKind ? DAMAGE_VISUAL_KIND_DEFS[ev.visualKind].impact : undefined;
+    if (impact) {
         ctx.addEffect(
             new Effect({
                 x: unit.x,
                 y: unit.y,
-                duration: DAYLIGHT_SEAR_DURATION_SEC,
-                effectType: DAYLIGHT_SEAR_EFFECT_TYPE,
+                duration: impact.duration,
+                effectType: impact.effectType,
                 effectRadius: unit.radius,
             }),
         );
