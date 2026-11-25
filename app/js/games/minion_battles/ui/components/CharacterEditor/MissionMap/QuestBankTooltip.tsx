@@ -28,7 +28,7 @@ const QUEST_ACTION_BTN =
 
 function QuestSlotList({ rows, isAdmin }: { rows: QuestSlotRow[]; isAdmin: boolean }) {
     return (
-        <ul data-className="QuestSlotList" className="flex flex-col gap-1 mt-2" data-testid="quest-bank-tooltip-slots">
+        <ul data-classname="QuestSlotList" className="flex flex-col gap-1 mt-2" data-testid="quest-bank-tooltip-slots">
             {rows.map((row) => (
                 <li key={row.key} className="flex items-center gap-2 text-[13px] text-zinc-200">
                     {row.done ? (
@@ -161,7 +161,7 @@ export default function QuestBankTooltip({
 
     return createPortal(
         <div
-            data-className="QuestBankTooltip"
+            data-classname="QuestBankTooltip"
             data-testid={TestIds.questBankTooltip}
             data-quest-bank-tooltip
             className="fixed z-[9999] pointer-events-none"

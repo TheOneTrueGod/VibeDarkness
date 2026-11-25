@@ -124,7 +124,7 @@ export default function ResearchAbilityPreview({
 
     return (
         <div
-            data-className="ResearchAbilityPreview"
+            data-classname="ResearchAbilityPreview"
             className={`flex flex-col gap-3 ${divided ? 'mt-2 border-t border-zinc-700 pt-2' : ''}`}
         >
             {preview.stats.length > 0 && <StatColumns rows={preview.stats} />}

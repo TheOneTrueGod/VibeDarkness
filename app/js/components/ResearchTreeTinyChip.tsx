@@ -111,7 +111,7 @@ export default function ResearchTreeTinyChip({ tree }: { tree: ResearchTreeDef }
     return (
         <>
             <span
-                data-className="ResearchTreeTinyChip"
+                data-classname="ResearchTreeTinyChip"
                 ref={anchorRef}
                 className={`${MISSION_REWARD_CHIP_CLASSNAME} max-w-[min(100%,14rem)] cursor-default`}
                 style={chrome.secondaryColour ? researchChromeSurfaceStyle(chrome) : undefined}

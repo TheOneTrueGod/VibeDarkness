@@ -77,7 +77,7 @@ function visibleByTestId(testId: string): Element[] {
 
 function shortDescribe(el: Element): string {
     const testId = el.closest('[data-testid]')?.getAttribute('data-testid');
-    const comp = el.closest('[data-className]')?.getAttribute('data-className');
+    const comp = el.closest('[data-classname]')?.getAttribute('data-classname');
     const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 50);
     return `<${el.tagName.toLowerCase()}>${testId ? ` testid=${testId}` : ''}${comp ? ` in ${comp}` : ''}${text ? ` "${text}"` : ''}`;
 }

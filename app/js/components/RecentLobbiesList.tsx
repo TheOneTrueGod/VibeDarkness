@@ -62,7 +62,7 @@ export default function RecentLobbiesList({ lobbies, onJoin }: RecentLobbiesList
     if (lobbies.length === 0) return null;
 
     return (
-        <div data-className="RecentLobbiesList" className="mt-6">
+        <div data-classname="RecentLobbiesList" className="mt-6">
             <h2 className="text-lg text-muted mb-3">Active Lobbies</h2>
             <ul className="space-y-2">
                 {lobbies.map((lobby) => (

@@ -141,7 +141,7 @@ function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
     const axisTopPercent = 36;
 
     return (
-        <div data-className="TimelineTimeRuler" className="pointer-events-none absolute inset-y-0 left-1 right-1 overflow-hidden" aria-hidden>
+        <div data-classname="TimelineTimeRuler" className="pointer-events-none absolute inset-y-0 left-1 right-1 overflow-hidden" aria-hidden>
             <div
                 className="absolute left-0 right-0 h-px bg-gray-600"
                 style={{ top: `${axisTopPercent}%` }}
@@ -761,7 +761,7 @@ function renderPlayerTimelineTrack(
                         ))}
                         {cancelMarks.map((mark, markIndex) => (
                             <TimelinePhaseSegment
-                                key={`cancel-${mark.start}`}
+                                key={`cancel-${markIndex}`}
                                 phase="cancel"
                                 leftPercent={(mark.start / windowSeconds) * 100}
                                 widthPercent={(mark.duration / windowSeconds) * 100}

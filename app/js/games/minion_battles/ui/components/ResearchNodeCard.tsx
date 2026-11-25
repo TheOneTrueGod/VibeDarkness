@@ -572,7 +572,7 @@ export default function ResearchNodeCard({
 
     const cardElement = (
         <div
-            data-className="ResearchNodeCard"
+            data-classname="ResearchNodeCard"
             ref={anchorRef}
             className="relative"
             onMouseEnter={handleFlavorEnter}

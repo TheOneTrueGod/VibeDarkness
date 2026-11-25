@@ -22,7 +22,7 @@ export default function StoryChoiceDescriptionRow({
     if (gains.length === 0) {
         return description ? (
             <span
-                data-className="StoryChoiceDescriptionRow"
+                data-classname="StoryChoiceDescriptionRow"
                 className="line-clamp-2 w-full min-h-0 shrink-0 text-[10px] leading-snug text-zinc-400 sm:text-xs"
             >
                 {description}
@@ -31,7 +31,7 @@ export default function StoryChoiceDescriptionRow({
     }
     return (
         <div
-            data-className="StoryChoiceDescriptionRow"
+            data-classname="StoryChoiceDescriptionRow"
             className={`flex w-full min-w-0 items-center gap-2 ${description ? 'justify-between' : 'justify-center'}`}
         >
             {description ? (

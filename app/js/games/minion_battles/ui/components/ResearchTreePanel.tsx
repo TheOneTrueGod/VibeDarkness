@@ -319,7 +319,7 @@ export function ResearchTreeList({
 	})).filter((group) => group.trees.length > 0);
 
 	return (
-		<div data-className="ResearchTreeList" className="flex flex-col gap-1 overflow-y-auto">
+		<div data-classname="ResearchTreeList" className="flex flex-col gap-1 overflow-y-auto">
 			{showAllOption && (
 				<button
 					type="button"

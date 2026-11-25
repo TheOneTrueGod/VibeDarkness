@@ -14,7 +14,7 @@ function ItemMark({ itemId, corner }: { itemId: string; corner: MarkCorner }) {
     const name = getItemDef(itemId)?.name ?? itemId;
     return (
         <span
-            data-className="ItemMark"
+            data-classname="ItemMark"
             className={`absolute ${CORNER_CLASS[corner]} flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border-custom bg-dark-900 shadow`}
             title={name}
             aria-label={name}

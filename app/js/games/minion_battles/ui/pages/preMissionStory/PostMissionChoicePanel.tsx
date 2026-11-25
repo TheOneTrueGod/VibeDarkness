@@ -74,7 +74,7 @@ export default function PostMissionChoicePanel({
 
     if (amSpectator) {
         return (
-            <div data-className="PostMissionChoicePanel" className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-3 text-center">
+            <div data-classname="PostMissionChoicePanel" className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-3 text-center">
                 <p className="text-muted text-sm">Spectators do not receive rewards.</p>
                 <button
                     type="button"
@@ -88,7 +88,7 @@ export default function PostMissionChoicePanel({
     }
 
     return (
-        <div data-className="PostMissionChoicePanel" className="flex h-full min-h-0 w-full flex-col gap-1">
+        <div data-classname="PostMissionChoicePanel" className="flex h-full min-h-0 w-full flex-col gap-1">
             {waitingForPartyChoiceId ? (
                 <p className="shrink-0 text-center text-xs text-amber-200/90 sm:text-sm">
                     Waiting for other players to choose…

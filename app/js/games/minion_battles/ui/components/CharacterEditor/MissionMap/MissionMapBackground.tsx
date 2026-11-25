@@ -12,7 +12,7 @@ interface Props {
 function MissionMapBackground({ background }: Props) {
     return (
         <g
-            data-className="MissionMapBackground"
+            data-classname="MissionMapBackground"
             opacity={background.opacity}
             shapeRendering="crispEdges"
             style={{ pointerEvents: 'none' }}

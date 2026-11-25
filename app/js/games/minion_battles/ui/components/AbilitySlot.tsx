@@ -73,7 +73,7 @@ function AbilityUseDiamonds({ usesLeft, maxUses, dimmed, rewindUses = null }: {
     const size = abilityUseDiamondSizePx(states.length, ABILITY_SLOT_WIDTH_PX);
     return (
         <div
-            data-className="AbilityUseDiamonds"
+            data-classname="AbilityUseDiamonds"
             className={`pointer-events-none absolute bottom-0 left-1/2 z-20 flex ${dimmed ? 'opacity-50' : ''}`}
             style={{
                 gap: ABILITY_USE_DIAMOND_GAP_PX,

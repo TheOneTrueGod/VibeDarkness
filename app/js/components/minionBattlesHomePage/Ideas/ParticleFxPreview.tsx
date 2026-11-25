@@ -688,7 +688,7 @@ export function FxPaletteCard({
     const active = studio?.selected === name;
     return (
         <div
-            data-className="FxPaletteCard"
+            data-classname="FxPaletteCard"
             className={`flex flex-col gap-3 rounded-md border bg-surface-light px-4 py-3 ${active ? 'border-primary' : 'border-border-custom'}`}
         >
             <div className="flex items-center justify-between gap-3">
@@ -767,7 +767,7 @@ export function FxStudio({ title, options, children }: { title: string; options?
         setCustom({ from: base.name, primary: palette.primary, secondary: palette.secondary, [key]: hex });
 
     return (
-        <div id={FX_STUDIO_ANCHOR} data-className="FxStudio" className="scroll-mt-32 flex flex-col gap-3 rounded-md border border-border-custom bg-surface-light px-4 py-3">
+        <div id={FX_STUDIO_ANCHOR} data-classname="FxStudio" className="scroll-mt-32 flex flex-col gap-3 rounded-md border border-border-custom bg-surface-light px-4 py-3">
             <p className="text-sm font-semibold text-white">{title || 'Particle studio'}</p>
             {children}
             <div className="flex flex-wrap items-center gap-2">

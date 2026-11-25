@@ -128,7 +128,7 @@ export default function ResearchNodeHoverAnchor({
 
     return (
         <div
-            data-className="ResearchNodeHoverAnchor"
+            data-classname="ResearchNodeHoverAnchor"
             ref={anchorRef}
             className="flex h-full min-h-0 w-full min-w-0"
             onMouseEnter={hover.openPreview}

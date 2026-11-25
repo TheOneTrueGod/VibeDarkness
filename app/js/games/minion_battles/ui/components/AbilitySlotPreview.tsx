@@ -70,7 +70,7 @@ export function AbilitySlotPreview({
 
     return (
         <div
-            data-className="AbilitySlotPreview"
+            data-classname="AbilitySlotPreview"
             className={className}
             style={{ paddingBottom: ABILITY_USE_DIAMOND_SIZE_PX / 2 }}
             title={disabled && disabledTitle ? disabledTitle : undefined}

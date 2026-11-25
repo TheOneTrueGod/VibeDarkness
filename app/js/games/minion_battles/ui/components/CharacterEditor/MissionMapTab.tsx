@@ -265,7 +265,7 @@ export default function MissionMapTab({
     }
 
     return (
-        <div data-className="MissionMapTab" className="w-full h-full overflow-auto">
+        <div data-classname="MissionMapTab" className="w-full h-full overflow-auto">
             <MissionMapChapterBar
                 character={character}
                 isAdmin={isAdmin}

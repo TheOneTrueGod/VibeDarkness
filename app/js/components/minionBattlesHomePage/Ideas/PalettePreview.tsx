@@ -39,7 +39,7 @@ function Swatch({ role, color }: { role: string; color: PlanPaletteColor }) {
 function PaletteTreeBadge({ name, primary }: { name: string; primary: string }) {
     const border = isHex(primary) ? primary : undefined;
     return (
-        <div data-className="PaletteTreeBadge" className="flex flex-col gap-1">
+        <div data-classname="PaletteTreeBadge" className="flex flex-col gap-1">
             <span className="text-xs text-muted">Tree badge</span>
             <div
                 className="inline-flex items-center gap-2 rounded-lg border-2 bg-surface px-3 py-2 text-sm font-medium text-gray-200"
@@ -57,7 +57,7 @@ function PaletteChargeResource({ secondary }: { secondary: string }) {
     const color = isHex(secondary) ? secondary : undefined;
     const fillPct = Math.round((CHARGE_MISSION_START / CHARGE_MAX) * 100);
     return (
-        <div data-className="PaletteChargeResource" className="flex flex-col gap-1">
+        <div data-classname="PaletteChargeResource" className="flex flex-col gap-1">
             <span className="text-xs text-muted">Charge</span>
             <div
                 className="flex items-center gap-1.5"
@@ -96,7 +96,7 @@ function PaletteCoreIcon({ name, primary, secondary }: { name: string; primary: 
     const fill = isHex(primary) ? primary : '#44403c';
     const edge = isHex(secondary) ? secondary : '#e7e5e4';
     return (
-        <div data-className="PaletteCoreIcon" className="flex flex-col gap-1">
+        <div data-classname="PaletteCoreIcon" className="flex flex-col gap-1">
             <span className="text-xs text-muted">Core icon</span>
             <svg
                 width="48"
@@ -126,7 +126,7 @@ export default function PalettePreview({
     children?: ReactNode;
 }) {
     return (
-        <div data-className="PalettePreview" className="flex flex-col gap-3 rounded-md border border-border-custom bg-surface-light px-4 py-3">
+        <div data-classname="PalettePreview" className="flex flex-col gap-3 rounded-md border border-border-custom bg-surface-light px-4 py-3">
             <p className="text-sm font-semibold text-white">{name}</p>
             <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
                 <PaletteTreeBadge name={name} primary={primary.hex} />
